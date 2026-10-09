@@ -66,7 +66,7 @@ export const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-zinc-100 flex flex-col md:flex-row selection:bg-cyan-500 selection:text-black">
+    <div className="h-screen h-dvh bg-[#090A0F] text-zinc-100 flex flex-col md:flex-row overflow-hidden selection:bg-cyan-500 selection:text-black">
       {/* Background ambient lighting */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-[140px]" />
@@ -74,7 +74,7 @@ export const AppLayout: React.FC = () => {
       </div>
 
       {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between p-4 bg-[#14161F]/90 backdrop-blur-md border-b border-white/5 z-40">
+      <div className="md:hidden flex items-center justify-between p-4 bg-[#14161F]/90 backdrop-blur-md border-b border-white/5 z-40 flex-shrink-0">
         <div className="flex items-center space-x-2.5">
           <span className="p-1.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
             <Tv2 className="w-5 h-5" />
@@ -90,15 +90,23 @@ export const AppLayout: React.FC = () => {
         </button>
       </div>
 
+      {/* Mobile Backdrop Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-[#10121A]/95 backdrop-blur-xl border-r border-white/5 flex flex-col transition-transform duration-200 md:static md:translate-x-0 shadow-2xl",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-[#10121A]/95 backdrop-blur-xl border-r border-white/5 flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:h-full md:flex-shrink-0 shadow-2xl",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Brand Header */}
-        <div className="p-6 border-b border-white/5 flex items-center space-x-3">
+        <div className="p-6 border-b border-white/5 flex items-center space-x-3 flex-shrink-0">
           <span className="p-2.5 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-lg shadow-cyan-950/50">
             <Tv2 className="w-6 h-6" />
           </span>
@@ -113,7 +121,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Navigation Items */}
-        <nav aria-label="Navegación principal" className="flex-1 p-4 space-y-1.5">
+        <nav aria-label="Navegación principal" className="flex-1 min-h-0 p-4 space-y-1.5 overflow-y-auto">
           <div className="px-3 pb-2 text-[10px] uppercase font-mono tracking-wider text-zinc-500 font-semibold">
             Módulos del Sistema
           </div>
@@ -153,7 +161,7 @@ export const AppLayout: React.FC = () => {
         </nav>
 
         {/* User Identity & RBAC Pill */}
-        <div className="p-3 mx-3 mb-2 rounded-2xl bg-zinc-950/80 border border-white/5 space-y-2">
+        <div className="p-3 mx-3 mb-2 rounded-2xl bg-zinc-950/80 border border-white/5 space-y-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 overflow-hidden">
               <span className="p-1.5 rounded-lg bg-zinc-900 text-cyan-400">
@@ -189,7 +197,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Status / Infrastructure Footer */}
-        <div className="p-3 border-t border-white/5 m-3 rounded-2xl bg-zinc-950/60 border text-[10px] font-mono text-zinc-500 space-y-1">
+        <div className="p-3 border-t border-white/5 m-3 rounded-2xl bg-zinc-950/60 border text-[10px] font-mono text-zinc-500 space-y-1 flex-shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-zinc-400">PostgreSQL:</span>
             <span className="text-emerald-400">7902 · Online</span>
@@ -207,7 +215,7 @@ export const AppLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 relative z-10 px-4 py-8 md:px-10 overflow-y-auto">
+      <main className="flex-1 min-h-0 relative z-10 px-4 py-8 md:px-10 overflow-y-auto">
         <Outlet />
       </main>
     </div>
