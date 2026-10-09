@@ -21,42 +21,42 @@ export const ProgressBar: React.FC = () => {
     switch (status) {
       case "RUNNING":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             Migrando en tiempo real
           </span>
         );
       case "PAUSED_FLOOD_WAIT":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse">
             <Clock className="w-3.5 h-3.5" />
             Pausa preventiva (FloodWait: {progress?.wait_seconds ?? 30}s)
           </span>
         );
       case "COMPLETED":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
             <CheckCircle className="w-3.5 h-3.5" />
             Completado con éxito
           </span>
         );
       case "CANCELLED":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-700/20 text-zinc-400 border border-zinc-700/30">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-700/20 text-zinc-400 border border-zinc-700/30">
             <XCircle className="w-3.5 h-3.5" />
             Cancelado
           </span>
         );
       case "FAILED":
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-red-500/10 text-red-400 border border-red-500/20">
             <AlertCircle className="w-3.5 h-3.5" />
             Error en la tarea
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-800 text-zinc-400">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-zinc-800 text-zinc-400">
             Iniciando...
           </span>
         );
@@ -67,7 +67,7 @@ export const ProgressBar: React.FC = () => {
     <div
       role="region"
       aria-label="Progreso de la migración"
-      className="bg-[#14161F]/90 backdrop-blur-md rounded-2xl border border-white/5 p-6 shadow-xl space-y-4"
+      className="bg-[#14161F]/90 backdrop-blur-md rounded-xl border border-white/5 p-6 shadow-xl space-y-4"
     >
       <div className="flex items-center justify-between">
         <div>

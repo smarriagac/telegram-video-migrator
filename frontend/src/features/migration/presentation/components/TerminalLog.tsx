@@ -30,7 +30,7 @@ export const TerminalLog: React.FC = () => {
   return (
     <section
       aria-label="Registro de actividad y logs en vivo"
-      className="bg-[#090A0F] rounded-2xl border border-white/5 overflow-hidden shadow-2xl"
+      className="bg-[#090A0F] rounded-xl border border-white/5 overflow-hidden shadow-2xl"
     >
       <div className="bg-zinc-950/80 px-4 py-3 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -40,14 +40,14 @@ export const TerminalLog: React.FC = () => {
           </span>
           <span
             aria-label={`${logs.length} eventos registrados`}
-            className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full font-mono"
+            className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded font-mono"
           >
             {logs.length} eventos
           </span>
         </div>
         <button
           onClick={clearLogs}
-          className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400"
+          className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-400"
           title="Limpiar logs"
           aria-label="Limpiar registro de logs"
         >

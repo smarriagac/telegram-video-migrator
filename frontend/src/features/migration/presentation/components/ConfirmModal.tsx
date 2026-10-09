@@ -31,7 +31,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
       <DialogContent className="max-w-lg space-y-4">
         <DialogHeader>
           <div className="flex items-center space-x-3 mb-1">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
@@ -44,7 +44,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
         </DialogHeader>
 
         {/* Source -> Target Channel Preview */}
-        <div className="p-4 rounded-2xl bg-zinc-950/80 border border-white/5 space-y-3">
+        <div className="p-4 rounded-lg bg-zinc-950/80 border border-white/5 space-y-3">
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-500 font-mono">ORIGEN:</span>
             <span className="text-cyan-400 font-semibold">{sourceChannel?.title || selectedSourceId}</span>

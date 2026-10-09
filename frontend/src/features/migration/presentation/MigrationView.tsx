@@ -48,7 +48,7 @@ export const MigrationView: React.FC = () => {
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <div className="flex items-center space-x-2.5">
-            <span className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+            <span className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
               <Tv2 className="w-6 h-6" />
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-white">
@@ -70,12 +70,12 @@ export const MigrationView: React.FC = () => {
               placeholder="Buscar canal..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              className="bg-[#14161F] border border-white/10 rounded-xl pl-9 pr-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 w-48 transition-all"
+              className="bg-[#14161F] border border-white/10 rounded-md pl-9 pr-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 w-48 transition-all"
             />
           </div>
           <button
             onClick={() => fetchChannels()}
-            className="p-2 rounded-xl bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="p-2 rounded-md bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors"
             title="Recargar canales"
             aria-label="Recargar lista de canales"
           >
@@ -88,7 +88,7 @@ export const MigrationView: React.FC = () => {
       {error && (
         <div
           role="alert"
-          className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in"
+          className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in"
         >
           <span>{error}</span>
         </div>
@@ -100,7 +100,7 @@ export const MigrationView: React.FC = () => {
       {/* Action Center Banner */}
       <section
         aria-label="Controles de migración"
-        className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
+        className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
       >
         <div>
           <h4 className="text-sm font-semibold text-white">Ejecutar Migración</h4>

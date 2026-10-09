@@ -80,7 +80,7 @@ export const ChatsView: React.FC = () => {
           disabled={isLoadingDialogs}
           variant="outline"
           size="sm"
-          className="rounded-xl border-white/10 text-xs hover:bg-white/5"
+          className="rounded-md border-white/10 text-xs hover:bg-white/5"
         >
           <RefreshCw
             className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
@@ -90,7 +90,7 @@ export const ChatsView: React.FC = () => {
       </div>
 
       {/* Main Chat Interface */}
-      <div className="grid grid-cols-1 md:grid-cols-12 h-[680px] bg-[#14161F] border border-white/5 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="grid grid-cols-1 md:grid-cols-12 h-[680px] bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
         {/* Left Column: Chat List (4 cols) */}
         <aside className="md:col-span-5 lg:col-span-4 border-r border-white/5 flex flex-col bg-[#10121A]/50">
           {/* Search Bar */}
@@ -102,7 +102,7 @@ export const ChatsView: React.FC = () => {
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Buscar chats o usuarios..."
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-9 pr-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
                 aria-label="Buscar chats"
               />
             </div>
@@ -133,7 +133,7 @@ export const ChatsView: React.FC = () => {
                   >
                     <div
                       className={cn(
-                        "w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
+                        "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
                         chat.avatar_color || "bg-cyan-600"
                       )}
                     >
@@ -153,7 +153,7 @@ export const ChatsView: React.FC = () => {
                           {chat.last_message || "Sin mensajes"}
                         </p>
                         {chat.unread_count > 0 && (
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-cyan-500 text-black font-bold">
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500 text-black font-bold">
                             {chat.unread_count}
                           </span>
                         )}
@@ -179,7 +179,7 @@ export const ChatsView: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <div
                     className={cn(
-                      "w-9 h-9 rounded-2xl flex items-center justify-center font-bold text-xs text-white",
+                      "w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs text-white",
                       activeChat.avatar_color || "bg-cyan-600"
                     )}
                   >
@@ -197,7 +197,7 @@ export const ChatsView: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="p-1.5 rounded-xl hover:bg-white/5 text-zinc-400"
+                    className="p-1.5 rounded-md hover:bg-white/5 text-zinc-400"
                     aria-label="Más opciones"
                   >
                     <MoreVertical className="w-4 h-4" />
@@ -208,7 +208,7 @@ export const ChatsView: React.FC = () => {
               {/* Message Feed */}
               <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
                 <div className="text-center my-2">
-                  <span className="text-[10px] font-mono px-3 py-1 rounded-full bg-zinc-900 border border-white/5 text-zinc-400">
+                  <span className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
                     Cifrado y transmitido a través de Telegram MTProto
                   </span>
                 </div>
@@ -227,7 +227,7 @@ export const ChatsView: React.FC = () => {
                     <div
                       key={msg.id}
                       className={cn(
-                        "max-w-[75%] rounded-2xl p-3 text-xs flex flex-col shadow-md",
+                        "max-w-[75%] rounded-lg p-3 text-xs flex flex-col shadow-md",
                         msg.is_outgoing
                           ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
                           : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
@@ -258,13 +258,13 @@ export const ChatsView: React.FC = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="Escribí un mensaje..."
-                  className="flex-1 bg-zinc-950/80 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                  className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3.5 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
                   aria-label="Mensaje a enviar"
                 />
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-xl px-4 flex items-center gap-1.5"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-4 flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Enviar</span>

@@ -76,14 +76,14 @@ export const AppLayout: React.FC = () => {
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 bg-[#14161F]/90 backdrop-blur-md border-b border-white/5 z-40 flex-shrink-0">
         <div className="flex items-center space-x-2.5">
-          <span className="p-1.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
             <Tv2 className="w-5 h-5" />
           </span>
           <span className="font-bold text-sm text-white">Telegram Hub</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 rounded-xl bg-zinc-900 border border-white/5 text-zinc-300"
+          className="p-2 rounded-md bg-zinc-900 border border-white/5 text-zinc-300"
           aria-label="Toggle navigation menu"
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -107,8 +107,8 @@ export const AppLayout: React.FC = () => {
       >
         {/* Brand Header */}
         <div className="p-6 border-b border-white/5 flex items-center space-x-3 flex-shrink-0">
-          <span className="p-2.5 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-lg shadow-cyan-950/50">
-            <Tv2 className="w-6 h-6" />
+          <span className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-md shadow-cyan-950/40">
+            <Tv2 className="w-5 h-5" />
           </span>
           <div>
             <h2 className="text-base font-bold tracking-tight text-white leading-none">
@@ -121,7 +121,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Navigation Items */}
-        <nav aria-label="Navegación principal" className="flex-1 min-h-0 p-4 space-y-1.5 overflow-y-auto">
+        <nav aria-label="Navegación principal" className="flex-1 min-h-0 p-4 space-y-1 overflow-y-auto">
           <div className="px-3 pb-2 text-[10px] uppercase font-mono tracking-wider text-zinc-500 font-semibold">
             Módulos del Sistema
           </div>
@@ -139,19 +139,19 @@ export const AppLayout: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all group",
+                    "flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-all group",
                     isActive
-                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-md shadow-cyan-950/30"
+                      ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm"
                       : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
                   )
                 }
               >
                 <div className="flex items-center space-x-3">
-                  <Icon className="w-4 h-4 transition-transform group-hover:scale-110" />
+                  <Icon className="w-4 h-4 transition-transform group-hover:scale-105" />
                   <span>{item.name}</span>
                 </div>
                 {item.badge && (
-                  <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-semibold">
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold">
                     {item.badge}
                   </span>
                 )}
@@ -161,10 +161,10 @@ export const AppLayout: React.FC = () => {
         </nav>
 
         {/* User Identity & RBAC Pill */}
-        <div className="p-3 mx-3 mb-2 rounded-2xl bg-zinc-950/80 border border-white/5 space-y-2 flex-shrink-0">
+        <div className="p-3 mx-3 mb-2 rounded-lg bg-zinc-950/80 border border-white/5 space-y-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 overflow-hidden">
-              <span className="p-1.5 rounded-lg bg-zinc-900 text-cyan-400">
+              <span className="p-1 rounded-md bg-zinc-900 text-cyan-400">
                 <UserCheck className="w-3.5 h-3.5" />
               </span>
               <div className="truncate">
@@ -175,7 +175,7 @@ export const AppLayout: React.FC = () => {
             </div>
             <button
               onClick={handleLogout}
-              className="p-1.5 rounded-lg hover:bg-rose-500/10 hover:text-rose-400 text-zinc-500 transition-colors"
+              className="p-1 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-zinc-500 transition-colors"
               title="Cerrar sesión"
               aria-label="Cerrar sesión"
             >
@@ -187,7 +187,7 @@ export const AppLayout: React.FC = () => {
             <span className="text-[10px] text-zinc-500 font-mono">Rol Activo:</span>
             <span
               className={cn(
-                "text-[9px] font-mono px-2 py-0.5 rounded-full border font-bold",
+                "text-[9px] font-mono px-2 py-0.5 rounded border font-bold",
                 getRoleBadgeColor(user?.role)
               )}
             >
@@ -197,7 +197,7 @@ export const AppLayout: React.FC = () => {
         </div>
 
         {/* Status / Infrastructure Footer */}
-        <div className="p-3 border-t border-white/5 m-3 rounded-2xl bg-zinc-950/60 border text-[10px] font-mono text-zinc-500 space-y-1 flex-shrink-0">
+        <div className="p-3 border-t border-white/5 m-3 rounded-lg bg-zinc-950/60 border text-[10px] font-mono text-zinc-500 space-y-1 flex-shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-zinc-400">PostgreSQL:</span>
             <span className="text-emerald-400">7902 · Online</span>

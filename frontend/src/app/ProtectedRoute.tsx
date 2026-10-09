@@ -27,7 +27,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) 
   // If user role check is required and user info is loaded
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     return (
-      <div className="p-8 max-w-md mx-auto my-12 bg-[#14161F] border border-rose-500/20 rounded-3xl text-center space-y-3">
+      <div className="p-8 max-w-md mx-auto my-12 bg-[#14161F] border border-rose-500/20 rounded-xl text-center space-y-3">
         <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto" />
         <h2 className="text-base font-bold text-white">Acceso Restringido</h2>
         <p className="text-xs text-zinc-400">
