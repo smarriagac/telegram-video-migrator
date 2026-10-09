@@ -216,7 +216,7 @@ export const SettingsView: React.FC = () => {
             <span className="text-[10px] font-mono text-emerald-400">Puerto 7902</span>
           </div>
           <div>
-            <h3 className="text-xs font-bold text-white">PostgreSQL 16</h3>
+            <h3 className="text-xs font-bold text-white">PostgreSQL 18</h3>
             <span className="text-[10px] text-zinc-400 block mt-0.5">
               Usuarios, Roles (RBAC) y Cuentas Cifradas
             </span>
