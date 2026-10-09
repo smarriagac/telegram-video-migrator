@@ -1,6 +1,13 @@
 import React from "react";
 import { ArrowRight, CheckCircle2, Tv } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 
 interface ChannelSelectorProps {
   filterQuery?: string;
@@ -53,19 +60,26 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
         </div>
 
         <label className="text-xs text-zinc-400 mb-1.5 block">Seleccionar canal de videos:</label>
-        <select
+        <Select
           disabled={isRunning}
-          value={selectedSourceId ?? ""}
-          onChange={(e) => selectSource(Number(e.target.value) || null)}
-          className="w-full bg-[#090A0F] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
+          value={selectedSourceId ? String(selectedSourceId) : ""}
+          onValueChange={(val) => selectSource(val ? Number(val) : null)}
         >
-          <option value="" disabled>Seleccionar canal...</option>
-          {filteredChannels.map((c) => (
-            <option key={c.id} value={c.id} disabled={c.id === selectedTargetId}>
-              {c.title} {c.username ? `(@${c.username})` : `[ID: ${c.id}]`}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Seleccionar canal origen..." />
+          </SelectTrigger>
+          <SelectContent>
+            {filteredChannels.map((c) => (
+              <SelectItem
+                key={c.id}
+                value={String(c.id)}
+                disabled={c.id === selectedTargetId}
+              >
+                {c.title} {c.username ? `(@${c.username})` : `[ID: ${c.id}]`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="mt-4 p-3 rounded-xl bg-zinc-950/50 border border-white/5 flex items-center justify-between text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">
@@ -91,19 +105,26 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
         </div>
 
         <label className="text-xs text-zinc-400 mb-1.5 block">Seleccionar canal receptor:</label>
-        <select
+        <Select
           disabled={isRunning}
-          value={selectedTargetId ?? ""}
-          onChange={(e) => selectTarget(Number(e.target.value) || null)}
-          className="w-full bg-[#090A0F] border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500 disabled:opacity-50"
+          value={selectedTargetId ? String(selectedTargetId) : ""}
+          onValueChange={(val) => selectTarget(val ? Number(val) : null)}
         >
-          <option value="" disabled>Seleccionar canal destino...</option>
-          {filteredChannels.map((c) => (
-            <option key={c.id} value={c.id} disabled={c.id === selectedSourceId}>
-              {c.title} {c.username ? `(@${c.username})` : `[ID: ${c.id}]`}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Seleccionar canal destino..." />
+          </SelectTrigger>
+          <SelectContent>
+            {filteredChannels.map((c) => (
+              <SelectItem
+                key={c.id}
+                value={String(c.id)}
+                disabled={c.id === selectedSourceId}
+              >
+                {c.title} {c.username ? `(@${c.username})` : `[ID: ${c.id}]`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         <div className="mt-4 p-3 rounded-xl bg-zinc-950/50 border border-white/5 flex items-center justify-between text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">

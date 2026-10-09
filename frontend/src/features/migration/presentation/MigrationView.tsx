@@ -6,6 +6,7 @@ import { ChannelSelector } from "./components/ChannelSelector";
 import { ProgressBar } from "./components/ProgressBar";
 import { TerminalLog } from "./components/TerminalLog";
 import { ConfirmModal } from "./components/ConfirmModal";
+import { Button } from "@/shared/components/ui/button";
 
 export const MigrationView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks in this view
@@ -44,7 +45,7 @@ export const MigrationView: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
         <div>
           <div className="flex items-center space-x-2.5">
             <span className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
@@ -62,9 +63,10 @@ export const MigrationView: React.FC = () => {
         {/* Search Input using local state hook #2 */}
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               type="text"
+              aria-label="Buscar canal por nombre o usuario"
               placeholder="Buscar canal..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
@@ -75,15 +77,19 @@ export const MigrationView: React.FC = () => {
             onClick={() => fetchChannels()}
             className="p-2 rounded-xl bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors"
             title="Recargar canales"
+            aria-label="Recargar lista de canales"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Error Banner */}
       {error && (
-        <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in">
+        <div
+          role="alert"
+          className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in"
+        >
           <span>{error}</span>
         </div>
       )}
@@ -92,7 +98,10 @@ export const MigrationView: React.FC = () => {
       <ChannelSelector filterQuery={searchFilter} />
 
       {/* Action Center Banner */}
-      <div className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl">
+      <section
+        aria-label="Controles de migración"
+        className="flex items-center justify-between p-6 rounded-2xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
+      >
         <div>
           <h4 className="text-sm font-semibold text-white">Ejecutar Migración</h4>
           <p className="text-xs text-zinc-400 mt-0.5">
@@ -102,33 +111,36 @@ export const MigrationView: React.FC = () => {
 
         <div className="flex items-center space-x-3">
           {isRunning ? (
-            <button
+            <Button
+              variant="destructive"
               onClick={() => cancelMigration()}
-              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-2"
+              className="flex items-center gap-2"
             >
               <StopCircle className="w-4 h-4" />
               Detener Migración
-            </button>
+            </Button>
           ) : isFinished ? (
-            <button
+            <Button
+              variant="secondary"
               onClick={() => resetJob()}
-              className="px-5 py-2.5 rounded-xl text-xs font-semibold text-zinc-200 bg-zinc-800 hover:bg-zinc-700 transition-all flex items-center gap-2"
+              className="flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
               Nueva Migración
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="default"
               disabled={!selectedSourceId || !selectedTargetId || selectedSourceId === selectedTargetId}
               onClick={() => setIsConfirmOpen(true)}
-              className="px-6 py-2.5 rounded-xl text-xs font-semibold text-black bg-gradient-to-r from-emerald-400 via-cyan-400 to-cyan-300 hover:opacity-90 disabled:opacity-40 transition-all shadow-lg shadow-cyan-950/50 flex items-center gap-2"
+              className="flex items-center gap-2"
             >
               <Play className="w-4 h-4 fill-current" />
               Iniciar en 1 Click
-            </button>
+            </Button>
           )}
         </div>
-      </div>
+      </section>
 
       {/* Real-time Progress Bar */}
       <ProgressBar />

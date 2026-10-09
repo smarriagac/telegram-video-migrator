@@ -2,6 +2,7 @@ import React from "react";
 import { AlertCircle, CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { JobStatus } from "../../domain/types";
+import { Progress } from "@/shared/components/ui/progress";
 
 export const ProgressBar: React.FC = () => {
   const activeJob = useMigrationStore((state) => state.activeJob);
@@ -63,7 +64,11 @@ export const ProgressBar: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#14161F]/90 backdrop-blur-md rounded-2xl border border-white/5 p-6 shadow-xl space-y-4">
+    <div
+      role="region"
+      aria-label="Progreso de la migración"
+      className="bg-[#14161F]/90 backdrop-blur-md rounded-2xl border border-white/5 p-6 shadow-xl space-y-4"
+    >
       <div className="flex items-center justify-between">
         <div>
           <span className="text-xs uppercase tracking-wider text-zinc-400 font-mono">Progreso de Clonación</span>
@@ -74,16 +79,17 @@ export const ProgressBar: React.FC = () => {
         {getStatusBadge()}
       </div>
 
-      {/* Progress Track */}
-      <div className="w-full bg-zinc-950 rounded-full h-3.5 p-0.5 border border-white/5 relative overflow-hidden">
-        <div
-          className="bg-gradient-to-r from-cyan-500 via-emerald-400 to-emerald-300 h-full rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.5)]"
-          style={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
-        />
-      </div>
+      {/* Accessible Radix Progress Component */}
+      <Progress
+        value={percentage}
+        aria-label="Porcentaje de videos migrados"
+      />
 
       {progress?.message && (
-        <p className="text-xs text-zinc-400 font-mono truncate">
+        <p
+          aria-live="polite"
+          className="text-xs text-zinc-400 font-mono truncate"
+        >
           <span className="text-zinc-500">Último evento:</span> {progress.message}
         </p>
       )}
