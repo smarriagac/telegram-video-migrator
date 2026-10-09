@@ -1,0 +1,35 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: telegram_migrator_backend
+    restart: unless-stopped
+    ports:
+      - "7901:8000"
+    environment:
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID:-12345}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-dummy}
+      - TELEGRAM_SESSION_STRING=${TELEGRAM_SESSION_STRING:-}
+      - MIGRATION_DB_PATH=/app/data/migration.db
+    volumes:
+      - ./data:/app/data
+    networks:
+      - migrator_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: telegram_migrator_frontend
+    restart: unless-stopped
+    ports:
+      - "7900:80"
+    depends_on:
+      - backend
+    networks:
+      - migrator_network
+
+networks:
+  migrator_network:
+    driver: bridge

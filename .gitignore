@@ -47,3 +47,5 @@ Thumbs.db
 *.db-journal
 *.session
 *.session-journal
+# Docker persistent data
+data/
