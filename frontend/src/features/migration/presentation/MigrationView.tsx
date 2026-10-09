@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Play, RotateCcw, Search, StopCircle, Tv2 } from "lucide-react";
+import { Play, RotateCcw, Search, StopCircle } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { useMigrationStream } from "../application/useMigrationStream";
 import { ChannelSelector } from "./components/ChannelSelector";
@@ -7,6 +7,7 @@ import { ProgressBar } from "./components/ProgressBar";
 import { TerminalLog } from "./components/TerminalLog";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { Button } from "@/shared/components/ui/button";
+import { BrandLogo } from "@/shared/components/BrandLogo";
 
 export const MigrationView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks in this view
@@ -47,10 +48,8 @@ export const MigrationView: React.FC = () => {
       {/* Top Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-3">
         <div>
-          <div className="flex items-center space-x-2">
-            <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Tv2 className="w-4 h-4" />
-            </span>
+          <div className="flex items-center space-x-2.5">
+            <BrandLogo size="md" />
             <h1 className="text-lg font-bold tracking-tight text-white">
               Telegram Video Migrator
             </h1>

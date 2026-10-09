@@ -4,7 +4,6 @@ import {
   Menu,
   MessageSquare,
   Settings,
-  Tv2,
   Video,
   X,
   ShieldCheck,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
+import { BrandLogo } from "@/shared/components/BrandLogo";
 
 interface NavItem {
   name: string;
@@ -76,9 +76,7 @@ export const AppLayout: React.FC = () => {
       {/* Mobile Top Bar */}
       <div className="md:hidden flex items-center justify-between p-4 bg-[#14161F]/90 backdrop-blur-md border-b border-white/5 z-40 flex-shrink-0">
         <div className="flex items-center space-x-2.5">
-          <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-            <Tv2 className="w-5 h-5" />
-          </span>
+          <BrandLogo size="md" />
           <span className="font-bold text-sm text-white">Telegram Hub</span>
         </div>
         <button
@@ -107,9 +105,7 @@ export const AppLayout: React.FC = () => {
       >
         {/* Brand Header */}
         <div className="p-3.5 px-4 border-b border-white/5 flex items-center space-x-2.5 flex-shrink-0">
-          <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-md shadow-cyan-950/40">
-            <Tv2 className="w-4 h-4" />
-          </span>
+          <BrandLogo size="md" />
           <div>
             <h2 className="text-sm font-bold tracking-tight text-white leading-none">
               Telegram Hub

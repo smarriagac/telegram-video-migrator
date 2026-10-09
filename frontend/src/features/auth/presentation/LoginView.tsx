@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, Tv2, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
+import { Lock, Mail, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
 import { useAuthStore } from "../application/useAuthStore";
 import { Button } from "@/shared/components/ui/button";
+import { BrandLogo } from "@/shared/components/BrandLogo";
 
 export const LoginView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
@@ -34,9 +35,9 @@ export const LoginView: React.FC = () => {
 
       <div className="relative z-10 w-full max-w-sm bg-[#14161F] border border-white/5 rounded-xl p-5 shadow-2xl space-y-4">
         {/* Brand Header */}
-        <div className="text-center space-y-1.5">
-          <div className="inline-flex p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-md shadow-cyan-950/40 mb-0.5">
-            <Tv2 className="w-6 h-6" />
+        <div className="text-center space-y-2">
+          <div className="flex justify-center mb-1">
+            <BrandLogo size="lg" className="w-12 h-12" />
           </div>
           <h1 className="text-lg font-bold tracking-tight text-white">Telegram Hub</h1>
           <p className="text-[11px] text-zinc-400 font-mono">
