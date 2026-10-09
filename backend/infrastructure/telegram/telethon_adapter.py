@@ -29,10 +29,19 @@ class TelethonAdapter(TelegramGatewayPort):
     def __init__(self, client: TelegramClient) -> None:
         self.client = client
 
+    async def _ensure_connected(self) -> None:
+        if not self.client.is_connected():
+            await self.client.connect()
+        if not await self.client.is_user_authorized():
+            raise ChannelAccessDeniedException(
+                "La cuenta de Telegram no está autorizada. Por favor vinculá una sesión válida en Configuración o con el script."
+            )
+
     async def get_managed_channels(self) -> list[Channel]:
         """Retrieve channels where the authenticated user has posting rights."""
         channels: list[Channel] = []
         try:
+            await self._ensure_connected()
             async for dialog in self.client.iter_dialogs():
                 if not dialog.is_channel:
                     continue
@@ -142,6 +151,7 @@ class TelethonAdapter(TelegramGatewayPort):
         """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""
         dialogs_list: list[TelegramDialog] = []
         try:
+            await self._ensure_connected()
             async for dialog in self.client.iter_dialogs(limit=limit):
                 if dialog.is_user:
                     chat_type = "user"

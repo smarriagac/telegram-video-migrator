@@ -27,7 +27,10 @@ from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRe
 from backend.infrastructure.persistence.postgres_repository import PostgresRepository
 from backend.infrastructure.security.fernet_encryption_service import FernetEncryptionService
 from backend.infrastructure.security.jwt_token_service import JwtTokenService
-from backend.infrastructure.telegram.telegram_client_factory import get_telegram_client
+from backend.infrastructure.telegram.telegram_client_factory import (
+    get_telegram_client,
+    configure_telegram_client,
+)
 from backend.infrastructure.telegram.telethon_adapter import TelethonAdapter
 
 _sqlite_repo: SQLiteJobRepository | None = None
@@ -77,6 +80,18 @@ def get_token_service() -> TokenServicePort:
 
 
 async def get_telegram_gateway() -> TelegramGatewayPort:
+    try:
+        acc_use_case = await get_active_credentials_use_case()
+        creds = await acc_use_case.execute()
+        if creds.api_id and creds.api_hash:
+            client = configure_telegram_client(
+                api_id=creds.api_id,
+                api_hash=creds.api_hash,
+                session_string=creds.session_string,
+            )
+            return TelethonAdapter(client=client)
+    except Exception:
+        pass
     client = get_telegram_client()
     return TelethonAdapter(client=client)
 
