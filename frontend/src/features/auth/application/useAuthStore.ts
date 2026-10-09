@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { TelegramAccountInfo, User } from "../domain/types";
+import { Role, TelegramAccountInfo, User } from "../domain/types";
 import { authApi } from "../infrastructure/authApi";
 
 interface AuthState {
@@ -9,6 +9,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   accounts: TelegramAccountInfo[];
+  usersList: User[];
 
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -21,6 +22,9 @@ interface AuthState {
     api_hash: string;
     session_string?: string;
   }) => Promise<boolean>;
+  loadUsers: () => Promise<void>;
+  createUser: (payload: { email: string; password: string; role: Role }) => Promise<boolean>;
+  updateUser: (userId: number, payload: { role?: Role; is_active?: boolean }) => Promise<boolean>;
 }
 
 const TOKEN_KEY = "telegram_hub_token";
@@ -33,6 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
   accounts: [],
+  usersList: [],
 
   login: async (email, password) => {
     set({ isLoading: true, error: null });
@@ -60,6 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       error: null,
       accounts: [],
+      usersList: [],
     });
   },
 
@@ -98,6 +104,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const saved = await authApi.saveTelegramCredentials(token, payload);
       set((state) => ({
         accounts: [saved, ...state.accounts.filter((a) => a.id !== saved.id)],
+        isLoading: false,
+      }));
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      return false;
+    }
+  },
+
+  loadUsers: async () => {
+    const { token } = get();
+    if (!token) return;
+    try {
+      const users = await authApi.listUsers(token);
+      set({ usersList: users });
+    } catch (err) {
+      console.error("Error cargando usuarios:", err);
+    }
+  },
+
+  createUser: async (payload) => {
+    const { token } = get();
+    if (!token) return false;
+    set({ isLoading: true, error: null });
+    try {
+      const created = await authApi.createUser(token, payload);
+      set((state) => ({
+        usersList: [...state.usersList, created],
+        isLoading: false,
+      }));
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      return false;
+    }
+  },
+
+  updateUser: async (userId, payload) => {
+    const { token } = get();
+    if (!token) return false;
+    set({ isLoading: true, error: null });
+    try {
+      const updated = await authApi.updateUser(token, userId, payload);
+      set((state) => ({
+        usersList: state.usersList.map((u) => (u.id === userId ? updated : u)),
         isLoading: false,
       }));
       return true;

@@ -12,6 +12,8 @@ from backend.application.use_cases.get_chat_messages_use_case import GetChatMess
 from backend.application.use_cases.authenticate_user_use_case import AuthenticateUserUseCase
 from backend.application.use_cases.save_telegram_credentials_use_case import SaveTelegramCredentialsUseCase
 from backend.application.use_cases.get_active_telegram_credentials_use_case import GetActiveTelegramCredentialsUseCase
+from backend.application.use_cases.list_users_use_case import ListUsersUseCase
+from backend.application.use_cases.update_user_use_case import UpdateUserUseCase
 
 from backend.domain.entities.user import User, Role
 from backend.domain.ports.job_repository_port import JobRepositoryPort
@@ -121,6 +123,16 @@ async def get_active_credentials_use_case() -> GetActiveTelegramCredentialsUseCa
     acc_repo = await get_account_repository()
     enc_svc = get_encryption_service()
     return GetActiveTelegramCredentialsUseCase(account_repository=acc_repo, encryption_service=enc_svc)
+
+
+async def get_list_users_use_case() -> ListUsersUseCase:
+    user_repo = await get_user_repository()
+    return ListUsersUseCase(user_repository=user_repo)
+
+
+async def get_update_user_use_case() -> UpdateUserUseCase:
+    user_repo = await get_user_repository()
+    return UpdateUserUseCase(user_repository=user_repo)
 
 
 # RBAC Security Dependencies

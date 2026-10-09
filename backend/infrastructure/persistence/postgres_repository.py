@@ -41,8 +41,13 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
             self._users_memory[1] = admin
 
     async def connect(self) -> None:
+        import asyncio
+        current_loop = asyncio.get_running_loop()
         if self.pool is not None:
-            return
+            if getattr(self.pool, "_loop", None) is not current_loop:
+                self.pool = None
+            else:
+                return
         try:
             self.pool = await asyncpg.create_pool(self.db_url, min_size=1, max_size=10, timeout=1.0)
             self._fallback_mode = False
@@ -190,6 +195,43 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
                 )
                 for r in rows
             ]
+
+    async def update_user(
+        self, user_id: int, role: Role | None = None, is_active: bool | None = None
+    ) -> User | None:
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            user = self._users_memory.get(user_id)
+            if not user:
+                return None
+            if role is not None:
+                user.role = role
+            if is_active is not None:
+                user.is_active = is_active
+            return user
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE users
+                SET role = COALESCE($1, role),
+                    is_active = COALESCE($2, is_active)
+                WHERE id = $3
+                RETURNING id, email, password_hash, role, is_active
+                """,
+                role.value if role else None,
+                is_active,
+                user_id,
+            )
+            if not row:
+                return None
+            return User(
+                id=row["id"],
+                email=row["email"],
+                password_hash=row["password_hash"],
+                role=Role(row["role"]),
+                is_active=row["is_active"],
+            )
 
     async def save_account(self, account: TelegramAccount) -> TelegramAccount:
         await self.connect()
