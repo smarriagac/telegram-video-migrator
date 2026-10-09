@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: telegram_migrator_postgres
+    restart: unless-stopped
+    ports:
+      - "7902:5432"
+    environment:
+      - POSTGRES_DB=telegram_hub
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d telegram_hub"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    networks:
+      - migrator_network
+
   backend:
     build:
       context: ./backend
@@ -8,12 +28,18 @@ services:
     ports:
       - "7901:8000"
     environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/telegram_hub
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-supersecretjwtkeyforhubdashboard2026}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-h2jKkK7bWqB_Z5R2YxZ5L9qVz8mB4mQ1aV6cE8jN0oQ=}
       - TELEGRAM_API_ID=${TELEGRAM_API_ID:-12345}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH:-dummy}
       - TELEGRAM_SESSION_STRING=${TELEGRAM_SESSION_STRING:-}
       - MIGRATION_DB_PATH=/app/data/migration.db
     volumes:
       - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - migrator_network
 
@@ -29,6 +55,9 @@ services:
       - backend
     networks:
       - migrator_network
+
+volumes:
+  postgres_data:
 
 networks:
   migrator_network:

@@ -8,7 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.presentation.api.routers.channels import router as channels_router
 from backend.presentation.api.routers.jobs import router as jobs_router
 from backend.presentation.api.routers.dialogs import router as dialogs_router
-from backend.presentation.dependencies import get_job_repository
+from backend.presentation.api.routers.auth import router as auth_router
+from backend.presentation.api.routers.settings_credentials import router as credentials_router
+from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
     level=logging.INFO,
@@ -19,18 +21,24 @@ logger = logging.getLogger("telegram_migrator")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize SQLite database schema on startup
+    # Initialize SQLite database schema for jobs
     repo = await get_job_repository()
     if hasattr(repo, "initialize_schema"):
         await repo.initialize_schema()
+
+    # Initialize PostgreSQL schema for Users, Roles, and Accounts
+    pg_repo = await get_postgres_repository()
+    if hasattr(pg_repo, "initialize_schema"):
+        await pg_repo.initialize_schema()
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
 
 
 app = FastAPI(
     title="Telegram Video Migrator API",
-    description="Backend API for high-speed reference-based Telegram video migration.",
-    version="1.0.0",
+    description="Backend API for high-speed reference-based Telegram video migration and Hub admin.",
+    version="1.1.0",
     lifespan=lifespan,
 )
 
@@ -44,6 +52,8 @@ app.add_middleware(
 )
 
 # Register presentation routers
+app.include_router(auth_router, prefix="/api")
+app.include_router(credentials_router, prefix="/api")
 app.include_router(channels_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
 app.include_router(dialogs_router, prefix="/api")

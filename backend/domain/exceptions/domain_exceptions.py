@@ -27,3 +27,31 @@ class JobNotFoundException(DomainException):
     def __init__(self, job_id: str, message: str | None = None) -> None:
         self.job_id = job_id
         super().__init__(message or f"Migration job '{job_id}' not found.")
+
+
+class InvalidCredentialsException(DomainException):
+    """Raised when login credentials are invalid."""
+
+    def __init__(self, message: str = "Invalid email or password.") -> None:
+        super().__init__(message)
+
+
+class ForbiddenException(DomainException):
+    """Raised when user role lacks required permissions."""
+
+    def __init__(self, message: str = "Permission denied for this operation.") -> None:
+        super().__init__(message)
+
+
+class UserNotFoundException(DomainException):
+    """Raised when user is not found."""
+
+    def __init__(self, message: str = "User not found.") -> None:
+        super().__init__(message)
+
+
+class AccountNotFoundException(DomainException):
+    """Raised when Telegram account credentials are not found."""
+
+    def __init__(self, message: str = "Telegram account not configured.") -> None:
+        super().__init__(message)

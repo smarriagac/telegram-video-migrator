@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Menu,
   MessageSquare,
@@ -8,14 +8,18 @@ import {
   Video,
   X,
   ShieldCheck,
+  LogOut,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { useAuthStore } from "@/features/auth/application/useAuthStore";
 
 interface NavItem {
   name: string;
   path: string;
   icon: React.ElementType;
   badge?: string;
+  minRole?: "ADMIN" | "OPERATOR" | "VIEWER";
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -28,17 +32,38 @@ const NAV_ITEMS: NavItem[] = [
     name: "Chats & Mensajes",
     path: "/chats",
     icon: MessageSquare,
-    badge: "Nuevo",
   },
   {
-    name: "Configuración",
+    name: "Configuración & API",
     path: "/settings",
     icon: Settings,
+    minRole: "ADMIN",
   },
 ];
 
 export const AppLayout: React.FC = () => {
+  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (only 1 used)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const getRoleBadgeColor = (role?: string) => {
+    switch (role) {
+      case "ADMIN":
+        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+      case "OPERATOR":
+        return "bg-cyan-500/20 text-cyan-300 border-cyan-500/30";
+      default:
+        return "bg-zinc-800 text-zinc-400 border-white/10";
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#090A0F] text-zinc-100 flex flex-col md:flex-row selection:bg-cyan-500 selection:text-black">
@@ -94,6 +119,11 @@ export const AppLayout: React.FC = () => {
           </div>
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
+            // Filter out admin routes for non-admins
+            if (item.minRole === "ADMIN" && user && user.role !== "ADMIN") {
+              return null;
+            }
+
             return (
               <NavLink
                 key={item.path}
@@ -122,23 +152,55 @@ export const AppLayout: React.FC = () => {
           })}
         </nav>
 
-        {/* Status / Account Footer */}
-        <div className="p-4 border-t border-white/5 m-3 rounded-2xl bg-zinc-950/60 border">
-          <div className="flex items-center space-x-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-            <div className="overflow-hidden">
-              <span className="text-xs font-semibold text-zinc-200 block truncate">
-                MTProto Client
+        {/* User Identity & RBAC Pill */}
+        <div className="p-3 mx-3 mb-2 rounded-2xl bg-zinc-950/80 border border-white/5 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <span className="p-1.5 rounded-lg bg-zinc-900 text-cyan-400">
+                <UserCheck className="w-3.5 h-3.5" />
               </span>
-              <span className="text-[10px] text-zinc-500 font-mono block">
-                Docker: 7900 / 7901
-              </span>
+              <div className="truncate">
+                <span className="text-xs font-bold text-zinc-200 block truncate">
+                  {user?.email || "admin@telegramhub.local"}
+                </span>
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg hover:bg-rose-500/10 hover:text-rose-400 text-zinc-500 transition-colors"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] text-zinc-400 font-mono">
-            <span>Seguridad:</span>
-            <span className="text-emerald-400 flex items-center gap-1 font-sans">
-              <ShieldCheck className="w-3 h-3" /> Activo
+
+          <div className="flex items-center justify-between pt-1 border-t border-white/[0.04]">
+            <span className="text-[10px] text-zinc-500 font-mono">Rol Activo:</span>
+            <span
+              className={cn(
+                "text-[9px] font-mono px-2 py-0.5 rounded-full border font-bold",
+                getRoleBadgeColor(user?.role)
+              )}
+            >
+              {user?.role || "ADMIN"}
+            </span>
+          </div>
+        </div>
+
+        {/* Status / Infrastructure Footer */}
+        <div className="p-3 border-t border-white/5 m-3 rounded-2xl bg-zinc-950/60 border text-[10px] font-mono text-zinc-500 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400">PostgreSQL:</span>
+            <span className="text-emerald-400">7902 · Online</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-zinc-400">Backend API:</span>
+            <span className="text-cyan-400">7901 · FastAPI</span>
+          </div>
+          <div className="flex items-center justify-between pt-1 border-t border-white/5">
+            <span className="flex items-center gap-1 text-emerald-400">
+              <ShieldCheck className="w-3 h-3" /> Cifrado AES-256
             </span>
           </div>
         </div>
