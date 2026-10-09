@@ -12,6 +12,8 @@ from telethon.errors import (
 
 from backend.domain.entities.channel import Channel
 from backend.domain.entities.video_message import VideoMessage
+from backend.domain.entities.dialog import TelegramDialog
+from backend.domain.entities.chat_message import ChatMessage
 from backend.domain.exceptions.domain_exceptions import (
     ChannelAccessDeniedException,
     FloodWaitDomainException,
@@ -115,7 +117,6 @@ class TelethonAdapter(TelegramGatewayPort):
         )
 
         try:
-            # Reconstruct Telethon formatting entities if present
             raw_entities = None
             if video.entities:
                 raw_entities = []
@@ -136,3 +137,95 @@ class TelethonAdapter(TelegramGatewayPort):
             raise FloodWaitDomainException(seconds=e.seconds) from e
         except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
             raise ChannelAccessDeniedException(str(e)) from e
+
+    async def get_dialogs(self, limit: int = 50) -> list[TelegramDialog]:
+        """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""
+        dialogs_list: list[TelegramDialog] = []
+        try:
+            async for dialog in self.client.iter_dialogs(limit=limit):
+                if dialog.is_user:
+                    chat_type = "user"
+                elif dialog.is_group:
+                    chat_type = "group"
+                elif dialog.is_channel:
+                    chat_type = "channel"
+                else:
+                    chat_type = "user"
+
+                last_msg_text = None
+                last_msg_date = None
+                if dialog.message:
+                    last_msg_text = dialog.message.message or (
+                        "[Video]" if getattr(dialog.message, "video", None) else "[Archivo/Foto]"
+                    )
+                    if dialog.message.date:
+                        last_msg_date = dialog.message.date.strftime("%H:%M")
+
+                colors = ["bg-cyan-500", "bg-emerald-500", "bg-purple-500", "bg-blue-500", "bg-amber-500"]
+                avatar_color = colors[abs(dialog.id) % len(colors)]
+
+                dialogs_list.append(
+                    TelegramDialog(
+                        id=dialog.id,
+                        title=dialog.name or "Sin título",
+                        type=chat_type,
+                        unread_count=dialog.unread_count or 0,
+                        last_message=last_msg_text,
+                        last_message_date=last_msg_date,
+                        avatar_color=avatar_color,
+                    )
+                )
+            return dialogs_list
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except Exception as e:
+            logger.error(f"Error fetching dialogs: {e}")
+            raise
+
+    async def get_chat_messages(
+        self, chat_id: int, limit: int = 50
+    ) -> list[ChatMessage]:
+        """Fetch recent message history from a specific chat in chronological order."""
+        messages_list: list[ChatMessage] = []
+        try:
+            async for msg in self.client.iter_messages(chat_id, limit=limit):
+                sender_name = "Desconocido"
+                if msg.sender:
+                    first = getattr(msg.sender, "first_name", "") or ""
+                    last = getattr(msg.sender, "last_name", "") or ""
+                    title = getattr(msg.sender, "title", "") or ""
+                    sender_name = f"{first} {last}".strip() or title or "Usuario"
+                elif getattr(msg, "post", False):
+                    sender_name = "Canal"
+
+                media_type = None
+                if getattr(msg, "video", None):
+                    media_type = "video"
+                elif getattr(msg, "photo", None):
+                    media_type = "photo"
+                elif getattr(msg, "document", None):
+                    media_type = "document"
+
+                date_str = msg.date.strftime("%H:%M") if msg.date else ""
+
+                messages_list.append(
+                    ChatMessage(
+                        id=msg.id,
+                        chat_id=chat_id,
+                        sender_id=msg.sender_id or 0,
+                        sender_name=sender_name,
+                        text=msg.message or (f"[{media_type.capitalize()}]" if media_type else ""),
+                        date=date_str,
+                        is_outgoing=bool(msg.out),
+                        media_type=media_type,
+                    )
+                )
+            messages_list.reverse()
+            return messages_list
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error fetching chat messages for chat {chat_id}: {e}")
+            raise

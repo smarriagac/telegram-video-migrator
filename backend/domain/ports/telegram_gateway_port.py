@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from backend.domain.entities.channel import Channel
 from backend.domain.entities.video_message import VideoMessage
+from backend.domain.entities.dialog import TelegramDialog
+from backend.domain.entities.chat_message import ChatMessage
 
 
 class TelegramGatewayPort(ABC):
@@ -25,4 +27,16 @@ class TelegramGatewayPort(ABC):
         self, target_channel_id: int, video: VideoMessage
     ) -> int:
         """Post video to target channel using MTProto document reference. Returns target message ID."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_dialogs(self, limit: int = 50) -> list[TelegramDialog]:
+        """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_chat_messages(
+        self, chat_id: int, limit: int = 50
+    ) -> list[ChatMessage]:
+        """Fetch recent message history from a specific chat."""
         raise NotImplementedError

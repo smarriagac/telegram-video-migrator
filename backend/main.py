@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.presentation.api.routers.channels import router as channels_router
 from backend.presentation.api.routers.jobs import router as jobs_router
+from backend.presentation.api.routers.dialogs import router as dialogs_router
 from backend.presentation.dependencies import get_job_repository
 
 logging.basicConfig(
@@ -19,7 +20,7 @@ logger = logging.getLogger("telegram_migrator")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize SQLite database schema on startup
-    repo = get_job_repository()
+    repo = await get_job_repository()
     if hasattr(repo, "initialize_schema"):
         await repo.initialize_schema()
     logger.info("Telegram Video Migrator Backend initialized successfully.")
@@ -45,6 +46,7 @@ app.add_middleware(
 # Register presentation routers
 app.include_router(channels_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
+app.include_router(dialogs_router, prefix="/api")
 
 
 @app.get("/api/health")

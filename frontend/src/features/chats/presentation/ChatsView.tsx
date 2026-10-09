@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Search,
   Send,
@@ -9,25 +9,32 @@ import {
   CheckCheck,
   MoreVertical,
   ShieldAlert,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
 export const ChatsView: React.FC = () => {
-  // Strict rule: maximum 2 useState hooks per view.
+  // STRICT ARCHITECTURAL CONSTRAINT: Maximum 2 useState hooks per view.
   // We use exactly 1 hook for local controlled text input. All other state is in Zustand.
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState<string>("");
 
-  const {
-    chats,
-    activeChatId,
-    messages,
-    searchFilter,
-    selectChat,
-    sendMessage,
-    setSearchFilter,
-  } = useChatStore();
+  const chats = useChatStore((state) => state.chats);
+  const activeChatId = useChatStore((state) => state.activeChatId);
+  const messages = useChatStore((state) => state.messages);
+  const searchFilter = useChatStore((state) => state.searchFilter);
+  const isLoadingDialogs = useChatStore((state) => state.isLoadingDialogs);
+  const isLoadingMessages = useChatStore((state) => state.isLoadingMessages);
+  const loadDialogs = useChatStore((state) => state.loadDialogs);
+  const selectChat = useChatStore((state) => state.selectChat);
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const setSearchFilter = useChatStore((state) => state.setSearchFilter);
+
+  useEffect(() => {
+    loadDialogs();
+  }, [loadDialogs]);
 
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
@@ -57,14 +64,29 @@ export const ChatsView: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-          <MessageSquare className="w-6 h-6 text-cyan-400" />
-          Chats & Conversaciones
-        </h1>
-        <p className="text-xs text-zinc-400 mt-1">
-          Visualizá diálogos, canales y grupos asociados a tu sesión de MTProto en tiempo real.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <MessageSquare className="w-6 h-6 text-cyan-400" />
+            Chats & Conversaciones
+          </h1>
+          <p className="text-xs text-zinc-400 mt-1">
+            Diálogos reales de Telegram sincronizados en vivo mediante el gateway MTProto.
+          </p>
+        </div>
+
+        <Button
+          onClick={() => loadDialogs()}
+          disabled={isLoadingDialogs}
+          variant="outline"
+          size="sm"
+          className="rounded-xl border-white/10 text-xs hover:bg-white/5"
+        >
+          <RefreshCw
+            className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
+          />
+          Sincronizar
+        </Button>
       </div>
 
       {/* Main Chat Interface */}
@@ -88,7 +110,12 @@ export const ChatsView: React.FC = () => {
 
           {/* List of Chats */}
           <div className="flex-1 overflow-y-auto divide-y divide-white/[0.03]">
-            {filteredChats.length === 0 ? (
+            {isLoadingDialogs && chats.length === 0 ? (
+              <div className="p-8 flex flex-col items-center justify-center text-center text-xs text-zinc-500 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                <span>Cargando conversaciones desde MTProto...</span>
+              </div>
+            ) : filteredChats.length === 0 ? (
               <div className="p-8 text-center text-xs text-zinc-500">
                 No se encontraron conversaciones
               </div>
@@ -123,7 +150,7 @@ export const ChatsView: React.FC = () => {
                       </div>
                       <div className="flex items-center justify-between mt-1">
                         <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">
-                          {chat.last_message || "Sin mensajes recientes"}
+                          {chat.last_message || "Sin mensajes"}
                         </p>
                         {chat.unread_count > 0 && (
                           <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-cyan-500 text-black font-bold">
@@ -164,7 +191,7 @@ export const ChatsView: React.FC = () => {
                     </h2>
                     <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      Conectado vía Telethon MTProto
+                      MTProto Stream Activo
                     </span>
                   </div>
                 </div>
@@ -186,28 +213,39 @@ export const ChatsView: React.FC = () => {
                   </span>
                 </div>
 
-                {activeMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "max-w-[75%] rounded-2xl p-3 text-xs flex flex-col shadow-md",
-                      msg.is_outgoing
-                        ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
-                        : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-3 text-[10px] font-mono opacity-60 mb-1">
-                      <span className="font-semibold">{msg.sender_name}</span>
-                      <span>{msg.date}</span>
-                    </div>
-                    <p className="leading-relaxed break-words">{msg.text}</p>
-                    {msg.is_outgoing && (
-                      <div className="self-end mt-1 text-cyan-400 opacity-80">
-                        <CheckCheck className="w-3.5 h-3.5" />
-                      </div>
-                    )}
+                {isLoadingMessages ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-zinc-500 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                    <span className="text-xs">Cargando mensajes del chat...</span>
                   </div>
-                ))}
+                ) : activeMessages.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-zinc-500">
+                    <p className="text-xs">No hay mensajes recientes en esta conversación.</p>
+                  </div>
+                ) : (
+                  activeMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={cn(
+                        "max-w-[75%] rounded-2xl p-3 text-xs flex flex-col shadow-md",
+                        msg.is_outgoing
+                          ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
+                          : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3 text-[10px] font-mono opacity-60 mb-1">
+                        <span className="font-semibold">{msg.sender_name}</span>
+                        <span>{msg.date}</span>
+                      </div>
+                      <p className="leading-relaxed break-words">{msg.text}</p>
+                      {msg.is_outgoing && (
+                        <div className="self-end mt-1 text-cyan-400 opacity-80">
+                          <CheckCheck className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Message Input Footer */}

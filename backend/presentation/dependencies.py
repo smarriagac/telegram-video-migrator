@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from backend.application.broadcaster import broadcaster, EventBroadcaster
 from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
+from backend.application.use_cases.get_dialogs_use_case import GetDialogsUseCase
+from backend.application.use_cases.get_chat_messages_use_case import GetChatMessagesUseCase
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
@@ -40,3 +42,13 @@ async def get_migration_use_case() -> CloneChannelVideosUseCase:
             job_repository=repo,
         )
     return _use_case_instance
+
+
+async def get_dialogs_use_case() -> GetDialogsUseCase:
+    gateway = await get_telegram_gateway()
+    return GetDialogsUseCase(telegram_gateway=gateway)
+
+
+async def get_chat_messages_use_case() -> GetChatMessagesUseCase:
+    gateway = await get_telegram_gateway()
+    return GetChatMessagesUseCase(telegram_gateway=gateway)

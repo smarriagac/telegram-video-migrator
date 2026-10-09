@@ -42,6 +42,12 @@ class MockTelegramGateway(TelegramGatewayPort):
         self.copied_calls.append((target_channel_id, video.message_id))
         return new_msg_id
 
+    async def get_dialogs(self, limit: int = 50) -> list[Any]:
+        return []
+
+    async def get_chat_messages(self, chat_id: int, limit: int = 50) -> list[Any]:
+        return []
+
 
 @pytest.fixture
 async def repo():

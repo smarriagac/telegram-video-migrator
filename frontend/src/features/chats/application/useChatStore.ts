@@ -1,93 +1,76 @@
 import { create } from "zustand";
 import { Chat, Message } from "../domain/types";
+import { chatApi } from "../infrastructure/chatApi";
 
 interface ChatState {
   chats: Chat[];
   activeChatId: number | null;
   messages: Record<number, Message[]>;
-  isLoading: boolean;
+  isLoadingDialogs: boolean;
+  isLoadingMessages: boolean;
   searchFilter: string;
+  error: string | null;
 
   // Actions
-  selectChat: (chatId: number) => void;
+  loadDialogs: () => Promise<void>;
+  selectChat: (chatId: number) => Promise<void>;
   sendMessage: (text: string) => void;
   setSearchFilter: (filter: string) => void;
 }
 
-const INITIAL_CHATS: Chat[] = [
-  {
-    id: 101,
-    title: "Carlos Méndez",
-    type: "user",
-    unread_count: 2,
-    last_message: "Che, ¿pudiste migrar los videos del canal?",
-    last_message_date: "13:42",
-    avatar_color: "bg-cyan-500",
-  },
-  {
-    id: 102,
-    title: "Comunidad Devs Telegram",
-    type: "group",
-    unread_count: 0,
-    last_message: "Nuevo release de Telethon v1.36 listo",
-    last_message_date: "12:15",
-    avatar_color: "bg-emerald-500",
-  },
-  {
-    id: 103,
-    title: "Canal de Contenidos y Videos",
-    type: "channel",
-    unread_count: 0,
-    last_message: "Video publicado: Resumen de arquitectura",
-    last_message_date: "Ayer",
-    avatar_color: "bg-purple-500",
-  },
-];
-
-const INITIAL_MESSAGES: Record<number, Message[]> = {
-  101: [
-    {
-      id: 1,
-      chat_id: 101,
-      sender_id: 101,
-      sender_name: "Carlos Méndez",
-      text: "Hola! Cómo va el desarrollo del migrador?",
-      date: "13:35",
-      is_outgoing: false,
-    },
-    {
-      id: 2,
-      chat_id: 101,
-      sender_id: 999,
-      sender_name: "Yo",
-      text: "Impecable, ya soporta clonación limpia por referencia sin descargar nada.",
-      date: "13:40",
-      is_outgoing: true,
-    },
-    {
-      id: 3,
-      chat_id: 101,
-      sender_id: 101,
-      sender_name: "Carlos Méndez",
-      text: "Che, ¿pudiste migrar los videos del canal?",
-      date: "13:42",
-      is_outgoing: false,
-    },
-  ],
-};
-
 export const useChatStore = create<ChatState>((set, get) => ({
-  chats: INITIAL_CHATS,
-  activeChatId: 101,
-  messages: INITIAL_MESSAGES,
-  isLoading: false,
+  chats: [],
+  activeChatId: null,
+  messages: {},
+  isLoadingDialogs: false,
+  isLoadingMessages: false,
   searchFilter: "",
+  error: null,
 
-  selectChat: (chatId) => set({ activeChatId: chatId }),
+  loadDialogs: async () => {
+    set({ isLoadingDialogs: true, error: null });
+    try {
+      const dialogs = await chatApi.fetchDialogs();
+      set({ chats: dialogs });
+      // If no chat is active and dialogs exist, select the first one
+      const currentActive = get().activeChatId;
+      if (!currentActive && dialogs.length > 0) {
+        await get().selectChat(dialogs[0].id);
+      }
+    } catch (err) {
+      console.error("Error cargando diálogos:", err);
+      set({ error: "No se pudieron sincronizar los chats de Telegram." });
+    } finally {
+      set({ isLoadingDialogs: false });
+    }
+  },
 
-  setSearchFilter: (filter) => set({ searchFilter: filter }),
+  selectChat: async (chatId: number) => {
+    set({ activeChatId: chatId });
+    const { messages } = get();
 
-  sendMessage: (text) => {
+    // If messages for this chat are not loaded yet, fetch them
+    if (!messages[chatId]) {
+      set({ isLoadingMessages: true });
+      try {
+        const chatMsgs = await chatApi.fetchMessages(chatId);
+        set((state) => ({
+          messages: {
+            ...state.messages,
+            [chatId]: chatMsgs,
+          },
+        }));
+      } catch (err) {
+        console.error(`Error cargando mensajes para el chat ${chatId}:`, err);
+      } finally {
+        set({ isLoadingMessages: false });
+      }
+    }
+  },
+
+  setSearchFilter: (filter: string) => set({ searchFilter: filter }),
+
+  sendMessage: (text: string) => {
     const { activeChatId, messages } = get();
     if (!activeChatId || !text.trim()) return;
 
