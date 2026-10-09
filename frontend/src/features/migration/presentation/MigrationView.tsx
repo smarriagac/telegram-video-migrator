@@ -43,43 +43,43 @@ export const MigrationView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <div className="max-w-5xl mx-auto space-y-4 pb-6">
       {/* Top Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-6">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-3">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <span className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Tv2 className="w-6 h-6" />
+          <div className="flex items-center space-x-2">
+            <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <Tv2 className="w-4 h-4" />
             </span>
-            <h1 className="text-2xl font-bold tracking-tight text-white">
+            <h1 className="text-lg font-bold tracking-tight text-white">
               Telegram Video Migrator
             </h1>
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-[11px] text-zinc-400 mt-0.5">
             Clonación masiva directa por referencia (MTProto) · Sin descarga a disco · Copia limpia
           </p>
         </div>
 
         {/* Search Input using local state hook #2 */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           <div className="relative">
-            <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               type="text"
               aria-label="Buscar canal por nombre o usuario"
               placeholder="Buscar canal..."
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              className="bg-[#14161F] border border-white/10 rounded-md pl-9 pr-3.5 py-2 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 w-48 transition-all"
+              className="bg-[#14161F] border border-white/10 rounded-md pl-8 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 w-44 transition-all"
             />
           </div>
           <button
             onClick={() => fetchChannels()}
-            className="p-2 rounded-md bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="p-2 rounded-md bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors h-8 w-8 flex items-center justify-center"
             title="Recargar canales"
             aria-label="Recargar lista de canales"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </header>
@@ -88,7 +88,7 @@ export const MigrationView: React.FC = () => {
       {error && (
         <div
           role="alert"
-          className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in"
+          className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in"
         >
           <span>{error}</span>
         </div>
@@ -100,42 +100,45 @@ export const MigrationView: React.FC = () => {
       {/* Action Center Banner */}
       <section
         aria-label="Controles de migración"
-        className="flex items-center justify-between p-6 rounded-xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
+        className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
       >
         <div>
-          <h4 className="text-sm font-semibold text-white">Ejecutar Migración</h4>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <h4 className="text-xs font-semibold text-white">Ejecutar Migración</h4>
+          <p className="text-[11px] text-zinc-400 mt-0.5">
             Comienza a clonar automáticamente respetando límites de Telegram.
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5">
           {isRunning ? (
             <Button
               variant="destructive"
+              size="sm"
               onClick={() => cancelMigration()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 h-8 px-3 text-xs"
             >
-              <StopCircle className="w-4 h-4" />
+              <StopCircle className="w-3.5 h-3.5" />
               Detener Migración
             </Button>
           ) : isFinished ? (
             <Button
               variant="secondary"
+              size="sm"
               onClick={() => resetJob()}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 h-8 px-3 text-xs"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
               Nueva Migración
             </Button>
           ) : (
             <Button
               variant="default"
+              size="sm"
               disabled={!selectedSourceId || !selectedTargetId || selectedSourceId === selectedTargetId}
               onClick={() => setIsConfirmOpen(true)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 h-8 px-3 text-xs"
             >
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="w-3.5 h-3.5 fill-current" />
               Iniciar en 1 Click
             </Button>
           )}

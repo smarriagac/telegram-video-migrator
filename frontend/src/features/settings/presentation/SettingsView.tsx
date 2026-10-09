@@ -146,26 +146,26 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Settings className="w-6 h-6 text-cyan-400" />
+          <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <Settings className="w-5 h-5 text-cyan-400" />
             Configuración del Sistema
           </h1>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-[11px] text-zinc-400 mt-0.5">
             Gestión de seguridad RBAC, credenciales de Telegram y telemetría de microservicios.
           </p>
         </div>
 
         {/* Tab Switcher for Admins */}
         {user?.role === "ADMIN" && (
-          <div className="flex items-center gap-1.5 p-1 bg-zinc-950/80 border border-white/5 rounded-lg">
+          <div className="flex items-center gap-1 p-0.5 bg-zinc-950/80 border border-white/5 rounded-lg">
             <button
               onClick={() => setActiveTab("credentials")}
               className={cn(
-                "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
                 activeTab === "credentials"
                   ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm"
                   : "text-zinc-400 hover:text-white"
@@ -177,7 +177,7 @@ export const SettingsView: React.FC = () => {
             <button
               onClick={() => setActiveTab("users")}
               className={cn(
-                "px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
                 activeTab === "users"
                   ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-sm"
                   : "text-zinc-400 hover:text-white"
@@ -194,7 +194,7 @@ export const SettingsView: React.FC = () => {
       {feedback && (
         <div
           className={cn(
-            "p-3 rounded-lg text-xs flex items-center gap-2 transition-all",
+            "p-2.5 rounded-lg text-xs flex items-center gap-2 transition-all",
             feedback.isError
               ? "bg-rose-500/10 border border-rose-500/20 text-rose-400"
               : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
@@ -207,50 +207,50 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 1: Telegram Credentials Form */}
       {activeTab === "credentials" && user?.role === "ADMIN" && (
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-6 shadow-xl space-y-5">
-          <div className="flex items-center justify-between pb-3 border-b border-white/5">
-            <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+        <div className="bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-4">
+          <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <KeyRound className="w-4 h-4" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-white">Vincular Nueva Cuenta de Telegram</h2>
+                <h2 className="text-xs font-bold text-white">Vincular Nueva Cuenta de Telegram</h2>
                 <span className="text-[10px] text-zinc-400 font-mono">
                   Las credenciales se cifran en reposo con AES-256 en PostgreSQL 18
                 </span>
               </div>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
               <Lock className="w-3 h-3" /> Cifrado At-Rest
             </span>
           </div>
 
-          <form onSubmit={handleSaveCredentials} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={handleSaveCredentials} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Etiqueta de la Cuenta</label>
+                <label className="text-[11px] font-semibold text-zinc-300">Etiqueta de la Cuenta</label>
                 <input
                   name="name"
                   type="text"
                   placeholder="Ej: Cuenta Producción / Personal"
                   defaultValue="Cuenta Principal"
                   required
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Teléfono (Opcional)</label>
+                <label className="text-[11px] font-semibold text-zinc-300">Teléfono (Opcional)</label>
                 <input
                   name="phone"
                   type="text"
                   placeholder="+54 9 11 1234-5678"
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">
+                <label className="text-[11px] font-semibold text-zinc-300">
                   Telegram API ID <span className="text-rose-400">*</span>
                 </label>
                 <input
@@ -258,12 +258,12 @@ export const SettingsView: React.FC = () => {
                   type="text"
                   placeholder="Ej: 12345678"
                   required
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">
+                <label className="text-[11px] font-semibold text-zinc-300">
                   Telegram API Hash <span className="text-rose-400">*</span>
                 </label>
                 <input
@@ -271,20 +271,20 @@ export const SettingsView: React.FC = () => {
                   type="password"
                   placeholder="••••••••••••••••••••••••••••••••"
                   required
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-zinc-300">
+              <label className="text-[11px] font-semibold text-zinc-300">
                 Session String MTProto (Opcional)
               </label>
               <textarea
                 name="session_string"
                 rows={2}
                 placeholder="1BVtsOHQBu7... (Session string exportada)"
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
+                className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
               />
             </div>
 
@@ -292,7 +292,7 @@ export const SettingsView: React.FC = () => {
               type="submit"
               disabled={isLoading}
               size="sm"
-              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-4 text-xs flex items-center gap-1.5"
+              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 text-xs flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Guardar Credenciales Cifradas</span>
@@ -301,8 +301,8 @@ export const SettingsView: React.FC = () => {
 
           {/* Configured Accounts Table */}
           {accounts.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-              <span className="text-xs font-bold text-zinc-300 block">Cuentas Registradas:</span>
+            <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
+              <span className="text-[11px] font-bold text-zinc-300 block">Cuentas Registradas:</span>
               <div className="rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden">
                 <Table>
                   <TableHeader className="bg-white/[0.02]">
@@ -334,48 +334,48 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 2: Interactive User Management (RBAC) */}
       {activeTab === "users" && user?.role === "ADMIN" && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {/* Create User Card */}
-          <div className="bg-[#14161F] border border-white/5 rounded-xl p-6 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-white/5">
-              <span className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <div className="bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+            <div className="flex items-center gap-2 pb-2.5 border-b border-white/5">
+              <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <UserPlus className="w-4 h-4" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-white">Dar de Alta Nuevo Usuario</h2>
+                <h2 className="text-xs font-bold text-white">Dar de Alta Nuevo Usuario</h2>
                 <span className="text-[10px] text-zinc-400">
                   Crea accesos individuales y asigna roles de ejecución controlados
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+            <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-end">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Email del Usuario</label>
+                <label className="text-[11px] font-semibold text-zinc-300">Email del Usuario</label>
                 <input
                   name="email"
                   type="email"
                   placeholder="operador@telegramhub.local"
                   required
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Contraseña Inicial</label>
+                <label className="text-[11px] font-semibold text-zinc-300">Contraseña Inicial</label>
                 <input
                   name="password"
                   type="password"
                   placeholder="••••••••••••"
                   required
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-zinc-300">Rol de Ejecución</label>
+                <label className="text-[11px] font-semibold text-zinc-300">Rol de Ejecución</label>
                 <Select name="role" defaultValue="OPERATOR">
-                  <SelectTrigger className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-3 py-2 text-xs text-zinc-200 focus:ring-1 focus:ring-cyan-500/50 h-[38px]">
+                  <SelectTrigger className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-zinc-200 focus:ring-1 focus:ring-cyan-500/50 h-8">
                     <SelectValue placeholder="Seleccionar rol" />
                   </SelectTrigger>
                   <SelectContent className="bg-[#14161F] border border-white/10 text-xs">
@@ -391,7 +391,7 @@ export const SettingsView: React.FC = () => {
                   type="submit"
                   disabled={isLoading}
                   size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-4 text-xs flex items-center gap-1.5"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 text-xs flex items-center gap-1.5"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>Crear Usuario</span>
@@ -401,13 +401,13 @@ export const SettingsView: React.FC = () => {
           </div>
 
           {/* Users Table Card */}
-          <div className="bg-[#14161F] border border-white/5 rounded-xl p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-white/5">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+          <div className="bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   <Users className="w-4 h-4" />
                 </span>
-                <h2 className="text-sm font-bold text-white">Usuarios del Sistema</h2>
+                <h2 className="text-xs font-bold text-white">Usuarios del Sistema</h2>
               </div>
               <span className="text-[10px] font-mono text-zinc-500">
                 Total: <strong className="text-zinc-200">{usersList.length}</strong>
@@ -427,16 +427,16 @@ export const SettingsView: React.FC = () => {
                 <TableBody>
                   {usersList.map((u) => (
                     <TableRow key={u.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                      <TableCell className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-md bg-zinc-900 border border-white/5 flex items-center justify-center font-bold text-zinc-300 text-xs flex-shrink-0">
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-md bg-zinc-900 border border-white/5 flex items-center justify-center font-bold text-zinc-300 text-[11px] flex-shrink-0">
                             {u.email.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-white text-xs truncate">{u.email}</span>
                               {u.id === user?.id && (
-                                <Badge variant="outline" className="text-[9px] text-cyan-400 bg-cyan-500/10 border-cyan-500/30">
+                                <Badge variant="outline" className="text-[8px] text-cyan-400 bg-cyan-500/10 border-cyan-500/30 px-1 py-0">
                                   Tú
                                 </Badge>
                               )}
@@ -446,8 +446,8 @@ export const SettingsView: React.FC = () => {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-3">
-                        <div className="w-36">
+                      <TableCell>
+                        <div className="w-32">
                           <Select
                             value={u.role}
                             onValueChange={(val) => handleRoleChange(u.id, val as Role)}
@@ -455,7 +455,7 @@ export const SettingsView: React.FC = () => {
                           >
                             <SelectTrigger
                               className={cn(
-                                "h-8 px-2.5 text-[10px] font-mono font-bold rounded-md border shadow-sm transition-colors",
+                                "h-7 px-2 text-[10px] font-mono font-bold rounded-md border shadow-sm transition-colors",
                                 getRoleBadgeStyle(u.role)
                               )}
                             >
@@ -470,23 +470,23 @@ export const SettingsView: React.FC = () => {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-3">
+                      <TableCell>
                         <Badge
                           variant={u.is_active ? "admin" : "destructive"}
-                          className="text-[10px]"
+                          className="text-[9px]"
                         >
                           {u.is_active ? "Activo" : "Suspendido"}
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="py-3 text-right">
+                      <TableCell className="text-right">
                         <Button
                           onClick={() => handleToggleStatus(u.id, u.is_active)}
                           disabled={u.id === user?.id}
                           variant="outline"
                           size="sm"
                           className={cn(
-                            "h-8 px-3 rounded-md text-[10px] font-mono font-semibold transition-colors gap-1.5",
+                            "h-7 px-2.5 rounded-md text-[10px] font-mono font-semibold transition-colors gap-1.5",
                             u.is_active
                               ? "border-white/10 text-zinc-400 hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
                               : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
@@ -495,12 +495,12 @@ export const SettingsView: React.FC = () => {
                         >
                           {u.is_active ? (
                             <>
-                              <XCircle className="w-3.5 h-3.5" />
+                              <XCircle className="w-3 h-3" />
                               <span>Suspender</span>
                             </>
                           ) : (
                             <>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <CheckCircle2 className="w-3 h-3" />
                               <span>Activar</span>
                             </>
                           )}
@@ -516,11 +516,11 @@ export const SettingsView: React.FC = () => {
       )}
 
       {/* Infrastructure Telemetry */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-5 shadow-xl space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
-            <span className="p-2 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              <Database className="w-4 h-4" />
+            <span className="p-1.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              <Database className="w-3.5 h-3.5" />
             </span>
             <span className="text-[10px] font-mono text-emerald-400">Puerto 7902</span>
           </div>
@@ -530,15 +530,15 @@ export const SettingsView: React.FC = () => {
               Usuarios, Roles (RBAC) y Cuentas Cifradas
             </span>
           </div>
-          <div className="text-[10px] text-zinc-500 font-mono pt-2 border-t border-white/5">
+          <div className="text-[9px] text-zinc-500 font-mono pt-1.5 border-t border-white/5">
             Docker: telegram_migrator_postgres
           </div>
         </div>
 
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-5 shadow-xl space-y-3">
+        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
-            <span className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Cpu className="w-4 h-4" />
+            <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <Cpu className="w-3.5 h-3.5" />
             </span>
             <span className="text-[10px] font-mono text-cyan-400">Puerto 7901</span>
           </div>
@@ -548,15 +548,15 @@ export const SettingsView: React.FC = () => {
               Clean Architecture · Telethon MTProto
             </span>
           </div>
-          <div className="text-[10px] text-zinc-500 font-mono pt-2 border-t border-white/5">
+          <div className="text-[9px] text-zinc-500 font-mono pt-1.5 border-t border-white/5">
             Docker: telegram_migrator_backend
           </div>
         </div>
 
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-5 shadow-xl space-y-3">
+        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
-            <span className="p-2 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Globe className="w-4 h-4" />
+            <span className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <Globe className="w-3.5 h-3.5" />
             </span>
             <span className="text-[10px] font-mono text-emerald-400">Puerto 7900</span>
           </div>
@@ -566,7 +566,7 @@ export const SettingsView: React.FC = () => {
               React Router v7 · Radix UI · Tailwind
             </span>
           </div>
-          <div className="text-[10px] text-zinc-500 font-mono pt-2 border-t border-white/5">
+          <div className="text-[9px] text-zinc-500 font-mono pt-1.5 border-t border-white/5">
             Docker: telegram_migrator_frontend
           </div>
         </div>

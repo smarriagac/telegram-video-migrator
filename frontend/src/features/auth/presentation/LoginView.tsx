@@ -32,53 +32,53 @@ export const LoginView: React.FC = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[140px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-md bg-[#14161F] border border-white/5 rounded-xl p-8 shadow-2xl space-y-6">
+      <div className="relative z-10 w-full max-w-sm bg-[#14161F] border border-white/5 rounded-xl p-5 shadow-2xl space-y-4">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-2.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-md shadow-cyan-950/40 mb-1">
-            <Tv2 className="w-8 h-8" />
+        <div className="text-center space-y-1.5">
+          <div className="inline-flex p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shadow-md shadow-cyan-950/40 mb-0.5">
+            <Tv2 className="w-6 h-6" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white">Telegram Hub</h1>
-          <p className="text-xs text-zinc-400 font-mono">
+          <h1 className="text-lg font-bold tracking-tight text-white">Telegram Hub</h1>
+          <p className="text-[11px] text-zinc-400 font-mono">
             Panel de Administración & Control RBAC
           </p>
         </div>
 
         {error && (
-          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2.5">
+          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300 block">Correo Electrónico</label>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-zinc-300 block">Correo Electrónico</label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Mail className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="operador@telegramhub.local"
                 required
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-10 pr-3.5 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-9 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
               />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-zinc-300 block">Contraseña</label>
+          <div className="space-y-1">
+            <label className="text-[11px] font-semibold text-zinc-300 block">Contraseña</label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Lock className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-10 pr-3.5 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-9 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
               />
             </div>
           </div>
@@ -86,11 +86,11 @@ export const LoginView: React.FC = () => {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md py-2.5 text-xs flex items-center justify-center gap-2 mt-2 shadow-md shadow-cyan-950/40"
+            className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md h-8 text-xs flex items-center justify-center gap-2 mt-1 shadow-md shadow-cyan-950/40"
           >
             {isLoading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span>Iniciando sesión...</span>
               </>
             ) : (

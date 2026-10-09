@@ -32,15 +32,15 @@ export const TerminalLog: React.FC = () => {
       aria-label="Registro de actividad y logs en vivo"
       className="bg-[#090A0F] rounded-xl border border-white/5 overflow-hidden shadow-2xl"
     >
-      <div className="bg-zinc-950/80 px-4 py-3 border-b border-white/5 flex items-center justify-between">
+      <div className="bg-zinc-950/80 px-3.5 py-2 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Terminal className="w-4 h-4 text-cyan-400" />
-          <span className="text-xs font-mono font-semibold uppercase tracking-wider text-zinc-300">
+          <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-300">
             Live Stream Logs & Activity
           </span>
           <span
             aria-label={`${logs.length} eventos registrados`}
-            className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded font-mono"
+            className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded font-mono"
           >
             {logs.length} eventos
           </span>
@@ -62,7 +62,7 @@ export const TerminalLog: React.FC = () => {
         aria-atomic="false"
         tabIndex={0}
         aria-label="Lista de logs en vivo"
-        className="h-56 overflow-y-auto p-4 space-y-2 font-mono text-xs select-text scrollbar-thin scrollbar-thumb-zinc-800 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
+        className="h-44 overflow-y-auto p-3 space-y-1 font-mono text-[11px] select-text scrollbar-thin scrollbar-thumb-zinc-800 focus:outline-none focus:ring-1 focus:ring-cyan-500/50"
       >
         {logs.length === 0 ? (
           <div className="h-full flex items-center justify-center text-zinc-600 italic">

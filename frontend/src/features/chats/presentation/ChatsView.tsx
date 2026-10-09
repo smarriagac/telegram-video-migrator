@@ -62,15 +62,15 @@ export const ChatsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-3.5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <MessageSquare className="w-6 h-6 text-cyan-400" />
+          <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <MessageSquare className="w-5 h-5 text-cyan-400" />
             Chats & Conversaciones
           </h1>
-          <p className="text-xs text-zinc-400 mt-1">
+          <p className="text-[11px] text-zinc-400 mt-0.5">
             Diálogos reales de Telegram sincronizados en vivo mediante el gateway MTProto.
           </p>
         </div>
@@ -80,7 +80,7 @@ export const ChatsView: React.FC = () => {
           disabled={isLoadingDialogs}
           variant="outline"
           size="sm"
-          className="rounded-md border-white/10 text-xs hover:bg-white/5"
+          className="rounded-md border-white/10 text-xs hover:bg-white/5 h-8"
         >
           <RefreshCw
             className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
@@ -90,19 +90,19 @@ export const ChatsView: React.FC = () => {
       </div>
 
       {/* Main Chat Interface */}
-      <div className="grid grid-cols-1 md:grid-cols-12 h-[680px] bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+      <div className="grid grid-cols-1 md:grid-cols-12 h-[calc(100vh-140px)] min-h-[520px] bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
         {/* Left Column: Chat List (4 cols) */}
         <aside className="md:col-span-5 lg:col-span-4 border-r border-white/5 flex flex-col bg-[#10121A]/50">
           {/* Search Bar */}
-          <div className="p-3.5 border-b border-white/5">
+          <div className="p-2.5 border-b border-white/5">
             <div className="relative">
-              <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Buscar chats o usuarios..."
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-9 pr-3 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-8 pr-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
                 aria-label="Buscar chats"
               />
             </div>
@@ -111,12 +111,12 @@ export const ChatsView: React.FC = () => {
           {/* List of Chats */}
           <div className="flex-1 overflow-y-auto divide-y divide-white/[0.03]">
             {isLoadingDialogs && chats.length === 0 ? (
-              <div className="p-8 flex flex-col items-center justify-center text-center text-xs text-zinc-500 gap-2">
+              <div className="p-6 flex flex-col items-center justify-center text-center text-xs text-zinc-500 gap-2">
                 <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
                 <span>Cargando conversaciones desde MTProto...</span>
               </div>
             ) : filteredChats.length === 0 ? (
-              <div className="p-8 text-center text-xs text-zinc-500">
+              <div className="p-6 text-center text-xs text-zinc-500">
                 No se encontraron conversaciones
               </div>
             ) : (
@@ -127,13 +127,13 @@ export const ChatsView: React.FC = () => {
                     key={chat.id}
                     onClick={() => selectChat(chat.id)}
                     className={cn(
-                      "w-full text-left p-3.5 transition-all flex items-start gap-3 hover:bg-white/[0.03]",
+                      "w-full text-left p-2.5 px-3 transition-all flex items-start gap-2.5 hover:bg-white/[0.03]",
                       isActive && "bg-cyan-500/10 border-l-2 border-cyan-400"
                     )}
                   >
                     <div
                       className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
+                        "w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
                         chat.avatar_color || "bg-cyan-600"
                       )}
                     >
@@ -144,11 +144,11 @@ export const ChatsView: React.FC = () => {
                         <span className="text-xs font-semibold text-zinc-200 truncate">
                           {chat.title}
                         </span>
-                        <span className="text-[10px] text-zinc-500 font-mono">
+                        <span className="text-[9px] text-zinc-500 font-mono">
                           {chat.last_message_date}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
+                      <div className="flex items-center justify-between mt-0.5">
                         <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">
                           {chat.last_message || "Sin mensajes"}
                         </p>
@@ -158,7 +158,7 @@ export const ChatsView: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
+                      <div className="mt-0.5 flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
                         {getChatIcon(chat.type)}
                         <span>{chat.type}</span>
                       </div>
@@ -175,11 +175,11 @@ export const ChatsView: React.FC = () => {
           {activeChat ? (
             <>
               {/* Conversation Header */}
-              <div className="p-3.5 border-b border-white/5 flex items-center justify-between bg-[#12141C]">
-                <div className="flex items-center gap-3">
+              <div className="p-2.5 px-3 border-b border-white/5 flex items-center justify-between bg-[#12141C]">
+                <div className="flex items-center gap-2.5">
                   <div
                     className={cn(
-                      "w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs text-white",
+                      "w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] text-white",
                       activeChat.avatar_color || "bg-cyan-600"
                     )}
                   >
@@ -189,7 +189,7 @@ export const ChatsView: React.FC = () => {
                     <h2 className="text-xs font-bold text-white leading-none">
                       {activeChat.title}
                     </h2>
-                    <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-1">
+                    <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       MTProto Stream Activo
                     </span>
@@ -197,29 +197,29 @@ export const ChatsView: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    className="p-1.5 rounded-md hover:bg-white/5 text-zinc-400"
+                    className="p-1 rounded-md hover:bg-white/5 text-zinc-400"
                     aria-label="Más opciones"
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    <MoreVertical className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
               {/* Message Feed */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
-                <div className="text-center my-2">
-                  <span className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
+              <div className="flex-1 p-3 overflow-y-auto space-y-2 flex flex-col">
+                <div className="text-center my-1">
+                  <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
                     Cifrado y transmitido a través de Telegram MTProto
                   </span>
                 </div>
 
                 {isLoadingMessages ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-zinc-500 gap-2">
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500 gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
                     <span className="text-xs">Cargando mensajes del chat...</span>
                   </div>
                 ) : activeMessages.length === 0 ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-zinc-500">
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500">
                     <p className="text-xs">No hay mensajes recientes en esta conversación.</p>
                   </div>
                 ) : (
@@ -227,19 +227,19 @@ export const ChatsView: React.FC = () => {
                     <div
                       key={msg.id}
                       className={cn(
-                        "max-w-[75%] rounded-lg p-3 text-xs flex flex-col shadow-md",
+                        "max-w-[75%] rounded-lg p-2.5 text-xs flex flex-col shadow-md",
                         msg.is_outgoing
                           ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
                           : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
                       )}
                     >
-                      <div className="flex items-center justify-between gap-3 text-[10px] font-mono opacity-60 mb-1">
+                      <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-0.5">
                         <span className="font-semibold">{msg.sender_name}</span>
                         <span>{msg.date}</span>
                       </div>
                       <p className="leading-relaxed break-words">{msg.text}</p>
                       {msg.is_outgoing && (
-                        <div className="self-end mt-1 text-cyan-400 opacity-80">
+                        <div className="self-end mt-0.5 text-cyan-400 opacity-80">
                           <CheckCheck className="w-3.5 h-3.5" />
                         </div>
                       )}
@@ -251,20 +251,20 @@ export const ChatsView: React.FC = () => {
               {/* Message Input Footer */}
               <form
                 onSubmit={handleSend}
-                className="p-3 border-t border-white/5 bg-[#12141C] flex items-center gap-2"
+                className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2"
               >
                 <input
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="Escribí un mensaje..."
-                  className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3.5 py-2 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                  className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
                   aria-label="Mensaje a enviar"
                 />
                 <Button
                   type="submit"
                   size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-4 flex items-center gap-1.5"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>Enviar</span>
@@ -272,8 +272,8 @@ export const ChatsView: React.FC = () => {
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-zinc-500">
-              <ShieldAlert className="w-10 h-10 mb-2 opacity-40 text-cyan-400" />
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500">
+              <ShieldAlert className="w-8 h-8 mb-2 opacity-40 text-cyan-400" />
               <p className="text-xs">Seleccioná un chat de la lista para ver el historial.</p>
             </div>
           )}
