@@ -21,31 +21,12 @@ class ChannelResponse(BaseModel):
 
 @router.get("", response_model=list[ChannelResponse])
 async def list_channels(
+    limit: int = 30,
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
 ) -> list[ChannelResponse]:
     """Retrieve list of managed Telegram channels."""
     try:
-        # Check if connected
-        adapter: Any = gateway
-        client = getattr(adapter, "client", None)
-        if client and not client.is_connected():
-            try:
-                await client.connect()
-            except Exception as e:
-                logger.warning(f"Could not connect Telegram client: {e}. Returning demo/placeholder channels.")
-                return [
-                    ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
-                    ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),
-                ]
-
-        if client and not await client.is_user_authorized():
-            logger.warning("Telegram client is not authorized. Returning demo channels for UI preview.")
-            return [
-                ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
-                ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),
-            ]
-
-        channels = await gateway.get_managed_channels()
+        channels = await gateway.get_managed_channels(limit=limit)
         return [
             ChannelResponse(
                 id=c.id,
@@ -56,8 +37,11 @@ async def list_channels(
             for c in channels
         ]
     except Exception as e:
-        logger.error(f"Error listing channels: {e}")
-        # Fallback to demo channels so the dashboard never renders a broken blank screen
+        logger.warning(f"Could not retrieve Telegram channels ({e}). Returning demo/preview channels.")
+        return [
+            ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
+            ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),
+        ]
         return [
             ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
             ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),

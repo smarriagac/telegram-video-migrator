@@ -11,7 +11,7 @@ class TelegramGatewayPort(ABC):
     """Port defining Telegram MTProto gateway operations."""
 
     @abstractmethod
-    async def get_managed_channels(self) -> list[Channel]:
+    async def get_managed_channels(self, limit: int = 30) -> list[Channel]:
         """Retrieve channels where authenticated user has management/posting permissions."""
         raise NotImplementedError
 

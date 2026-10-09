@@ -16,13 +16,26 @@ async def test_health_check_endpoint():
 
 @pytest.mark.asyncio
 async def test_channels_endpoint():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        res = await client.get("/api/channels")
-        assert res.status_code == 200
-        channels = res.json()
-        assert isinstance(channels, list)
-        assert len(channels) >= 2
+    class DummyGateway:
+        async def get_managed_channels(self, limit: int = 100):
+            from backend.domain.entities.channel import Channel
+            return [
+                Channel(id=-1001, title="Test Channel 1", username="test1", can_post=True),
+                Channel(id=-1002, title="Test Channel 2", username="test2", can_post=True),
+            ]
+
+    from backend.presentation.dependencies import get_telegram_gateway
+    app.dependency_overrides[get_telegram_gateway] = lambda: DummyGateway()
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            res = await client.get("/api/channels")
+            assert res.status_code == 200
+            channels = res.json()
+            assert isinstance(channels, list)
+            assert len(channels) == 2
+    finally:
+        app.dependency_overrides.pop(get_telegram_gateway, None)
 
 
 @pytest.mark.asyncio
