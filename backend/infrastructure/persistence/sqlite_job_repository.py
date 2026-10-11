@@ -174,11 +174,18 @@ class SQLiteJobRepository(JobRepositoryPort):
         async with self._get_connection() as conn:
             async with conn.execute(
                 """
-                SELECT 1 FROM migration_items
-                WHERE job_id = ? AND source_message_id = ?
+                SELECT 1 FROM migration_items mi
+                WHERE mi.job_id = ? AND mi.source_message_id = ?
+                UNION
+                SELECT 1 FROM migration_items mi
+                JOIN migration_jobs mj_orig ON mi.job_id = mj_orig.id
+                JOIN migration_jobs mj_curr ON mj_curr.id = ?
+                WHERE mj_orig.source_channel_id = mj_curr.source_channel_id
+                  AND mj_orig.target_channel_id = mj_curr.target_channel_id
+                  AND mi.source_message_id = ?
                 LIMIT 1;
                 """,
-                (job_id, source_msg_id),
+                (job_id, source_msg_id, job_id, source_msg_id),
             ) as cursor:
                 row = await cursor.fetchone()
                 return row is not None

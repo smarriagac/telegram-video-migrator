@@ -101,7 +101,9 @@ class CloneChannelVideosUseCase:
                 continue
 
             target_msg_id = None
-            while target_msg_id is None:
+            retry_count = 0
+            max_retries = 2
+            while target_msg_id is None and retry_count <= max_retries:
                 try:
                     target_msg_id = await self.gateway.copy_video_by_reference(
                         job.target_id, video
@@ -124,9 +126,22 @@ class CloneChannelVideosUseCase:
                         })
                     await asyncio.sleep(wait_time)
                     await self.repo.set_job_status(job_id, JobStatus.RUNNING)
+                except Exception as ex:
+                    retry_count += 1
+                    logger.warning(
+                        f"Attempt {retry_count}/{max_retries} failed for message #{video.message_id} on job {job_id}: {ex}"
+                    )
+                    if retry_count > max_retries:
+                        logger.error(
+                            f"Skipping message #{video.message_id} due to persistent error: {ex}"
+                        )
+                        break
+                    await asyncio.sleep(2.0)
 
-            # Record item in SQLite and update progress
-            await self.repo.record_migrated_item(job_id, video.message_id, target_msg_id)
+            if target_msg_id is not None:
+                # Record item in SQLite and update progress
+                await self.repo.record_migrated_item(job_id, video.message_id, target_msg_id)
+
             processed_count += 1
             await self.repo.update_job_progress(job_id, processed_count, video.message_id)
 

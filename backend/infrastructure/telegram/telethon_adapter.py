@@ -237,46 +237,39 @@ class TelethonAdapter(TelegramGatewayPort):
             else:
                 raise Exception("protected chat fallback needed: no media handle")
         except Exception as e:
-            error_msg = str(e).lower()
-            if (
-                "protected chat" in error_msg
-                or "chatforwardsrestricted" in error_msg
-                or "can't forward" in error_msg
-                or "fallback needed" in error_msg
-            ):
-                logger.info(
-                    f"Message #{video.message_id} ({video.media_type}) restricted or needs fallback. Downloading and uploading..."
-                )
-                if video.source_channel_id:
-                    import tempfile
-                    import os
-
-                    source_msg = await self.client.get_messages(video.source_channel_id, ids=video.message_id)
-                    if source_msg and source_msg.media:
-                        suffix = ".mp4" if video.media_type == "video" else (".jpg" if video.media_type == "photo" else "")
-                        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                            tmp_path = tmp.name
-                        try:
-                            downloaded = await self.client.download_media(source_msg, file=tmp_path)
-                            if downloaded and os.path.exists(downloaded):
-                                sent_msg = await self.client.send_file(
-                                    target_channel_id,
-                                    file=downloaded,
-                                    caption=video.caption or "",
-                                    formatting_entities=raw_entities,
-                                )
-                                return sent_msg.id
-                        finally:
-                            if os.path.exists(tmp_path):
-                                try:
-                                    os.remove(tmp_path)
-                                except Exception:
-                                    pass
-
             if isinstance(e, FloodWaitError):
                 raise FloodWaitDomainException(seconds=e.seconds) from e
             if isinstance(e, (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError)):
                 raise ChannelAccessDeniedException(str(e)) from e
+
+            logger.info(
+                f"Reference copy failed for message #{video.message_id} ({video.media_type}): {e}. Attempting resilient download/upload fallback..."
+            )
+            if video.source_channel_id:
+                import tempfile
+                import os
+
+                source_msg = await self.client.get_messages(video.source_channel_id, ids=video.message_id)
+                if source_msg and source_msg.media:
+                    suffix = ".mp4" if video.media_type == "video" else (".jpg" if video.media_type == "photo" else "")
+                    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                        tmp_path = tmp.name
+                    try:
+                        downloaded = await self.client.download_media(source_msg, file=tmp_path)
+                        if downloaded and os.path.exists(downloaded):
+                            sent_msg = await self.client.send_file(
+                                target_channel_id,
+                                file=downloaded,
+                                caption=video.caption or "",
+                                formatting_entities=raw_entities,
+                            )
+                            return sent_msg.id
+                    finally:
+                        if os.path.exists(tmp_path):
+                            try:
+                                os.remove(tmp_path)
+                            except Exception:
+                                pass
             raise
 
     async def get_dialogs(self, limit: int = 50) -> list[TelegramDialog]:
