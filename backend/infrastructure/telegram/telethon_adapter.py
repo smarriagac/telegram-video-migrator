@@ -37,12 +37,13 @@ class TelethonAdapter(TelegramGatewayPort):
                 "La cuenta de Telegram no está autorizada. Por favor vinculá una sesión válida en Configuración o con el script."
             )
 
-    async def get_managed_channels(self, limit: int = 30) -> list[Channel]:
+    async def get_managed_channels(self, limit: int = 100) -> list[Channel]:
         """Retrieve channels where the authenticated user has posting rights."""
         channels: list[Channel] = []
         try:
             await self._ensure_connected()
-            dialogs = await self.client.get_dialogs(limit=limit)
+            scan_limit = max(limit * 2, 250)
+            dialogs = await self.client.get_dialogs(limit=scan_limit)
             for dialog in dialogs:
                 if not dialog.is_channel:
                     continue
@@ -51,7 +52,7 @@ class TelethonAdapter(TelegramGatewayPort):
                 can_post = False
                 if getattr(entity, "creator", False):
                     can_post = True
-                elif getattr(entity, "admin_rights", None) and entity.admin_rights.post_messages:
+                elif getattr(entity, "admin_rights", None) and getattr(entity.admin_rights, "post_messages", False):
                     can_post = True
 
                 channels.append(
@@ -62,7 +63,10 @@ class TelethonAdapter(TelegramGatewayPort):
                         can_post=can_post,
                     )
                 )
-            return channels
+
+            # Prioritize channels where user has posting rights
+            channels.sort(key=lambda c: (not c.can_post, c.title.lower()))
+            return channels[:limit]
         except FloodWaitError as e:
             raise FloodWaitDomainException(seconds=e.seconds) from e
         except Exception as e:
@@ -72,41 +76,97 @@ class TelethonAdapter(TelegramGatewayPort):
     async def fetch_channel_videos(
         self, channel_id: int, after_message_id: int | None = None
     ) -> list[VideoMessage]:
-        """Fetch video messages sequentially from channel."""
-        videos: list[VideoMessage] = []
+        """Fetch all messages (videos, photos, documents, text) sequentially from channel."""
+        messages_to_migrate: list[VideoMessage] = []
         min_id = after_message_id or 0
         try:
             async for message in self.client.iter_messages(channel_id, min_id=min_id, reverse=True):
-                if not message.media or not hasattr(message.media, "document"):
-                    continue
-
-                doc = message.media.document
-                is_video = False
-                if getattr(doc, "mime_type", "").startswith("video/"):
-                    is_video = True
-                elif any(isinstance(attr, types.DocumentAttributeVideo) for attr in getattr(doc, "attributes", [])):
-                    is_video = True
-
-                if not is_video:
+                # Ignore service messages (e.g. pinned message, member join/leave, avatar changes)
+                if isinstance(message, types.MessageService) or getattr(message, "action", None) is not None:
                     continue
 
                 # Serialize formatting entities if present
                 entities_data: list[dict[str, Any]] = []
                 if message.entities:
                     for ent in message.entities:
-                        entities_data.append(ent.to_dict())
+                        try:
+                            entities_data.append(ent.to_dict())
+                        except Exception:
+                            pass
 
-                videos.append(
-                    VideoMessage(
-                        message_id=message.id,
-                        input_document_id=doc.id,
-                        access_hash=doc.access_hash,
-                        file_reference=doc.file_reference,
-                        caption=message.message or "",
-                        entities=entities_data,
+                caption_text = message.message or ""
+
+                # Check for Photo
+                photo = getattr(message, "photo", None)
+                if not photo and hasattr(message, "media") and hasattr(message.media, "photo"):
+                    photo = message.media.photo
+
+                # Check for Document / Video
+                doc = getattr(message, "document", None)
+                if not doc and hasattr(message, "media") and hasattr(message.media, "document"):
+                    doc = message.media.document
+
+                if photo and isinstance(photo, types.Photo):
+                    messages_to_migrate.append(
+                        VideoMessage(
+                            message_id=message.id,
+                            input_document_id=photo.id,
+                            access_hash=photo.access_hash,
+                            file_reference=photo.file_reference,
+                            caption=caption_text,
+                            entities=entities_data,
+                            source_channel_id=channel_id,
+                            media_type="photo",
+                        )
                     )
-                )
-            return videos
+                elif doc and isinstance(doc, types.Document):
+                    is_video = False
+                    if getattr(doc, "mime_type", "").startswith("video/"):
+                        is_video = True
+                    elif any(isinstance(attr, types.DocumentAttributeVideo) for attr in getattr(doc, "attributes", [])):
+                        is_video = True
+
+                    media_type = "video" if is_video else "document"
+                    messages_to_migrate.append(
+                        VideoMessage(
+                            message_id=message.id,
+                            input_document_id=doc.id,
+                            access_hash=doc.access_hash,
+                            file_reference=doc.file_reference,
+                            caption=caption_text,
+                            entities=entities_data,
+                            source_channel_id=channel_id,
+                            media_type=media_type,
+                        )
+                    )
+                elif caption_text.strip():
+                    messages_to_migrate.append(
+                        VideoMessage(
+                            message_id=message.id,
+                            input_document_id=0,
+                            access_hash=0,
+                            file_reference=b"",
+                            caption=caption_text,
+                            entities=entities_data,
+                            source_channel_id=channel_id,
+                            media_type="text",
+                        )
+                    )
+                elif message.media:
+                    messages_to_migrate.append(
+                        VideoMessage(
+                            message_id=message.id,
+                            input_document_id=0,
+                            access_hash=0,
+                            file_reference=b"",
+                            caption=caption_text,
+                            entities=entities_data,
+                            source_channel_id=channel_id,
+                            media_type="document",
+                        )
+                    )
+
+            return messages_to_migrate
         except FloodWaitError as e:
             raise FloodWaitDomainException(seconds=e.seconds) from e
         except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
@@ -115,38 +175,109 @@ class TelethonAdapter(TelegramGatewayPort):
     async def copy_video_by_reference(
         self, target_channel_id: int, video: VideoMessage
     ) -> int:
-        """Post existing video to target channel using MTProto document reference.
+        """Post existing message (video, photo, document, text) to target channel.
         
-        Zero file bytes are uploaded or downloaded; Telegram links the existing document.
+        Zero file bytes are uploaded or downloaded when MTProto reference is accepted;
+        Telegram links the existing document/photo.
         Does NOT set forward headers, generating a fresh clean message with original caption.
+        If source channel has protected content (noforwards enabled), gracefully falls back
+        to resilient temporary download and upload.
         """
-        input_doc = types.InputDocument(
-            id=video.input_document_id,
-            access_hash=video.access_hash,
-            file_reference=video.file_reference,
-        )
+        raw_entities = None
+        if video.entities:
+            raw_entities = []
+            for ent_dict in video.entities:
+                try:
+                    raw_entities.append(types.TypeMessageEntity.from_dict(ent_dict))
+                except Exception:
+                    pass
+
+        # 1. Plain text messages
+        if video.media_type == "text":
+            try:
+                sent_msg = await self.client.send_message(
+                    target_channel_id,
+                    message=video.caption or "",
+                    formatting_entities=raw_entities,
+                )
+                return sent_msg.id
+            except FloodWaitError as e:
+                raise FloodWaitDomainException(seconds=e.seconds) from e
+            except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+                raise ChannelAccessDeniedException(str(e)) from e
+            except Exception as e:
+                logger.error(f"Error sending text message #{video.message_id}: {e}")
+                raise
+
+        # 2. Media messages (photo, video, document)
+        if video.media_type == "photo" and video.input_document_id:
+            media_handle = types.InputPhoto(
+                id=video.input_document_id,
+                access_hash=video.access_hash,
+                file_reference=video.file_reference,
+            )
+        elif video.input_document_id:
+            media_handle = types.InputDocument(
+                id=video.input_document_id,
+                access_hash=video.access_hash,
+                file_reference=video.file_reference,
+            )
+        else:
+            media_handle = None
 
         try:
-            raw_entities = None
-            if video.entities:
-                raw_entities = []
-                for ent_dict in video.entities:
-                    try:
-                        raw_entities.append(types.TypeMessageEntity.from_dict(ent_dict))
-                    except Exception:
-                        pass
+            if media_handle is not None:
+                sent_msg = await self.client.send_file(
+                    target_channel_id,
+                    file=media_handle,
+                    caption=video.caption or "",
+                    formatting_entities=raw_entities,
+                )
+                return sent_msg.id
+            else:
+                raise Exception("protected chat fallback needed: no media handle")
+        except Exception as e:
+            error_msg = str(e).lower()
+            if (
+                "protected chat" in error_msg
+                or "chatforwardsrestricted" in error_msg
+                or "can't forward" in error_msg
+                or "fallback needed" in error_msg
+            ):
+                logger.info(
+                    f"Message #{video.message_id} ({video.media_type}) restricted or needs fallback. Downloading and uploading..."
+                )
+                if video.source_channel_id:
+                    import tempfile
+                    import os
 
-            sent_msg = await self.client.send_file(
-                target_channel_id,
-                file=input_doc,
-                caption=video.caption or "",
-                formatting_entities=raw_entities,
-            )
-            return sent_msg.id
-        except FloodWaitError as e:
-            raise FloodWaitDomainException(seconds=e.seconds) from e
-        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
-            raise ChannelAccessDeniedException(str(e)) from e
+                    source_msg = await self.client.get_messages(video.source_channel_id, ids=video.message_id)
+                    if source_msg and source_msg.media:
+                        suffix = ".mp4" if video.media_type == "video" else (".jpg" if video.media_type == "photo" else "")
+                        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                            tmp_path = tmp.name
+                        try:
+                            downloaded = await self.client.download_media(source_msg, file=tmp_path)
+                            if downloaded and os.path.exists(downloaded):
+                                sent_msg = await self.client.send_file(
+                                    target_channel_id,
+                                    file=downloaded,
+                                    caption=video.caption or "",
+                                    formatting_entities=raw_entities,
+                                )
+                                return sent_msg.id
+                        finally:
+                            if os.path.exists(tmp_path):
+                                try:
+                                    os.remove(tmp_path)
+                                except Exception:
+                                    pass
+
+            if isinstance(e, FloodWaitError):
+                raise FloodWaitDomainException(seconds=e.seconds) from e
+            if isinstance(e, (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError)):
+                raise ChannelAccessDeniedException(str(e)) from e
+            raise
 
     async def get_dialogs(self, limit: int = 50) -> list[TelegramDialog]:
         """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""

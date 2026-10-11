@@ -21,7 +21,7 @@ class ChannelResponse(BaseModel):
 
 @router.get("", response_model=list[ChannelResponse])
 async def list_channels(
-    limit: int = 30,
+    limit: int = 100,
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
 ) -> list[ChannelResponse]:
     """Retrieve list of managed Telegram channels."""

@@ -73,7 +73,7 @@ export const ProgressBar: React.FC = () => {
         <div>
           <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-mono">Progreso de Clonación</span>
           <h4 className="text-base font-bold text-white tracking-tight flex items-center gap-2 mt-0.5">
-            {percentage}% <span className="text-[11px] font-normal text-zinc-500 font-mono">({processed} de {total} videos)</span>
+            {percentage}% <span className="text-[11px] font-normal text-zinc-500 font-mono">({processed} de {total} elementos)</span>
           </h4>
         </div>
         {getStatusBadge()}
@@ -82,7 +82,7 @@ export const ProgressBar: React.FC = () => {
       {/* Accessible Radix Progress Component */}
       <Progress
         value={percentage}
-        aria-label="Porcentaje de videos migrados"
+        aria-label="Porcentaje de elementos migrados"
       />
 
       {progress?.message && (

@@ -62,15 +62,15 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
         <div className="space-y-1.5 text-[11px] text-zinc-400 py-0.5">
           <div className="flex items-start space-x-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <span>Los videos se clonan directamente por referencia interna sin descargar archivos a disco.</span>
+            <span>Los mensajes y archivos se clonan directamente por referencia interna o fallback resiliente.</span>
           </div>
           <div className="flex items-start space-x-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <span>Se preservan descripciones originales, etiquetas y hashtags sin etiqueta de reenvío.</span>
+            <span>Se preservan descripciones originales, etiquetas y formato sin etiqueta de reenvío.</span>
           </div>
           <div className="flex items-start space-x-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <span>Se aplica un delay seguro de 1.5–2.0s por video para proteger la cuenta contra spam.</span>
+            <span>Se aplica un delay seguro de 1.5–2.0s por elemento para proteger la cuenta contra spam.</span>
           </div>
         </div>
 

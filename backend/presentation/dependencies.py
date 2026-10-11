@@ -83,7 +83,7 @@ async def get_telegram_gateway() -> TelegramGatewayPort:
     try:
         acc_use_case = await get_active_credentials_use_case()
         creds = await acc_use_case.execute()
-        if creds.api_id and creds.api_hash:
+        if creds.api_id and creds.api_hash and creds.session_string:
             client = configure_telegram_client(
                 api_id=creds.api_id,
                 api_hash=creds.api_hash,

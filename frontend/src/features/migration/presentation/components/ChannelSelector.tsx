@@ -1,13 +1,7 @@
 import React from "react";
 import { ArrowRight, CheckCircle2, Tv } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/shared/components/ui/select";
+import { SearchableChannelSelect } from "./SearchableChannelSelect";
 
 interface ChannelSelectorProps {
   filterQuery?: string;
@@ -60,26 +54,15 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
         </div>
 
         <label className="text-[11px] text-zinc-400 mb-1 block">Seleccionar canal de videos:</label>
-        <Select
+        <SearchableChannelSelect
           disabled={isRunning}
-          value={selectedSourceId ? String(selectedSourceId) : ""}
-          onValueChange={(val) => selectSource(val ? Number(val) : null)}
-        >
-          <SelectTrigger className="w-full h-8 text-xs">
-            <SelectValue placeholder="Seleccionar canal origen..." />
-          </SelectTrigger>
-          <SelectContent>
-            {filteredChannels.map((c) => (
-              <SelectItem
-                key={c.id}
-                value={String(c.id)}
-                disabled={c.id === selectedTargetId}
-              >
-                {c.title} {c.username ? `(@${c.username})` : `[ID: ${c.id}]`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          value={selectedSourceId}
+          onChange={selectSource}
+          channels={filteredChannels}
+          disabledId={selectedTargetId}
+          placeholder="Buscar canal origen..."
+          accentColor="cyan"
+        />
 
         <div className="mt-2.5 p-2 rounded-lg bg-zinc-950/50 border border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
           <span className="flex items-center gap-1.5">
@@ -105,26 +88,15 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
         </div>
 
         <label className="text-[11px] text-zinc-400 mb-1 block">Seleccionar canal receptor:</label>
-        <Select
+        <SearchableChannelSelect
           disabled={isRunning}
-          value={selectedTargetId ? String(selectedTargetId) : ""}
-          onValueChange={(val) => selectTarget(val ? Number(val) : null)}
-        >
-          <SelectTrigger className="w-full h-8 text-xs">
-            <SelectValue placeholder="Seleccionar canal destino..." />
-          </SelectTrigger>
-          <SelectContent>
-            {filteredChannels.map((c) => (
-              <SelectItem
-                key={c.id}
-                value={String(c.id)}
-                disabled={c.id === selectedSourceId}
-              >
-                {c.title} {c.username ? `(@${c.username})` : `[ID: ${c.id}]`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          value={selectedTargetId}
+          onChange={selectTarget}
+          channels={filteredChannels}
+          disabledId={selectedSourceId}
+          placeholder="Buscar canal destino..."
+          accentColor="emerald"
+        />
 
         <div className="mt-2.5 p-2 rounded-lg bg-zinc-950/50 border border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
           <span className="flex items-center gap-1.5">

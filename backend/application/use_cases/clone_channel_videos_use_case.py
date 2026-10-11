@@ -51,13 +51,13 @@ class CloneChannelVideosUseCase:
             await on_progress({
                 "job_id": job_id,
                 "status": JobStatus.RUNNING.value,
-                "message": "Discovering videos in source channel...",
+                "message": "Discovering messages and media in source channel...",
                 "processed_videos": job.processed_videos,
                 "total_videos": job.total_videos,
                 "percentage": 0.0,
             })
 
-        # Fetch video messages from source channel
+        # Fetch messages from source channel
         videos = await self.gateway.fetch_channel_videos(job.source_id)
         total_videos = len(videos)
 
@@ -71,7 +71,7 @@ class CloneChannelVideosUseCase:
                 await on_progress({
                     "job_id": job_id,
                     "status": JobStatus.COMPLETED.value,
-                    "message": "No videos found in source channel.",
+                    "message": "No messages or media found in source channel.",
                     "processed_videos": 0,
                     "total_videos": 0,
                     "percentage": 100.0,
@@ -130,14 +130,15 @@ class CloneChannelVideosUseCase:
             processed_count += 1
             await self.repo.update_job_progress(job_id, processed_count, video.message_id)
 
-            caption_snippet = video.caption[:50].replace("\n", " ") if video.caption else "Video without caption"
+            media_label = getattr(video, "media_type", "video").capitalize()
+            caption_snippet = video.caption[:50].replace("\n", " ") if video.caption else f"{media_label} without caption"
             percentage = round((processed_count / total_videos) * 100, 1)
 
             if on_progress:
                 await on_progress({
                     "job_id": job_id,
                     "status": JobStatus.RUNNING.value,
-                    "message": f"Copied video #{video.message_id} -> {caption_snippet}",
+                    "message": f"Copied {media_label} #{video.message_id} -> {caption_snippet}",
                     "processed_videos": processed_count,
                     "total_videos": total_videos,
                     "percentage": percentage,
@@ -152,7 +153,7 @@ class CloneChannelVideosUseCase:
             await on_progress({
                 "job_id": job_id,
                 "status": JobStatus.COMPLETED.value,
-                "message": f"Migration completed successfully ({processed_count}/{total_videos} videos).",
+                "message": f"Migration completed successfully ({processed_count}/{total_videos} items).",
                 "processed_videos": processed_count,
                 "total_videos": total_videos,
                 "percentage": 100.0,
