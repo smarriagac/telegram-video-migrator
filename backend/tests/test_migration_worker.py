@@ -58,6 +58,26 @@ class MockTelegramGateway(TelegramGatewayPort):
     ) -> bytes | None:
         return None
 
+    async def send_local_media(
+        self, channel_id: int, file_path: str, caption: str | None = None
+    ) -> Any:
+        return None
+
+    async def send_text_message(
+        self, channel_id: int, text: str
+    ) -> Any:
+        return None
+
+    async def delete_channel_message(
+        self, channel_id: int, message_id: int
+    ) -> bool:
+        return True
+
+    async def edit_channel_message(
+        self, channel_id: int, message_id: int, text: str
+    ) -> Any:
+        return None
+
 
 @pytest.fixture
 async def repo():

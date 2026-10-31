@@ -8,10 +8,12 @@ import {
   StopCircle,
   Terminal,
   Tv,
+  UploadCloud,
 } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { SearchableChannelSelect } from "./SearchableChannelSelect";
 import { ChannelCloningHistoryModal } from "./ChannelCloningHistoryModal";
+import { DirectUploadModal } from "./DirectUploadModal";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 
@@ -41,6 +43,9 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
+
+  const targetChannel = channels.find((c) => c.id === selectedTargetId);
 
   const isRunning = activeJob?.status === "RUNNING" || activeJob?.status === "PAUSED_FLOOD_WAIT";
   const isFinished =
@@ -156,6 +161,24 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               placeholder="Elegir canal destino..."
               accentColor="emerald"
             />
+
+            {/* Direct Local Upload Button */}
+            {selectedTargetId && (
+              <button
+                type="button"
+                onClick={() => setIsUploadOpen(true)}
+                className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-emerald-500/30 text-left transition-all group"
+                title="Subir archivo local directamente a este canal"
+              >
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <UploadCloud className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-zinc-300 font-medium">Subir desde mi PC</span>
+                </div>
+                <span className="text-[10px] font-mono text-emerald-400 group-hover:underline">
+                  + Publicar directo
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -300,6 +323,14 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       <ChannelCloningHistoryModal
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
+      />
+
+      {/* Direct Local Media Upload Modal */}
+      <DirectUploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        targetChannelId={selectedTargetId}
+        targetChannelTitle={targetChannel?.title}
       />
     </div>
   );

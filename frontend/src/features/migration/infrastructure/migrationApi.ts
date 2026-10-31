@@ -114,6 +114,58 @@ export const migrationApi = {
     }
   },
 
+  async uploadToChannel(
+    channelId: number,
+    file?: File | null,
+    caption?: string,
+    text?: string
+  ): Promise<ChannelMessageItem> {
+    const formData = new FormData();
+    if (file) {
+      formData.append("file", file);
+    }
+    if (caption) {
+      formData.append("caption", caption);
+    }
+    if (text) {
+      formData.append("text", text);
+    }
+    const res = await fetch(`${API_BASE_URL}/channels/${channelId}/upload`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al subir contenido a Telegram");
+    }
+    return res.json();
+  },
+
+  async deleteChannelMessage(channelId: number, messageId: number): Promise<void> {
+    const res = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      throw new Error("Error al eliminar mensaje del canal");
+    }
+  },
+
+  async editChannelMessage(
+    channelId: number,
+    messageId: number,
+    text: string
+  ): Promise<ChannelMessageItem> {
+    const res = await fetch(`${API_BASE_URL}/channels/${channelId}/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      throw new Error("Error al editar mensaje");
+    }
+    return res.json();
+  },
+
   getStreamUrl(jobId: string): string {
     return `${API_BASE_URL}/jobs/${jobId}/stream`;
   },

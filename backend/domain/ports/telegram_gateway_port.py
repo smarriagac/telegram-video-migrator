@@ -55,3 +55,31 @@ class TelegramGatewayPort(ABC):
     ) -> list[ChatMessage]:
         """Fetch recent message history from a specific chat."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def send_local_media(
+        self, channel_id: int, file_path: str, caption: str | None = None
+    ) -> ChannelMessage:
+        """Upload and post a local media file (video/photo/doc) directly to a channel."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def send_text_message(
+        self, channel_id: int, text: str
+    ) -> ChannelMessage:
+        """Send a plain text message to a channel."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_channel_message(
+        self, channel_id: int, message_id: int
+    ) -> bool:
+        """Delete a message from a channel."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def edit_channel_message(
+        self, channel_id: int, message_id: int, text: str
+    ) -> ChannelMessage:
+        """Edit the caption or text of an existing channel message."""
+        raise NotImplementedError

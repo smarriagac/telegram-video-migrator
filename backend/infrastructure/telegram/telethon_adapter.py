@@ -465,3 +465,114 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.error(f"Error fetching chat messages for chat {chat_id}: {e}")
             raise
+
+    async def send_local_media(
+        self, channel_id: int, file_path: str, caption: str | None = None
+    ) -> ChannelMessage:
+        """Upload and post a local media file (video/photo/doc) directly to a channel."""
+        try:
+            await self._ensure_connected()
+            entity = await self.client.get_input_entity(channel_id)
+            sent = await self.client.send_file(
+                entity,
+                file_path,
+                caption=caption or "",
+                supports_streaming=True,
+            )
+
+            media_type = "video"
+            if getattr(sent, "photo", None):
+                media_type = "photo"
+            elif getattr(sent, "video", None):
+                media_type = "video"
+            elif getattr(sent, "document", None):
+                media_type = "document"
+
+            file_size = getattr(sent, "file", None).size if getattr(sent, "file", None) else None
+
+            return ChannelMessage(
+                id=sent.id,
+                channel_id=channel_id,
+                text=sent.message or "",
+                media_type=media_type,
+                date=sent.date.strftime("%Y-%m-%d %H:%M") if sent.date else "",
+                file_size=file_size,
+            )
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error uploading local media to channel {channel_id}: {e}")
+            raise
+
+    async def send_text_message(
+        self, channel_id: int, text: str
+    ) -> ChannelMessage:
+        """Send a plain text message to a channel."""
+        try:
+            await self._ensure_connected()
+            entity = await self.client.get_input_entity(channel_id)
+            sent = await self.client.send_message(entity, text)
+            return ChannelMessage(
+                id=sent.id,
+                channel_id=channel_id,
+                text=sent.message or "",
+                media_type="text",
+                date=sent.date.strftime("%Y-%m-%d %H:%M") if sent.date else "",
+            )
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error sending text message to channel {channel_id}: {e}")
+            raise
+
+    async def delete_channel_message(
+        self, channel_id: int, message_id: int
+    ) -> bool:
+        """Delete a message from a channel."""
+        try:
+            await self._ensure_connected()
+            entity = await self.client.get_input_entity(channel_id)
+            await self.client.delete_messages(entity, [message_id])
+            return True
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error deleting message {message_id} from channel {channel_id}: {e}")
+            raise
+
+    async def edit_channel_message(
+        self, channel_id: int, message_id: int, text: str
+    ) -> ChannelMessage:
+        """Edit the caption or text of an existing channel message."""
+        try:
+            await self._ensure_connected()
+            entity = await self.client.get_input_entity(channel_id)
+            edited = await self.client.edit_message(entity, message_id, text)
+            media_type = None
+            if getattr(edited, "photo", None):
+                media_type = "photo"
+            elif getattr(edited, "video", None):
+                media_type = "video"
+            elif getattr(edited, "document", None):
+                media_type = "document"
+
+            return ChannelMessage(
+                id=edited.id,
+                channel_id=channel_id,
+                text=edited.message or "",
+                media_type=media_type or "text",
+                date=edited.date.strftime("%Y-%m-%d %H:%M") if edited.date else "",
+            )
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error editing message {message_id} in channel {channel_id}: {e}")
+            raise
