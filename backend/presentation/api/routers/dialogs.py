@@ -248,14 +248,14 @@ async def get_messages(
         return DEMO_MESSAGES.get(chat_id, [])
 
 
-DEMO_THUMBNAIL_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200" viewBox="0 0 360 200" fill="none">
+DEMO_THUMBNAIL_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200" viewBox="0 0 360 200" fill="none">
   <rect width="360" height="200" fill="#14161F"/>
   <rect x="1" y="1" width="358" height="198" rx="8" stroke="#ffffff" stroke-opacity="0.08"/>
   <circle cx="180" cy="90" r="26" fill="#06B6D4" fill-opacity="0.2" stroke="#06B6D4" stroke-width="2"/>
   <polygon points="175,80 191,90 175,100" fill="#06B6D4"/>
-  <text x="180" y="136" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94A3B8" text-anchor="middle">Previsualización de Video</text>
+  <text x="180" y="136" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94A3B8" text-anchor="middle">Previsualizacion de Video</text>
   <text x="180" y="152" font-family="monospace" font-size="9" fill="#06B6D4" text-anchor="middle">MTProto Stream HD</text>
-</svg>"""
+</svg>""".encode("utf-8")
 
 
 @router.get("/{chat_id}/messages/{message_id}/thumbnail")

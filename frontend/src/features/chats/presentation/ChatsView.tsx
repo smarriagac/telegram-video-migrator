@@ -25,6 +25,85 @@ import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
+interface ChatMediaThumbnailProps {
+  chatId: number;
+  messageId: number;
+  mediaType: "video" | "photo" | "document" | "text" | undefined;
+}
+
+const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
+  chatId,
+  messageId,
+  mediaType,
+}) => {
+  const [loaded, setLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
+      {!loaded && !hasError && (
+        <div className="w-full h-36 bg-zinc-900/60 animate-pulse flex items-center justify-center text-zinc-600">
+          <Loader2 className="w-5 h-5 text-cyan-400/60 animate-spin" />
+        </div>
+      )}
+
+      {hasError ? (
+        <div className="w-full h-36 bg-gradient-to-br from-zinc-900 to-[#12141C] flex flex-col items-center justify-center gap-1.5 text-zinc-400 p-4 text-center">
+          {mediaType === "video" ? (
+            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center mb-1">
+              <Play className="w-5 h-5 text-cyan-400 fill-cyan-400 ml-0.5" />
+            </div>
+          ) : (
+            <ImageIcon className="w-8 h-8 text-emerald-400/50 mb-1" />
+          )}
+          <span className="text-[11px] font-medium text-zinc-300">
+            {mediaType === "video" ? "Video de Telegram" : "Foto de Telegram"}
+          </span>
+          <span className="text-[9px] font-mono text-zinc-500">
+            Miniatura no provista por el remitente
+          </span>
+        </div>
+      ) : (
+        <img
+          src={`/api/dialogs/${chatId}/messages/${messageId}/thumbnail`}
+          alt={mediaType === "video" ? "Vista previa de video" : "Foto"}
+          className={cn(
+            "w-full max-h-64 min-h-[140px] object-cover rounded-md transition-all duration-300 group-hover/preview:scale-[1.02]",
+            !loaded && "hidden"
+          )}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setHasError(true)}
+        />
+      )}
+
+      {/* Type badge overlay */}
+      <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-[10px] font-mono flex items-center gap-1.5 text-white border border-white/10 shadow-sm pointer-events-none">
+        {mediaType === "video" ? (
+          <>
+            <FileVideo className="w-3 h-3 text-cyan-400" />
+            <span>Video</span>
+          </>
+        ) : (
+          <>
+            <ImageIcon className="w-3 h-3 text-emerald-400" />
+            <span>Foto</span>
+          </>
+        )}
+      </div>
+
+      {/* Centered Play Button for Videos when loaded */}
+      {mediaType === "video" && loaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-11 h-11 rounded-full bg-cyan-500/90 backdrop-blur-sm flex items-center justify-center shadow-xl group-hover/preview:scale-110 transition-transform">
+            <Play className="w-5 h-5 text-black fill-black ml-0.5" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ChatsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Maximum 2 useState hooks per view.
   // 1: Local controlled input for typing messages / captions
@@ -429,36 +508,11 @@ export const ChatsView: React.FC = () => {
 
                         {/* Media Preview Card (Video / Photo / Document) */}
                         {(msg.media_type === "video" || msg.media_type === "photo") && (
-                          <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
-                            <img
-                              src={`/api/dialogs/${msg.chat_id}/messages/${msg.id}/thumbnail`}
-                              alt={msg.media_type === "video" ? "Vista previa de video" : "Foto"}
-                              className="w-full max-h-64 min-h-[140px] object-cover rounded-md transition-transform duration-300 group-hover/preview:scale-[1.02]"
-                              loading="lazy"
-                            />
-                            {/* Type badge overlay */}
-                            <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-[10px] font-mono flex items-center gap-1.5 text-white border border-white/10 shadow-sm">
-                              {msg.media_type === "video" ? (
-                                <>
-                                  <FileVideo className="w-3 h-3 text-cyan-400" />
-                                  <span>Video</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ImageIcon className="w-3 h-3 text-emerald-400" />
-                                  <span>Foto</span>
-                                </>
-                              )}
-                            </div>
-                            {/* Centered Play Button for Videos */}
-                            {msg.media_type === "video" && (
-                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className="w-11 h-11 rounded-full bg-cyan-500/90 backdrop-blur-sm flex items-center justify-center shadow-xl group-hover/preview:scale-110 transition-transform">
-                                  <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          <ChatMediaThumbnail
+                            chatId={msg.chat_id}
+                            messageId={msg.id}
+                            mediaType={msg.media_type}
+                          />
                         )}
                         {msg.media_type === "document" && (
                           <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-amber-300 text-[10px] font-mono w-fit">
