@@ -26,6 +26,7 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 class CreateJobRequest(BaseModel):
     source_channel_id: int
     target_channel_id: int
+    selected_message_ids: list[int] | None = None
 
 
 class JobResponse(BaseModel):
@@ -37,6 +38,25 @@ class JobResponse(BaseModel):
     processed_videos: int
     last_processed_id: int | None = None
     created_at: str | None = None
+
+
+class QueueItemResponse(BaseModel):
+    job_id: str
+    source_message_id: int
+    status: str
+    media_type: str
+    caption: str
+    target_message_id: int | None = None
+    error_message: str | None = None
+    retry_count: int = 0
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class JobQueueStatusResponse(BaseModel):
+    job_id: str
+    stats: dict[str, int]
+    items: list[QueueItemResponse]
 
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
@@ -69,7 +89,11 @@ async def start_job(
     # Launch migration in background task
     async def run_worker():
         try:
-            await use_case.execute(job_id=job_id, on_progress=on_progress)
+            await use_case.execute(
+                job_id=job_id,
+                on_progress=on_progress,
+                selected_message_ids=req.selected_message_ids,
+            )
         except Exception as e:
             logger.error(f"Migration worker failed for job {job_id}: {e}")
             await repo.set_job_status(job_id, JobStatus.FAILED)
@@ -118,6 +142,42 @@ async def get_job(
         processed_videos=job.processed_videos,
         last_processed_id=job.last_processed_id,
         created_at=job.created_at,
+    )
+
+
+@router.get("/{job_id}/queue", response_model=JobQueueStatusResponse)
+async def get_job_queue(
+    job_id: str,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> JobQueueStatusResponse:
+    """Retrieve detailed queue items and aggregate statistics for a job."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job '{job_id}' not found.",
+        )
+
+    stats = await repo.get_queue_stats(job_id)
+    items = await repo.get_queue_items(job_id)
+    return JobQueueStatusResponse(
+        job_id=job_id,
+        stats=stats,
+        items=[
+            QueueItemResponse(
+                job_id=it.job_id,
+                source_message_id=it.source_message_id,
+                status=it.status.value,
+                media_type=it.media_type,
+                caption=it.caption,
+                target_message_id=it.target_message_id,
+                error_message=it.error_message,
+                retry_count=it.retry_count,
+                created_at=it.created_at,
+                updated_at=it.updated_at,
+            )
+            for it in items
+        ],
     )
 
 

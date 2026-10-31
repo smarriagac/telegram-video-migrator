@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
+from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 
 
 class JobRepositoryPort(ABC):
@@ -39,4 +40,38 @@ class JobRepositoryPort(ABC):
     @abstractmethod
     async def is_item_migrated(self, job_id: str, source_msg_id: int) -> bool:
         """Check whether a specific source video message has already been migrated."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def add_queue_items(self, items: list[QueueItem]) -> None:
+        """Batch persist queued units for a migration job."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_queue_items(
+        self, job_id: str, status: QueueItemStatus | None = None
+    ) -> list[QueueItem]:
+        """Fetch queue items for a job, optionally filtered by status."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_next_pending_queue_item(self, job_id: str) -> QueueItem | None:
+        """Retrieve the next pending item in queue ordered by source_message_id."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_queue_item_status(
+        self,
+        job_id: str,
+        source_msg_id: int,
+        status: QueueItemStatus,
+        target_msg_id: int | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        """Update individual queue item status and result."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_queue_stats(self, job_id: str) -> dict[str, int]:
+        """Retrieve aggregated queue counts (total, pending, in_progress, completed, failed, skipped)."""
         raise NotImplementedError

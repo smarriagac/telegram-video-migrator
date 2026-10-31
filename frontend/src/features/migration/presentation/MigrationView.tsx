@@ -3,6 +3,8 @@ import { Play, RotateCcw, Search, StopCircle } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { useMigrationStream } from "../application/useMigrationStream";
 import { ChannelSelector } from "./components/ChannelSelector";
+import { MessageSelector } from "./components/MessageSelector";
+import { QueueViewer } from "./components/QueueViewer";
 import { ProgressBar } from "./components/ProgressBar";
 import { TerminalLog } from "./components/TerminalLog";
 import { ConfirmModal } from "./components/ConfirmModal";
@@ -96,6 +98,9 @@ export const MigrationView: React.FC = () => {
       {/* Channel Selector */}
       <ChannelSelector filterQuery={searchFilter} />
 
+      {/* Message Pre-selection */}
+      <MessageSelector />
+
       {/* Action Center Banner */}
       <section
         aria-label="Controles de migración"
@@ -146,6 +151,9 @@ export const MigrationView: React.FC = () => {
 
       {/* Real-time Progress Bar */}
       <ProgressBar />
+
+      {/* Persistent Queue Status & Item Tracker */}
+      <QueueViewer />
 
       {/* Streaming Terminal Log */}
       <TerminalLog />

@@ -48,6 +48,11 @@ class MockTelegramGateway(TelegramGatewayPort):
     async def get_chat_messages(self, chat_id: int, limit: int = 50) -> list[Any]:
         return []
 
+    async def get_channel_messages(
+        self, channel_id: int, limit: int = 50, offset_id: int | None = None
+    ) -> list[Any]:
+        return []
+
 
 @pytest.fixture
 async def repo():
@@ -103,9 +108,49 @@ async def test_worker_copies_videos_and_emits_progress(repo: SQLiteJobRepository
     assert any(e.get("status") == JobStatus.RUNNING.value for e in progress_events)
     assert any(e.get("status") == JobStatus.COMPLETED.value for e in progress_events)
 
+    # Check queue persistence
+    stats = await repo.get_queue_stats("test-job-1")
+    assert stats["completed"] == 2
+    assert stats["pending"] == 0
+
     # Check database idempotency
     assert await repo.is_item_migrated("test-job-1", 10)
     assert await repo.is_item_migrated("test-job-1", 11)
+
+
+@pytest.mark.asyncio
+async def test_worker_selective_migration_with_queue(repo: SQLiteJobRepository):
+    videos = [
+        VideoMessage(message_id=101, caption="Video 101"),
+        VideoMessage(message_id=102, caption="Video 102"),
+        VideoMessage(message_id=103, caption="Video 103"),
+    ]
+    gateway = MockTelegramGateway(videos)
+    use_case = CloneChannelVideosUseCase(
+        telegram_gateway=gateway,
+        job_repository=repo,
+        min_delay_seconds=0.01,
+        max_delay_seconds=0.02,
+    )
+
+    job = MigrationJob(job_id="test-job-selective", source_id=1, target_id=2)
+    await repo.create_job(job)
+
+    # Select ONLY message 102
+    result_job = await use_case.execute(
+        "test-job-selective", selected_message_ids=[102]
+    )
+
+    assert result_job.status == JobStatus.COMPLETED
+    assert result_job.total_videos == 1
+    assert result_job.processed_videos == 1
+    assert gateway.copied_calls == [(2, 102)]
+
+    # Check queue items
+    queue_items = await repo.get_queue_items("test-job-selective")
+    assert len(queue_items) == 1
+    assert queue_items[0].source_message_id == 102
+    assert queue_items[0].status == "COMPLETED"
 
 
 @pytest.mark.asyncio

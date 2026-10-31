@@ -21,6 +21,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
   const channels = useMigrationStore((state) => state.channels);
   const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
   const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
+  const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
   const isStarting = useMigrationStore((state) => state.isStartingJob);
 
   const sourceChannel = channels.find((c) => c.id === selectedSourceId);
@@ -55,6 +56,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
           <div className="flex items-center justify-between text-xs">
             <span className="text-zinc-500 font-mono text-[11px]">DESTINO:</span>
             <span className="text-emerald-400 font-semibold">{targetChannel?.title || selectedTargetId}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-white/5">
+            <span className="text-zinc-500 font-mono text-[11px]">ALCANCE:</span>
+            <span className="text-cyan-300 font-mono text-[11px]">
+              {selectedMessageIds.length > 0
+                ? `${selectedMessageIds.length} elementos seleccionados`
+                : "Todos los mensajes del canal"}
+            </span>
           </div>
         </div>
 

@@ -5,6 +5,7 @@ from backend.domain.entities.channel import Channel
 from backend.domain.entities.video_message import VideoMessage
 from backend.domain.entities.dialog import TelegramDialog
 from backend.domain.entities.chat_message import ChatMessage
+from backend.domain.entities.channel_message import ChannelMessage
 
 
 class TelegramGatewayPort(ABC):
@@ -13,6 +14,13 @@ class TelegramGatewayPort(ABC):
     @abstractmethod
     async def get_managed_channels(self, limit: int = 100) -> list[Channel]:
         """Retrieve channels where authenticated user has management/posting permissions."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_channel_messages(
+        self, channel_id: int, limit: int = 50, offset_id: int | None = None
+    ) -> list[ChannelMessage]:
+        """Fetch preview messages from a channel for user selection."""
         raise NotImplementedError
 
     @abstractmethod

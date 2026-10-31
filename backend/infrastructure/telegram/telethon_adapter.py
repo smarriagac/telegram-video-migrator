@@ -14,6 +14,7 @@ from backend.domain.entities.channel import Channel
 from backend.domain.entities.video_message import VideoMessage
 from backend.domain.entities.dialog import TelegramDialog
 from backend.domain.entities.chat_message import ChatMessage
+from backend.domain.entities.channel_message import ChannelMessage
 from backend.domain.exceptions.domain_exceptions import (
     ChannelAccessDeniedException,
     FloodWaitDomainException,
@@ -71,6 +72,67 @@ class TelethonAdapter(TelegramGatewayPort):
             raise FloodWaitDomainException(seconds=e.seconds) from e
         except Exception as e:
             logger.error(f"Error fetching managed channels: {e}")
+            raise
+
+    async def get_channel_messages(
+        self, channel_id: int, limit: int = 50, offset_id: int | None = None
+    ) -> list[ChannelMessage]:
+        """Fetch preview messages from a channel for user selection."""
+        results: list[ChannelMessage] = []
+        try:
+            await self._ensure_connected()
+            iter_kwargs: dict[str, Any] = {"limit": limit}
+            if offset_id:
+                iter_kwargs["offset_id"] = offset_id
+
+            async for message in self.client.iter_messages(channel_id, **iter_kwargs):
+                if isinstance(message, types.MessageService) or getattr(message, "action", None) is not None:
+                    continue
+
+                media_type: str | None = None
+                file_size: int | None = None
+
+                photo = getattr(message, "photo", None)
+                if not photo and hasattr(message, "media") and hasattr(message.media, "photo"):
+                    photo = message.media.photo
+
+                doc = getattr(message, "document", None)
+                if not doc and hasattr(message, "media") and hasattr(message.media, "document"):
+                    doc = message.media.document
+
+                if photo and isinstance(photo, types.Photo):
+                    media_type = "photo"
+                elif doc and isinstance(doc, types.Document):
+                    is_video = getattr(doc, "mime_type", "").startswith("video/") or any(
+                        isinstance(attr, types.DocumentAttributeVideo)
+                        for attr in getattr(doc, "attributes", [])
+                    )
+                    media_type = "video" if is_video else "document"
+                    file_size = getattr(doc, "size", None)
+                elif message.message:
+                    media_type = "text"
+
+                date_str = message.date.strftime("%Y-%m-%d %H:%M") if message.date else ""
+                views = getattr(message, "views", None)
+
+                results.append(
+                    ChannelMessage(
+                        id=message.id,
+                        channel_id=channel_id,
+                        text=message.message or "",
+                        media_type=media_type,
+                        date=date_str,
+                        file_size=file_size,
+                        views=views,
+                    )
+                )
+            return results
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error fetching channel messages for {channel_id}: {e}")
             raise
 
     async def fetch_channel_videos(

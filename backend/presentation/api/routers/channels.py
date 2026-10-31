@@ -19,6 +19,17 @@ class ChannelResponse(BaseModel):
     can_post: bool = False
 
 
+class ChannelMessageItemResponse(BaseModel):
+    id: int
+    channel_id: int
+    text: str
+    media_type: str | None = None
+    date: str = ""
+    file_size: int | None = None
+    views: int | None = None
+    is_migrated: bool = False
+
+
 @router.get("", response_model=list[ChannelResponse])
 async def list_channels(
     limit: int = 100,
@@ -42,7 +53,31 @@ async def list_channels(
             ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
             ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),
         ]
+
+
+@router.get("/{channel_id}/messages", response_model=list[ChannelMessageItemResponse])
+async def list_channel_messages(
+    channel_id: int,
+    limit: int = 50,
+    offset_id: int | None = None,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> list[ChannelMessageItemResponse]:
+    """Retrieve preview messages from a channel for selection before migration."""
+    try:
+        messages = await gateway.get_channel_messages(channel_id=channel_id, limit=limit, offset_id=offset_id)
         return [
-            ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
-            ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),
+            ChannelMessageItemResponse(
+                id=m.id,
+                channel_id=m.channel_id,
+                text=m.text,
+                media_type=m.media_type,
+                date=m.date,
+                file_size=m.file_size,
+                views=m.views,
+                is_migrated=m.is_migrated,
+            )
+            for m in messages
         ]
+    except Exception as e:
+        logger.error(f"Error listing messages for channel {channel_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

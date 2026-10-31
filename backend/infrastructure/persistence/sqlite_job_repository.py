@@ -5,6 +5,7 @@ from typing import AsyncIterator
 import aiosqlite
 
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
+from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 
 
@@ -60,6 +61,25 @@ class SQLiteJobRepository(JobRepositoryPort):
                     PRIMARY KEY (job_id, source_message_id),
                     FOREIGN KEY (job_id) REFERENCES migration_jobs(id)
                 );
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS migration_queue (
+                    job_id TEXT NOT NULL,
+                    source_message_id INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'PENDING',
+                    media_type TEXT NOT NULL DEFAULT 'video',
+                    caption TEXT,
+                    target_message_id INTEGER,
+                    error_message TEXT,
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (job_id, source_message_id),
+                    FOREIGN KEY (job_id) REFERENCES migration_jobs(id)
+                );
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_queue_job_status ON migration_queue(job_id, status);
             """)
             await conn.commit()
             self._initialized = True
@@ -189,6 +209,151 @@ class SQLiteJobRepository(JobRepositoryPort):
             ) as cursor:
                 row = await cursor.fetchone()
                 return row is not None
+
+    async def add_queue_items(self, items: list[QueueItem]) -> None:
+        if not items:
+            return
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            records = [
+                (
+                    item.job_id,
+                    item.source_message_id,
+                    item.status.value if isinstance(item.status, QueueItemStatus) else str(item.status),
+                    item.media_type,
+                    item.caption or "",
+                    item.retry_count,
+                )
+                for item in items
+            ]
+            await conn.executemany(
+                """
+                INSERT OR IGNORE INTO migration_queue (
+                    job_id, source_message_id, status, media_type, caption, retry_count
+                ) VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                records,
+            )
+            await conn.commit()
+
+    async def get_queue_items(
+        self, job_id: str, status: QueueItemStatus | None = None
+    ) -> list[QueueItem]:
+        await self._ensure_initialized()
+        query = """
+            SELECT job_id, source_message_id, status, media_type, caption,
+                   target_message_id, error_message, retry_count, created_at, updated_at
+            FROM migration_queue
+            WHERE job_id = ?
+        """
+        params: list[Any] = [job_id]
+        if status is not None:
+            query += " AND status = ?"
+            status_val = status.value if isinstance(status, QueueItemStatus) else str(status)
+            params.append(status_val)
+        query += " ORDER BY source_message_id ASC;"
+
+        async with self._get_connection() as conn:
+            async with conn.execute(query, params) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    QueueItem(
+                        job_id=str(row[0]),
+                        source_message_id=int(row[1]),
+                        status=QueueItemStatus(row[2]),
+                        media_type=str(row[3]),
+                        caption=str(row[4] or ""),
+                        target_message_id=int(row[5]) if row[5] is not None else None,
+                        error_message=str(row[6]) if row[6] is not None else None,
+                        retry_count=int(row[7]),
+                        created_at=str(row[8]) if row[8] is not None else None,
+                        updated_at=str(row[9]) if row[9] is not None else None,
+                    )
+                    for row in rows
+                ]
+
+    async def get_next_pending_queue_item(self, job_id: str) -> QueueItem | None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT job_id, source_message_id, status, media_type, caption,
+                       target_message_id, error_message, retry_count, created_at, updated_at
+                FROM migration_queue
+                WHERE job_id = ? AND status = 'PENDING'
+                ORDER BY source_message_id ASC
+                LIMIT 1;
+                """,
+                (job_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row is None:
+                    return None
+                return QueueItem(
+                    job_id=str(row[0]),
+                    source_message_id=int(row[1]),
+                    status=QueueItemStatus(row[2]),
+                    media_type=str(row[3]),
+                    caption=str(row[4] or ""),
+                    target_message_id=int(row[5]) if row[5] is not None else None,
+                    error_message=str(row[6]) if row[6] is not None else None,
+                    retry_count=int(row[7]),
+                    created_at=str(row[8]) if row[8] is not None else None,
+                    updated_at=str(row[9]) if row[9] is not None else None,
+                )
+
+    async def update_queue_item_status(
+        self,
+        job_id: str,
+        source_msg_id: int,
+        status: QueueItemStatus,
+        target_msg_id: int | None = None,
+        error_message: str | None = None,
+    ) -> None:
+        await self._ensure_initialized()
+        status_val = status.value if isinstance(status, QueueItemStatus) else str(status)
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = ?,
+                    target_message_id = COALESCE(?, target_message_id),
+                    error_message = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ? AND source_message_id = ?;
+                """,
+                (status_val, target_msg_id, error_message, job_id, source_msg_id),
+            )
+            await conn.commit()
+
+    async def get_queue_stats(self, job_id: str) -> dict[str, int]:
+        await self._ensure_initialized()
+        stats: dict[str, int] = {
+            "total": 0,
+            "pending": 0,
+            "in_progress": 0,
+            "completed": 0,
+            "failed": 0,
+            "skipped": 0,
+        }
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT status, COUNT(*)
+                FROM migration_queue
+                WHERE job_id = ?
+                GROUP BY status;
+                """,
+                (job_id,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                for row in rows:
+                    st = str(row[0]).lower()
+                    cnt = int(row[1])
+                    if st in stats:
+                        stats[st] = cnt
+                    stats["total"] += cnt
+        return stats
 
     async def close(self) -> None:
         if self._shared_mem_conn is not None:

@@ -1,11 +1,22 @@
 import { create } from "zustand";
-import { Channel, LogEntry, MigrationJob, ProgressEventPayload } from "../domain/types";
+import {
+  Channel,
+  ChannelMessageItem,
+  JobQueueStatus,
+  LogEntry,
+  MigrationJob,
+  ProgressEventPayload,
+} from "../domain/types";
 import { migrationApi } from "../infrastructure/migrationApi";
 
 interface MigrationStore {
   channels: Channel[];
   selectedSourceId: number | null;
   selectedTargetId: number | null;
+  sourceMessages: ChannelMessageItem[];
+  selectedMessageIds: number[];
+  isLoadingMessages: boolean;
+  queueStatus: JobQueueStatus | null;
   activeJob: MigrationJob | null;
   progress: ProgressEventPayload | null;
   logs: LogEntry[];
@@ -17,6 +28,11 @@ interface MigrationStore {
   fetchChannels: () => Promise<void>;
   selectSource: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
+  fetchSourceMessages: (channelId: number) => Promise<void>;
+  toggleSelectMessage: (id: number) => void;
+  selectAllMessages: () => void;
+  deselectAllMessages: () => void;
+  fetchQueueStatus: (jobId: string) => Promise<void>;
   startMigration: () => Promise<string | null>;
   cancelMigration: () => Promise<void>;
   updateProgress: (payload: ProgressEventPayload) => void;
@@ -30,6 +46,10 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   channels: [],
   selectedSourceId: null,
   selectedTargetId: null,
+  sourceMessages: [],
+  selectedMessageIds: [],
+  isLoadingMessages: false,
+  queueStatus: null,
   activeJob: null,
   progress: null,
   logs: [],
@@ -44,6 +64,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       set({ channels, isLoadingChannels: false });
       if (channels.length >= 2 && !get().selectedSourceId && !get().selectedTargetId) {
         set({ selectedSourceId: channels[0].id, selectedTargetId: channels[1].id });
+        get().fetchSourceMessages(channels[0].id);
       }
     } catch (err: any) {
       set({
@@ -54,11 +75,59 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     }
   },
 
-  selectSource: (id) => set({ selectedSourceId: id, error: null }),
+  selectSource: (id) => {
+    set({ selectedSourceId: id, error: null, selectedMessageIds: [] });
+    if (id) {
+      get().fetchSourceMessages(id);
+    } else {
+      set({ sourceMessages: [] });
+    }
+  },
+
   selectTarget: (id) => set({ selectedTargetId: id, error: null }),
 
+  fetchSourceMessages: async (channelId: number) => {
+    set({ isLoadingMessages: true });
+    try {
+      const msgs = await migrationApi.fetchChannelMessages(channelId, 100);
+      set({ sourceMessages: msgs, isLoadingMessages: false });
+    } catch (err: any) {
+      set({ isLoadingMessages: false });
+      get().addLog(`Error previewing messages: ${err.message}`, "warn");
+    }
+  },
+
+  toggleSelectMessage: (id: number) => {
+    set((state) => {
+      const exists = state.selectedMessageIds.includes(id);
+      const updated = exists
+        ? state.selectedMessageIds.filter((mId) => mId !== id)
+        : [...state.selectedMessageIds, id];
+      return { selectedMessageIds: updated };
+    });
+  },
+
+  selectAllMessages: () => {
+    set((state) => ({
+      selectedMessageIds: state.sourceMessages.map((m) => m.id),
+    }));
+  },
+
+  deselectAllMessages: () => {
+    set({ selectedMessageIds: [] });
+  },
+
+  fetchQueueStatus: async (jobId: string) => {
+    try {
+      const queue = await migrationApi.getJobQueue(jobId);
+      set({ queueStatus: queue });
+    } catch (err: any) {
+      // silent or debug log
+    }
+  },
+
   startMigration: async () => {
-    const { selectedSourceId, selectedTargetId } = get();
+    const { selectedSourceId, selectedTargetId, selectedMessageIds } = get();
     if (!selectedSourceId || !selectedTargetId) {
       set({ error: "Please select both source and destination channels." });
       return null;
@@ -70,7 +139,11 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
 
     set({ isStartingJob: true, error: null });
     try {
-      const job = await migrationApi.startMigration(selectedSourceId, selectedTargetId);
+      const job = await migrationApi.startMigration(
+        selectedSourceId,
+        selectedTargetId,
+        selectedMessageIds.length > 0 ? selectedMessageIds : undefined
+      );
       set({
         activeJob: job,
         isStartingJob: false,
@@ -79,10 +152,11 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
           status: "PENDING",
           percentage: 0,
           processed_videos: 0,
-          total_videos: 0,
+          total_videos: job.total_videos || selectedMessageIds.length || 0,
         },
       });
       get().addLog(`Migration job initialized: ${job.job_id}`, "info");
+      get().fetchQueueStatus(job.job_id);
       return job.job_id;
     } catch (err: any) {
       set({ isStartingJob: false, error: err.message });

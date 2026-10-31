@@ -59,3 +59,11 @@ async def test_create_and_get_job_endpoint():
         cancel_res = await client.post(f"/api/jobs/{job_id}/cancel")
         assert cancel_res.status_code == 200
         assert cancel_res.json()["status"] == "CANCELLED"
+
+        # Check job queue endpoint
+        queue_res = await client.get(f"/api/jobs/{job_id}/queue")
+        assert queue_res.status_code == 200
+        qdata = queue_res.json()
+        assert "job_id" in qdata
+        assert "stats" in qdata
+        assert "items" in qdata

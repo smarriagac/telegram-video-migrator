@@ -6,6 +6,8 @@ import random
 from typing import Any, Awaitable, Callable
 
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
+from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
+from backend.domain.entities.video_message import VideoMessage
 from backend.domain.exceptions.domain_exceptions import (
     FloodWaitDomainException,
     JobNotFoundException,
@@ -39,9 +41,12 @@ class CloneChannelVideosUseCase:
         self._cancelled_jobs.add(job_id)
 
     async def execute(
-        self, job_id: str, on_progress: ProgressCallback | None = None
+        self,
+        job_id: str,
+        on_progress: ProgressCallback | None = None,
+        selected_message_ids: list[int] | None = None,
     ) -> MigrationJob:
-        """Executes sequential video migration for a given job."""
+        """Executes sequential video migration for a given job using persistent queue."""
         job = await self.repo.get_job(job_id)
         if not job:
             raise JobNotFoundException(job_id)
@@ -51,58 +56,107 @@ class CloneChannelVideosUseCase:
             await on_progress({
                 "job_id": job_id,
                 "status": JobStatus.RUNNING.value,
-                "message": "Discovering messages and media in source channel...",
+                "message": "Initializing migration queue...",
                 "processed_videos": job.processed_videos,
                 "total_videos": job.total_videos,
                 "percentage": 0.0,
             })
 
-        # Fetch messages from source channel
-        videos = await self.gateway.fetch_channel_videos(job.source_id)
-        total_videos = len(videos)
+        # Check if queue already exists (e.g. resuming)
+        existing_queue = await self.repo.get_queue_items(job_id)
+        videos_cache: dict[int, VideoMessage] = {}
 
-        # Update initial totals
-        job.total_videos = total_videos
-        await self.repo.create_job(job)
+        if not existing_queue:
+            # Discover messages from source channel
+            all_videos = await self.gateway.fetch_channel_videos(job.source_id)
+            if selected_message_ids is not None:
+                selected_set = set(selected_message_ids)
+                videos_to_queue = [v for v in all_videos if v.message_id in selected_set]
+            else:
+                videos_to_queue = all_videos
 
-        if total_videos == 0:
+            queue_items = [
+                QueueItem(
+                    job_id=job_id,
+                    source_message_id=v.message_id,
+                    status=QueueItemStatus.PENDING,
+                    media_type=getattr(v, "media_type", "video"),
+                    caption=v.caption or "",
+                )
+                for v in videos_to_queue
+            ]
+            await self.repo.add_queue_items(queue_items)
+            videos_cache = {v.message_id: v for v in videos_to_queue}
+            total_items = len(queue_items)
+            job.total_videos = total_items
+            await self.repo.create_job(job)
+        else:
+            total_items = len(existing_queue)
+            job.total_videos = total_items
+
+        if total_items == 0:
             await self.repo.set_job_status(job_id, JobStatus.COMPLETED)
             if on_progress:
                 await on_progress({
                     "job_id": job_id,
                     "status": JobStatus.COMPLETED.value,
-                    "message": "No messages or media found in source channel.",
+                    "message": "No messages or media found in queue.",
                     "processed_videos": 0,
                     "total_videos": 0,
                     "percentage": 100.0,
                 })
             return job
 
-        processed_count = 0
-
-        for video in videos:
+        while True:
             if job_id in self._cancelled_jobs:
                 await self.repo.set_job_status(job_id, JobStatus.CANCELLED)
+                stats = await self.repo.get_queue_stats(job_id)
+                processed = stats["completed"] + stats["failed"] + stats["skipped"]
                 if on_progress:
                     await on_progress({
                         "job_id": job_id,
                         "status": JobStatus.CANCELLED.value,
                         "message": "Migration cancelled by user.",
-                        "processed_videos": processed_count,
-                        "total_videos": total_videos,
-                        "percentage": round((processed_count / total_videos) * 100, 1),
+                        "processed_videos": processed,
+                        "total_videos": total_items,
+                        "percentage": round((processed / total_items) * 100, 1) if total_items > 0 else 0,
+                        "queue_stats": stats,
                     })
                 return await self.repo.get_job(job_id)  # type: ignore
 
+            item = await self.repo.get_next_pending_queue_item(job_id)
+            if not item:
+                break
+
+            await self.repo.update_queue_item_status(
+                job_id, item.source_message_id, QueueItemStatus.IN_PROGRESS
+            )
+
             # Idempotency check: skip already migrated messages
-            already_migrated = await self.repo.is_item_migrated(job_id, video.message_id)
+            already_migrated = await self.repo.is_item_migrated(job_id, item.source_message_id)
             if already_migrated:
-                processed_count += 1
+                await self.repo.update_queue_item_status(
+                    job_id, item.source_message_id, QueueItemStatus.COMPLETED
+                )
+                stats = await self.repo.get_queue_stats(job_id)
+                processed_count = stats["completed"] + stats["failed"] + stats["skipped"]
+                await self.repo.update_job_progress(job_id, processed_count, item.source_message_id)
                 continue
+
+            video = videos_cache.get(item.source_message_id)
+            if not video:
+                video = VideoMessage(
+                    message_id=item.source_message_id,
+                    caption=item.caption,
+                    media_type=item.media_type,
+                    source_channel_id=job.source_id,
+                )
 
             target_msg_id = None
             retry_count = 0
             max_retries = 2
+            last_error: str | None = None
+
             while target_msg_id is None and retry_count <= max_retries:
                 try:
                     target_msg_id = await self.gateway.copy_video_by_reference(
@@ -120,58 +174,74 @@ class CloneChannelVideosUseCase:
                             "status": JobStatus.PAUSED_FLOOD_WAIT.value,
                             "message": f"Telegram rate limit: cooling down for {wait_time}s...",
                             "wait_seconds": wait_time,
-                            "processed_videos": processed_count,
-                            "total_videos": total_videos,
-                            "percentage": round((processed_count / total_videos) * 100, 1),
                         })
                     await asyncio.sleep(wait_time)
                     await self.repo.set_job_status(job_id, JobStatus.RUNNING)
                 except Exception as ex:
                     retry_count += 1
+                    last_error = str(ex)
                     logger.warning(
-                        f"Attempt {retry_count}/{max_retries} failed for message #{video.message_id} on job {job_id}: {ex}"
+                        f"Attempt {retry_count}/{max_retries} failed for message #{item.source_message_id} on job {job_id}: {ex}"
                     )
                     if retry_count > max_retries:
                         logger.error(
-                            f"Skipping message #{video.message_id} due to persistent error: {ex}"
+                            f"Skipping message #{item.source_message_id} due to persistent error: {ex}"
                         )
                         break
                     await asyncio.sleep(2.0)
 
             if target_msg_id is not None:
-                # Record item in SQLite and update progress
-                await self.repo.record_migrated_item(job_id, video.message_id, target_msg_id)
+                await self.repo.record_migrated_item(job_id, item.source_message_id, target_msg_id)
+                await self.repo.update_queue_item_status(
+                    job_id,
+                    item.source_message_id,
+                    QueueItemStatus.COMPLETED,
+                    target_msg_id=target_msg_id,
+                )
+            else:
+                await self.repo.update_queue_item_status(
+                    job_id,
+                    item.source_message_id,
+                    QueueItemStatus.FAILED,
+                    error_message=last_error,
+                )
 
-            processed_count += 1
-            await self.repo.update_job_progress(job_id, processed_count, video.message_id)
+            stats = await self.repo.get_queue_stats(job_id)
+            processed_count = stats["completed"] + stats["failed"] + stats["skipped"]
+            await self.repo.update_job_progress(job_id, processed_count, item.source_message_id)
 
-            media_label = getattr(video, "media_type", "video").capitalize()
-            caption_snippet = video.caption[:50].replace("\n", " ") if video.caption else f"{media_label} without caption"
-            percentage = round((processed_count / total_videos) * 100, 1)
+            media_label = item.media_type.capitalize()
+            caption_snippet = item.caption[:50].replace("\n", " ") if item.caption else f"{media_label} without caption"
+            percentage = round((processed_count / total_items) * 100, 1) if total_items > 0 else 100.0
 
             if on_progress:
                 await on_progress({
                     "job_id": job_id,
                     "status": JobStatus.RUNNING.value,
-                    "message": f"Copied {media_label} #{video.message_id} -> {caption_snippet}",
+                    "message": f"Copied {media_label} #{item.source_message_id} -> {caption_snippet}",
                     "processed_videos": processed_count,
-                    "total_videos": total_videos,
+                    "total_videos": total_items,
                     "percentage": percentage,
+                    "queue_stats": stats,
                 })
 
-            # Enforce safe delay between messages
             delay = random.uniform(self.min_delay, self.max_delay)
             await asyncio.sleep(delay)
 
-        await self.repo.set_job_status(job_id, JobStatus.COMPLETED)
+        final_stats = await self.repo.get_queue_stats(job_id)
+        final_status = JobStatus.COMPLETED if final_stats["failed"] == 0 else JobStatus.COMPLETED
+        await self.repo.set_job_status(job_id, final_status)
+        processed_final = final_stats["completed"] + final_stats["failed"] + final_stats["skipped"]
+
         if on_progress:
             await on_progress({
                 "job_id": job_id,
-                "status": JobStatus.COMPLETED.value,
-                "message": f"Migration completed successfully ({processed_count}/{total_videos} items).",
-                "processed_videos": processed_count,
-                "total_videos": total_videos,
+                "status": final_status.value,
+                "message": f"Migration completed ({final_stats['completed']} succeeded, {final_stats['failed']} failed).",
+                "processed_videos": processed_final,
+                "total_videos": total_items,
                 "percentage": 100.0,
+                "queue_stats": final_stats,
             })
 
         final_job = await self.repo.get_job(job_id)
