@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ArrowDown,
+  History,
   Layers,
   Play,
   RotateCcw,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { SearchableChannelSelect } from "./SearchableChannelSelect";
+import { ChannelCloningHistoryModal } from "./ChannelCloningHistoryModal";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 
@@ -35,8 +37,10 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
   const cancelMigration = useMigrationStore((state) => state.cancelMigration);
   const resetJob = useMigrationStore((state) => state.resetJob);
   const logs = useMigrationStore((state) => state.logs);
+  const history = useMigrationStore((state) => state.channelCloningHistory);
 
   const [showLogs, setShowLogs] = useState<boolean>(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
   const isRunning = activeJob?.status === "RUNNING" || activeJob?.status === "PAUSED_FLOOD_WAIT";
   const isFinished =
@@ -99,6 +103,35 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               placeholder="Elegir canal origen..."
               accentColor="cyan"
             />
+
+            {/* Audit History Trigger Pill */}
+            {selectedSourceId && (
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(true)}
+                className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-cyan-500/30 text-left transition-all group"
+                title="Ver historial de clonaciones y contenido copiado"
+              >
+                <div className="flex items-center gap-1.5 text-[11px]">
+                  <History className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-[-20deg] transition-transform" />
+                  <span className="text-zinc-300 font-medium">
+                    Clonado {history?.total_clones ?? 0} {(history?.total_clones ?? 0) === 1 ? "vez" : "veces"}
+                  </span>
+                  {history?.has_full_clone ? (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                      ✓ Completo
+                    </span>
+                  ) : (history?.total_clones ?? 0) > 0 ? (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                      Parcial
+                    </span>
+                  ) : null}
+                </div>
+                <span className="text-[10px] font-mono text-cyan-400 group-hover:underline">
+                  Auditar →
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Connector arrow */}
@@ -262,6 +295,12 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
           </div>
         )}
       </div>
+
+      {/* Channel Cloning Audit & History Modal */}
+      <ChannelCloningHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+      />
     </div>
   );
 };

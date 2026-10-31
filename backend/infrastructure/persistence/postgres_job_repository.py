@@ -7,6 +7,7 @@ import asyncpg
 
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
+from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
 
@@ -65,8 +66,15 @@ class PostgresJobRepository(JobRepositoryPort):
                     processed_videos INTEGER NOT NULL DEFAULT 0,
                     last_processed_msg_id BIGINT,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    is_full_migration BOOLEAN DEFAULT TRUE,
+                    source_channel_title VARCHAR(255),
+                    target_channel_title VARCHAR(255)
                 );
+
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS is_full_migration BOOLEAN DEFAULT TRUE;
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS source_channel_title VARCHAR(255);
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS target_channel_title VARCHAR(255);
 
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id VARCHAR(64) NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
@@ -111,13 +119,16 @@ class PostgresJobRepository(JobRepositoryPort):
                 INSERT INTO migration_jobs (
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
-                    created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+                    created_at, updated_at, is_full_migration, source_channel_title, target_channel_title
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10)
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
                     total_videos = EXCLUDED.total_videos,
                     processed_videos = EXCLUDED.processed_videos,
                     last_processed_msg_id = EXCLUDED.last_processed_msg_id,
+                    is_full_migration = EXCLUDED.is_full_migration,
+                    source_channel_title = EXCLUDED.source_channel_title,
+                    target_channel_title = EXCLUDED.target_channel_title,
                     updated_at = NOW();
                 """,
                 job.job_id,
@@ -127,6 +138,9 @@ class PostgresJobRepository(JobRepositoryPort):
                 job.total_videos,
                 job.processed_videos,
                 job.last_processed_id,
+                job.is_full_migration,
+                job.source_title,
+                job.target_title,
             )
 
     async def update_job_progress(
@@ -181,7 +195,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 """
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
-                       created_at, updated_at
+                       created_at, updated_at, is_full_migration, source_channel_title, target_channel_title
                 FROM migration_jobs
                 WHERE id = $1;
                 """,
@@ -199,6 +213,9 @@ class PostgresJobRepository(JobRepositoryPort):
                 last_processed_id=int(row["last_processed_msg_id"]) if row["last_processed_msg_id"] is not None else None,
                 created_at=str(row["created_at"]) if row["created_at"] is not None else None,
                 updated_at=str(row["updated_at"]) if row["updated_at"] is not None else None,
+                is_full_migration=bool(row["is_full_migration"]) if row["is_full_migration"] is not None else True,
+                source_title=str(row["source_channel_title"]) if row["source_channel_title"] is not None else None,
+                target_title=str(row["target_channel_title"]) if row["target_channel_title"] is not None else None,
             )
 
     async def record_migrated_item(
@@ -417,6 +434,102 @@ class PostgresJobRepository(JobRepositoryPort):
                     stats[st] = cnt
                 stats["total"] += cnt
         return stats
+
+    async def get_channel_cloning_history(self, channel_id: int) -> ChannelCloningHistory:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_channel_cloning_history(channel_id)
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, source_channel_id, target_channel_id, status,
+                       total_videos, processed_videos, last_processed_msg_id,
+                       created_at, updated_at, is_full_migration, source_channel_title, target_channel_title
+                FROM migration_jobs
+                WHERE source_channel_id = $1
+                ORDER BY created_at DESC;
+                """,
+                channel_id,
+            )
+
+            jobs: list[MigrationJob] = []
+            for r in rows:
+                jobs.append(
+                    MigrationJob(
+                        job_id=str(r["id"]),
+                        source_id=int(r["source_channel_id"]),
+                        target_id=int(r["target_channel_id"]),
+                        status=JobStatus(r["status"]),
+                        total_videos=int(r["total_videos"]),
+                        processed_videos=int(r["processed_videos"]),
+                        last_processed_id=int(r["last_processed_msg_id"]) if r["last_processed_msg_id"] is not None else None,
+                        created_at=str(r["created_at"]) if r["created_at"] is not None else None,
+                        updated_at=str(r["updated_at"]) if r["updated_at"] is not None else None,
+                        is_full_migration=bool(r["is_full_migration"]) if r["is_full_migration"] is not None else True,
+                        source_title=str(r["source_channel_title"]) if r["source_channel_title"] is not None else None,
+                        target_title=str(r["target_channel_title"]) if r["target_channel_title"] is not None else None,
+                    )
+                )
+
+            count_row = await conn.fetchval(
+                """
+                SELECT COUNT(DISTINCT mi.source_message_id)
+                FROM migration_items mi
+                JOIN migration_jobs mj ON mi.job_id = mj.id
+                WHERE mj.source_channel_id = $1;
+                """,
+                channel_id,
+            )
+            total_items_cloned = int(count_row) if count_row else 0
+
+            has_full_clone = any(
+                j.is_full_migration and j.status == JobStatus.COMPLETED and j.processed_videos > 0
+                for j in jobs
+            )
+
+            return ChannelCloningHistory(
+                channel_id=channel_id,
+                total_clones=len(jobs),
+                has_full_clone=has_full_clone,
+                total_items_cloned=total_items_cloned,
+                jobs=jobs,
+            )
+
+    async def get_cloned_content_for_channel(self, channel_id: int) -> list[ClonedContentItem]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_cloned_content_for_channel(channel_id)
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT mq.job_id, mq.source_message_id, mq.target_message_id,
+                       mq.media_type, mq.caption, mq.updated_at,
+                       mj.target_channel_id, mj.target_channel_title
+                FROM migration_queue mq
+                JOIN migration_jobs mj ON mq.job_id = mj.id
+                WHERE mj.source_channel_id = $1 AND mq.status = 'COMPLETED'
+                ORDER BY mq.source_message_id DESC;
+                """,
+                channel_id,
+            )
+
+            return [
+                ClonedContentItem(
+                    job_id=str(r["job_id"]),
+                    source_message_id=int(r["source_message_id"]),
+                    target_message_id=int(r["target_message_id"]) if r["target_message_id"] is not None else None,
+                    media_type=str(r["media_type"]),
+                    caption=str(r["caption"] or ""),
+                    migrated_at=str(r["updated_at"]) if r["updated_at"] is not None else None,
+                    target_channel_id=int(r["target_channel_id"]),
+                    target_channel_title=str(r["target_channel_title"]) if r["target_channel_title"] is not None else None,
+                )
+                for r in rows
+            ]
 
     async def close(self) -> None:
         if self.pool is not None:

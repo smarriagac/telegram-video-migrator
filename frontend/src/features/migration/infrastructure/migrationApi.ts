@@ -1,4 +1,11 @@
-import { Channel, ChannelMessageItem, JobQueueStatus, MigrationJob } from "../domain/types";
+import {
+  Channel,
+  ChannelCloningHistory,
+  ChannelMessageItem,
+  ClonedContentItem,
+  JobQueueStatus,
+  MigrationJob,
+} from "../domain/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -30,18 +37,28 @@ export const migrationApi = {
   async startMigration(
     sourceChannelId: number,
     targetChannelId: number,
-    selectedMessageIds?: number[]
+    selectedMessageIds?: number[],
+    sourceChannelTitle?: string,
+    targetChannelTitle?: string
   ): Promise<MigrationJob> {
     const payload: {
       source_channel_id: number;
       target_channel_id: number;
       selected_message_ids?: number[];
+      source_channel_title?: string;
+      target_channel_title?: string;
     } = {
       source_channel_id: sourceChannelId,
       target_channel_id: targetChannelId,
     };
     if (selectedMessageIds && selectedMessageIds.length > 0) {
       payload.selected_message_ids = selectedMessageIds;
+    }
+    if (sourceChannelTitle) {
+      payload.source_channel_title = sourceChannelTitle;
+    }
+    if (targetChannelTitle) {
+      payload.target_channel_title = targetChannelTitle;
     }
 
     const res = await fetch(`${API_BASE_URL}/jobs`, {
@@ -52,6 +69,22 @@ export const migrationApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Failed to start migration job");
+    }
+    return res.json();
+  },
+
+  async fetchChannelCloningHistory(channelId: number): Promise<ChannelCloningHistory> {
+    const res = await fetch(`${API_BASE_URL}/channels/${channelId}/cloning-history`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch channel cloning history: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async fetchChannelClonedContent(channelId: number): Promise<ClonedContentItem[]> {
+    const res = await fetch(`${API_BASE_URL}/channels/${channelId}/cloned-content`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch channel cloned content: ${res.statusText}`);
     }
     return res.json();
   },

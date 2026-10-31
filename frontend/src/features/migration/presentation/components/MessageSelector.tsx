@@ -97,6 +97,7 @@ export const MessageSelector: React.FC = () => {
   const isLoadingMessages = useMigrationStore((state) => state.isLoadingMessages);
   const hasMoreMessages = useMigrationStore((state) => state.hasMoreMessages);
   const isLoadingMoreMessages = useMigrationStore((state) => state.isLoadingMoreMessages);
+  const clonedItems = useMigrationStore((state) => state.clonedContentItems);
   const fetchSourceMessages = useMigrationStore((state) => state.fetchSourceMessages);
   const loadMoreSourceMessages = useMigrationStore((state) => state.loadMoreSourceMessages);
   const toggleSelectMessage = useMigrationStore((state) => state.toggleSelectMessage);
@@ -107,6 +108,8 @@ export const MessageSelector: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [previewModalMsg, setPreviewModalMsg] = useState<ChannelMessageItem | null>(null);
+
+  const clonedMsgIds = useMemo(() => new Set(clonedItems.map((c) => c.source_message_id)), [clonedItems]);
 
   const filteredMessages = useMemo(() => {
     return sourceMessages.filter((msg) => {
@@ -398,6 +401,11 @@ export const MessageSelector: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1">
+                    {clonedMsgIds.has(msg.id) && (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-emerald-500/25 text-emerald-300 border border-emerald-500/35" title="Este mensaje ya fue clonado previamente">
+                        ✓ Clonado
+                      </span>
+                    )}
                     {getTypeBadge(msg.media_type)}
                   </div>
                 </div>
@@ -473,7 +481,12 @@ export const MessageSelector: React.FC = () => {
                   #{msg.id}
                 </span>
 
-                <div className="shrink-0 w-20">
+                <div className="shrink-0 flex items-center gap-1.5 w-36">
+                  {clonedMsgIds.has(msg.id) && (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-emerald-500/25 text-emerald-300 border border-emerald-500/35">
+                      ✓ Clonado
+                    </span>
+                  )}
                   {getTypeBadge(msg.media_type)}
                 </div>
 
@@ -565,6 +578,16 @@ export const MessageSelector: React.FC = () => {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Previously Cloned Alert */}
+            {clonedMsgIds.has(previewModalMsg.id) && (
+              <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>
+                  Este mensaje ya fue clonado previamente hacia un canal de destino registrado en el historial.
+                </span>
+              </div>
+            )}
 
             {/* Media Preview Box */}
             <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 flex items-center justify-center">

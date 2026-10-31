@@ -85,3 +85,36 @@ export interface LogEntry {
   level: "info" | "warn" | "success" | "error";
   text: string;
 }
+
+export interface JobHistoryItem {
+  job_id: string;
+  source_id: number;
+  source_title: string | null;
+  target_id: number;
+  target_title: string | null;
+  status: JobStatus;
+  total_videos: number;
+  processed_videos: number;
+  is_full_migration: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ChannelCloningHistory {
+  channel_id: number;
+  total_clones: number;
+  has_full_clone: boolean;
+  total_items_cloned: number;
+  jobs: JobHistoryItem[];
+}
+
+export interface ClonedContentItem {
+  job_id: string;
+  source_message_id: number;
+  target_message_id: number | null;
+  media_type: string;
+  caption: string;
+  migrated_at: string | null;
+  target_channel_id: number;
+  target_channel_title: string | null;
+}

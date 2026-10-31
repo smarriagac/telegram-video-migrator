@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import {
   Channel,
+  ChannelCloningHistory,
   ChannelMessageItem,
+  ClonedContentItem,
   JobQueueStatus,
   LogEntry,
   MigrationJob,
@@ -18,6 +20,9 @@ interface MigrationStore {
   isLoadingMessages: boolean;
   hasMoreMessages: boolean;
   isLoadingMoreMessages: boolean;
+  channelCloningHistory: ChannelCloningHistory | null;
+  clonedContentItems: ClonedContentItem[];
+  isLoadingHistory: boolean;
   queueStatus: JobQueueStatus | null;
   activeJob: MigrationJob | null;
   progress: ProgressEventPayload | null;
@@ -32,6 +37,8 @@ interface MigrationStore {
   selectTarget: (id: number | null) => void;
   fetchSourceMessages: (channelId: number) => Promise<void>;
   loadMoreSourceMessages: () => Promise<void>;
+  fetchChannelCloningHistory: (channelId: number) => Promise<void>;
+  fetchChannelClonedContent: (channelId: number) => Promise<void>;
   toggleSelectMessage: (id: number) => void;
   selectAllMessages: () => void;
   deselectAllMessages: () => void;
@@ -54,6 +61,9 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   isLoadingMessages: false,
   hasMoreMessages: false,
   isLoadingMoreMessages: false,
+  channelCloningHistory: null,
+  clonedContentItems: [],
+  isLoadingHistory: false,
   queueStatus: null,
   activeJob: null,
   progress: null,
@@ -70,6 +80,8 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       if (channels.length >= 2 && !get().selectedSourceId && !get().selectedTargetId) {
         set({ selectedSourceId: channels[0].id, selectedTargetId: channels[1].id });
         get().fetchSourceMessages(channels[0].id);
+        get().fetchChannelCloningHistory(channels[0].id);
+        get().fetchChannelClonedContent(channels[0].id);
       }
     } catch (err: any) {
       set({
@@ -81,11 +93,26 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   selectSource: (id) => {
-    set({ selectedSourceId: id, error: null, selectedMessageIds: [] });
+    set({
+      selectedSourceId: id,
+      error: null,
+      selectedMessageIds: [],
+      channelCloningHistory: null,
+      clonedContentItems: [],
+    });
     if (id) {
       get().fetchSourceMessages(id);
+      get().fetchChannelCloningHistory(id);
+      get().fetchChannelClonedContent(id);
     } else {
-      set({ sourceMessages: [], selectedMessageIds: [], hasMoreMessages: false, isLoadingMoreMessages: false });
+      set({
+        sourceMessages: [],
+        selectedMessageIds: [],
+        hasMoreMessages: false,
+        isLoadingMoreMessages: false,
+        channelCloningHistory: null,
+        clonedContentItems: [],
+      });
     }
   },
 
@@ -136,6 +163,25 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     }
   },
 
+  fetchChannelCloningHistory: async (channelId: number) => {
+    set({ isLoadingHistory: true });
+    try {
+      const history = await migrationApi.fetchChannelCloningHistory(channelId);
+      set({ channelCloningHistory: history, isLoadingHistory: false });
+    } catch (err: any) {
+      set({ isLoadingHistory: false });
+    }
+  },
+
+  fetchChannelClonedContent: async (channelId: number) => {
+    try {
+      const content = await migrationApi.fetchChannelClonedContent(channelId);
+      set({ clonedContentItems: content });
+    } catch (err: any) {
+      // silent fallback
+    }
+  },
+
   toggleSelectMessage: (id: number) => {
     set((state) => {
       const exists = state.selectedMessageIds.includes(id);
@@ -178,10 +224,14 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
 
     set({ isStartingJob: true, error: null });
     try {
+      const sourceChan = get().channels.find((c) => c.id === selectedSourceId);
+      const targetChan = get().channels.find((c) => c.id === selectedTargetId);
       const job = await migrationApi.startMigration(
         selectedSourceId,
         selectedTargetId,
-        selectedMessageIds.length > 0 ? selectedMessageIds : undefined
+        selectedMessageIds.length > 0 ? selectedMessageIds : undefined,
+        sourceChan?.title,
+        targetChan?.title
       );
       set({
         activeJob: job,

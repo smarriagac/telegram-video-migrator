@@ -27,6 +27,8 @@ class CreateJobRequest(BaseModel):
     source_channel_id: int
     target_channel_id: int
     selected_message_ids: list[int] | None = None
+    source_channel_title: str | None = None
+    target_channel_title: str | None = None
 
 
 class JobResponse(BaseModel):
@@ -38,6 +40,9 @@ class JobResponse(BaseModel):
     processed_videos: int
     last_processed_id: int | None = None
     created_at: str | None = None
+    is_full_migration: bool = True
+    source_title: str | None = None
+    target_title: str | None = None
 
 
 class QueueItemResponse(BaseModel):
@@ -74,11 +79,15 @@ async def start_job(
         )
 
     job_id = str(uuid.uuid4())
+    is_full = True if req.selected_message_ids is None or len(req.selected_message_ids) == 0 else False
     job = MigrationJob(
         job_id=job_id,
         source_id=req.source_channel_id,
         target_id=req.target_channel_id,
         status=JobStatus.PENDING,
+        is_full_migration=is_full,
+        source_title=req.source_channel_title,
+        target_title=req.target_channel_title,
     )
     await repo.create_job(job)
 
@@ -117,6 +126,9 @@ async def start_job(
         processed_videos=job.processed_videos,
         last_processed_id=job.last_processed_id,
         created_at=job.created_at,
+        is_full_migration=job.is_full_migration,
+        source_title=job.source_title,
+        target_title=job.target_title,
     )
 
 
@@ -142,6 +154,9 @@ async def get_job(
         processed_videos=job.processed_videos,
         last_processed_id=job.last_processed_id,
         created_at=job.created_at,
+        is_full_migration=job.is_full_migration,
+        source_title=job.source_title,
+        target_title=job.target_title,
     )
 
 

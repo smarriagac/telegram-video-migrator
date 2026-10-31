@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
+from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 
 
 class JobRepositoryPort(ABC):
@@ -74,4 +75,14 @@ class JobRepositoryPort(ABC):
     @abstractmethod
     async def get_queue_stats(self, job_id: str) -> dict[str, int]:
         """Retrieve aggregated queue counts (total, pending, in_progress, completed, failed, skipped)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_channel_cloning_history(self, channel_id: int) -> ChannelCloningHistory:
+        """Retrieve audit history of all cloning jobs executed for a source channel."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_cloned_content_for_channel(self, channel_id: int) -> list[ClonedContentItem]:
+        """Retrieve list of all individual messages/content successfully cloned from this channel."""
         raise NotImplementedError

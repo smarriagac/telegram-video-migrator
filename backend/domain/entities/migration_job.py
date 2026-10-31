@@ -28,3 +28,6 @@ class MigrationJob:
     last_processed_id: int | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    is_full_migration: bool = True
+    source_title: str | None = None
+    target_title: str | None = None

@@ -6,7 +6,8 @@ from pydantic import BaseModel
 
 from backend.domain.entities.channel import Channel
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
-from backend.presentation.dependencies import get_telegram_gateway
+from backend.domain.ports.job_repository_port import JobRepositoryPort
+from backend.presentation.dependencies import get_telegram_gateway, get_job_repository
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/channels", tags=["Channels"])
@@ -98,3 +99,89 @@ async def get_message_thumbnail_endpoint(
         media_type="image/jpeg",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+class JobHistorySummaryResponse(BaseModel):
+    job_id: str
+    source_id: int
+    source_title: str | None = None
+    target_id: int
+    target_title: str | None = None
+    status: str
+    total_videos: int
+    processed_videos: int
+    is_full_migration: bool = True
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class ChannelCloningHistoryResponse(BaseModel):
+    channel_id: int
+    total_clones: int
+    has_full_clone: bool
+    total_items_cloned: int
+    jobs: list[JobHistorySummaryResponse]
+
+
+class ClonedContentItemResponse(BaseModel):
+    job_id: str
+    source_message_id: int
+    target_message_id: int | None = None
+    media_type: str
+    caption: str
+    migrated_at: str | None = None
+    target_channel_id: int
+    target_channel_title: str | None = None
+
+
+@router.get("/{channel_id}/cloning-history", response_model=ChannelCloningHistoryResponse)
+async def get_channel_cloning_history_endpoint(
+    channel_id: int,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> ChannelCloningHistoryResponse:
+    """Retrieve complete cloning history, number of clones, and full/partial coverage."""
+    history = await repo.get_channel_cloning_history(channel_id)
+    return ChannelCloningHistoryResponse(
+        channel_id=history.channel_id,
+        total_clones=history.total_clones,
+        has_full_clone=history.has_full_clone,
+        total_items_cloned=history.total_items_cloned,
+        jobs=[
+            JobHistorySummaryResponse(
+                job_id=j.job_id,
+                source_id=j.source_id,
+                source_title=j.source_title,
+                target_id=j.target_id,
+                target_title=j.target_title,
+                status=j.status.value,
+                total_videos=j.total_videos,
+                processed_videos=j.processed_videos,
+                is_full_migration=j.is_full_migration,
+                created_at=j.created_at,
+                updated_at=j.updated_at,
+            )
+            for j in history.jobs
+        ],
+    )
+
+
+@router.get("/{channel_id}/cloned-content", response_model=list[ClonedContentItemResponse])
+async def get_channel_cloned_content_endpoint(
+    channel_id: int,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> list[ClonedContentItemResponse]:
+    """Retrieve exact audit list of all messages/media cloned from this channel."""
+    items = await repo.get_cloned_content_for_channel(channel_id)
+    return [
+        ClonedContentItemResponse(
+            job_id=it.job_id,
+            source_message_id=it.source_message_id,
+            target_message_id=it.target_message_id,
+            media_type=it.media_type,
+            caption=it.caption,
+            migrated_at=it.migrated_at,
+            target_channel_id=it.target_channel_id,
+            target_channel_title=it.target_channel_title,
+        )
+        for it in items
+    ]
