@@ -138,7 +138,50 @@ export const MessageSelector: React.FC = () => {
   }, [sourceMessages, selectedMessageIds]);
 
   if (!selectedSourceId) {
-    return null;
+    return (
+      <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl space-y-4 flex flex-col min-h-[520px]">
+        <div className="border-b border-white/5 pb-2.5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
+              Mensajes, videos e imágenes del canal a copiar
+            </h2>
+            <p className="text-[11px] text-zinc-400 mt-0.5">
+              Elegí un canal de origen en el panel "De:" para cargar y previsualizar su contenido.
+            </p>
+          </div>
+          <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-white/5 px-2 py-0.5 rounded font-mono">
+            Sin canal activo
+          </span>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center space-y-4 border border-dashed border-white/10 rounded-xl bg-black/20">
+          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+            <Video className="w-6 h-6" />
+          </div>
+          <div className="max-w-sm space-y-1">
+            <p className="text-xs font-semibold text-zinc-200">
+              Canal de origen no seleccionado
+            </p>
+            <p className="text-[11px] text-zinc-400">
+              Seleccioná un canal en el campo <span className="text-cyan-400 font-mono">De:</span> del panel izquierdo para explorar y elegir los mensajes antes de clonar.
+            </p>
+          </div>
+
+          {/* Wireframe skeleton matching the 4-column cards layout */}
+          <div className="w-full max-w-2xl grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 pt-2 px-4 opacity-25 pointer-events-none">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-[4/3] rounded-xl border border-dashed border-white/20 bg-white/5 flex flex-col justify-between p-2"
+              >
+                <div className="w-4 h-4 rounded border border-white/20" />
+                <div className="w-12 h-2 rounded bg-white/10 self-end" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const allFilteredSelected =
@@ -183,18 +226,18 @@ export const MessageSelector: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#14161F]/90 backdrop-blur-md rounded-xl border border-white/5 p-4 shadow-xl space-y-3.5">
+    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl space-y-4 flex flex-col min-h-[520px]">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-xs font-semibold text-white tracking-wide uppercase font-mono">
-              Galería y Selector Multimedia
-            </h3>
+            <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
+              Mensajes, videos e imágenes del canal a copiar
+            </h2>
             <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono">
               {selectedMessageIds.length > 0
                 ? `${selectedMessageIds.length} seleccionados (${formatBytes(selectedSizeSum)})`
-                : "Todos los elementos"}
+                : `${filteredMessages.length} elementos`}
             </span>
           </div>
           <p className="text-[11px] text-zinc-400 mt-0.5">
@@ -312,8 +355,8 @@ export const MessageSelector: React.FC = () => {
           No se encontraron mensajes con los filtros seleccionados.
         </div>
       ) : viewMode === "grid" ? (
-        /* VISUAL GALLERY GRID */
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[460px] overflow-y-auto p-1">
+        /* VISUAL GALLERY GRID (4 columns on desktop matching wireframe) */
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto p-1">
           {filteredMessages.map((msg) => {
             const isSelected = selectedMessageIds.includes(msg.id);
             const sizeStr = formatBytes(msg.file_size);

@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Play, RotateCcw, Search, StopCircle } from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { useMigrationStream } from "../application/useMigrationStream";
-import { ChannelSelector } from "./components/ChannelSelector";
+import { MigrationControlPanel } from "./components/MigrationControlPanel";
 import { MessageSelector } from "./components/MessageSelector";
-import { QueueViewer } from "./components/QueueViewer";
-import { ProgressBar } from "./components/ProgressBar";
-import { TerminalLog } from "./components/TerminalLog";
 import { ConfirmModal } from "./components/ConfirmModal";
-import { Button } from "@/shared/components/ui/button";
 import { BrandLogo } from "@/shared/components/BrandLogo";
 
 export const MigrationView: React.FC = () => {
@@ -18,13 +14,8 @@ export const MigrationView: React.FC = () => {
 
   // Domain & Job State managed strictly via Zustand
   const activeJob = useMigrationStore((state) => state.activeJob);
-  const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
-  const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
-  const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
   const fetchChannels = useMigrationStore((state) => state.fetchChannels);
   const startMigration = useMigrationStore((state) => state.startMigration);
-  const cancelMigration = useMigrationStore((state) => state.cancelMigration);
-  const resetJob = useMigrationStore((state) => state.resetJob);
   const error = useMigrationStore((state) => state.error);
 
   // Hook connecting SSE streaming lifecycle
@@ -34,20 +25,13 @@ export const MigrationView: React.FC = () => {
     fetchChannels();
   }, [fetchChannels]);
 
-  const isRunning =
-    activeJob?.status === "RUNNING" || activeJob?.status === "PAUSED_FLOOD_WAIT";
-  const isFinished =
-    activeJob?.status === "COMPLETED" ||
-    activeJob?.status === "FAILED" ||
-    activeJob?.status === "CANCELLED";
-
   const handleConfirmStart = async () => {
     setIsConfirmOpen(false);
     await startMigration();
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 pb-6">
+    <div className="w-full max-w-[1600px] mx-auto space-y-4 pb-6">
       {/* Top Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-3">
         <div>
@@ -96,76 +80,21 @@ export const MigrationView: React.FC = () => {
         </div>
       )}
 
-      {/* Channel Selector */}
-      <ChannelSelector filterQuery={searchFilter} />
-
-      {/* Message Pre-selection */}
-      <MessageSelector />
-
-      {/* Action Center Banner */}
-      <section
-        aria-label="Controles de migración"
-        className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
-      >
-        <div>
-          <h4 className="text-xs font-semibold text-white">
-            {selectedMessageIds.length > 0
-              ? `Clonar ${selectedMessageIds.length} elementos seleccionados`
-              : "Clonar Canal Completo"}
-          </h4>
-          <p className="text-[11px] text-zinc-400 mt-0.5">
-            {selectedMessageIds.length > 0
-              ? `Se clonarán los ${selectedMessageIds.length} mensajes elegidos respetando límites de Telegram.`
-              : "Comienza a clonar automáticamente respetando límites de Telegram."}
-          </p>
+      {/* 2-Panel Split Layout (Wireframe: Col 2 'migrar canal' + Col 3 'mensajes/videos/imagenes') */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* Column 2: Migration Control Panel (De -> Para + Actions + Progress) */}
+        <div className="lg:col-span-4 xl:col-span-4 w-full">
+          <MigrationControlPanel
+            onOpenConfirm={() => setIsConfirmOpen(true)}
+            filterQuery={searchFilter}
+          />
         </div>
 
-        <div className="flex items-center space-x-2.5">
-          {isRunning ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => cancelMigration()}
-              className="flex items-center gap-1.5 h-8 px-3 text-xs"
-            >
-              <StopCircle className="w-3.5 h-3.5" />
-              Detener Migración
-            </Button>
-          ) : isFinished ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => resetJob()}
-              className="flex items-center gap-1.5 h-8 px-3 text-xs"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Nueva Migración
-            </Button>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              disabled={!selectedSourceId || !selectedTargetId || selectedSourceId === selectedTargetId}
-              onClick={() => setIsConfirmOpen(true)}
-              className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              {selectedMessageIds.length > 0
-                ? `Iniciar (${selectedMessageIds.length})`
-                : "Iniciar en 1 Click"}
-            </Button>
-          )}
+        {/* Column 3: Media Gallery & Selector Canvas */}
+        <div className="lg:col-span-8 xl:col-span-8 w-full min-w-0">
+          <MessageSelector />
         </div>
-      </section>
-
-      {/* Real-time Progress Bar */}
-      <ProgressBar />
-
-      {/* Persistent Queue Status & Item Tracker */}
-      <QueueViewer />
-
-      {/* Streaming Terminal Log */}
-      <TerminalLog />
+      </div>
 
       {/* Confirmation Modal using local state hook #1 */}
       <ConfirmModal

@@ -1,0 +1,267 @@
+import React, { useState } from "react";
+import {
+  ArrowDown,
+  Layers,
+  Play,
+  RotateCcw,
+  StopCircle,
+  Terminal,
+  Tv,
+} from "lucide-react";
+import { useMigrationStore } from "../../application/useMigrationStore";
+import { SearchableChannelSelect } from "./SearchableChannelSelect";
+import { Button } from "@/shared/components/ui/button";
+import { Progress } from "@/shared/components/ui/progress";
+
+interface MigrationControlPanelProps {
+  onOpenConfirm: () => void;
+  filterQuery?: string;
+}
+
+export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
+  onOpenConfirm,
+  filterQuery = "",
+}) => {
+  const channels = useMigrationStore((state) => state.channels);
+  const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
+  const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
+  const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
+  const selectSource = useMigrationStore((state) => state.selectSource);
+  const selectTarget = useMigrationStore((state) => state.selectTarget);
+  const isLoading = useMigrationStore((state) => state.isLoadingChannels);
+  const activeJob = useMigrationStore((state) => state.activeJob);
+  const progress = useMigrationStore((state) => state.progress);
+  const queueStatus = useMigrationStore((state) => state.queueStatus);
+  const cancelMigration = useMigrationStore((state) => state.cancelMigration);
+  const resetJob = useMigrationStore((state) => state.resetJob);
+  const logs = useMigrationStore((state) => state.logs);
+
+  const [showLogs, setShowLogs] = useState<boolean>(false);
+
+  const isRunning = activeJob?.status === "RUNNING" || activeJob?.status === "PAUSED_FLOOD_WAIT";
+  const isFinished =
+    activeJob?.status === "COMPLETED" ||
+    activeJob?.status === "FAILED" ||
+    activeJob?.status === "CANCELLED";
+
+  const filteredChannels = channels.filter((c) =>
+    c.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+    (c.username && c.username.toLowerCase().includes(filterQuery.toLowerCase()))
+  );
+
+  const stats = progress?.queue_stats || queueStatus?.stats || {
+    total: activeJob?.total_videos || 0,
+    pending: Math.max(0, (activeJob?.total_videos || 0) - (activeJob?.processed_videos || 0)),
+    in_progress: 0,
+    completed: activeJob?.processed_videos || 0,
+    failed: 0,
+    skipped: 0,
+  };
+
+  const percentage =
+    progress?.percentage ??
+    (activeJob?.total_videos && activeJob.total_videos > 0
+      ? Math.round((activeJob.processed_videos / activeJob.total_videos) * 100)
+      : 0);
+
+  return (
+    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl flex flex-col justify-between space-y-4">
+      <div className="space-y-4">
+        {/* Panel Title */}
+        <div className="border-b border-white/5 pb-2.5 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
+              Migrar Canal
+            </h2>
+            <p className="text-[11px] text-zinc-400 mt-0.5">
+              Configurá origen y destino para clonar el contenido.
+            </p>
+          </div>
+          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> MTProto
+          </span>
+        </div>
+
+        {/* Form: De -> Para */}
+        <div className="space-y-3">
+          {/* Campo "de" */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+              <span className="font-mono text-cyan-400 font-bold uppercase text-[11px]">De:</span>
+              <span className="text-[10px] text-zinc-500 font-mono">Canal Origen</span>
+            </label>
+            <SearchableChannelSelect
+              disabled={isRunning || isLoading}
+              value={selectedSourceId}
+              onChange={selectSource}
+              channels={filteredChannels}
+              disabledId={selectedTargetId}
+              placeholder="Elegir canal origen..."
+              accentColor="cyan"
+            />
+          </div>
+
+          {/* Connector arrow */}
+          <div className="flex justify-center -my-1">
+            <div className="w-6 h-6 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-500 shadow-sm">
+              <ArrowDown className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+          </div>
+
+          {/* Campo "para" */}
+          <div className="space-y-1">
+            <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+              <span className="font-mono text-emerald-400 font-bold uppercase text-[11px]">Para:</span>
+              <span className="text-[10px] text-zinc-500 font-mono">Canal Destino</span>
+            </label>
+            <SearchableChannelSelect
+              disabled={isRunning || isLoading}
+              value={selectedTargetId}
+              onChange={selectTarget}
+              channels={filteredChannels}
+              disabledId={selectedSourceId}
+              placeholder="Elegir canal destino..."
+              accentColor="emerald"
+            />
+          </div>
+        </div>
+
+        {/* Action Button */}
+        <div className="pt-1">
+          {isRunning ? (
+            <Button
+              variant="destructive"
+              size="default"
+              onClick={() => cancelMigration()}
+              className="w-full flex items-center justify-center gap-2 h-9 text-xs font-semibold shadow-lg shadow-rose-950/40"
+            >
+              <StopCircle className="w-4 h-4" />
+              Detener Migración
+            </Button>
+          ) : isFinished ? (
+            <Button
+              variant="secondary"
+              size="default"
+              onClick={() => resetJob()}
+              className="w-full flex items-center justify-center gap-2 h-9 text-xs font-semibold"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Nueva Migración
+            </Button>
+          ) : (
+            <Button
+              variant="default"
+              size="default"
+              disabled={
+                !selectedSourceId ||
+                !selectedTargetId ||
+                selectedSourceId === selectedTargetId ||
+                isLoading
+              }
+              onClick={onOpenConfirm}
+              className="w-full flex items-center justify-center gap-2 h-9 text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black shadow-lg shadow-cyan-950/40 transition-all"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              {selectedMessageIds.length > 0
+                ? `Clonar (${selectedMessageIds.length}) Seleccionados`
+                : "Clonar Todo el Canal"}
+            </Button>
+          )}
+        </div>
+
+        {/* Progress & Queue Section (shown when active job or running) */}
+        {(activeJob || isRunning) && (
+          <div className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 space-y-2.5 animate-in fade-in">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-cyan-400" /> Progreso de Cola
+              </span>
+              <span className="font-mono text-cyan-300 font-bold">{percentage}%</span>
+            </div>
+
+            <Progress value={percentage} aria-label="Progreso de clonación" />
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-4 gap-1 text-center font-mono text-[10px] pt-1 border-t border-white/5">
+              <div className="p-1 rounded bg-zinc-900 border border-white/5">
+                <span className="text-zinc-500 block">Total</span>
+                <span className="text-white font-bold">{stats.total}</span>
+              </div>
+              <div className="p-1 rounded bg-zinc-900 border border-white/5">
+                <span className="text-zinc-400 block">Pend.</span>
+                <span className="text-zinc-300 font-bold">{stats.pending}</span>
+              </div>
+              <div className="p-1 rounded bg-emerald-950/40 border border-emerald-500/20">
+                <span className="text-emerald-400 block">Éxito</span>
+                <span className="text-emerald-300 font-bold">{stats.completed}</span>
+              </div>
+              <div className="p-1 rounded bg-rose-950/40 border border-rose-500/20">
+                <span className="text-rose-400 block">Fallo</span>
+                <span className="text-rose-300 font-bold">{stats.failed}</span>
+              </div>
+            </div>
+
+            {progress?.message && (
+              <p className="text-[10px] text-zinc-400 font-mono truncate pt-0.5">
+                {progress.message}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Technical Safeguard Note */}
+        <div className="p-2.5 rounded-lg bg-zinc-950/40 border border-white/5 text-[11px] text-zinc-400 space-y-1">
+          <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
+            <Tv className="w-3 h-3" /> Modo Seguro MTProto
+          </div>
+          <p className="text-[10px] text-zinc-500 leading-normal">
+            Copia directa por referencia con delay de 1.5–2.0s por elemento para proteger la cuenta contra rate-limits.
+          </p>
+        </div>
+      </div>
+
+      {/* Terminal Log Toggle */}
+      <div className="border-t border-white/5 pt-2">
+        <button
+          onClick={() => setShowLogs(!showLogs)}
+          className="w-full flex items-center justify-between text-[11px] font-mono text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+        >
+          <span className="flex items-center gap-1.5">
+            <Terminal className="w-3.5 h-3.5 text-zinc-500" />
+            Consola en vivo ({logs.length})
+          </span>
+          <span className="text-[10px] text-zinc-600 font-mono">
+            {showLogs ? "Ocultar" : "Mostrar"}
+          </span>
+        </button>
+
+        {showLogs && (
+          <div className="mt-2 p-2 rounded-lg bg-black/90 border border-white/5 font-mono text-[10px] text-zinc-400 max-h-36 overflow-y-auto space-y-1">
+            {logs.length === 0 ? (
+              <div className="text-zinc-600 italic">Esperando eventos...</div>
+            ) : (
+              logs.slice(0, 20).map((l) => (
+                <div key={l.id} className="truncate">
+                  <span className="text-zinc-600">[{l.timestamp}]</span>{" "}
+                  <span
+                    className={
+                      l.level === "error"
+                        ? "text-rose-400"
+                        : l.level === "warn"
+                        ? "text-amber-400"
+                        : l.level === "success"
+                        ? "text-emerald-400"
+                        : "text-zinc-300"
+                    }
+                  >
+                    {l.text}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
