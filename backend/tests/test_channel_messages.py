@@ -41,6 +41,13 @@ class DummyGatewayWithMessages:
             ),
         ]
 
+    async def get_message_thumbnail(
+        self, channel_id: int, message_id: int
+    ) -> bytes | None:
+        if message_id == 101:
+            return b"\xff\xd8\xff\xe0\x00\x10JFIF"
+        return None
+
 
 @pytest.mark.asyncio
 async def test_get_channel_messages_endpoint():
@@ -58,5 +65,22 @@ async def test_get_channel_messages_endpoint():
             assert data[0]["file_size"] == 10485760
             assert data[1]["media_type"] == "photo"
             assert data[2]["media_type"] == "text"
+    finally:
+        app.dependency_overrides.pop(get_telegram_gateway, None)
+
+
+@pytest.mark.asyncio
+async def test_get_message_thumbnail_endpoint():
+    app.dependency_overrides[get_telegram_gateway] = lambda: DummyGatewayWithMessages()
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            res = await client.get("/api/channels/-1001952562635/messages/101/thumbnail")
+            assert res.status_code == 200
+            assert res.headers["content-type"] == "image/jpeg"
+            assert res.content.startswith(b"\xff\xd8")
+
+            res_404 = await client.get("/api/channels/-1001952562635/messages/999/thumbnail")
+            assert res_404.status_code == 404
     finally:
         app.dependency_overrides.pop(get_telegram_gateway, None)

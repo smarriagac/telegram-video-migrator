@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from backend.domain.entities.channel import Channel
@@ -81,3 +81,20 @@ async def list_channel_messages(
     except Exception as e:
         logger.error(f"Error listing messages for channel {channel_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{channel_id}/messages/{message_id}/thumbnail")
+async def get_message_thumbnail_endpoint(
+    channel_id: int,
+    message_id: int,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> Response:
+    """Retrieve message media thumbnail with aggressive browser caching."""
+    thumb = await gateway.get_message_thumbnail(channel_id=channel_id, message_id=message_id)
+    if not thumb:
+        raise HTTPException(status_code=404, detail="Thumbnail not available")
+    return Response(
+        content=thumb,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )

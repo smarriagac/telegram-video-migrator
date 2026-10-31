@@ -20,6 +20,7 @@ export const MigrationView: React.FC = () => {
   const activeJob = useMigrationStore((state) => state.activeJob);
   const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
   const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
+  const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
   const fetchChannels = useMigrationStore((state) => state.fetchChannels);
   const startMigration = useMigrationStore((state) => state.startMigration);
   const cancelMigration = useMigrationStore((state) => state.cancelMigration);
@@ -107,9 +108,15 @@ export const MigrationView: React.FC = () => {
         className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-gradient-to-r from-[#14161F] to-[#12141C] border border-white/5 shadow-xl"
       >
         <div>
-          <h4 className="text-xs font-semibold text-white">Ejecutar Migración</h4>
+          <h4 className="text-xs font-semibold text-white">
+            {selectedMessageIds.length > 0
+              ? `Clonar ${selectedMessageIds.length} elementos seleccionados`
+              : "Clonar Canal Completo"}
+          </h4>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Comienza a clonar automáticamente respetando límites de Telegram.
+            {selectedMessageIds.length > 0
+              ? `Se clonarán los ${selectedMessageIds.length} mensajes elegidos respetando límites de Telegram.`
+              : "Comienza a clonar automáticamente respetando límites de Telegram."}
           </p>
         </div>
 
@@ -140,10 +147,12 @@ export const MigrationView: React.FC = () => {
               size="sm"
               disabled={!selectedSourceId || !selectedTargetId || selectedSourceId === selectedTargetId}
               onClick={() => setIsConfirmOpen(true)}
-              className="flex items-center gap-1.5 h-8 px-3 text-xs"
+              className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              Iniciar en 1 Click
+              {selectedMessageIds.length > 0
+                ? `Iniciar (${selectedMessageIds.length})`
+                : "Iniciar en 1 Click"}
             </Button>
           )}
         </div>

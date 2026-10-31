@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 from telethon import TelegramClient, types
 from telethon.errors import (
@@ -134,6 +135,43 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.error(f"Error fetching channel messages for {channel_id}: {e}")
             raise
+
+    async def get_message_thumbnail(
+        self, channel_id: int, message_id: int
+    ) -> bytes | None:
+        """Fetch small image thumbnail for a message with disk caching."""
+        cache_dir = Path("/app/data/thumbnails")
+        cache_file = cache_dir / f"{channel_id}_{message_id}.jpg"
+
+        try:
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            if cache_file.exists():
+                return cache_file.read_bytes()
+        except Exception:
+            pass
+
+        try:
+            await self._ensure_connected()
+            msg = await self.client.get_messages(channel_id, ids=message_id)
+            if not msg or not msg.media:
+                return None
+
+            # Download thumbnail directly to memory buffer
+            thumb_data = await self.client.download_media(msg, file=bytes, thumb=-1)
+            if not thumb_data and getattr(msg, "photo", None):
+                # Small photo direct download fallback
+                thumb_data = await self.client.download_media(msg, file=bytes)
+
+            if thumb_data and isinstance(thumb_data, bytes):
+                try:
+                    cache_file.write_bytes(thumb_data)
+                except Exception:
+                    pass
+                return thumb_data
+            return None
+        except Exception as e:
+            logger.warning(f"Could not load thumbnail for msg #{message_id} in channel {channel_id}: {e}")
+            return None
 
     async def fetch_channel_videos(
         self, channel_id: int, after_message_id: int | None = None

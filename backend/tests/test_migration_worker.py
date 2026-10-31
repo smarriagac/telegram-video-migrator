@@ -53,6 +53,11 @@ class MockTelegramGateway(TelegramGatewayPort):
     ) -> list[Any]:
         return []
 
+    async def get_message_thumbnail(
+        self, channel_id: int, message_id: int
+    ) -> bytes | None:
+        return None
+
 
 @pytest.fixture
 async def repo():
