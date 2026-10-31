@@ -15,7 +15,7 @@ export interface Message {
   text: string;
   date: string;
   is_outgoing: boolean;
-  media_type?: "video" | "photo" | "document";
+  media_type?: "video" | "photo" | "document" | "text";
 }
 
 export interface Chat {

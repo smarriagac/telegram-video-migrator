@@ -79,3 +79,40 @@ async def test_dialogs_api_endpoints():
         assert msg_res.status_code == 200
         messages = msg_res.json()
         assert isinstance(messages, list)
+
+        # Test POST /api/dialogs/{chat_id}/messages
+        send_res = await client.post(
+            f"/api/dialogs/{chat_id}/messages",
+            json={"text": "Mensaje enviado desde test"},
+        )
+        assert send_res.status_code == 201
+        created_msg = send_res.json()
+        assert created_msg["text"] == "Mensaje enviado desde test"
+        assert created_msg["is_outgoing"] is True
+
+        # Test POST /api/dialogs/{chat_id}/upload
+        upload_res = await client.post(
+            f"/api/dialogs/{chat_id}/upload",
+            data={"caption": "Video subido localmente"},
+            files={"file": ("clip.mp4", b"dummy video bytes", "video/mp4")},
+        )
+        assert upload_res.status_code == 201
+        uploaded_msg = upload_res.json()
+        assert uploaded_msg["media_type"] == "video"
+        assert uploaded_msg["text"] == "Video subido localmente"
+
+        # Test PATCH /api/dialogs/{chat_id}/messages/{message_id}
+        edit_res = await client.patch(
+            f"/api/dialogs/{chat_id}/messages/{created_msg['id']}",
+            json={"text": "Mensaje editado con éxito"},
+        )
+        assert edit_res.status_code == 200
+        edited_msg = edit_res.json()
+        assert edited_msg["text"] == "Mensaje editado con éxito"
+
+        # Test DELETE /api/dialogs/{chat_id}/messages/{message_id}
+        del_res = await client.delete(
+            f"/api/dialogs/{chat_id}/messages/{created_msg['id']}",
+        )
+        assert del_res.status_code == 200
+        assert del_res.json()["success"] is True

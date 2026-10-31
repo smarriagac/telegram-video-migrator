@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Search,
   Send,
@@ -11,6 +11,14 @@ import {
   ShieldAlert,
   Loader2,
   RefreshCw,
+  Paperclip,
+  Trash2,
+  Pencil,
+  X,
+  FileVideo,
+  Image as ImageIcon,
+  FileText,
+  Check,
 } from "lucide-react";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
@@ -18,8 +26,12 @@ import { cn } from "@/shared/lib/utils";
 
 export const ChatsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Maximum 2 useState hooks per view.
-  // We use exactly 1 hook for local controlled text input. All other state is in Zustand.
+  // 1: Local controlled input for typing messages / captions
+  // 2: Local controlled text for inline editing
   const [inputText, setInputText] = useState<string>("");
+  const [editText, setEditText] = useState<string>("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
@@ -27,10 +39,22 @@ export const ChatsView: React.FC = () => {
   const searchFilter = useChatStore((state) => state.searchFilter);
   const isLoadingDialogs = useChatStore((state) => state.isLoadingDialogs);
   const isLoadingMessages = useChatStore((state) => state.isLoadingMessages);
+  const isUploading = useChatStore((state) => state.isUploading);
+  const selectedFile = useChatStore((state) => state.selectedFile);
+  const filePreviewUrl = useChatStore((state) => state.filePreviewUrl);
+  const editingMessage = useChatStore((state) => state.editingMessage);
+  const error = useChatStore((state) => state.error);
+
   const loadDialogs = useChatStore((state) => state.loadDialogs);
   const selectChat = useChatStore((state) => state.selectChat);
   const sendMessage = useChatStore((state) => state.sendMessage);
+  const uploadMedia = useChatStore((state) => state.uploadMedia);
+  const deleteMessage = useChatStore((state) => state.deleteMessage);
+  const editMessage = useChatStore((state) => state.editMessage);
+  const setSelectedFile = useChatStore((state) => state.setSelectedFile);
+  const setEditingMessage = useChatStore((state) => state.setEditingMessage);
   const setSearchFilter = useChatStore((state) => state.setSearchFilter);
+  const clearError = useChatStore((state) => state.clearError);
 
   useEffect(() => {
     loadDialogs();
@@ -43,11 +67,25 @@ export const ChatsView: React.FC = () => {
     c.title.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim()) return;
-    sendMessage(inputText);
-    setInputText("");
+    if (selectedFile) {
+      await uploadMedia(selectedFile, inputText);
+      setInputText("");
+    } else if (inputText.trim()) {
+      await sendMessage(inputText);
+      setInputText("");
+    }
+  };
+
+  const handleStartEdit = (msg: { id: number; text: string }) => {
+    setEditingMessage({ id: msg.id, text: msg.text });
+    setEditText(msg.text);
+  };
+
+  const handleSaveEdit = async (msgId: number) => {
+    if (!editText.trim()) return;
+    await editMessage(msgId, editText);
   };
 
   const getChatIcon = (type: "user" | "group" | "channel") => {
@@ -71,7 +109,7 @@ export const ChatsView: React.FC = () => {
             Chats & Conversaciones
           </h1>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Diálogos reales de Telegram sincronizados en vivo mediante el gateway MTProto.
+            Diálogos reales de Telegram con publicación directa de videos y gestión en vivo.
           </p>
         </div>
 
@@ -101,7 +139,7 @@ export const ChatsView: React.FC = () => {
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
-                placeholder="Buscar chats o usuarios..."
+                placeholder="Buscar chats o canales..."
                 className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-8 pr-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
                 aria-label="Buscar chats"
               />
@@ -191,7 +229,7 @@ export const ChatsView: React.FC = () => {
                     </h2>
                     <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      MTProto Stream Activo
+                      MTProto Conectado
                     </span>
                   </div>
                 </div>
@@ -205,8 +243,23 @@ export const ChatsView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Error Banner */}
+              {error && (
+                <div className="mx-3 mt-2 p-2 px-3 rounded bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center justify-between">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={clearError}
+                    className="p-0.5 hover:text-white"
+                    title="Cerrar advertencia"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Message Feed */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-2 flex flex-col">
+              <div className="flex-1 p-3 overflow-y-auto space-y-2.5 flex flex-col">
                 <div className="text-center my-1">
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
                     Cifrado y transmitido a través de Telegram MTProto
@@ -223,30 +276,160 @@ export const ChatsView: React.FC = () => {
                     <p className="text-xs">No hay mensajes recientes en esta conversación.</p>
                   </div>
                 ) : (
-                  activeMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "max-w-[75%] rounded-lg p-2.5 text-xs flex flex-col shadow-md",
-                        msg.is_outgoing
-                          ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
-                          : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-0.5">
-                        <span className="font-semibold">{msg.sender_name}</span>
-                        <span>{msg.date}</span>
-                      </div>
-                      <p className="leading-relaxed break-words">{msg.text}</p>
-                      {msg.is_outgoing && (
-                        <div className="self-end mt-0.5 text-cyan-400 opacity-80">
-                          <CheckCheck className="w-3.5 h-3.5" />
+                  activeMessages.map((msg) => {
+                    const isEditingThis = editingMessage?.id === msg.id;
+
+                    return (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-md transition-colors",
+                          msg.is_outgoing
+                            ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
+                            : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
+                        )}
+                      >
+                        {/* Sender & Timestamp */}
+                        <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14">
+                          <span className="font-semibold">{msg.sender_name}</span>
+                          <span>{msg.date}</span>
                         </div>
-                      )}
-                    </div>
-                  ))
+
+                        {/* Hover Action Buttons (Edit / Delete) */}
+                        {!isEditingThis && (
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(msg)}
+                              title="Editar mensaje"
+                              className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-cyan-300 transition-colors"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm("¿Seguro que querés eliminar este mensaje de Telegram?")) {
+                                  deleteMessage(msg.id);
+                                }
+                              }}
+                              title="Eliminar mensaje"
+                              className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Media badge / preview indicator */}
+                        {msg.media_type === "video" && (
+                          <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-cyan-300 text-[10px] font-mono w-fit">
+                            <FileVideo className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>Video Telegram</span>
+                          </div>
+                        )}
+                        {msg.media_type === "photo" && (
+                          <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-emerald-300 text-[10px] font-mono w-fit">
+                            <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Foto Telegram</span>
+                          </div>
+                        )}
+                        {msg.media_type === "document" && (
+                          <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-amber-300 text-[10px] font-mono w-fit">
+                            <FileText className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Documento / Archivo</span>
+                          </div>
+                        )}
+
+                        {/* Message content or inline editing */}
+                        {isEditingThis ? (
+                          <div className="space-y-1.5 mt-0.5">
+                            <input
+                              type="text"
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              className="w-full bg-black/50 border border-cyan-500/50 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  handleSaveEdit(msg.id);
+                                } else if (e.key === "Escape") {
+                                  setEditingMessage(null);
+                                }
+                              }}
+                            />
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setEditingMessage(null)}
+                                className="p-1 px-2 rounded text-[10px] text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 flex items-center gap-1"
+                              >
+                                <X className="w-3 h-3" />
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(msg.id)}
+                                className="p-1 px-2 rounded text-[10px] text-black bg-cyan-400 hover:bg-cyan-300 font-semibold flex items-center gap-1"
+                              >
+                                <Check className="w-3 h-3" />
+                                Guardar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="leading-relaxed break-words">{msg.text}</p>
+                        )}
+
+                        {msg.is_outgoing && !isEditingThis && (
+                          <div className="self-end mt-0.5 text-cyan-400 opacity-80">
+                            <CheckCheck className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
+
+              {/* File Attachment Banner (preview when file is selected) */}
+              {selectedFile && (
+                <div className="p-2 px-3 bg-[#0d0e15] border-t border-white/5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {filePreviewUrl ? (
+                      selectedFile.type.startsWith("image/") ? (
+                        <img
+                          src={filePreviewUrl}
+                          alt="Preview"
+                          className="w-9 h-9 object-cover rounded border border-white/10 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                          <FileVideo className="w-4 h-4 text-cyan-400" />
+                        </div>
+                      )
+                    ) : (
+                      <div className="w-9 h-9 rounded bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-zinc-400" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-zinc-200 truncate">{selectedFile.name}</p>
+                      <p className="text-[10px] text-zinc-500 font-mono">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || "Archivo local"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10"
+                    title="Quitar archivo adjunto"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
               {/* Message Input Footer */}
               <form
@@ -254,20 +437,59 @@ export const ChatsView: React.FC = () => {
                 className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2"
               >
                 <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedFile(file);
+                    }
+                    e.target.value = "";
+                  }}
+                  accept="video/*,image/*,.pdf,.doc,.docx,.zip,.tar,.gz,.txt"
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="h-8 px-2 text-zinc-400 hover:text-cyan-400 hover:bg-white/5"
+                  title="Adjuntar video, foto o archivo local"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </Button>
+                <input
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Escribí un mensaje..."
+                  placeholder={
+                    selectedFile
+                      ? "Añadir un comentario o caption al archivo..."
+                      : "Escribí un mensaje..."
+                  }
+                  disabled={isUploading}
                   className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
                   aria-label="Mensaje a enviar"
                 />
                 <Button
                   type="submit"
                   size="sm"
+                  disabled={isUploading || (!inputText.trim() && !selectedFile)}
                   className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Enviar</span>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Subiendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{selectedFile ? "Publicar" : "Enviar"}</span>
+                    </>
+                  )}
                 </Button>
               </form>
             </>

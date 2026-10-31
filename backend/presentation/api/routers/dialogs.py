@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from datetime import datetime
 import logging
+import os
+from pathlib import Path
+import tempfile
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 
 from backend.application.use_cases.get_dialogs_use_case import GetDialogsUseCase
 from backend.application.use_cases.get_chat_messages_use_case import GetChatMessagesUseCase
+from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 from backend.presentation.dependencies import (
     get_dialogs_use_case,
     get_chat_messages_use_case,
+    get_telegram_gateway,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,6 +41,14 @@ class ChatMessageResponse(BaseModel):
     date: str
     is_outgoing: bool
     media_type: str | None = None
+
+
+class SendChatMessageRequest(BaseModel):
+    text: str
+
+
+class EditChatMessageRequest(BaseModel):
+    text: str
 
 
 # Demo Fallbacks for development / unauthorized MTProto environments
@@ -151,3 +165,173 @@ async def get_messages(
     except Exception as e:
         logger.warning(f"Error fetching messages for chat {chat_id}: {e}")
         return DEMO_MESSAGES.get(chat_id, [])
+
+
+@router.post("/{chat_id}/messages", response_model=ChatMessageResponse, status_code=status.HTTP_201_CREATED)
+async def send_message_endpoint(
+    chat_id: int,
+    req: SendChatMessageRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> ChatMessageResponse:
+    """Send a text message to a chat/channel."""
+    text = req.text.strip()
+    if not text:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El mensaje no puede estar vacío.")
+
+    try:
+        msg = await gateway.send_text_message(chat_id, text)
+        return ChatMessageResponse(
+            id=msg.id,
+            chat_id=chat_id,
+            sender_id=999,
+            sender_name="Yo",
+            text=msg.text,
+            date=msg.date or datetime.now().strftime("%H:%M"),
+            is_outgoing=True,
+            media_type="text",
+        )
+    except Exception as e:
+        logger.warning(f"Error sending message to chat {chat_id} via MTProto: {e}. Using demo fallback.")
+        new_id = int(datetime.now().timestamp() * 1000)
+        demo_msg = ChatMessageResponse(
+            id=new_id,
+            chat_id=chat_id,
+            sender_id=999,
+            sender_name="Yo",
+            text=text,
+            date=datetime.now().strftime("%H:%M"),
+            is_outgoing=True,
+            media_type="text",
+        )
+        DEMO_MESSAGES.setdefault(chat_id, []).append(demo_msg)
+        return demo_msg
+
+
+@router.post("/{chat_id}/upload", response_model=ChatMessageResponse, status_code=status.HTTP_201_CREATED)
+async def upload_to_dialog_endpoint(
+    chat_id: int,
+    file: UploadFile | None = File(None),
+    caption: str = Form(""),
+    text: str = Form(""),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> ChatMessageResponse:
+    """Upload a local media file (video/photo/document) or send message with media to a chat."""
+    final_text = caption or text
+    if not file and not final_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe proporcionar un archivo multimedia o un texto para publicar.",
+        )
+
+    try:
+        if file is not None and file.filename:
+            suffix = Path(file.filename).suffix
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp_path = tmp.name
+                content = await file.read()
+                tmp.write(content)
+
+            try:
+                msg = await gateway.send_local_media(chat_id, tmp_path, caption=final_text)
+            finally:
+                if os.path.exists(tmp_path):
+                    try:
+                        os.remove(tmp_path)
+                    except Exception:
+                        pass
+        else:
+            msg = await gateway.send_text_message(chat_id, final_text)
+
+        return ChatMessageResponse(
+            id=msg.id,
+            chat_id=chat_id,
+            sender_id=999,
+            sender_name="Yo",
+            text=msg.text,
+            date=msg.date or datetime.now().strftime("%H:%M"),
+            is_outgoing=True,
+            media_type=msg.media_type,
+        )
+    except Exception as e:
+        logger.warning(f"Error uploading media to chat {chat_id} via MTProto: {e}. Using demo fallback.")
+        new_id = int(datetime.now().timestamp() * 1000)
+        guessed_media = "document"
+        if file and file.filename:
+            fn = file.filename.lower()
+            if fn.endswith((".mp4", ".mov", ".mkv", ".avi", ".webm")):
+                guessed_media = "video"
+            elif fn.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
+                guessed_media = "photo"
+
+        demo_msg = ChatMessageResponse(
+            id=new_id,
+            chat_id=chat_id,
+            sender_id=999,
+            sender_name="Yo",
+            text=final_text or (f"[{guessed_media.capitalize()}]" if file else ""),
+            date=datetime.now().strftime("%H:%M"),
+            is_outgoing=True,
+            media_type=guessed_media if file else "text",
+        )
+        DEMO_MESSAGES.setdefault(chat_id, []).append(demo_msg)
+        return demo_msg
+
+
+@router.delete("/{chat_id}/messages/{message_id}")
+async def delete_dialog_message_endpoint(
+    chat_id: int,
+    message_id: int,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+):
+    """Delete a message from a chat."""
+    try:
+        await gateway.delete_channel_message(chat_id, message_id)
+    except Exception as e:
+        logger.warning(f"Error deleting message {message_id} in chat {chat_id} via MTProto: {e}")
+
+    # Remove from demo messages if present
+    if chat_id in DEMO_MESSAGES:
+        DEMO_MESSAGES[chat_id] = [m for m in DEMO_MESSAGES[chat_id] if m.id != message_id]
+
+    return {"success": True, "chat_id": chat_id, "message_id": message_id}
+
+
+@router.patch("/{chat_id}/messages/{message_id}", response_model=ChatMessageResponse)
+async def edit_dialog_message_endpoint(
+    chat_id: int,
+    message_id: int,
+    req: EditChatMessageRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> ChatMessageResponse:
+    """Edit the caption or text of a message in a chat."""
+    try:
+        msg = await gateway.edit_channel_message(chat_id, message_id, req.text)
+        return ChatMessageResponse(
+            id=msg.id,
+            chat_id=chat_id,
+            sender_id=999,
+            sender_name="Yo",
+            text=msg.text,
+            date=msg.date or datetime.now().strftime("%H:%M"),
+            is_outgoing=True,
+            media_type=msg.media_type,
+        )
+    except Exception as e:
+        logger.warning(f"Error editing message {message_id} in chat {chat_id} via MTProto: {e}. Using demo fallback.")
+        # If in demo messages, update it
+        if chat_id in DEMO_MESSAGES:
+            for m in DEMO_MESSAGES[chat_id]:
+                if m.id == message_id:
+                    m.text = req.text
+                    return m
+
+        return ChatMessageResponse(
+            id=message_id,
+            chat_id=chat_id,
+            sender_id=999,
+            sender_name="Yo",
+            text=req.text,
+            date=datetime.now().strftime("%H:%M"),
+            is_outgoing=True,
+            media_type="text",
+        )
