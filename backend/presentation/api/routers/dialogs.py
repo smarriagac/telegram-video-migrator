@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 from typing import Any
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
 
 from backend.application.use_cases.get_dialogs_use_case import GetDialogsUseCase
@@ -246,6 +246,41 @@ async def get_messages(
     except Exception as e:
         logger.warning(f"Error fetching messages for chat {chat_id}: {e}")
         return DEMO_MESSAGES.get(chat_id, [])
+
+
+DEMO_THUMBNAIL_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200" viewBox="0 0 360 200" fill="none">
+  <rect width="360" height="200" fill="#14161F"/>
+  <rect x="1" y="1" width="358" height="198" rx="8" stroke="#ffffff" stroke-opacity="0.08"/>
+  <circle cx="180" cy="90" r="26" fill="#06B6D4" fill-opacity="0.2" stroke="#06B6D4" stroke-width="2"/>
+  <polygon points="175,80 191,90 175,100" fill="#06B6D4"/>
+  <text x="180" y="136" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94A3B8" text-anchor="middle">Previsualización de Video</text>
+  <text x="180" y="152" font-family="monospace" font-size="9" fill="#06B6D4" text-anchor="middle">MTProto Stream HD</text>
+</svg>"""
+
+
+@router.get("/{chat_id}/messages/{message_id}/thumbnail")
+async def get_dialog_message_thumbnail_endpoint(
+    chat_id: int,
+    message_id: int,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> Response:
+    """Retrieve message media thumbnail with browser caching."""
+    try:
+        thumb = await gateway.get_message_thumbnail(channel_id=chat_id, message_id=message_id)
+        if thumb:
+            return Response(
+                content=thumb,
+                media_type="image/jpeg",
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
+    except Exception as e:
+        logger.debug(f"Could not load MTProto thumbnail for msg {message_id} in chat {chat_id}: {e}")
+
+    return Response(
+        content=DEMO_THUMBNAIL_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.post("/{chat_id}/messages", response_model=ChatMessageResponse, status_code=status.HTTP_201_CREATED)

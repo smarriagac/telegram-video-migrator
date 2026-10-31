@@ -19,6 +19,7 @@ import {
   Image as ImageIcon,
   FileText,
   Check,
+  Play,
 } from "lucide-react";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
@@ -426,17 +427,37 @@ export const ChatsView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Media badge / preview indicator */}
-                        {msg.media_type === "video" && (
-                          <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-cyan-300 text-[10px] font-mono w-fit">
-                            <FileVideo className="w-3.5 h-3.5 text-cyan-400" />
-                            <span>Video Telegram</span>
-                          </div>
-                        )}
-                        {msg.media_type === "photo" && (
-                          <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-emerald-300 text-[10px] font-mono w-fit">
-                            <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>Foto Telegram</span>
+                        {/* Media Preview Card (Video / Photo / Document) */}
+                        {(msg.media_type === "video" || msg.media_type === "photo") && (
+                          <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
+                            <img
+                              src={`/api/dialogs/${msg.chat_id}/messages/${msg.id}/thumbnail`}
+                              alt={msg.media_type === "video" ? "Vista previa de video" : "Foto"}
+                              className="w-full max-h-64 min-h-[140px] object-cover rounded-md transition-transform duration-300 group-hover/preview:scale-[1.02]"
+                              loading="lazy"
+                            />
+                            {/* Type badge overlay */}
+                            <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-md text-[10px] font-mono flex items-center gap-1.5 text-white border border-white/10 shadow-sm">
+                              {msg.media_type === "video" ? (
+                                <>
+                                  <FileVideo className="w-3 h-3 text-cyan-400" />
+                                  <span>Video</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ImageIcon className="w-3 h-3 text-emerald-400" />
+                                  <span>Foto</span>
+                                </>
+                              )}
+                            </div>
+                            {/* Centered Play Button for Videos */}
+                            {msg.media_type === "video" && (
+                              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="w-11 h-11 rounded-full bg-cyan-500/90 backdrop-blur-sm flex items-center justify-center shadow-xl group-hover/preview:scale-110 transition-transform">
+                                  <Play className="w-5 h-5 text-black fill-black ml-0.5" />
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                         {msg.media_type === "document" && (
