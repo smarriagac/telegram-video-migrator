@@ -7,6 +7,10 @@ interface ChatState {
   activeChatId: number | null;
   messages: Record<number, Message[]>;
   isLoadingDialogs: boolean;
+  isLoadingMoreDialogs: boolean;
+  hasMoreDialogs: boolean;
+  dialogsLimit: number;
+  categoryFilter: "all" | "channel" | "group" | "user";
   isLoadingMessages: boolean;
   isUploading: boolean;
   selectedFile: File | null;
@@ -16,7 +20,9 @@ interface ChatState {
   error: string | null;
 
   // Actions
-  loadDialogs: () => Promise<void>;
+  loadDialogs: (resetLimit?: boolean) => Promise<void>;
+  loadMoreDialogs: () => Promise<void>;
+  setCategoryFilter: (category: "all" | "channel" | "group" | "user") => void;
   selectChat: (chatId: number) => Promise<void>;
   sendMessage: (text: string) => Promise<void>;
   uploadMedia: (file: File, caption?: string) => Promise<void>;
@@ -33,6 +39,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   activeChatId: null,
   messages: {},
   isLoadingDialogs: false,
+  isLoadingMoreDialogs: false,
+  hasMoreDialogs: true,
+  dialogsLimit: 100,
+  categoryFilter: "all",
   isLoadingMessages: false,
   isUploading: false,
   selectedFile: null,
@@ -41,11 +51,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
   searchFilter: "",
   error: null,
 
-  loadDialogs: async () => {
-    set({ isLoadingDialogs: true, error: null });
+  loadDialogs: async (resetLimit: boolean = false) => {
+    const limit = resetLimit ? 100 : get().dialogsLimit;
+    set({ isLoadingDialogs: true, error: null, dialogsLimit: limit });
     try {
-      const dialogs = await chatApi.fetchDialogs();
-      set({ chats: dialogs });
+      const dialogs = await chatApi.fetchDialogs(limit);
+      set({
+        chats: dialogs,
+        hasMoreDialogs: dialogs.length >= limit,
+      });
       // If no chat is active and dialogs exist, select the first one
       const currentActive = get().activeChatId;
       if (!currentActive && dialogs.length > 0) {
@@ -57,6 +71,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } finally {
       set({ isLoadingDialogs: false });
     }
+  },
+
+  loadMoreDialogs: async () => {
+    if (get().isLoadingMoreDialogs || !get().hasMoreDialogs) return;
+    const nextLimit = get().dialogsLimit + 50;
+    set({ isLoadingMoreDialogs: true, error: null });
+    try {
+      const dialogs = await chatApi.fetchDialogs(nextLimit);
+      set({
+        chats: dialogs,
+        dialogsLimit: nextLimit,
+        hasMoreDialogs: dialogs.length >= nextLimit,
+      });
+    } catch (err) {
+      console.error("Error cargando más diálogos:", err);
+      set({ error: "No se pudieron cargar más conversaciones." });
+    } finally {
+      set({ isLoadingMoreDialogs: false });
+    }
+  },
+
+  setCategoryFilter: (category: "all" | "channel" | "group" | "user") => {
+    set({ categoryFilter: category });
   },
 
   selectChat: async (chatId: number) => {

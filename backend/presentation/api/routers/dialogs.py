@@ -80,6 +80,87 @@ DEMO_DIALOGS = [
         last_message_date="Ayer",
         avatar_color="bg-purple-500",
     ),
+    DialogResponse(
+        id=104,
+        title="🔥La aldea del cacique🔥",
+        type="channel",
+        unread_count=5,
+        last_message="Nuevo video HD disponible para clonar",
+        last_message_date="11:30",
+        avatar_color="bg-amber-500",
+    ),
+    DialogResponse(
+        id=105,
+        title="Prueba 2.0 - reenvio",
+        type="channel",
+        unread_count=0,
+        last_message="Canal destino sincronizado correctamente",
+        last_message_date="10:45",
+        avatar_color="bg-cyan-600",
+    ),
+    DialogResponse(
+        id=106,
+        title="Canal VIP Multimedia",
+        type="channel",
+        unread_count=12,
+        last_message="Actualización de galería de contenidos",
+        last_message_date="09:15",
+        avatar_color="bg-rose-500",
+    ),
+    DialogResponse(
+        id=107,
+        title="Equipo de Infraestructura",
+        type="group",
+        unread_count=1,
+        last_message="El cluster PostgreSQL 18 está corriendo óptimo",
+        last_message_date="08:50",
+        avatar_color="bg-blue-600",
+    ),
+    DialogResponse(
+        id=108,
+        title="Laura Gómez (QA)",
+        type="user",
+        unread_count=0,
+        last_message="Probando las subidas de archivos locales",
+        last_message_date="08:20",
+        avatar_color="bg-indigo-500",
+    ),
+    DialogResponse(
+        id=109,
+        title="Canal de Anuncios Oficiales",
+        type="channel",
+        unread_count=0,
+        last_message="Mantenimiento de servidores completado",
+        last_message_date="29 Oct",
+        avatar_color="bg-teal-500",
+    ),
+    DialogResponse(
+        id=110,
+        title="Soporte Técnico Telegram",
+        type="group",
+        unread_count=0,
+        last_message="Tokens y credenciales cifradas con Fernet",
+        last_message_date="28 Oct",
+        avatar_color="bg-violet-600",
+    ),
+    DialogResponse(
+        id=111,
+        title="Martín Palermo",
+        type="user",
+        unread_count=0,
+        last_message="Dale, reviso los cambios de la arquitectura",
+        last_message_date="28 Oct",
+        avatar_color="bg-pink-500",
+    ),
+    DialogResponse(
+        id=112,
+        title="Canal de Backups y Dumps",
+        type="channel",
+        unread_count=0,
+        last_message="Backup semanal generado sin fallos",
+        last_message_date="27 Oct",
+        avatar_color="bg-emerald-600",
+    ),
 ]
 
 DEMO_MESSAGES: dict[int, list[ChatMessageResponse]] = {
@@ -117,7 +198,7 @@ DEMO_MESSAGES: dict[int, list[ChatMessageResponse]] = {
 
 @router.get("", response_model=list[DialogResponse])
 async def list_dialogs(
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(100, ge=1, le=500),
     use_case: GetDialogsUseCase = Depends(get_dialogs_use_case),
 ) -> list[DialogResponse]:
     """Retrieve Telegram dialogs with unread counts and last message."""
@@ -137,13 +218,13 @@ async def list_dialogs(
         ]
     except Exception as e:
         logger.warning(f"Error fetching dialogs: {e}. Returning demo dialogs.")
-        return DEMO_DIALOGS
+        return DEMO_DIALOGS[:limit]
 
 
 @router.get("/{chat_id}/messages", response_model=list[ChatMessageResponse])
 async def get_messages(
     chat_id: int,
-    limit: int = Query(25, ge=1, le=100),
+    limit: int = Query(50, ge=1, le=200),
     use_case: GetChatMessagesUseCase = Depends(get_chat_messages_use_case),
 ) -> list[ChatMessageResponse]:
     """Retrieve message history for a specific Telegram chat."""

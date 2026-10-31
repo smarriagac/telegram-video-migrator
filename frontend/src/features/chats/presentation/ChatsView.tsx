@@ -32,12 +32,16 @@ export const ChatsView: React.FC = () => {
   const [editText, setEditText] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
   const messages = useChatStore((state) => state.messages);
   const searchFilter = useChatStore((state) => state.searchFilter);
+  const categoryFilter = useChatStore((state) => state.categoryFilter);
   const isLoadingDialogs = useChatStore((state) => state.isLoadingDialogs);
+  const isLoadingMoreDialogs = useChatStore((state) => state.isLoadingMoreDialogs);
+  const hasMoreDialogs = useChatStore((state) => state.hasMoreDialogs);
   const isLoadingMessages = useChatStore((state) => state.isLoadingMessages);
   const isUploading = useChatStore((state) => state.isUploading);
   const selectedFile = useChatStore((state) => state.selectedFile);
@@ -46,6 +50,8 @@ export const ChatsView: React.FC = () => {
   const error = useChatStore((state) => state.error);
 
   const loadDialogs = useChatStore((state) => state.loadDialogs);
+  const loadMoreDialogs = useChatStore((state) => state.loadMoreDialogs);
+  const setCategoryFilter = useChatStore((state) => state.setCategoryFilter);
   const selectChat = useChatStore((state) => state.selectChat);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const uploadMedia = useChatStore((state) => state.uploadMedia);
@@ -63,9 +69,16 @@ export const ChatsView: React.FC = () => {
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
 
-  const filteredChats = chats.filter((c) =>
-    c.title.toLowerCase().includes(searchFilter.toLowerCase())
-  );
+  // Filter dialogs by search query AND category
+  const filteredChats = chats.filter((c) => {
+    const matchesSearch = c.title.toLowerCase().includes(searchFilter.toLowerCase());
+    const matchesCategory = categoryFilter === "all" || c.type === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const channelCount = chats.filter((c) => c.type === "channel").length;
+  const groupCount = chats.filter((c) => c.type === "group").length;
+  const userCount = chats.filter((c) => c.type === "user").length;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,25 +113,25 @@ export const ChatsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-3.5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-6xl mx-auto h-[calc(100vh-105px)] min-h-[560px] flex flex-col space-y-3">
+      {/* Header (shrink-0) */}
+      <div className="flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-cyan-400" />
             Chats & Conversaciones
           </h1>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Diálogos reales de Telegram con publicación directa de videos y gestión en vivo.
+            Diálogos reales de Telegram con scroll fluido, filtros por categoría y carga continua.
           </p>
         </div>
 
         <Button
-          onClick={() => loadDialogs()}
+          onClick={() => loadDialogs(true)}
           disabled={isLoadingDialogs}
           variant="outline"
           size="sm"
-          className="rounded-md border-white/10 text-xs hover:bg-white/5 h-8"
+          className="rounded-md border-white/10 text-xs hover:bg-white/5 h-8 shrink-0"
         >
           <RefreshCw
             className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
@@ -127,12 +140,12 @@ export const ChatsView: React.FC = () => {
         </Button>
       </div>
 
-      {/* Main Chat Interface */}
-      <div className="grid grid-cols-1 md:grid-cols-12 h-[calc(100vh-140px)] min-h-[520px] bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+      {/* Main Chat Interface: Bound height with flex/grid */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
         {/* Left Column: Chat List (4 cols) */}
-        <aside className="md:col-span-5 lg:col-span-4 border-r border-white/5 flex flex-col bg-[#10121A]/50">
-          {/* Search Bar */}
-          <div className="p-2.5 border-b border-white/5">
+        <aside className="md:col-span-5 lg:col-span-4 border-r border-white/5 flex flex-col bg-[#10121A]/50 h-full min-h-0 overflow-hidden">
+          {/* Search Bar (shrink-0) */}
+          <div className="p-2.5 border-b border-white/5 shrink-0">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
@@ -146,8 +159,63 @@ export const ChatsView: React.FC = () => {
             </div>
           </div>
 
-          {/* List of Chats */}
-          <div className="flex-1 overflow-y-auto divide-y divide-white/[0.03]">
+          {/* Category Filter Pills (shrink-0) */}
+          <div className="flex items-center gap-1 p-2 px-2.5 border-b border-white/5 shrink-0 bg-black/20 overflow-x-auto text-[11px] no-scrollbar">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={cn(
+                "px-2 py-0.5 rounded font-medium transition-colors shrink-0",
+                categoryFilter === "all"
+                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white bg-white/5"
+              )}
+            >
+              Todos ({chats.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("channel")}
+              className={cn(
+                "px-2 py-0.5 rounded font-medium transition-colors shrink-0 flex items-center gap-1",
+                categoryFilter === "channel"
+                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white bg-white/5"
+              )}
+            >
+              <Radio className="w-3 h-3" />
+              Canales ({channelCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("group")}
+              className={cn(
+                "px-2 py-0.5 rounded font-medium transition-colors shrink-0 flex items-center gap-1",
+                categoryFilter === "group"
+                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white bg-white/5"
+              )}
+            >
+              <Users className="w-3 h-3" />
+              Grupos ({groupCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("user")}
+              className={cn(
+                "px-2 py-0.5 rounded font-medium transition-colors shrink-0 flex items-center gap-1",
+                categoryFilter === "user"
+                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-white bg-white/5"
+              )}
+            >
+              <UserIcon className="w-3 h-3" />
+              Directos ({userCount})
+            </button>
+          </div>
+
+          {/* List of Chats (flex-1 min-h-0 overflow-y-auto for flawless scrolling) */}
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/[0.03]">
             {isLoadingDialogs && chats.length === 0 ? (
               <div className="p-6 flex flex-col items-center justify-center text-center text-xs text-zinc-500 gap-2">
                 <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
@@ -158,62 +226,99 @@ export const ChatsView: React.FC = () => {
                 No se encontraron conversaciones
               </div>
             ) : (
-              filteredChats.map((chat) => {
-                const isActive = chat.id === activeChat?.id;
-                return (
-                  <button
-                    key={chat.id}
-                    onClick={() => selectChat(chat.id)}
-                    className={cn(
-                      "w-full text-left p-2.5 px-3 transition-all flex items-start gap-2.5 hover:bg-white/[0.03]",
-                      isActive && "bg-cyan-500/10 border-l-2 border-cyan-400"
-                    )}
-                  >
-                    <div
+              <>
+                {filteredChats.map((chat) => {
+                  const isActive = chat.id === activeChat?.id;
+                  return (
+                    <button
+                      key={chat.id}
+                      onClick={() => selectChat(chat.id)}
                       className={cn(
-                        "w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
-                        chat.avatar_color || "bg-cyan-600"
+                        "w-full text-left p-2.5 px-3 transition-all flex items-start gap-2.5 hover:bg-white/[0.03]",
+                        isActive && "bg-cyan-500/10 border-l-2 border-cyan-400"
                       )}
                     >
-                      {chat.title.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-zinc-200 truncate">
-                          {chat.title}
-                        </span>
-                        <span className="text-[9px] text-zinc-500 font-mono">
-                          {chat.last_message_date}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">
-                          {chat.last_message || "Sin mensajes"}
-                        </p>
-                        {chat.unread_count > 0 && (
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500 text-black font-bold">
-                            {chat.unread_count}
-                          </span>
+                      <div
+                        className={cn(
+                          "w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
+                          chat.avatar_color || "bg-cyan-600"
                         )}
+                      >
+                        {chat.title.charAt(0).toUpperCase()}
                       </div>
-                      <div className="mt-0.5 flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
-                        {getChatIcon(chat.type)}
-                        <span>{chat.type}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-zinc-200 truncate">
+                            {chat.title}
+                          </span>
+                          <span className="text-[9px] text-zinc-500 font-mono shrink-0 ml-1">
+                            {chat.last_message_date}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">
+                            {chat.last_message || "Sin mensajes"}
+                          </p>
+                          {chat.unread_count > 0 && (
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500 text-black font-bold shrink-0 ml-1">
+                              {chat.unread_count}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
+                          {getChatIcon(chat.type)}
+                          <span>{chat.type}</span>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                );
-              })
+                    </button>
+                  );
+                })}
+
+                {/* Load More Button inside scroll container */}
+                {hasMoreDialogs && (
+                  <div className="p-2.5 text-center bg-black/10 border-t border-white/5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={loadMoreDialogs}
+                      disabled={isLoadingMoreDialogs}
+                      className="w-full text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 h-7"
+                    >
+                      {isLoadingMoreDialogs ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
+                          Cargando más...
+                        </>
+                      ) : (
+                        "Cargar más conversaciones (+50)"
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
+          </div>
+
+          {/* Aside Footer info (shrink-0) */}
+          <div className="p-2 px-3 border-t border-white/5 text-[10px] text-zinc-500 font-mono flex items-center justify-between shrink-0 bg-[#0d0e15]">
+            <span>{filteredChats.length} conversaciones</span>
+            <button
+              type="button"
+              onClick={() => loadDialogs(true)}
+              className="hover:text-cyan-400 flex items-center gap-1 transition-colors"
+            >
+              <RefreshCw className={cn("w-3 h-3", isLoadingDialogs && "animate-spin text-cyan-400")} />
+              Recargar
+            </button>
           </div>
         </aside>
 
         {/* Right Column: Active Conversation (7-8 cols) */}
-        <section className="md:col-span-7 lg:col-span-8 flex flex-col bg-[#14161F]">
+        <section className="md:col-span-7 lg:col-span-8 flex flex-col bg-[#14161F] h-full min-h-0 overflow-hidden">
           {activeChat ? (
             <>
-              {/* Conversation Header */}
-              <div className="p-2.5 px-3 border-b border-white/5 flex items-center justify-between bg-[#12141C]">
+              {/* Conversation Header (shrink-0) */}
+              <div className="p-2.5 px-3 border-b border-white/5 flex items-center justify-between bg-[#12141C] shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div
                     className={cn(
@@ -243,9 +348,9 @@ export const ChatsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Error Banner */}
+              {/* Error Banner (shrink-0) */}
               {error && (
-                <div className="mx-3 mt-2 p-2 px-3 rounded bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center justify-between">
+                <div className="mx-3 mt-2 p-2 px-3 rounded bg-red-500/10 border border-red-500/20 text-red-300 text-xs flex items-center justify-between shrink-0">
                   <span>{error}</span>
                   <button
                     type="button"
@@ -258,9 +363,9 @@ export const ChatsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Message Feed */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-2.5 flex flex-col">
-                <div className="text-center my-1">
+              {/* Message Feed (flex-1 min-h-0 overflow-y-auto for smooth scroll) */}
+              <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-2.5 flex flex-col">
+                <div className="text-center my-1 shrink-0">
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
                     Cifrado y transmitido a través de Telegram MTProto
                   </span>
@@ -390,11 +495,12 @@ export const ChatsView: React.FC = () => {
                     );
                   })
                 )}
+                <div ref={messagesEndRef} />
               </div>
 
-              {/* File Attachment Banner (preview when file is selected) */}
+              {/* File Attachment Banner (shrink-0) */}
               {selectedFile && (
-                <div className="p-2 px-3 bg-[#0d0e15] border-t border-white/5 flex items-center justify-between gap-3">
+                <div className="p-2 px-3 bg-[#0d0e15] border-t border-white/5 flex items-center justify-between gap-3 shrink-0">
                   <div className="flex items-center gap-2.5 min-w-0">
                     {filePreviewUrl ? (
                       selectedFile.type.startsWith("image/") ? (
@@ -431,10 +537,10 @@ export const ChatsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Message Input Footer */}
+              {/* Message Input Footer (shrink-0) */}
               <form
                 onSubmit={handleSend}
-                className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2"
+                className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2 shrink-0"
               >
                 <input
                   type="file"
@@ -455,7 +561,7 @@ export const ChatsView: React.FC = () => {
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="h-8 px-2 text-zinc-400 hover:text-cyan-400 hover:bg-white/5"
+                  className="h-8 px-2 text-zinc-400 hover:text-cyan-400 hover:bg-white/5 shrink-0"
                   title="Adjuntar video, foto o archivo local"
                 >
                   <Paperclip className="w-4 h-4" />
@@ -477,7 +583,7 @@ export const ChatsView: React.FC = () => {
                   type="submit"
                   size="sm"
                   disabled={isUploading || (!inputText.trim() && !selectedFile)}
-                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5"
+                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5 shrink-0"
                 >
                   {isUploading ? (
                     <>

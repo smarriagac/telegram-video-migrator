@@ -1,7 +1,7 @@
 import { Chat, Message } from "../domain/types";
 
 export const chatApi = {
-  async fetchDialogs(limit: number = 50): Promise<Chat[]> {
+  async fetchDialogs(limit: number = 100): Promise<Chat[]> {
     const res = await fetch(`/api/dialogs?limit=${limit}`);
     if (!res.ok) {
       throw new Error(`Error ${res.status} al obtener diálogos`);
