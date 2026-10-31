@@ -24,6 +24,7 @@ from backend.domain.ports.encryption_port import EncryptionPort
 from backend.domain.ports.token_service_port import TokenServicePort
 
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
+from backend.infrastructure.persistence.postgres_job_repository import PostgresJobRepository
 from backend.infrastructure.persistence.postgres_repository import PostgresRepository
 from backend.infrastructure.security.fernet_encryption_service import FernetEncryptionService
 from backend.infrastructure.security.jwt_token_service import JwtTokenService
@@ -33,7 +34,7 @@ from backend.infrastructure.telegram.telegram_client_factory import (
 )
 from backend.infrastructure.telegram.telethon_adapter import TelethonAdapter
 
-_sqlite_repo: SQLiteJobRepository | None = None
+_job_repo: JobRepositoryPort | None = None
 _postgres_repo: PostgresRepository | None = None
 _encryption_service: EncryptionPort | None = None
 _token_service: TokenServicePort | None = None
@@ -43,11 +44,10 @@ security_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_job_repository() -> JobRepositoryPort:
-    global _sqlite_repo
-    if _sqlite_repo is None:
-        db_path = os.getenv("MIGRATION_DB_PATH", "migration.db")
-        _sqlite_repo = SQLiteJobRepository(db_path=db_path)
-    return _sqlite_repo
+    global _job_repo
+    if _job_repo is None:
+        _job_repo = PostgresJobRepository()
+    return _job_repo
 
 
 async def get_postgres_repository() -> PostgresRepository:

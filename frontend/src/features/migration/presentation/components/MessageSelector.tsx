@@ -95,7 +95,10 @@ export const MessageSelector: React.FC = () => {
   const sourceMessages = useMigrationStore((state) => state.sourceMessages);
   const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
   const isLoadingMessages = useMigrationStore((state) => state.isLoadingMessages);
+  const hasMoreMessages = useMigrationStore((state) => state.hasMoreMessages);
+  const isLoadingMoreMessages = useMigrationStore((state) => state.isLoadingMoreMessages);
   const fetchSourceMessages = useMigrationStore((state) => state.fetchSourceMessages);
+  const loadMoreSourceMessages = useMigrationStore((state) => state.loadMoreSourceMessages);
   const toggleSelectMessage = useMigrationStore((state) => state.toggleSelectMessage);
   const selectAllMessages = useMigrationStore((state) => state.selectAllMessages);
   const deselectAllMessages = useMigrationStore((state) => state.deselectAllMessages);
@@ -506,6 +509,35 @@ export const MessageSelector: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Footer */}
+      {hasMoreMessages && (
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-white/5">
+          <span className="text-[11px] font-mono text-zinc-500">
+            Mostrando {filteredMessages.length} mensajes (cargados {sourceMessages.length} de este canal)
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={isLoadingMoreMessages}
+            onClick={() => loadMoreSourceMessages()}
+            className="flex items-center gap-1.5 h-8 px-4 text-xs font-semibold bg-zinc-900 border border-white/10 hover:border-cyan-500/40 hover:text-cyan-400 transition-all"
+          >
+            {isLoadingMoreMessages ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                Cargando más mensajes...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-3 h-3 text-cyan-400" />
+                Cargar más mensajes (+100)
+              </>
+            )}
+          </Button>
         </div>
       )}
 

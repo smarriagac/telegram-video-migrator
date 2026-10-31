@@ -16,6 +16,8 @@ interface MigrationStore {
   sourceMessages: ChannelMessageItem[];
   selectedMessageIds: number[];
   isLoadingMessages: boolean;
+  hasMoreMessages: boolean;
+  isLoadingMoreMessages: boolean;
   queueStatus: JobQueueStatus | null;
   activeJob: MigrationJob | null;
   progress: ProgressEventPayload | null;
@@ -29,6 +31,7 @@ interface MigrationStore {
   selectSource: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
   fetchSourceMessages: (channelId: number) => Promise<void>;
+  loadMoreSourceMessages: () => Promise<void>;
   toggleSelectMessage: (id: number) => void;
   selectAllMessages: () => void;
   deselectAllMessages: () => void;
@@ -49,6 +52,8 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   sourceMessages: [],
   selectedMessageIds: [],
   isLoadingMessages: false,
+  hasMoreMessages: false,
+  isLoadingMoreMessages: false,
   queueStatus: null,
   activeJob: null,
   progress: null,
@@ -80,20 +85,54 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     if (id) {
       get().fetchSourceMessages(id);
     } else {
-      set({ sourceMessages: [] });
+      set({ sourceMessages: [], selectedMessageIds: [], hasMoreMessages: false, isLoadingMoreMessages: false });
     }
   },
 
   selectTarget: (id) => set({ selectedTargetId: id, error: null }),
 
   fetchSourceMessages: async (channelId: number) => {
-    set({ isLoadingMessages: true });
+    set({ isLoadingMessages: true, selectedMessageIds: [], hasMoreMessages: false });
     try {
       const msgs = await migrationApi.fetchChannelMessages(channelId, 100);
-      set({ sourceMessages: msgs, isLoadingMessages: false });
+      set({
+        sourceMessages: msgs,
+        isLoadingMessages: false,
+        hasMoreMessages: msgs.length === 100,
+      });
     } catch (err: any) {
-      set({ isLoadingMessages: false });
+      set({ isLoadingMessages: false, hasMoreMessages: false });
       get().addLog(`Error previewing messages: ${err.message}`, "warn");
+    }
+  },
+
+  loadMoreSourceMessages: async () => {
+    const { selectedSourceId, sourceMessages, isLoadingMoreMessages, hasMoreMessages } = get();
+    if (!selectedSourceId || isLoadingMoreMessages || !hasMoreMessages || sourceMessages.length === 0) {
+      return;
+    }
+
+    set({ isLoadingMoreMessages: true });
+    try {
+      const oldestId = Math.min(...sourceMessages.map((m) => m.id));
+      const nextBatch = await migrationApi.fetchChannelMessages(selectedSourceId, 100, oldestId);
+
+      if (nextBatch.length === 0) {
+        set({ hasMoreMessages: false, isLoadingMoreMessages: false });
+        return;
+      }
+
+      const existingIds = new Set(sourceMessages.map((m) => m.id));
+      const filteredNew = nextBatch.filter((m) => !existingIds.has(m.id));
+
+      set({
+        sourceMessages: [...sourceMessages, ...filteredNew],
+        hasMoreMessages: nextBatch.length === 100,
+        isLoadingMoreMessages: false,
+      });
+    } catch (err: any) {
+      set({ isLoadingMoreMessages: false });
+      get().addLog(`Error loading more messages: ${err.message}`, "warn");
     }
   },
 
