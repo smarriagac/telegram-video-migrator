@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Check,
   CheckSquare,
@@ -734,100 +735,102 @@ export const MessageSelector: React.FC = () => {
       )}
 
       {/* Lightbox / Details Modal */}
-      {previewModalMsg && (
-        <div
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={() => setPreviewModalMsg(null)}
-        >
+      {previewModalMsg &&
+        createPortal(
           <div
-            className="bg-[#14161F] border border-white/10 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setPreviewModalMsg(null)}
           >
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white font-mono">
-                  Mensaje #{previewModalMsg.id}
+            <div
+              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-white font-mono">
+                    Mensaje #{previewModalMsg.id}
+                  </span>
+                  {getTypeBadge(previewModalMsg.media_type)}
+                </div>
+                <button
+                  onClick={() => setPreviewModalMsg(null)}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Previously Cloned Alert */}
+              {clonedMsgIds.has(previewModalMsg.id) && (
+                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>
+                    Este mensaje ya fue clonado previamente hacia un canal de destino registrado en el historial.
+                  </span>
+                </div>
+              )}
+
+              {/* Media Preview Box (Full uncropped contain) */}
+              <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
+                <MessageThumbnailImage
+                  channelId={selectedSourceId}
+                  messageId={previewModalMsg.id}
+                  mediaType={previewModalMsg.media_type}
+                  fit="contain"
+                />
+              </div>
+
+              {/* Caption / Description */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                  Texto / Descripción:
                 </span>
-                {getTypeBadge(previewModalMsg.media_type)}
+                <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                  {previewModalMsg.text || <span className="text-zinc-600 italic">Este mensaje no contiene texto.</span>}
+                </p>
               </div>
-              <button
-                onClick={() => setPreviewModalMsg(null)}
-                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Previously Cloned Alert */}
-            {clonedMsgIds.has(previewModalMsg.id) && (
-              <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>
-                  Este mensaje ya fue clonado previamente hacia un canal de destino registrado en el historial.
-                </span>
+              {/* Metadata Footer */}
+              <div className="grid grid-cols-2 gap-2 text-xs font-mono text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-white/5">
+                <div>
+                  <span className="text-zinc-600 block text-[10px]">TAMAÑO ESTIMADO</span>
+                  <span className="text-zinc-200">{formatBytes(previewModalMsg.file_size) || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-600 block text-[10px]">FECHA ORIGINAL</span>
+                  <span className="text-zinc-200">{previewModalMsg.date || "N/A"}</span>
+                </div>
               </div>
-            )}
 
-            {/* Media Preview Box (Full uncropped contain) */}
-            <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
-              <MessageThumbnailImage
-                channelId={selectedSourceId}
-                messageId={previewModalMsg.id}
-                mediaType={previewModalMsg.media_type}
-                fit="contain"
-              />
-            </div>
+              {/* Modal Actions */}
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  variant={selectedMessageIds.includes(previewModalMsg.id) ? "destructive" : "default"}
+                  size="sm"
+                  onClick={() => {
+                    toggleSelectMessage(previewModalMsg.id);
+                    setPreviewModalMsg(null);
+                  }}
+                  className="h-8 text-xs px-4"
+                >
+                  {selectedMessageIds.includes(previewModalMsg.id)
+                    ? "Desmarcar este elemento"
+                    : "Seleccionar para clonar"}
+                </Button>
 
-            {/* Caption / Description */}
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-                Texto / Descripción:
-              </span>
-              <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
-                {previewModalMsg.text || <span className="text-zinc-600 italic">Este mensaje no contiene texto.</span>}
-              </p>
-            </div>
-
-            {/* Metadata Footer */}
-            <div className="grid grid-cols-2 gap-2 text-xs font-mono text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-white/5">
-              <div>
-                <span className="text-zinc-600 block text-[10px]">TAMAÑO ESTIMADO</span>
-                <span className="text-zinc-200">{formatBytes(previewModalMsg.file_size) || "N/A"}</span>
-              </div>
-              <div>
-                <span className="text-zinc-600 block text-[10px]">FECHA ORIGINAL</span>
-                <span className="text-zinc-200">{previewModalMsg.date || "N/A"}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPreviewModalMsg(null)}
+                  className="h-8 text-xs text-zinc-400 hover:text-white"
+                >
+                  Cerrar
+                </Button>
               </div>
             </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                variant={selectedMessageIds.includes(previewModalMsg.id) ? "destructive" : "default"}
-                size="sm"
-                onClick={() => {
-                  toggleSelectMessage(previewModalMsg.id);
-                  setPreviewModalMsg(null);
-                }}
-                className="h-8 text-xs px-4"
-              >
-                {selectedMessageIds.includes(previewModalMsg.id)
-                  ? "Desmarcar este elemento"
-                  : "Seleccionar para clonar"}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPreviewModalMsg(null)}
-                className="h-8 text-xs text-zinc-400 hover:text-white"
-              >
-                Cerrar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
