@@ -85,26 +85,26 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       : 0);
 
   return (
-    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl flex flex-col justify-between space-y-4 h-full min-h-0 overflow-y-auto">
+    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-4 shadow-sm flex flex-col justify-between space-y-4 h-full min-h-0 overflow-y-auto">
       <div className="space-y-4">
         {/* Panel Title */}
-        <div className="border-b border-white/5 pb-2.5 flex items-center justify-between">
+        <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
               Migrar Canal
             </h2>
-            <p className="text-[11px] text-zinc-400 mt-0.5">
+            <p className="text-xs text-zinc-400 mt-0.5">
               Configurá origen y destino para clonar el contenido.
             </p>
           </div>
           {isCrossAccount ? (
-            <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-mono flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+            <span className="text-[10px] bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded font-mono flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
               Puente Multi-Cuenta
             </span>
           ) : (
-            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono flex items-center gap-1.5 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-mono flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               Directo MTProto
             </span>
           )}
@@ -228,20 +228,20 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
                 {/* Auto-Sync en Vivo Toggle */}
                 {selectedSourceId && selectedTargetId !== selectedSourceId && (
-                  <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-zinc-950/80 border border-white/5 text-[11px] transition-all">
+                  <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs transition-all">
                     <div className="flex items-center gap-2 min-w-0">
                       <div
                         className={`w-2 h-2 rounded-full shrink-0 ${
                           autoSyncStatus?.is_active
-                            ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                            ? "bg-emerald-400"
                             : "bg-zinc-600"
                         }`}
                       />
                       <div className="flex flex-col min-w-0">
-                        <span className="text-zinc-200 font-semibold text-[11px] truncate flex items-center gap-1.5">
+                        <span className="text-zinc-200 font-medium text-xs truncate flex items-center gap-1.5">
                           Auto-Sync en Vivo
                           {autoSyncStatus?.is_active && (
-                            <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 py-0.5 rounded border border-emerald-500/30 font-mono">
+                            <span className="text-[10px] bg-emerald-500/15 text-emerald-300 px-1 py-0.5 rounded border border-emerald-500/30 font-mono">
                               MTProto Push
                             </span>
                           )}
@@ -303,7 +303,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
             </Button>
           ) : (
             <Button
-              variant="default"
+              variant="primary"
               size="default"
               disabled={
                 !selectedSourceId ||
@@ -312,7 +312,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 isLoading
               }
               onClick={onOpenConfirm}
-              className="w-full flex items-center justify-center gap-2 h-9 text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black shadow-lg shadow-cyan-950/40 transition-all"
+              className="w-full flex items-center justify-center gap-2 h-9 text-xs"
             >
               <Play className="w-4 h-4 fill-current" />
               {selectedMessageIds.length > 0
@@ -324,33 +324,33 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
         {/* Progress & Queue Section (shown when active job or running) */}
         {(activeJob || isRunning) && (
-          <div className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 space-y-2.5 animate-in fade-in">
+          <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-cyan-400" /> Progreso de Cola
               </span>
-              <span className="font-mono text-cyan-300 font-bold">{percentage}%</span>
+              <span className="font-mono text-cyan-400 font-semibold">{percentage}%</span>
             </div>
 
             <Progress value={percentage} aria-label="Progreso de clonación" />
 
             {/* Quick Metrics */}
-            <div className="grid grid-cols-4 gap-1 text-center font-mono text-[10px] pt-1 border-t border-white/5">
-              <div className="p-1 rounded bg-zinc-900 border border-white/5">
+            <div className="grid grid-cols-4 gap-1 text-center font-mono text-[10px] pt-1 border-t border-zinc-800">
+              <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
                 <span className="text-zinc-500 block">Total</span>
-                <span className="text-white font-bold">{stats.total}</span>
+                <span className="text-zinc-200 font-semibold">{stats.total}</span>
               </div>
-              <div className="p-1 rounded bg-zinc-900 border border-white/5">
+              <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
                 <span className="text-zinc-400 block">Pend.</span>
-                <span className="text-zinc-300 font-bold">{stats.pending}</span>
+                <span className="text-zinc-300 font-semibold">{stats.pending}</span>
               </div>
-              <div className="p-1 rounded bg-emerald-950/40 border border-emerald-500/20">
+              <div className="p-1 rounded bg-emerald-500/10 border border-emerald-500/20">
                 <span className="text-emerald-400 block">Éxito</span>
-                <span className="text-emerald-300 font-bold">{stats.completed}</span>
+                <span className="text-emerald-300 font-semibold">{stats.completed}</span>
               </div>
-              <div className="p-1 rounded bg-rose-950/40 border border-rose-500/20">
+              <div className="p-1 rounded bg-rose-500/10 border border-rose-500/20">
                 <span className="text-rose-400 block">Fallo</span>
-                <span className="text-rose-300 font-bold">{stats.failed}</span>
+                <span className="text-rose-300 font-semibold">{stats.failed}</span>
               </div>
             </div>
 
@@ -363,10 +363,10 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
         )}
 
         {/* Technical Safeguard Note */}
-        <div className="p-2.5 rounded-lg bg-zinc-950/40 border border-white/5 text-[11px] text-zinc-400 space-y-1">
+        <div className="p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-1">
           {isCrossAccount ? (
             <>
-              <div className="flex items-center gap-1.5 text-indigo-400 font-medium font-mono text-[11px]">
+              <div className="flex items-center gap-1.5 text-indigo-400 font-medium font-mono text-xs">
                 🔄 Modo Puente Multi-Cuenta (Streaming)
               </div>
               <p className="text-[10px] text-zinc-500 leading-normal">
@@ -376,7 +376,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
           ) : (
             <>
               <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
-                <Tv className="w-3 h-3" /> ⚡ Modo Directo MTProto (Instantáneo · 0.5s)
+                <Tv className="w-3.5 h-3.5" /> ⚡ Modo Directo MTProto (Instantáneo · 0.5s)
               </div>
               <p className="text-[10px] text-zinc-500 leading-normal">
                 Misma cuenta detectada. Copia pura por referencia MTProto (sin descargar ni subir archivos) con delay de 1.5–2.0s por elemento para proteger la cuenta contra rate-limits.
@@ -387,10 +387,10 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       </div>
 
       {/* Terminal Log Toggle */}
-      <div className="border-t border-white/5 pt-2">
+      <div className="border-t border-zinc-800 pt-2">
         <button
           onClick={() => setShowLogs(!showLogs)}
-          className="w-full flex items-center justify-between text-[11px] font-mono text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="w-full flex items-center justify-between text-xs font-mono text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800/40 transition-colors"
         >
           <span className="flex items-center gap-1.5">
             <Terminal className="w-3.5 h-3.5 text-zinc-500" />
@@ -402,7 +402,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
         </button>
 
         {showLogs && (
-          <div className="mt-2 p-2 rounded-lg bg-black/90 border border-white/5 font-mono text-[10px] text-zinc-400 max-h-36 overflow-y-auto space-y-1">
+          <div className="mt-2 p-2 rounded-lg bg-[#090a0e] border border-zinc-800 font-mono text-[10px] text-zinc-400 max-h-36 overflow-y-auto space-y-1">
             {logs.length === 0 ? (
               <div className="text-zinc-600 italic">Esperando eventos...</div>
             ) : (

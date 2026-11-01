@@ -52,12 +52,12 @@ export const QueueViewer: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#14161F]/90 backdrop-blur-md rounded-xl border border-white/5 p-3.5 shadow-xl space-y-3">
+    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm space-y-3">
       {/* Header and Counters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-cyan-400" />
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-mono">
+          <span className="text-xs uppercase tracking-wider text-zinc-400 font-mono">
             Sistema de Encolado Persistente
           </span>
         </div>
@@ -67,7 +67,7 @@ export const QueueViewer: React.FC = () => {
             variant="ghost"
             size="sm"
             onClick={() => fetchQueueStatus(activeJob.job_id)}
-            className="h-6 px-2 text-[10px] text-zinc-400 hover:text-zinc-200"
+            className="h-6 px-2 text-xs text-zinc-400 hover:text-zinc-200"
           >
             <RefreshCw className="w-2.5 h-2.5 mr-1" /> Refrescar cola
           </Button>
@@ -75,7 +75,7 @@ export const QueueViewer: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => setIsOpen(!isOpen)}
-            className="h-6 px-2.5 text-[10px] border-white/10 text-zinc-300"
+            className="h-6 px-2.5 text-xs text-zinc-300"
           >
             {isOpen ? "Ocultar detalles" : "Ver elementos en cola"}
           </Button>
@@ -84,31 +84,31 @@ export const QueueViewer: React.FC = () => {
 
       {/* Metric Badges Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center font-mono">
-        <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+        <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
           <span className="text-[10px] text-zinc-500 block">Total</span>
-          <span className="text-sm font-bold text-white">{stats.total}</span>
+          <span className="text-sm font-semibold text-zinc-100">{stats.total}</span>
         </div>
-        <div className="p-2 rounded-lg bg-zinc-900/60 border border-white/5">
+        <div className="p-2 rounded-lg bg-zinc-900/60 border border-zinc-800">
           <span className="text-[10px] text-zinc-400 block">Pendientes</span>
-          <span className="text-sm font-bold text-zinc-300">{stats.pending}</span>
+          <span className="text-sm font-semibold text-zinc-300">{stats.pending}</span>
         </div>
-        <div className="p-2 rounded-lg bg-cyan-950/20 border border-cyan-500/20">
+        <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
           <span className="text-[10px] text-cyan-400 block">En Curso</span>
-          <span className="text-sm font-bold text-cyan-300">{stats.in_progress}</span>
+          <span className="text-sm font-semibold text-cyan-300">{stats.in_progress}</span>
         </div>
-        <div className="p-2 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
+        <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
           <span className="text-[10px] text-emerald-400 block">Exitosos</span>
-          <span className="text-sm font-bold text-emerald-300">{stats.completed}</span>
+          <span className="text-sm font-semibold text-emerald-300">{stats.completed}</span>
         </div>
-        <div className="p-2 rounded-lg bg-rose-950/20 border border-rose-500/20">
+        <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
           <span className="text-[10px] text-rose-400 block">Fallidos</span>
-          <span className="text-sm font-bold text-rose-300">{stats.failed}</span>
+          <span className="text-sm font-semibold text-rose-300">{stats.failed}</span>
         </div>
       </div>
 
       {/* Expanded Live Items View */}
       {isOpen && queueStatus?.items && (
-        <div className="space-y-1 max-h-56 overflow-y-auto pr-1 border border-white/5 rounded-lg bg-[#0E1017]/80 divide-y divide-white/[0.03]">
+        <div className="space-y-1 max-h-56 overflow-y-auto pr-1 border border-zinc-800 rounded-lg bg-[#090a0e] divide-y divide-zinc-800/60">
           {queueStatus.items.map((item: QueueItem) => (
             <div
               key={item.source_message_id}

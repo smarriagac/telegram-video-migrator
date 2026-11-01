@@ -35,16 +35,16 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 relative">
       {/* Connector icon for desktop */}
-      <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-md bg-zinc-900 border border-white/10 items-center justify-center text-cyan-400 shadow-md shadow-cyan-950/40">
+      <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-md bg-zinc-900 border border-zinc-800 items-center justify-center text-cyan-400 shadow-sm">
         <ArrowRight className="w-3.5 h-3.5" />
       </div>
 
       {/* Source Channel Card */}
-      <div className="bg-[#14161F]/90 backdrop-blur-md rounded-xl border border-white/5 p-3.5 shadow-xl transition-all">
+      <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center space-x-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-            <h3 className="text-xs font-bold tracking-wider text-cyan-400 uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <h3 className="text-xs font-semibold tracking-wider text-cyan-400 uppercase">
               Canal Origen (Fuente)
             </h3>
           </div>
@@ -53,7 +53,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
           </span>
         </div>
 
-        <label className="text-[11px] text-zinc-400 mb-1 block">Seleccionar canal de videos:</label>
+        <label className="text-xs text-zinc-400 mb-1 block">Seleccionar canal de videos:</label>
         <SearchableChannelSelect
           disabled={isRunning}
           value={selectedSourceId}
@@ -64,21 +64,21 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
           accentColor="cyan"
         />
 
-        <div className="mt-2.5 p-2 rounded-lg bg-zinc-950/50 border border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
+        <div className="mt-2.5 p-2 rounded-lg bg-zinc-900/60 border border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">
             <Tv className="w-3.5 h-3.5 text-zinc-500" />
             Modo de clonación:
           </span>
-          <span className="text-cyan-300 font-medium font-mono">Referencia Directa</span>
+          <span className="text-cyan-300 font-medium font-mono text-xs">Referencia Directa</span>
         </div>
       </div>
 
       {/* Destination Channel Card */}
-      <div className="bg-[#14161F]/90 backdrop-blur-md rounded-xl border border-white/5 p-3.5 shadow-xl transition-all">
+      <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center space-x-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <h3 className="text-xs font-bold tracking-wider text-emerald-400 uppercase">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <h3 className="text-xs font-semibold tracking-wider text-emerald-400 uppercase">
               Canal Destino (Receptor)
             </h3>
           </div>
@@ -87,7 +87,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
           </span>
         </div>
 
-        <label className="text-[11px] text-zinc-400 mb-1 block">Seleccionar canal receptor:</label>
+        <label className="text-xs text-zinc-400 mb-1 block">Seleccionar canal receptor:</label>
         <SearchableChannelSelect
           disabled={isRunning}
           value={selectedTargetId}
@@ -98,7 +98,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
           accentColor="emerald"
         />
 
-        <div className="mt-2.5 p-2 rounded-lg bg-zinc-950/50 border border-white/5 flex items-center justify-between text-[11px] text-zinc-400">
+        <div className="mt-2.5 p-2 rounded-lg bg-zinc-900/60 border border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             Encabezado de reenvío:

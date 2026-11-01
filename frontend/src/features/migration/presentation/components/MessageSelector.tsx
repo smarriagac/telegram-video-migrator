@@ -51,7 +51,7 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
   if (!isVisualMedia || error) {
     return (
       <div
-        className={`w-full h-full bg-gradient-to-br from-zinc-900 to-zinc-950 flex flex-col items-center justify-center text-zinc-600 ${className}`}
+        className={`w-full h-full bg-[#12141a] border border-zinc-800/60 flex flex-col items-center justify-center text-zinc-600 ${className}`}
       >
         {mediaType === "video" ? (
           <Video className="w-8 h-8 text-purple-400/40 mb-1" />
@@ -184,17 +184,17 @@ export const MessageSelector: React.FC = () => {
 
   if (!selectedSourceId) {
     return (
-      <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl space-y-4 flex flex-col min-h-[520px]">
-        <div className="border-b border-white/5 pb-2.5 flex items-center justify-between">
+      <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-4 shadow-sm space-y-4 flex flex-col min-h-[520px]">
+        <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
               Mensajes, videos e imágenes del canal a copiar
             </h2>
-            <p className="text-[11px] text-zinc-400 mt-0.5">
+            <p className="text-xs text-zinc-400 mt-0.5">
               Elegí un canal de origen en el panel "De:" para cargar y previsualizar su contenido.
             </p>
           </div>
-          <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-white/5 px-2 py-0.5 rounded font-mono">
+          <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-2 py-0.5 rounded font-mono">
             Sin canal activo
           </span>
         </div>
@@ -271,12 +271,12 @@ export const MessageSelector: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-3.5 shadow-2xl flex flex-col h-full min-h-0 overflow-hidden space-y-3">
+    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-3">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-2.5 shrink-0">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
               Mensajes, videos e imágenes del canal a copiar
             </h2>
             <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono">
@@ -285,7 +285,7 @@ export const MessageSelector: React.FC = () => {
                 : `${filteredMessages.length} elementos`}
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 mt-0.5">
+          <p className="text-xs text-zinc-400 mt-0.5">
             Hacé click en cada miniatura para seleccionarlo o previsualizarlo antes de migrar.
           </p>
         </div>
@@ -352,7 +352,7 @@ export const MessageSelector: React.FC = () => {
 
       {/* Delta Sync Banner (incremental sync between source and target) */}
       {selectedTargetId && selectedSourceId && selectedTargetId !== selectedSourceId && (
-        <div className="shrink-0 rounded-xl border border-white/10 bg-gradient-to-r from-[#171b26] to-[#0f1118] p-3 shadow-lg">
+        <div className="shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 shadow-sm">
           {isCheckingSync ? (
             <div className="flex items-center gap-2.5 text-xs text-zinc-400 font-mono py-1">
               <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
@@ -555,8 +555,8 @@ export const MessageSelector: React.FC = () => {
                     messageId={msg.id}
                     mediaType={msg.media_type}
                   />
-                  {/* Subtle Gradient vignette for legibility */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/60 pointer-events-none" />
+                  {/* Subtle vignette for legibility */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                 </div>
 
                 {/* Top overlay: Checkbox + Type Badge */}

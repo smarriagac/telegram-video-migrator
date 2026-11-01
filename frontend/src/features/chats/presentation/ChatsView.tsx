@@ -168,7 +168,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
       )}
 
       {hasError ? (
-        <div className="w-full h-36 bg-gradient-to-br from-zinc-900 to-[#12141C] flex flex-col items-center justify-center gap-1.5 text-zinc-400 p-4 text-center">
+        <div className="w-full h-36 bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center gap-1.5 text-zinc-400 p-4 text-center">
           {mediaType === "video" ? (
             <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center mb-1">
               <Play className="w-5 h-5 text-cyan-400 fill-cyan-400 ml-0.5" />

@@ -131,15 +131,15 @@ export const DirectUploadModal: React.FC<Props> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && onClose()}>
-      <DialogContent className="max-w-lg p-6 space-y-4">
+      <DialogContent className="max-w-lg bg-[#0e1015] border border-zinc-800 p-6 space-y-4 shadow-xl">
         {/* Header */}
         <DialogHeader>
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
               <UploadCloud className="w-5 h-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-bold">
+              <DialogTitle className="text-base font-semibold text-zinc-100">
                 Publicar Contenido Local en Telegram
               </DialogTitle>
               <DialogDescription className="text-xs text-zinc-400">
@@ -150,7 +150,7 @@ export const DirectUploadModal: React.FC<Props> = ({
         </DialogHeader>
 
         {/* Target Channel Pill */}
-        <div className="p-2.5 rounded-xl bg-zinc-950/80 border border-white/5 flex items-center justify-between text-xs">
+        <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <span className="font-mono text-emerald-400 font-semibold text-[11px] uppercase">
               Canal Destino:
@@ -264,7 +264,7 @@ export const DirectUploadModal: React.FC<Props> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
             <Button
               type="button"
               variant="ghost"
@@ -278,21 +278,21 @@ export const DirectUploadModal: React.FC<Props> = ({
 
             <Button
               type="submit"
-              variant="default"
+              variant="primary"
               size="sm"
               disabled={isUploading || (!selectedFile && !caption.trim()) || !targetChannelId}
-              className="h-9 px-5 text-xs font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black shadow-lg shadow-cyan-950/40 flex items-center gap-1.5"
+              className="h-9 px-5 text-xs flex items-center gap-1.5"
             >
               {isUploading ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
                   Subiendo y publicando...
                 </>
               ) : (
                 <>
-                  <UploadCloud className="w-3.5 h-3.5" />
+                  <UploadCloud className="w-3.5 h-3.5 mr-1" />
                   Publicar en Canal
-                  <ArrowRight className="w-3 h-3" />
+                  <ArrowRight className="w-3 h-3 ml-1" />
                 </>
               )}
             </Button>

@@ -67,7 +67,7 @@ export const ProgressBar: React.FC = () => {
     <div
       role="region"
       aria-label="Progreso de la migración"
-      className="bg-[#14161F]/90 backdrop-blur-md rounded-xl border border-white/5 p-3.5 shadow-xl space-y-2.5"
+      className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm space-y-2.5"
     >
       <div className="flex items-center justify-between">
         <div>

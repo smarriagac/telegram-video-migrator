@@ -145,15 +145,15 @@ export const AuditView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-4 min-h-0 overflow-y-auto">
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-3 shrink-0">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-800 pb-3 shrink-0">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-lg font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
               Auditoría del Sistema
-              <span className="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">
                 PostgreSQL Logbook
               </span>
             </h1>
@@ -169,7 +169,7 @@ export const AuditView: React.FC = () => {
             size="sm"
             onClick={() => fetchLogs()}
             disabled={isLoading}
-            className="border-white/10 bg-[#14161F] hover:bg-white/5 text-xs text-zinc-300 flex items-center gap-1.5 h-8"
+            className="text-xs text-zinc-300 flex items-center gap-1.5 h-8"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-cyan-400" : ""}`} />
             Actualizar
@@ -179,41 +179,41 @@ export const AuditView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3 shadow-lg space-y-1">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs">
             <span>Total Eventos</span>
             <Layers className="w-4 h-4 text-cyan-400" />
           </div>
-          <p className="text-xl font-bold font-mono text-white">{totalEvents}</p>
+          <p className="text-xl font-semibold font-mono text-zinc-100">{totalEvents}</p>
         </div>
 
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3 shadow-lg space-y-1">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs">
             <span>Inicios de Sesión</span>
             <LogIn className="w-4 h-4 text-emerald-400" />
           </div>
-          <p className="text-xl font-bold font-mono text-emerald-400">{loginEvents}</p>
+          <p className="text-xl font-semibold font-mono text-emerald-400">{loginEvents}</p>
         </div>
 
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3 shadow-lg space-y-1">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs">
             <span>Clonaciones Canales</span>
             <PlayCircle className="w-4 h-4 text-cyan-400" />
           </div>
-          <p className="text-xl font-bold font-mono text-cyan-400">{migrationEvents}</p>
+          <p className="text-xl font-semibold font-mono text-cyan-400">{migrationEvents}</p>
         </div>
 
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3 shadow-lg space-y-1">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs">
             <span>Vínculos Auto-Sync</span>
             <Radio className="w-4 h-4 text-amber-400" />
           </div>
-          <p className="text-xl font-bold font-mono text-amber-400">{syncEvents}</p>
+          <p className="text-xl font-semibold font-mono text-amber-400">{syncEvents}</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#14161F] border border-white/5 p-2.5 rounded-xl shrink-0">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#0e1015] border border-zinc-800 p-2.5 rounded-lg shrink-0">
         {/* Categories */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
           {[
@@ -226,10 +226,10 @@ export const AuditView: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setFilterCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all text-xs whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors text-xs whitespace-nowrap ${
                 filterCategory === cat.id
-                  ? "bg-cyan-500 text-black font-semibold shadow-md shadow-cyan-500/20"
-                  : "bg-white/5 hover:bg-white/10 text-zinc-300"
+                  ? "bg-zinc-800 text-white border border-zinc-700/80 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850"
               }`}
             >
               {cat.label}
@@ -245,18 +245,18 @@ export const AuditView: React.FC = () => {
             placeholder="Buscar por usuario, acción o detalle..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 w-full sm:w-64 transition-all"
+            className="bg-zinc-900 border border-zinc-800 rounded-md pl-8 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 w-full sm:w-64 transition-colors"
           />
         </div>
       </div>
 
       {/* Audit Log Table */}
-      <div className="bg-[#14161F] border border-white/5 rounded-xl shadow-2xl flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="p-3 border-b border-white/5 flex items-center justify-between text-xs text-zinc-400">
-          <span className="font-semibold text-zinc-300">
+      <div className="bg-[#0e1015] border border-zinc-800 rounded-lg shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="p-3 border-b border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
+          <span className="font-medium text-zinc-300">
             Registros Encontrados: <span className="font-mono text-cyan-400">{filteredLogs.length}</span>
           </span>
-          <span className="text-[11px] font-mono text-zinc-500">Orden: Más recientes primero</span>
+          <span className="text-xs font-mono text-zinc-500">Orden: Más recientes primero</span>
         </div>
 
         {error && (
@@ -273,7 +273,7 @@ export const AuditView: React.FC = () => {
             </div>
           ) : (
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-black/30 text-zinc-400 sticky top-0 font-mono text-[11px] border-b border-white/5">
+              <thead className="bg-[#090a0e] text-zinc-400 sticky top-0 font-mono text-xs border-b border-zinc-800">
                 <tr>
                   <th className="py-2.5 px-3">Fecha y Hora</th>
                   <th className="py-2.5 px-3">Evento</th>
@@ -284,12 +284,12 @@ export const AuditView: React.FC = () => {
                   <th className="py-2.5 px-3 text-right">Acción</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-zinc-300 font-mono text-[11px]">
+              <tbody className="divide-y divide-zinc-800/60 text-zinc-300 font-mono text-xs">
                 {filteredLogs.map((log) => (
                   <tr
                     key={log.id}
                     onClick={() => setSelectedLog(log)}
-                    className="hover:bg-white/[0.03] cursor-pointer transition-colors group"
+                    className="hover:bg-zinc-800/30 cursor-pointer transition-colors group"
                   >
                     <td className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
                       <div className="flex items-center gap-1.5">
@@ -306,7 +306,7 @@ export const AuditView: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 font-sans text-xs text-zinc-400 max-w-sm truncate" title={JSON.stringify(log.details || {})}>
                       {log.details ? (
-                        <span className="font-mono text-[10px] text-zinc-300 bg-black/40 px-1.5 py-0.5 rounded border border-white/5 hover:border-cyan-500/30 transition-colors">
+                        <span className="font-mono text-[10px] text-zinc-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 hover:border-cyan-500/30 transition-colors">
                           {JSON.stringify(log.details)}
                         </span>
                       ) : (
@@ -326,10 +326,10 @@ export const AuditView: React.FC = () => {
                           e.stopPropagation();
                           setSelectedLog(log);
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/5 hover:bg-cyan-500/10 text-cyan-400 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/20 text-[11px] font-sans font-medium transition-all"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 hover:border-zinc-600 text-xs font-sans font-medium transition-colors"
                         title="Ver detalles completos del evento"
                       >
-                        <Eye className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                        <Eye className="w-3 h-3 group-hover:scale-105 transition-transform" />
                         Ver Detalle
                       </button>
                     </td>
@@ -341,14 +341,14 @@ export const AuditView: React.FC = () => {
         </div>
 
         {/* Pagination Controls */}
-        <div className="p-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 bg-black/20 shrink-0">
+        <div className="p-3 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 bg-[#090a0e] shrink-0">
           <div className="flex items-center gap-2">
             <span>Mostrar</span>
             <select
               value={pageSize}
               onChange={(e) => setPageSize(Number(e.target.value))}
               disabled={isLoading}
-              className="bg-[#0D0E15] border border-white/10 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500"
+              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -363,7 +363,7 @@ export const AuditView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] text-zinc-400">
+            <span className="font-mono text-xs text-zinc-400">
               Página <strong className="text-cyan-400">{page}</strong> de{" "}
               <strong className="text-zinc-300">{totalPages}</strong>
             </span>
@@ -373,7 +373,7 @@ export const AuditView: React.FC = () => {
                 size="sm"
                 onClick={() => setPage(page - 1)}
                 disabled={page <= 1 || isLoading}
-                className="h-7 px-2 border-white/10 bg-[#0D0E15] hover:bg-white/5 text-xs text-zinc-300 flex items-center gap-1"
+                className="h-7 px-2 text-xs flex items-center gap-1"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 Anterior
@@ -383,7 +383,7 @@ export const AuditView: React.FC = () => {
                 size="sm"
                 onClick={() => setPage(page + 1)}
                 disabled={page >= totalPages || isLoading}
-                className="h-7 px-2 border-white/10 bg-[#0D0E15] hover:bg-white/5 text-xs text-zinc-300 flex items-center gap-1"
+                className="h-7 px-2 text-xs flex items-center gap-1"
               >
                 Siguiente
                 <ChevronRight className="w-3.5 h-3.5" />

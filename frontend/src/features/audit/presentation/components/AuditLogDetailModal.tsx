@@ -65,31 +65,31 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
     switch (action) {
       case "LOGIN":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            <LogIn className="w-3.5 h-3.5" /> INICIO DE SESIÓN (LOGIN)
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <LogIn className="w-3.5 h-3.5" /> INICIO DE SESIÓN
           </span>
         );
       case "LOGIN_FAILED":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
             <AlertTriangle className="w-3.5 h-3.5" /> LOGIN FALLIDO
           </span>
         );
       case "MIGRATION_START":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
             <PlayCircle className="w-3.5 h-3.5" /> INICIO DE CLONACIÓN
           </span>
         );
       case "MIGRATION_CANCEL":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
             MIGRACIÓN CANCELADA
           </span>
         );
       case "AUTO_SYNC_TOGGLE":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
             <Radio className="w-3.5 h-3.5" /> CONFIGURACIÓN AUTO-SYNC
           </span>
         );
@@ -97,13 +97,13 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
       case "USER_UPDATE":
       case "USER_DELETE":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
             <UserPlus className="w-3.5 h-3.5" /> GESTIÓN RBAC ({action})
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-zinc-800 text-zinc-200 border border-white/10">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-zinc-800 text-zinc-300 border border-zinc-700">
             {action}
           </span>
         );
@@ -114,20 +114,20 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
 
   return (
     <Dialog open={Boolean(log)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-[#14161F] border-white/10 text-zinc-100 p-6 shadow-2xl">
-        <DialogHeader className="border-b border-white/5 pb-4 space-y-2">
+      <DialogContent className="max-w-2xl bg-[#0e1015] border-zinc-800 text-zinc-100 p-6 shadow-xl">
+        <DialogHeader className="border-b border-zinc-800 pb-4 space-y-2">
           <div className="flex items-center justify-between">
             {getActionBadge(log.action)}
             <span className="font-mono text-xs text-zinc-500">ID Evento: #{log.id}</span>
           </div>
-          <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold text-zinc-100 flex items-center gap-2">
             Inspección de Registro de Auditoría
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-black/30 border border-white/5 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs">
             <div className="space-y-0.5">
               <span className="text-[10px] text-zinc-500 uppercase font-mono flex items-center gap-1">
                 <User className="w-3 h-3 text-cyan-400" /> Usuario Responsable
@@ -148,10 +148,10 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
               <span className="text-[10px] text-zinc-500 uppercase font-mono flex items-center gap-1">
                 <Clock className="w-3 h-3 text-amber-400" /> Fecha y Hora
               </span>
-              <p className="text-zinc-300 text-[11px]">{formatDate(log.created_at)}</p>
+              <p className="text-zinc-300 text-xs font-mono">{formatDate(log.created_at)}</p>
             </div>
 
-            <div className="space-y-0.5 col-span-2 sm:col-span-3 pt-2 border-t border-white/5">
+            <div className="space-y-0.5 col-span-2 sm:col-span-3 pt-2 border-t border-zinc-800">
               <span className="text-[10px] text-zinc-500 uppercase font-mono flex items-center gap-1">
                 <Server className="w-3 h-3 text-purple-400" /> Recurso Afectado
               </span>
@@ -161,33 +161,33 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
 
           {/* Structured Context Details */}
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
+            <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5 text-cyan-400" />
               Detalle Interpretado de la Operación
             </h4>
 
             {log.action === "AUTO_SYNC_TOGGLE" && (
-              <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2 text-xs">
+              <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-2 text-xs">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-zinc-400 text-[11px] block">Canal Origen:</span>
+                    <span className="text-zinc-400 text-xs block">Canal Origen:</span>
                     <strong className="text-amber-300 text-xs">
                       {details.source_title || "Canal Origen"}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-zinc-400 text-[11px] block">Canal Destino:</span>
+                    <span className="text-zinc-400 text-xs block">Canal Destino:</span>
                     <strong className="text-amber-300 text-xs">
                       {details.target_title || "Canal Destino"}
                     </strong>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-amber-500/10 flex items-center justify-between">
+                <div className="pt-2 border-t border-amber-500/15 flex items-center justify-between">
                   <span className="text-zinc-400">Estado del Auto-Sync:</span>
                   <span
-                    className={`font-mono px-2 py-0.5 rounded text-[10px] font-bold ${
+                    className={`font-mono px-2 py-0.5 rounded text-[10px] font-semibold ${
                       details.is_active
-                        ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
                         : "bg-zinc-800 text-zinc-400"
                     }`}
                   >
@@ -198,22 +198,22 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
             )}
 
             {log.action === "MIGRATION_START" && (
-              <div className="p-3.5 rounded-xl bg-cyan-500/5 border border-cyan-500/20 space-y-2 text-xs">
+              <div className="p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/20 space-y-2 text-xs">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-zinc-400 text-[11px] block">Origen:</span>
+                    <span className="text-zinc-400 text-xs block">Origen:</span>
                     <strong className="text-cyan-300 text-xs">
                       {details.source_title || `Canal ${details.source_id}`}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-zinc-400 text-[11px] block">Destino:</span>
+                    <span className="text-zinc-400 text-xs block">Destino:</span>
                     <strong className="text-cyan-300 text-xs">
                       {details.target_title || `Canal ${details.target_id}`}
                     </strong>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-cyan-500/10 flex items-center justify-between">
+                <div className="pt-2 border-t border-cyan-500/15 flex items-center justify-between">
                   <span className="text-zinc-400">Modalidad de Clonación:</span>
                   <span className="font-mono text-cyan-300 text-xs">
                     {details.is_full_migration ? "Clonación Completa" : "Selección Parcial de Videos"}
@@ -221,16 +221,16 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                 </div>
                 <div className="flex items-center justify-between text-zinc-400">
                   <span>Mensajes programados:</span>
-                  <strong className="font-mono text-white">{details.selected_items_count}</strong>
+                  <strong className="font-mono text-zinc-100">{details.selected_items_count}</strong>
                 </div>
               </div>
             )}
 
             {log.action === "LOGIN" && (
-              <div className="p-3.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-1.5 text-xs">
+              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400">Resultado de Autenticación:</span>
-                  <span className="text-emerald-400 font-bold font-mono">200 OK · Token JWT Emitido</span>
+                  <span className="text-emerald-400 font-medium font-mono">200 OK · Token JWT Emitido</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400">Rol asignado a la sesión:</span>
@@ -240,7 +240,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
             )}
 
             {log.action === "LOGIN_FAILED" && (
-              <div className="p-3.5 rounded-xl bg-rose-500/5 border border-rose-500/20 space-y-1.5 text-xs">
+              <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/20 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400">Motivo del rechazo:</span>
                   <strong className="text-rose-400 font-medium">{details.reason || "Credenciales incorrectas"}</strong>
@@ -253,7 +253,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
             )}
 
             {log.action.startsWith("USER_") && (
-              <div className="p-3.5 rounded-xl bg-purple-500/5 border border-purple-500/20 space-y-1.5 text-xs">
+              <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/20 space-y-1.5 text-xs">
                 {details.created_email && (
                   <div className="flex items-center justify-between">
                     <span className="text-zinc-400">Usuario creado:</span>
@@ -285,31 +285,31 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
           {/* Raw JSON Payload */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <h4 className="text-xs font-medium text-zinc-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
                 <Code className="w-3.5 h-3.5 text-zinc-400" />
                 Payload Estructurado (JSON)
               </h4>
               <button
                 type="button"
                 onClick={handleCopyJson}
-                className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                className="text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
               >
-                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Copiado!" : "Copiar JSON"}
               </button>
             </div>
-            <pre className="p-3 rounded-xl bg-[#090A0F] border border-white/5 font-mono text-[11px] text-zinc-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed selection:bg-cyan-500 selection:text-black">
+            <pre className="p-3 rounded-lg bg-[#090a0e] border border-zinc-800 font-mono text-xs text-zinc-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">
               {JSON.stringify(log.details || {}, null, 2)}
             </pre>
           </div>
         </div>
 
-        <div className="border-t border-white/5 pt-4 flex justify-end">
+        <div className="border-t border-zinc-800 pt-4 flex justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={onClose}
-            className="border-white/10 bg-white/5 hover:bg-white/10 text-xs text-zinc-200"
+            className="text-xs"
           >
             Cerrar
           </Button>
