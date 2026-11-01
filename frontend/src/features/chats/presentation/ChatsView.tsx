@@ -193,9 +193,9 @@ export const ChatsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto h-[calc(100vh-105px)] min-h-[560px] flex flex-col space-y-3">
+    <div className="w-full h-full flex flex-col space-y-3 min-h-0 overflow-hidden">
       {/* Header (shrink-0) */}
-      <div className="flex items-center justify-between shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 shrink-0">
         <div>
           <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-cyan-400" />
@@ -222,8 +222,8 @@ export const ChatsView: React.FC = () => {
 
       {/* Main Chat Interface: Bound height with flex/grid */}
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
-        {/* Left Column: Chat List (4 cols) */}
-        <aside className="md:col-span-5 lg:col-span-4 border-r border-white/5 flex flex-col bg-[#10121A]/50 h-full min-h-0 overflow-hidden">
+        {/* Left Column: Chat List (4 cols on lg, 3 cols on xl) */}
+        <aside className="md:col-span-5 lg:col-span-4 xl:col-span-3 border-r border-white/5 flex flex-col bg-[#10121A]/50 h-full min-h-0 overflow-hidden">
           {/* Search Bar (shrink-0) */}
           <div className="p-2.5 border-b border-white/5 shrink-0">
             <div className="relative">
@@ -393,8 +393,8 @@ export const ChatsView: React.FC = () => {
           </div>
         </aside>
 
-        {/* Right Column: Active Conversation (7-8 cols) */}
-        <section className="md:col-span-7 lg:col-span-8 flex flex-col bg-[#14161F] h-full min-h-0 overflow-hidden">
+        {/* Right Column: Active Conversation (7-8 cols on lg, 9 cols on xl) */}
+        <section className="md:col-span-7 lg:col-span-8 xl:col-span-9 flex flex-col bg-[#14161F] h-full min-h-0 overflow-hidden">
           {activeChat ? (
             <>
               {/* Conversation Header (shrink-0) */}

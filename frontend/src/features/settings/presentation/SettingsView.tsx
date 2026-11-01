@@ -146,9 +146,9 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="w-full h-full flex flex-col space-y-3.5 min-h-0 overflow-y-auto pr-1 pb-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 shrink-0">
         <div>
           <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
             <Settings className="w-5 h-5 text-cyan-400" />
@@ -161,7 +161,7 @@ export const SettingsView: React.FC = () => {
 
         {/* Tab Switcher for Admins */}
         {user?.role === "ADMIN" && (
-          <div className="flex items-center gap-1 p-0.5 bg-zinc-950/80 border border-white/5 rounded-lg">
+          <div className="flex items-center gap-1 p-0.5 bg-zinc-950/80 border border-white/5 rounded-lg shrink-0">
             <button
               onClick={() => setActiveTab("credentials")}
               className={cn(
@@ -194,7 +194,7 @@ export const SettingsView: React.FC = () => {
       {feedback && (
         <div
           className={cn(
-            "p-2.5 rounded-lg text-xs flex items-center gap-2 transition-all",
+            "p-2.5 rounded-lg text-xs flex items-center gap-2 transition-all shrink-0",
             feedback.isError
               ? "bg-rose-500/10 border border-rose-500/20 text-rose-400"
               : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
@@ -205,28 +205,29 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 1: Telegram Credentials Form */}
+      {/* TAB 1: Telegram Credentials Form + Registered Accounts */}
       {activeTab === "credentials" && user?.role === "ADMIN" && (
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                <KeyRound className="w-4 h-4" />
-              </span>
-              <div>
-                <h2 className="text-xs font-bold text-white">Vincular Nueva Cuenta de Telegram</h2>
-                <span className="text-[10px] text-zinc-400 font-mono">
-                  Las credenciales se cifran en reposo con AES-256 en PostgreSQL 18
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-start">
+          {/* Left: Credentials Form (5 cols on xl) */}
+          <div className="xl:col-span-5 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <KeyRound className="w-4 h-4" />
                 </span>
+                <div>
+                  <h2 className="text-xs font-bold text-white">Vincular Nueva Cuenta</h2>
+                  <span className="text-[10px] text-zinc-400 font-mono">
+                    Cifrado AES-256 en PostgreSQL 18
+                  </span>
+                </div>
               </div>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                <Lock className="w-3 h-3" /> At-Rest
+              </span>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
-              <Lock className="w-3 h-3" /> Cifrado At-Rest
-            </span>
-          </div>
 
-          <form onSubmit={handleSaveCredentials} className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <form onSubmit={handleSaveCredentials} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-zinc-300">Etiqueta de la Cuenta</label>
                 <input
@@ -239,27 +240,29 @@ export const SettingsView: React.FC = () => {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-zinc-300">Teléfono (Opcional)</label>
-                <input
-                  name="phone"
-                  type="text"
-                  placeholder="+54 9 11 1234-5678"
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-zinc-300">
+                    Telegram API ID <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    name="api_id"
+                    type="text"
+                    placeholder="Ej: 12345678"
+                    required
+                    className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-zinc-300">
-                  Telegram API ID <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  name="api_id"
-                  type="text"
-                  placeholder="Ej: 12345678"
-                  required
-                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
-                />
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-zinc-300">Teléfono (Opcional)</label>
+                  <input
+                    name="phone"
+                    type="text"
+                    placeholder="+54 9 11 1234-5678"
+                    className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -274,35 +277,46 @@ export const SettingsView: React.FC = () => {
                   className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
                 />
               </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-zinc-300">
+                  Session String MTProto (Opcional)
+                </label>
+                <textarea
+                  name="session_string"
+                  rows={2}
+                  placeholder="1BVtsOHQBu7... (Session string exportada)"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 text-xs flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Guardar Credenciales Cifradas</span>
+              </Button>
+            </form>
+          </div>
+
+          {/* Right: Configured Accounts Table (7 cols on xl) */}
+          <div className="xl:col-span-7 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+            <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
+              <div>
+                <h2 className="text-xs font-bold text-white">Cuentas Registradas</h2>
+                <span className="text-[10px] text-zinc-400 font-mono">
+                  Identidades MTProto configuradas en el clúster
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-zinc-500">
+                Total: <strong className="text-zinc-200">{accounts.length}</strong>
+              </span>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-zinc-300">
-                Session String MTProto (Opcional)
-              </label>
-              <textarea
-                name="session_string"
-                rows={2}
-                placeholder="1BVtsOHQBu7... (Session string exportada)"
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-md px-2.5 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 font-mono"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={isLoading}
-              size="sm"
-              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 text-xs flex items-center gap-1.5"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Guardar Credenciales Cifradas</span>
-            </Button>
-          </form>
-
-          {/* Configured Accounts Table */}
-          {accounts.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-white/5 space-y-2">
-              <span className="text-[11px] font-bold text-zinc-300 block">Cuentas Registradas:</span>
+            {accounts.length > 0 ? (
               <div className="rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden">
                 <Table>
                   <TableHeader className="bg-white/[0.02]">
@@ -327,16 +341,24 @@ export const SettingsView: React.FC = () => {
                   </TableBody>
                 </Table>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="p-8 text-center text-xs text-zinc-500 bg-zinc-950/40 rounded-lg border border-white/5 flex flex-col items-center justify-center gap-2">
+                <KeyRound className="w-8 h-8 text-zinc-600 stroke-1" />
+                <span>No hay cuentas registradas todavía.</span>
+                <span className="text-[10px] text-zinc-600 font-mono">
+                  Completá el formulario a la izquierda para vincular una cuenta.
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* TAB 2: Interactive User Management (RBAC) */}
       {activeTab === "users" && user?.role === "ADMIN" && (
-        <div className="space-y-4">
-          {/* Create User Card */}
-          <div className="bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-start">
+          {/* Create User Card (Left on xl: 4 cols) */}
+          <div className="xl:col-span-4 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
             <div className="flex items-center gap-2 pb-2.5 border-b border-white/5">
               <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <UserPlus className="w-4 h-4" />
@@ -344,12 +366,12 @@ export const SettingsView: React.FC = () => {
               <div>
                 <h2 className="text-xs font-bold text-white">Dar de Alta Nuevo Usuario</h2>
                 <span className="text-[10px] text-zinc-400">
-                  Crea accesos individuales y asigna roles de ejecución controlados
+                  Crea accesos individuales y asigna roles
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-3 gap-2.5 items-end">
+            <form onSubmit={handleCreateUser} className="space-y-3">
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-zinc-300">Email del Usuario</label>
                 <input
@@ -386,22 +408,20 @@ export const SettingsView: React.FC = () => {
                 </Select>
               </div>
 
-              <div className="md:col-span-3">
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  size="sm"
-                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 text-xs flex items-center gap-1.5"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>Crear Usuario</span>
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                disabled={isLoading}
+                size="sm"
+                className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 text-xs flex items-center justify-center gap-1.5"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Crear Usuario</span>
+              </Button>
             </form>
           </div>
 
-          {/* Users Table Card */}
-          <div className="bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+          {/* Users Table Card (Right on xl: 8 cols) */}
+          <div className="xl:col-span-8 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
             <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
@@ -516,7 +536,7 @@ export const SettingsView: React.FC = () => {
       )}
 
       {/* Infrastructure Telemetry */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 shrink-0">
         <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="p-1.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
