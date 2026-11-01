@@ -1,6 +1,7 @@
 import {
   AutoSyncBinding,
   AutoSyncStatus,
+  CaptionRules,
   Channel,
   ChannelCloningHistory,
   ChannelMessageItem,
@@ -88,7 +89,9 @@ export const migrationApi = {
     sourceChannelTitle?: string,
     targetChannelTitle?: string,
     sourceAccountId?: number,
-    targetAccountId?: number
+    targetAccountId?: number,
+    captionRules?: CaptionRules | null,
+    dripDelaySeconds?: number
   ): Promise<MigrationJob> {
     const payload: {
       source_channel_id: number;
@@ -98,6 +101,8 @@ export const migrationApi = {
       target_channel_title?: string;
       source_account_id?: number;
       target_account_id?: number;
+      caption_rules?: CaptionRules | null;
+      drip_delay_seconds?: number;
     } = {
       source_channel_id: sourceChannelId,
       target_channel_id: targetChannelId,
@@ -116,6 +121,12 @@ export const migrationApi = {
     }
     if (targetAccountId) {
       payload.target_account_id = targetAccountId;
+    }
+    if (captionRules) {
+      payload.caption_rules = captionRules;
+    }
+    if (dripDelaySeconds && dripDelaySeconds > 0) {
+      payload.drip_delay_seconds = dripDelaySeconds;
     }
 
     const res = await fetch(`${API_BASE_URL}/jobs`, {
@@ -241,6 +252,7 @@ export const migrationApi = {
     target_title?: string;
     source_account_id?: number;
     target_account_id?: number;
+    caption_rules?: CaptionRules | null;
   }): Promise<AutoSyncBinding> {
     const res = await fetch(`${API_BASE_URL}/channels/auto-sync`, {
       method: "POST",

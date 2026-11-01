@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 import aiosqlite
@@ -77,6 +78,14 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE migration_jobs ADD COLUMN target_account_id INTEGER;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN caption_rules TEXT;")
+            except Exception:
+                pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN drip_delay_seconds INTEGER DEFAULT 0;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id TEXT NOT NULL,
@@ -118,8 +127,29 @@ class SQLiteJobRepository(JobRepositoryPort):
                     last_synced_message_id INTEGER NOT NULL DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    caption_rules TEXT,
                     PRIMARY KEY (source_channel_id, target_channel_id)
                 );
+            """)
+            try:
+                await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN caption_rules TEXT;")
+            except Exception:
+                pass
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    target_channel_id INTEGER NOT NULL,
+                    fingerprint_hash TEXT NOT NULL,
+                    source_channel_id INTEGER,
+                    source_message_id INTEGER,
+                    target_message_id INTEGER,
+                    media_type TEXT NOT NULL DEFAULT 'video',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(target_channel_id, fingerprint_hash)
+                );
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_media_fingerprint ON migrated_media_fingerprints(target_channel_id, fingerprint_hash);
             """)
             await conn.commit()
             self._initialized = True
@@ -132,14 +162,15 @@ class SQLiteJobRepository(JobRepositoryPort):
         await self._ensure_initialized()
         async with self._get_connection() as conn:
             status_val = job.status.value if isinstance(job.status, JobStatus) else str(job.status)
+            rules_json = json.dumps(job.caption_rules) if job.caption_rules else None
             await conn.execute(
                 """
                 INSERT OR REPLACE INTO migration_jobs (
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_title, target_title,
-                    source_account_id, target_account_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?);
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     job.job_id,
@@ -156,6 +187,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     job.target_title,
                     job.source_account_id,
                     job.target_account_id,
+                    rules_json,
+                    job.drip_delay_seconds,
                 ),
             )
             await conn.commit()
@@ -200,7 +233,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_title, target_title,
-                       source_account_id, target_account_id
+                       source_account_id, target_account_id, caption_rules, drip_delay_seconds
                 FROM migration_jobs
                 WHERE id = ?;
                 """,
@@ -209,6 +242,18 @@ class SQLiteJobRepository(JobRepositoryPort):
                 row = await cursor.fetchone()
                 if row is None:
                     return None
+
+                parsed_rules = None
+                if len(row) > 14 and row[14]:
+                    try:
+                        parsed_rules = json.loads(row[14]) if isinstance(row[14], str) else row[14]
+                    except Exception:
+                        parsed_rules = None
+
+                drip_sec = 0
+                if len(row) > 15 and row[15] is not None:
+                    drip_sec = int(row[15])
+
                 return MigrationJob(
                     job_id=str(row[0]),
                     source_id=int(row[1]),
@@ -224,6 +269,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     target_title=str(row[11]) if row[11] is not None else None,
                     source_account_id=int(row[12]) if row[12] is not None else None,
                     target_account_id=int(row[13]) if row[13] is not None else None,
+                    caption_rules=parsed_rules,
+                    drip_delay_seconds=drip_sec,
                 )
 
     async def record_migrated_item(
@@ -540,6 +587,7 @@ class SQLiteJobRepository(JobRepositoryPort):
 
     async def save_sync_binding(self, binding: ChannelSyncBinding) -> ChannelSyncBinding:
         await self._ensure_initialized()
+        rules_json = json.dumps(binding.caption_rules) if binding.caption_rules else None
         async with self._get_connection() as conn:
             await conn.execute(
                 """
@@ -547,8 +595,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     source_channel_id, target_channel_id,
                     source_channel_title, target_channel_title,
                     source_account_id, target_account_id,
-                    is_active, last_synced_message_id, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    is_active, last_synced_message_id, caption_rules, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
                     source_channel_title = excluded.source_channel_title,
                     target_channel_title = excluded.target_channel_title,
@@ -556,6 +604,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     target_account_id = excluded.target_account_id,
                     is_active = excluded.is_active,
                     last_synced_message_id = excluded.last_synced_message_id,
+                    caption_rules = excluded.caption_rules,
                     updated_at = CURRENT_TIMESTAMP;
                 """,
                 (
@@ -567,6 +616,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     binding.target_account_id,
                     1 if binding.is_active else 0,
                     binding.last_synced_message_id,
+                    rules_json,
                 ),
             )
             await conn.commit()
@@ -582,7 +632,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SELECT source_channel_id, target_channel_id,
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
-                       is_active, last_synced_message_id, created_at, updated_at
+                       is_active, last_synced_message_id, created_at, updated_at,
+                       caption_rules
                 FROM channel_sync_bindings
                 WHERE source_channel_id = ? AND target_channel_id = ?
                 LIMIT 1;
@@ -592,6 +643,14 @@ class SQLiteJobRepository(JobRepositoryPort):
                 row = await cursor.fetchone()
                 if not row:
                     return None
+
+                parsed_rules = None
+                if len(row) > 10 and row[10]:
+                    try:
+                        parsed_rules = json.loads(row[10]) if isinstance(row[10], str) else row[10]
+                    except Exception:
+                        parsed_rules = None
+
                 return ChannelSyncBinding(
                     source_channel_id=int(row[0]),
                     target_channel_id=int(row[1]),
@@ -603,6 +662,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     last_synced_message_id=int(row[7]),
                     created_at=str(row[8]) if row[8] else None,
                     updated_at=str(row[9]) if row[9] else None,
+                    caption_rules=parsed_rules,
                 )
 
     async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
@@ -613,28 +673,38 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SELECT source_channel_id, target_channel_id,
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
-                       is_active, last_synced_message_id, created_at, updated_at
+                       is_active, last_synced_message_id, created_at, updated_at,
+                       caption_rules
                 FROM channel_sync_bindings
                 WHERE is_active = 1
                 ORDER BY updated_at DESC;
                 """
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [
-                    ChannelSyncBinding(
-                        source_channel_id=int(r[0]),
-                        target_channel_id=int(r[1]),
-                        source_channel_title=r[2],
-                        target_channel_title=r[3],
-                        source_account_id=r[4],
-                        target_account_id=r[5],
-                        is_active=bool(r[6]),
-                        last_synced_message_id=int(r[7]),
-                        created_at=str(r[8]) if r[8] else None,
-                        updated_at=str(r[9]) if r[9] else None,
+                result = []
+                for r in rows:
+                    parsed_rules = None
+                    if len(r) > 10 and r[10]:
+                        try:
+                            parsed_rules = json.loads(r[10]) if isinstance(r[10], str) else r[10]
+                        except Exception:
+                            parsed_rules = None
+                    result.append(
+                        ChannelSyncBinding(
+                            source_channel_id=int(r[0]),
+                            target_channel_id=int(r[1]),
+                            source_channel_title=r[2],
+                            target_channel_title=r[3],
+                            source_account_id=r[4],
+                            target_account_id=r[5],
+                            is_active=bool(r[6]),
+                            last_synced_message_id=int(r[7]),
+                            created_at=str(r[8]) if r[8] else None,
+                            updated_at=str(r[9]) if r[9] else None,
+                            caption_rules=parsed_rules,
+                        )
                     )
-                    for r in rows
-                ]
+                return result
 
     async def list_sync_bindings(self) -> list[ChannelSyncBinding]:
         await self._ensure_initialized()
@@ -644,27 +714,37 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SELECT source_channel_id, target_channel_id,
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
-                       is_active, last_synced_message_id, created_at, updated_at
+                       is_active, last_synced_message_id, created_at, updated_at,
+                       caption_rules
                 FROM channel_sync_bindings
                 ORDER BY updated_at DESC;
                 """
             ) as cursor:
                 rows = await cursor.fetchall()
-                return [
-                    ChannelSyncBinding(
-                        source_channel_id=int(r[0]),
-                        target_channel_id=int(r[1]),
-                        source_channel_title=r[2],
-                        target_channel_title=r[3],
-                        source_account_id=r[4],
-                        target_account_id=r[5],
-                        is_active=bool(r[6]),
-                        last_synced_message_id=int(r[7]),
-                        created_at=str(r[8]) if r[8] else None,
-                        updated_at=str(r[9]) if r[9] else None,
+                result = []
+                for r in rows:
+                    parsed_rules = None
+                    if len(r) > 10 and r[10]:
+                        try:
+                            parsed_rules = json.loads(r[10]) if isinstance(r[10], str) else r[10]
+                        except Exception:
+                            parsed_rules = None
+                    result.append(
+                        ChannelSyncBinding(
+                            source_channel_id=int(r[0]),
+                            target_channel_id=int(r[1]),
+                            source_channel_title=r[2],
+                            target_channel_title=r[3],
+                            source_account_id=r[4],
+                            target_account_id=r[5],
+                            is_active=bool(r[6]),
+                            last_synced_message_id=int(r[7]),
+                            created_at=str(r[8]) if r[8] else None,
+                            updated_at=str(r[9]) if r[9] else None,
+                            caption_rules=parsed_rules,
+                        )
                     )
-                    for r in rows
-                ]
+                return result
 
     async def delete_sync_binding(
         self, source_channel_id: int, target_channel_id: int
@@ -680,6 +760,51 @@ class SQLiteJobRepository(JobRepositoryPort):
             )
             await conn.commit()
             return True
+
+    async def is_media_fingerprint_duplicated(
+        self, target_channel_id: int, fingerprint_hash: str
+    ) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT 1 FROM migrated_media_fingerprints
+                WHERE target_channel_id = ? AND fingerprint_hash = ?
+                LIMIT 1;
+                """,
+                (target_channel_id, fingerprint_hash),
+            ) as cursor:
+                row = await cursor.fetchone()
+                return row is not None
+
+    async def record_media_fingerprint(
+        self,
+        target_channel_id: int,
+        fingerprint_hash: str,
+        source_channel_id: int | None = None,
+        source_message_id: int | None = None,
+        target_message_id: int | None = None,
+        media_type: str = "video",
+    ) -> None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT OR IGNORE INTO migrated_media_fingerprints (
+                    target_channel_id, fingerprint_hash, source_channel_id,
+                    source_message_id, target_message_id, media_type, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP);
+                """,
+                (
+                    target_channel_id,
+                    fingerprint_hash,
+                    source_channel_id,
+                    source_message_id,
+                    target_message_id,
+                    media_type,
+                ),
+            )
+            await conn.commit()
 
     async def close(self) -> None:
         if self._shared_mem_conn is not None:

@@ -514,6 +514,7 @@ class AutoSyncToggleRequest(BaseModel):
     target_title: str | None = None
     source_account_id: int | None = None
     target_account_id: int | None = None
+    caption_rules: dict | None = None
 
 
 class AutoSyncBindingResponse(BaseModel):
@@ -527,6 +528,7 @@ class AutoSyncBindingResponse(BaseModel):
     last_synced_message_id: int = 0
     created_at: str | None = None
     updated_at: str | None = None
+    caption_rules: dict | None = None
 
 
 class AutoSyncStatusResponse(BaseModel):
@@ -549,6 +551,7 @@ async def toggle_auto_sync(
         target_title=req.target_title,
         source_account_id=req.source_account_id,
         target_account_id=req.target_account_id,
+        caption_rules=req.caption_rules,
     )
     try:
         await audit_repo.record_audit_log(
@@ -562,6 +565,7 @@ async def toggle_auto_sync(
                     "is_active": req.is_active,
                     "source_title": req.source_title,
                     "target_title": req.target_title,
+                    "caption_rules": req.caption_rules,
                 },
             )
         )
@@ -579,6 +583,7 @@ async def toggle_auto_sync(
         last_synced_message_id=binding.last_synced_message_id,
         created_at=binding.created_at,
         updated_at=binding.updated_at,
+        caption_rules=binding.caption_rules,
     )
 
 
@@ -600,6 +605,7 @@ async def list_auto_sync_bindings(
             last_synced_message_id=b.last_synced_message_id,
             created_at=b.created_at,
             updated_at=b.updated_at,
+            caption_rules=b.caption_rules,
         )
         for b in bindings
     ]
@@ -628,6 +634,7 @@ async def get_auto_sync_status(
             last_synced_message_id=binding.last_synced_message_id,
             created_at=binding.created_at,
             updated_at=binding.updated_at,
+            caption_rules=binding.caption_rules,
         ),
     )
 

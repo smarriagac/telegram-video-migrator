@@ -160,6 +160,62 @@ class CloneChannelVideosUseCase:
                     source_channel_id=job.source_id,
                 )
 
+            # Caption transformation pipeline
+            if getattr(job, "caption_rules", None):
+                try:
+                    from backend.application.services.caption_transformer_service import CaptionTransformerService
+                    from backend.domain.entities.caption_rules import CaptionRules
+                    rules_entity = (
+                        CaptionRules(**job.caption_rules)
+                        if isinstance(job.caption_rules, dict)
+                        else job.caption_rules
+                    )
+                    video.caption = CaptionTransformerService().transform(video.caption or "", rules_entity)
+                except Exception as ex:
+                    logger.warning(f"Failed to transform caption for item #{item.source_message_id}: {ex}")
+
+            # Perceptual / structural duplicate guard
+            from backend.application.services.fingerprint_service import FingerprintService
+            fp_svc = FingerprintService()
+            fp_hash = fp_svc.compute_fingerprint(
+                media_type=video.media_type,
+                input_document_id=getattr(video, "input_document_id", None),
+                file_size=getattr(video, "file_size", None),
+                duration=getattr(video, "duration", None),
+                width=getattr(video, "width", None),
+                height=getattr(video, "height", None),
+                caption=video.caption,
+            )
+            is_dup = False
+            if fp_hash:
+                check_call = self.repo.is_media_fingerprint_duplicated(job.target_id, fp_hash)
+                if asyncio.iscoroutine(check_call) or hasattr(check_call, "__await__"):
+                    is_dup = await check_call
+                else:
+                    is_dup = bool(check_call)
+
+            if is_dup:
+                logger.info(
+                    f"Duplicate guard: skipping duplicate media for message #{item.source_message_id} (hash {fp_hash[:10]})"
+                )
+                await self.repo.update_queue_item_status(
+                    job_id, item.source_message_id, QueueItemStatus.SKIPPED
+                )
+                stats = await self.repo.get_queue_stats(job_id)
+                processed_count = stats["completed"] + stats["failed"] + stats["skipped"]
+                await self.repo.update_job_progress(job_id, processed_count, item.source_message_id)
+                if on_progress:
+                    await on_progress({
+                        "job_id": job_id,
+                        "status": JobStatus.RUNNING.value,
+                        "message": f"Duplicate Guard: Saltado mensaje #{item.source_message_id} (duplicado en canal destino)",
+                        "processed_videos": processed_count,
+                        "total_videos": total_items,
+                        "percentage": round((processed_count / total_items) * 100, 1) if total_items > 0 else 100.0,
+                        "queue_stats": stats,
+                    })
+                continue
+
             target_msg_id = None
             retry_count = 0
             max_retries = 2
@@ -226,6 +282,17 @@ class CloneChannelVideosUseCase:
 
             if target_msg_id is not None:
                 await self.repo.record_migrated_item(job_id, item.source_message_id, target_msg_id)
+                if fp_hash and hasattr(self.repo, "record_media_fingerprint"):
+                    record_call = self.repo.record_media_fingerprint(
+                        target_channel_id=job.target_id,
+                        fingerprint_hash=fp_hash,
+                        source_channel_id=job.source_id,
+                        source_message_id=item.source_message_id,
+                        target_message_id=target_msg_id,
+                        media_type=item.media_type,
+                    )
+                    if asyncio.iscoroutine(record_call) or hasattr(record_call, "__await__"):
+                        await record_call
                 await self.repo.update_queue_item_status(
                     job_id,
                     item.source_message_id,
@@ -259,8 +326,28 @@ class CloneChannelVideosUseCase:
                     "queue_stats": stats,
                 })
 
-            delay = random.uniform(self.min_delay, self.max_delay)
-            await asyncio.sleep(delay)
+            drip_delay = getattr(job, "drip_delay_seconds", 0) or 0
+            if drip_delay > 0:
+                if on_progress:
+                    await on_progress({
+                        "job_id": job_id,
+                        "status": JobStatus.RUNNING.value,
+                        "message": f"Drip Feed: esperando {drip_delay}s antes del próximo envío...",
+                        "processed_videos": processed_count,
+                        "total_videos": total_items,
+                        "percentage": percentage,
+                        "queue_stats": stats,
+                    })
+                waited = 0.0
+                while waited < drip_delay:
+                    if job_id in self._cancelled_jobs:
+                        break
+                    sleep_chunk = min(2.0, drip_delay - waited)
+                    await asyncio.sleep(sleep_chunk)
+                    waited += sleep_chunk
+            else:
+                delay = random.uniform(self.min_delay, self.max_delay)
+                await asyncio.sleep(delay)
 
         final_stats = await self.repo.get_queue_stats(job_id)
         final_status = JobStatus.COMPLETED if final_stats["failed"] == 0 else JobStatus.COMPLETED

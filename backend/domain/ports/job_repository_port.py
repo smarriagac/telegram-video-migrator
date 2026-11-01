@@ -123,3 +123,21 @@ class JobRepositoryPort(ABC):
     ) -> bool:
         """Delete an auto-sync binding."""
         return True
+
+    async def is_media_fingerprint_duplicated(
+        self, target_channel_id: int, fingerprint_hash: str
+    ) -> bool:
+        """Check if media with the same fingerprint was already cloned to this target channel."""
+        return False
+
+    async def record_media_fingerprint(
+        self,
+        target_channel_id: int,
+        fingerprint_hash: str,
+        source_channel_id: int | None = None,
+        source_message_id: int | None = None,
+        target_message_id: int | None = None,
+        media_type: str = "video",
+    ) -> None:
+        """Record fingerprint of newly migrated media to prevent future duplicates."""
+        pass

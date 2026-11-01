@@ -34,6 +34,8 @@ class CreateJobRequest(BaseModel):
     target_channel_title: str | None = None
     source_account_id: int | None = None
     target_account_id: int | None = None
+    caption_rules: dict | None = None
+    drip_delay_seconds: int = 0
 
 
 class JobResponse(BaseModel):
@@ -50,6 +52,8 @@ class JobResponse(BaseModel):
     target_title: str | None = None
     source_account_id: int | None = None
     target_account_id: int | None = None
+    caption_rules: dict | None = None
+    drip_delay_seconds: int = 0
 
 
 class QueueItemResponse(BaseModel):
@@ -98,6 +102,8 @@ async def start_job(
         target_title=req.target_channel_title,
         source_account_id=req.source_account_id,
         target_account_id=req.target_account_id,
+        caption_rules=req.caption_rules,
+        drip_delay_seconds=req.drip_delay_seconds,
     )
     await repo.create_job(job)
 
@@ -116,6 +122,8 @@ async def start_job(
                     "target_title": req.target_channel_title,
                     "is_full_migration": is_full,
                     "selected_items_count": len(req.selected_message_ids) if req.selected_message_ids else "all",
+                    "caption_rules": req.caption_rules,
+                    "drip_delay_seconds": req.drip_delay_seconds,
                 },
             )
         )
@@ -162,6 +170,8 @@ async def start_job(
         target_title=job.target_title,
         source_account_id=job.source_account_id,
         target_account_id=job.target_account_id,
+        caption_rules=job.caption_rules,
+        drip_delay_seconds=job.drip_delay_seconds,
     )
 
 
@@ -192,6 +202,8 @@ async def get_job(
         target_title=job.target_title,
         source_account_id=job.source_account_id,
         target_account_id=job.target_account_id,
+        caption_rules=job.caption_rules,
+        drip_delay_seconds=job.drip_delay_seconds,
     )
 
 

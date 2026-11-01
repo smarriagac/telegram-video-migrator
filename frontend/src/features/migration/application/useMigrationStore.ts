@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import {
   AutoSyncStatus,
+  CaptionRules,
   Channel,
   ChannelCloningHistory,
   ChannelMessageItem,
@@ -37,11 +38,15 @@ interface MigrationStore {
   isLoadingChannels: boolean;
   isStartingJob: boolean;
   error: string | null;
+  captionRules: CaptionRules;
+  dripDelaySeconds: number;
 
   // Actions
   fetchChannels: () => Promise<void>;
   selectSource: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
+  setCaptionRules: (rules: Partial<CaptionRules>) => void;
+  setDripDelaySeconds: (seconds: number) => void;
   checkSyncStatus: () => Promise<void>;
   fetchAutoSyncStatus: () => Promise<void>;
   toggleAutoSync: (enabled: boolean) => Promise<void>;
@@ -88,6 +93,25 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   isLoadingChannels: false,
   isStartingJob: false,
   error: null,
+  captionRules: {
+    strip_links: false,
+    strip_all_mentions: false,
+    replace_mentions: {},
+    remove_words: [],
+    prepend_header: null,
+    append_signature: null,
+  },
+  dripDelaySeconds: 0,
+
+  setCaptionRules: (rules) => {
+    set((state) => ({
+      captionRules: { ...state.captionRules, ...rules },
+    }));
+  },
+
+  setDripDelaySeconds: (seconds) => {
+    set({ dripDelaySeconds: seconds });
+  },
 
   fetchChannels: async () => {
     set({ isLoadingChannels: true, error: null });
@@ -184,7 +208,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   toggleAutoSync: async (enabled: boolean) => {
-    const { selectedSourceId, selectedTargetId, channels } = get();
+    const { selectedSourceId, selectedTargetId, channels, captionRules } = get();
     if (!selectedSourceId || !selectedTargetId) return;
     set({ isLoadingAutoSync: true });
     try {
@@ -198,6 +222,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         target_title: targetChan?.title,
         source_account_id: sourceChan?.account_id,
         target_account_id: targetChan?.account_id,
+        caption_rules: captionRules,
       });
       set({
         autoSyncStatus: { is_active: res.is_active, binding: res },
@@ -386,7 +411,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   startMigration: async () => {
-    const { selectedSourceId, selectedTargetId, selectedMessageIds } = get();
+    const { selectedSourceId, selectedTargetId, selectedMessageIds, captionRules, dripDelaySeconds } = get();
     if (!selectedSourceId || !selectedTargetId) {
       set({ error: "Please select both source and destination channels." });
       return null;
@@ -407,7 +432,9 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         sourceChan?.title,
         targetChan?.title,
         sourceChan?.account_id,
-        targetChan?.account_id
+        targetChan?.account_id,
+        captionRules,
+        dripDelaySeconds
       );
       set({
         activeJob: job,

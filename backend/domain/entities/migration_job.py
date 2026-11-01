@@ -33,3 +33,5 @@ class MigrationJob:
     target_title: str | None = None
     source_account_id: int | None = None
     target_account_id: int | None = None
+    caption_rules: dict | None = None
+    drip_delay_seconds: int = 0

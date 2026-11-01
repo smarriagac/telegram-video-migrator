@@ -6,6 +6,8 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
+  Sparkles,
   StopCircle,
   Terminal,
   Tv,
@@ -15,6 +17,7 @@ import { useMigrationStore } from "../../application/useMigrationStore";
 import { SearchableChannelSelect } from "./SearchableChannelSelect";
 import { ChannelCloningHistoryModal } from "./ChannelCloningHistoryModal";
 import { DirectUploadModal } from "./DirectUploadModal";
+import { CaptionRulesModal } from "./CaptionRulesModal";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 
@@ -47,10 +50,22 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
   const autoSyncStatus = useMigrationStore((state) => state.autoSyncStatus);
   const isLoadingAutoSync = useMigrationStore((state) => state.isLoadingAutoSync);
   const toggleAutoSync = useMigrationStore((state) => state.toggleAutoSync);
+  const captionRules = useMigrationStore((state) => state.captionRules);
+  const dripDelaySeconds = useMigrationStore((state) => state.dripDelaySeconds);
+  const setDripDelaySeconds = useMigrationStore((state) => state.setDripDelaySeconds);
 
+  // Strictly <= 2 useState hooks per architectural rules
+  const [activeModal, setActiveModal] = useState<"none" | "history" | "upload" | "caption_rules">("none");
   const [showLogs, setShowLogs] = useState<boolean>(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
-  const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
+
+  const activeRulesCount = [
+    captionRules.strip_links,
+    captionRules.strip_all_mentions,
+    Boolean(captionRules.replace_mentions && Object.keys(captionRules.replace_mentions).length > 0),
+    Boolean(captionRules.remove_words && captionRules.remove_words.length > 0),
+    Boolean(captionRules.prepend_header),
+    Boolean(captionRules.append_signature),
+  ].filter(Boolean).length;
 
   const sourceChannel = channels.find((c) => c.id === selectedSourceId);
   const targetChannel = channels.find((c) => c.id === selectedTargetId);
@@ -132,7 +147,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
             {selectedSourceId && (
               <button
                 type="button"
-                onClick={() => setIsHistoryOpen(true)}
+                onClick={() => setActiveModal("history")}
                 className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-cyan-500/30 text-left transition-all group"
                 title="Ver historial de clonaciones y contenido copiado"
               >
@@ -186,7 +201,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               <div className="space-y-1.5 mt-1.5">
                 <button
                   type="button"
-                  onClick={() => setIsUploadOpen(true)}
+                  onClick={() => setActiveModal("upload")}
                   className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-emerald-500/30 text-left transition-all group"
                   title="Subir archivo local directamente a este canal"
                 >
@@ -274,6 +289,43 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                     </button>
                   </div>
                 )}
+
+                {/* Advanced Pipeline Modules: Caption Rules & Drip Feed Pacing */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveModal("caption_rules")}
+                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition-colors"
+                    title="Configurar limpieza de links, reemplazo de menciones y firmas"
+                  >
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      <span className="truncate">Captions</span>
+                    </div>
+                    {activeRulesCount > 0 ? (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-medium">
+                        {activeRulesCount} act.
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-zinc-500 font-mono">Off</span>
+                    )}
+                  </button>
+
+                  <div className="relative">
+                    <select
+                      value={dripDelaySeconds}
+                      onChange={(e) => setDripDelaySeconds(Number(e.target.value))}
+                      className="w-full appearance-none px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 focus:outline-none cursor-pointer"
+                      title="Intervalo de publicación (Pacing anti-flood o goteo programado)"
+                    >
+                      <option value={0}>⚡ 2s (Rápido)</option>
+                      <option value={60}>💧 Goteo: 1 min</option>
+                      <option value={300}>💧 Goteo: 5 min</option>
+                      <option value={900}>💧 Goteo: 15 min</option>
+                      <option value={1800}>💧 Goteo: 30 min</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -379,8 +431,11 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 <Tv className="w-3.5 h-3.5" /> ⚡ Modo Directo MTProto (Instantáneo · 0.5s)
               </div>
               <p className="text-[10px] text-zinc-500 leading-normal">
-                Misma cuenta detectada. Copia pura por referencia MTProto (sin descargar ni subir archivos) con delay de 1.5–2.0s por elemento para proteger la cuenta contra rate-limits.
+                Misma cuenta detectada. Copia pura por referencia MTProto (sin descargar ni subir archivos) con delay de {dripDelaySeconds > 0 ? `${dripDelaySeconds}s` : "1.5–2.0s"} por elemento.
               </p>
+              <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/90 pt-0.5 font-mono">
+                <ShieldCheck className="w-3 h-3 text-emerald-400" /> Duplicate Guard activo: media idéntica se saltará automáticamente.
+              </div>
             </>
           )}
         </div>
@@ -431,16 +486,22 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
       {/* Channel Cloning Audit & History Modal */}
       <ChannelCloningHistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
+        isOpen={activeModal === "history"}
+        onClose={() => setActiveModal("none")}
       />
 
       {/* Direct Local Media Upload Modal */}
       <DirectUploadModal
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        isOpen={activeModal === "upload"}
+        onClose={() => setActiveModal("none")}
         targetChannelId={selectedTargetId}
         targetChannelTitle={targetChannel?.title}
+      />
+
+      {/* Caption Rules & Sanitization Pipeline Modal */}
+      <CaptionRulesModal
+        isOpen={activeModal === "caption_rules"}
+        onClose={() => setActiveModal("none")}
       />
     </div>
   );

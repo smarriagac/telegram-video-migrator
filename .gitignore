@@ -48,5 +48,11 @@ Thumbs.db
 *.db-journal
 *.session
 *.session-journal
+
+# Agent scratch
+.codex/
+.cursor/
+.gemini/
+.grok/
 # Docker persistent data
 data/

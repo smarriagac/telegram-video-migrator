@@ -7,6 +7,7 @@ from backend.domain.entities.channel_message import ChannelMessage
 from backend.domain.entities.user import User, Role
 from backend.domain.entities.telegram_account import TelegramAccount
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
+from backend.domain.entities.caption_rules import CaptionRules
 
 __all__ = [
     "Channel",
@@ -21,4 +22,5 @@ __all__ = [
     "User",
     "Role",
     "TelegramAccount",
+    "CaptionRules",
 ]

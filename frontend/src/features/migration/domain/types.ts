@@ -15,6 +15,15 @@ export interface Channel {
   account_name?: string;
 }
 
+export interface CaptionRules {
+  strip_links?: boolean;
+  strip_all_mentions?: boolean;
+  replace_mentions?: Record<string, string>;
+  remove_words?: string[];
+  prepend_header?: string | null;
+  append_signature?: string | null;
+}
+
 export interface MigrationJob {
   job_id: string;
   source_id: number;
@@ -26,6 +35,8 @@ export interface MigrationJob {
   created_at?: string;
   source_account_id?: number;
   target_account_id?: number;
+  caption_rules?: CaptionRules | null;
+  drip_delay_seconds?: number;
 }
 
 export interface ProgressEventPayload {
@@ -144,6 +155,7 @@ export interface AutoSyncBinding {
   last_synced_message_id: number;
   created_at?: string;
   updated_at?: string;
+  caption_rules?: CaptionRules | null;
 }
 
 export interface AutoSyncStatus {

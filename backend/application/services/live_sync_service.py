@@ -167,6 +167,21 @@ class LiveSyncService:
                 existing_job = await self.repo.get_job(job_id)
 
                 if not existing_job:
+                    # Transform caption if binding has active caption rules
+                    processed_caption = caption
+                    if binding.caption_rules:
+                        try:
+                            from backend.application.services.caption_transformer_service import CaptionTransformerService
+                            from backend.domain.entities.caption_rules import CaptionRules
+                            rules_entity = (
+                                CaptionRules(**binding.caption_rules)
+                                if isinstance(binding.caption_rules, dict)
+                                else binding.caption_rules
+                            )
+                            processed_caption = CaptionTransformerService().transform(caption, rules_entity)
+                        except Exception as ex:
+                            logger.warning(f"LiveSync: Failed to transform caption for msg #{msg_id}: {ex}")
+
                     job = MigrationJob(
                         job_id=job_id,
                         source_id=binding.source_channel_id,
@@ -179,6 +194,7 @@ class LiveSyncService:
                         target_title=binding.target_channel_title,
                         source_account_id=binding.source_account_id,
                         target_account_id=binding.target_account_id,
+                        caption_rules=binding.caption_rules,
                     )
                     await self.repo.create_job(job)
 
@@ -187,7 +203,7 @@ class LiveSyncService:
                         source_message_id=msg_id,
                         status=QueueItemStatus.PENDING,
                         media_type=media_type,
-                        caption=caption,
+                        caption=processed_caption,
                     )
                     await self.repo.add_queue_items([queue_item])
 
@@ -228,6 +244,7 @@ class LiveSyncService:
         target_title: str | None = None,
         source_account_id: int | None = None,
         target_account_id: int | None = None,
+        caption_rules: dict | None = None,
     ) -> ChannelSyncBinding:
         """Create or update a channel auto-sync binding."""
         existing = await self.repo.get_sync_binding(source_channel_id, target_channel_id)
@@ -241,6 +258,8 @@ class LiveSyncService:
                 existing.source_account_id = source_account_id
             if target_account_id is not None:
                 existing.target_account_id = target_account_id
+            if caption_rules is not None:
+                existing.caption_rules = caption_rules
             saved = await self.repo.save_sync_binding(existing)
         else:
             new_binding = ChannelSyncBinding(
@@ -251,6 +270,7 @@ class LiveSyncService:
                 source_account_id=source_account_id,
                 target_account_id=target_account_id,
                 is_active=is_active,
+                caption_rules=caption_rules,
             )
             saved = await self.repo.save_sync_binding(new_binding)
 

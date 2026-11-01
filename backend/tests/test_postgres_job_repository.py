@@ -17,6 +17,7 @@ async def repo():
             await conn.execute("DELETE FROM migration_queue WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_items WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_jobs WHERE id LIKE 'pg-test-%';")
+            await conn.execute("DELETE FROM migrated_media_fingerprints WHERE target_channel_id IN (-999888, -999999);")
     yield repository
     if repository.pool:
         async with repository.pool.acquire() as conn:
@@ -24,6 +25,7 @@ async def repo():
             await conn.execute("DELETE FROM migration_queue WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_items WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_jobs WHERE id LIKE 'pg-test-%';")
+            await conn.execute("DELETE FROM migrated_media_fingerprints WHERE target_channel_id IN (-999888, -999999);")
     await repository.close()
 
 
@@ -185,4 +187,50 @@ async def test_postgres_sync_binding_lifecycle(repo: PostgresJobRepository):
     deleted = await repo.delete_sync_binding(src_id, tgt_id)
     assert deleted is True
     assert await repo.get_sync_binding(src_id, tgt_id) is None
+
+
+@pytest.mark.asyncio
+async def test_postgres_caption_rules_and_drip(repo: PostgresJobRepository):
+    job_id = f"pg-test-{uuid.uuid4().hex[:8]}"
+    rules = {
+        "strip_links": True,
+        "strip_all_mentions": False,
+        "replace_mentions": {"@old": "@new"},
+        "remove_words": ["spam", "ad"],
+        "append_signature": "Join @mychannel",
+    }
+    job = MigrationJob(
+        job_id=job_id,
+        source_id=-100111,
+        target_id=-100222,
+        caption_rules=rules,
+        drip_delay_seconds=120,
+    )
+    await repo.create_job(job)
+
+    fetched = await repo.get_job(job_id)
+    assert fetched is not None
+    assert fetched.caption_rules == rules
+    assert fetched.drip_delay_seconds == 120
+
+
+@pytest.mark.asyncio
+async def test_postgres_fingerprint_duplicate_guard(repo: PostgresJobRepository):
+    tgt_id = -999888
+    fp = f"pg-fp-{uuid.uuid4().hex}"
+    assert not await repo.is_media_fingerprint_duplicated(tgt_id, fp)
+
+    await repo.record_media_fingerprint(
+        target_channel_id=tgt_id,
+        fingerprint_hash=fp,
+        source_channel_id=-999001,
+        source_message_id=42,
+        target_message_id=1042,
+        media_type="video",
+    )
+
+    assert await repo.is_media_fingerprint_duplicated(tgt_id, fp)
+    # Different channel ID should not be considered duplicate
+    assert not await repo.is_media_fingerprint_duplicated(-999999, fp)
+
 

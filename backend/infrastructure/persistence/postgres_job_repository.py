@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 from typing import Any
@@ -77,6 +78,8 @@ class PostgresJobRepository(JobRepositoryPort):
 
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS source_account_id BIGINT;
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS target_account_id BIGINT;
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS caption_rules JSONB;
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS drip_delay_seconds INTEGER DEFAULT 0;
 
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id VARCHAR(64) NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
@@ -113,8 +116,24 @@ class PostgresJobRepository(JobRepositoryPort):
                     last_synced_message_id BIGINT NOT NULL DEFAULT 0,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    caption_rules JSONB,
                     PRIMARY KEY (source_channel_id, target_channel_id)
                 );
+
+                ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS caption_rules JSONB;
+
+                CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
+                    id SERIAL PRIMARY KEY,
+                    target_channel_id BIGINT NOT NULL,
+                    fingerprint_hash VARCHAR(128) NOT NULL,
+                    source_channel_id BIGINT,
+                    source_message_id BIGINT,
+                    target_message_id BIGINT,
+                    media_type VARCHAR(32) NOT NULL DEFAULT 'video',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    UNIQUE(target_channel_id, fingerprint_hash)
+                );
+                CREATE INDEX IF NOT EXISTS idx_media_fingerprint ON migrated_media_fingerprints(target_channel_id, fingerprint_hash);
             """)
         self._initialized = True
 
@@ -130,6 +149,7 @@ class PostgresJobRepository(JobRepositoryPort):
             return await self._fallback_repo.create_job(job)
 
         status_val = job.status.value if isinstance(job.status, JobStatus) else str(job.status)
+        caption_rules_json = json.dumps(job.caption_rules) if job.caption_rules else None
         async with self.pool.acquire() as conn:
             await conn.execute(
                 """
@@ -137,8 +157,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                    source_account_id, target_account_id
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12)
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12, $13::jsonb, $14)
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
                     total_videos = EXCLUDED.total_videos,
@@ -149,6 +169,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     target_channel_title = EXCLUDED.target_channel_title,
                     source_account_id = EXCLUDED.source_account_id,
                     target_account_id = EXCLUDED.target_account_id,
+                    caption_rules = EXCLUDED.caption_rules,
+                    drip_delay_seconds = EXCLUDED.drip_delay_seconds,
                     updated_at = NOW();
                 """,
                 job.job_id,
@@ -163,6 +185,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 job.target_title,
                 job.source_account_id,
                 job.target_account_id,
+                caption_rules_json,
+                job.drip_delay_seconds,
             )
 
     async def update_job_progress(
@@ -218,7 +242,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                       source_account_id, target_account_id
+                       source_account_id, target_account_id, caption_rules, drip_delay_seconds
                 FROM migration_jobs
                 WHERE id = $1;
                 """,
@@ -226,6 +250,22 @@ class PostgresJobRepository(JobRepositoryPort):
             )
             if not row:
                 return None
+            
+            raw_rules = row.get("caption_rules") if "caption_rules" in row else None
+            parsed_rules = None
+            if raw_rules:
+                if isinstance(raw_rules, dict):
+                    parsed_rules = raw_rules
+                elif isinstance(raw_rules, str):
+                    try:
+                        parsed_rules = json.loads(raw_rules)
+                    except Exception:
+                        parsed_rules = None
+
+            drip_sec = 0
+            if "drip_delay_seconds" in row and row["drip_delay_seconds"] is not None:
+                drip_sec = int(row["drip_delay_seconds"])
+
             return MigrationJob(
                 job_id=str(row["id"]),
                 source_id=int(row["source_channel_id"]),
@@ -241,6 +281,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 target_title=str(row["target_channel_title"]) if row["target_channel_title"] is not None else None,
                 source_account_id=int(row["source_account_id"]) if row["source_account_id"] is not None else None,
                 target_account_id=int(row["target_account_id"]) if row["target_account_id"] is not None else None,
+                caption_rules=parsed_rules,
+                drip_delay_seconds=drip_sec,
             )
 
     async def record_migrated_item(
@@ -615,6 +657,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 return await self._fallback_repo.save_sync_binding(binding)
             return binding
 
+        rules_json = json.dumps(binding.caption_rules) if binding.caption_rules else None
         async with self.pool.acquire() as conn:
             await conn.execute(
                 """
@@ -622,8 +665,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     source_channel_id, target_channel_id,
                     source_channel_title, target_channel_title,
                     source_account_id, target_account_id,
-                    is_active, last_synced_message_id, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+                    is_active, last_synced_message_id, caption_rules, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, NOW())
                 ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
                     source_channel_title = EXCLUDED.source_channel_title,
                     target_channel_title = EXCLUDED.target_channel_title,
@@ -631,6 +674,7 @@ class PostgresJobRepository(JobRepositoryPort):
                     target_account_id = EXCLUDED.target_account_id,
                     is_active = EXCLUDED.is_active,
                     last_synced_message_id = EXCLUDED.last_synced_message_id,
+                    caption_rules = EXCLUDED.caption_rules,
                     updated_at = NOW();
                 """,
                 binding.source_channel_id,
@@ -641,6 +685,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 binding.target_account_id,
                 binding.is_active,
                 binding.last_synced_message_id,
+                rules_json,
             )
             return binding
 
@@ -659,7 +704,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 SELECT source_channel_id, target_channel_id,
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
-                       is_active, last_synced_message_id, created_at, updated_at
+                       is_active, last_synced_message_id, created_at, updated_at,
+                       caption_rules
                 FROM channel_sync_bindings
                 WHERE source_channel_id = $1 AND target_channel_id = $2;
                 """,
@@ -668,6 +714,18 @@ class PostgresJobRepository(JobRepositoryPort):
             )
             if not row:
                 return None
+
+            raw_rules = row.get("caption_rules") if "caption_rules" in row else None
+            parsed_rules = None
+            if raw_rules:
+                if isinstance(raw_rules, dict):
+                    parsed_rules = raw_rules
+                elif isinstance(raw_rules, str):
+                    try:
+                        parsed_rules = json.loads(raw_rules)
+                    except Exception:
+                        parsed_rules = None
+
             return ChannelSyncBinding(
                 source_channel_id=int(row["source_channel_id"]),
                 target_channel_id=int(row["target_channel_id"]),
@@ -679,6 +737,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 last_synced_message_id=int(row["last_synced_message_id"]),
                 created_at=str(row["created_at"]) if row["created_at"] else None,
                 updated_at=str(row["updated_at"]) if row["updated_at"] else None,
+                caption_rules=parsed_rules,
             )
 
     async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
@@ -694,27 +753,42 @@ class PostgresJobRepository(JobRepositoryPort):
                 SELECT source_channel_id, target_channel_id,
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
-                       is_active, last_synced_message_id, created_at, updated_at
+                       is_active, last_synced_message_id, created_at, updated_at,
+                       caption_rules
                 FROM channel_sync_bindings
                 WHERE is_active = TRUE
                 ORDER BY updated_at DESC;
                 """
             )
-            return [
-                ChannelSyncBinding(
-                    source_channel_id=int(r["source_channel_id"]),
-                    target_channel_id=int(r["target_channel_id"]),
-                    source_channel_title=r["source_channel_title"],
-                    target_channel_title=r["target_channel_title"],
-                    source_account_id=r["source_account_id"],
-                    target_account_id=r["target_account_id"],
-                    is_active=bool(r["is_active"]),
-                    last_synced_message_id=int(r["last_synced_message_id"]),
-                    created_at=str(r["created_at"]) if r["created_at"] else None,
-                    updated_at=str(r["updated_at"]) if r["updated_at"] else None,
+            result = []
+            for r in rows:
+                raw_rules = r.get("caption_rules") if "caption_rules" in r else None
+                parsed_rules = None
+                if raw_rules:
+                    if isinstance(raw_rules, dict):
+                        parsed_rules = raw_rules
+                    elif isinstance(raw_rules, str):
+                        try:
+                            parsed_rules = json.loads(raw_rules)
+                        except Exception:
+                            parsed_rules = None
+
+                result.append(
+                    ChannelSyncBinding(
+                        source_channel_id=int(r["source_channel_id"]),
+                        target_channel_id=int(r["target_channel_id"]),
+                        source_channel_title=r["source_channel_title"],
+                        target_channel_title=r["target_channel_title"],
+                        source_account_id=r["source_account_id"],
+                        target_account_id=r["target_account_id"],
+                        is_active=bool(r["is_active"]),
+                        last_synced_message_id=int(r["last_synced_message_id"]),
+                        created_at=str(r["created_at"]) if r["created_at"] else None,
+                        updated_at=str(r["updated_at"]) if r["updated_at"] else None,
+                        caption_rules=parsed_rules,
+                    )
                 )
-                for r in rows
-            ]
+            return result
 
     async def list_sync_bindings(self) -> list[ChannelSyncBinding]:
         await self._ensure_initialized()
@@ -729,26 +803,41 @@ class PostgresJobRepository(JobRepositoryPort):
                 SELECT source_channel_id, target_channel_id,
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
-                       is_active, last_synced_message_id, created_at, updated_at
+                       is_active, last_synced_message_id, created_at, updated_at,
+                       caption_rules
                 FROM channel_sync_bindings
                 ORDER BY updated_at DESC;
                 """
             )
-            return [
-                ChannelSyncBinding(
-                    source_channel_id=int(r["source_channel_id"]),
-                    target_channel_id=int(r["target_channel_id"]),
-                    source_channel_title=r["source_channel_title"],
-                    target_channel_title=r["target_channel_title"],
-                    source_account_id=r["source_account_id"],
-                    target_account_id=r["target_account_id"],
-                    is_active=bool(r["is_active"]),
-                    last_synced_message_id=int(r["last_synced_message_id"]),
-                    created_at=str(r["created_at"]) if r["created_at"] else None,
-                    updated_at=str(r["updated_at"]) if r["updated_at"] else None,
+            result = []
+            for r in rows:
+                raw_rules = r.get("caption_rules") if "caption_rules" in r else None
+                parsed_rules = None
+                if raw_rules:
+                    if isinstance(raw_rules, dict):
+                        parsed_rules = raw_rules
+                    elif isinstance(raw_rules, str):
+                        try:
+                            parsed_rules = json.loads(raw_rules)
+                        except Exception:
+                            parsed_rules = None
+
+                result.append(
+                    ChannelSyncBinding(
+                        source_channel_id=int(r["source_channel_id"]),
+                        target_channel_id=int(r["target_channel_id"]),
+                        source_channel_title=r["source_channel_title"],
+                        target_channel_title=r["target_channel_title"],
+                        source_account_id=r["source_account_id"],
+                        target_account_id=r["target_account_id"],
+                        is_active=bool(r["is_active"]),
+                        last_synced_message_id=int(r["last_synced_message_id"]),
+                        created_at=str(r["created_at"]) if r["created_at"] else None,
+                        updated_at=str(r["updated_at"]) if r["updated_at"] else None,
+                        caption_rules=parsed_rules,
+                    )
                 )
-                for r in rows
-            ]
+            return result
 
     async def delete_sync_binding(
         self, source_channel_id: int, target_channel_id: int
@@ -769,6 +858,68 @@ class PostgresJobRepository(JobRepositoryPort):
                 target_channel_id,
             )
             return True
+
+    async def is_media_fingerprint_duplicated(
+        self, target_channel_id: int, fingerprint_hash: str
+    ) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.is_media_fingerprint_duplicated(
+                    target_channel_id, fingerprint_hash
+                )
+            return False
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT 1 FROM migrated_media_fingerprints
+                WHERE target_channel_id = $1 AND fingerprint_hash = $2
+                LIMIT 1;
+                """,
+                target_channel_id,
+                fingerprint_hash,
+            )
+            return row is not None
+
+    async def record_media_fingerprint(
+        self,
+        target_channel_id: int,
+        fingerprint_hash: str,
+        source_channel_id: int | None = None,
+        source_message_id: int | None = None,
+        target_message_id: int | None = None,
+        media_type: str = "video",
+    ) -> None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                await self._fallback_repo.record_media_fingerprint(
+                    target_channel_id,
+                    fingerprint_hash,
+                    source_channel_id,
+                    source_message_id,
+                    target_message_id,
+                    media_type,
+                )
+            return
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO migrated_media_fingerprints (
+                    target_channel_id, fingerprint_hash, source_channel_id,
+                    source_message_id, target_message_id, media_type, created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                ON CONFLICT (target_channel_id, fingerprint_hash) DO NOTHING;
+                """,
+                target_channel_id,
+                fingerprint_hash,
+                source_channel_id,
+                source_message_id,
+                target_message_id,
+                media_type,
+            )
 
     async def close(self) -> None:
         if self.pool is not None:
