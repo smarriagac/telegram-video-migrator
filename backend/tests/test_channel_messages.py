@@ -42,7 +42,7 @@ class DummyGatewayWithMessages:
         ]
 
     async def get_message_thumbnail(
-        self, channel_id: int, message_id: int
+        self, channel_id: int, message_id: int, repo: Any = None
     ) -> bytes | None:
         if message_id == 101:
             return b"\xff\xd8\xff\xe0\x00\x10JFIF"

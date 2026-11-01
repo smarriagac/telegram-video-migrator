@@ -54,7 +54,7 @@ class MockTelegramGateway(TelegramGatewayPort):
         return []
 
     async def get_message_thumbnail(
-        self, channel_id: int, message_id: int
+        self, channel_id: int, message_id: int, repo: Any = None
     ) -> bytes | None:
         return None
 

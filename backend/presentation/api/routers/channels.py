@@ -92,9 +92,10 @@ async def get_message_thumbnail_endpoint(
     channel_id: int,
     message_id: int,
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> Response:
-    """Retrieve message media thumbnail with aggressive browser caching."""
-    thumb = await gateway.get_message_thumbnail(channel_id=channel_id, message_id=message_id)
+    """Retrieve message media thumbnail with aggressive browser caching and provenance fallback."""
+    thumb = await gateway.get_message_thumbnail(channel_id=channel_id, message_id=message_id, repo=repo)
     if not thumb:
         raise HTTPException(status_code=404, detail="Thumbnail not available")
     return Response(

@@ -72,10 +72,6 @@ class PostgresJobRepository(JobRepositoryPort):
                     target_channel_title VARCHAR(255)
                 );
 
-                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS is_full_migration BOOLEAN DEFAULT TRUE;
-                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS source_channel_title VARCHAR(255);
-                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS target_channel_title VARCHAR(255);
-
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id VARCHAR(64) NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
                     source_message_id BIGINT NOT NULL,
@@ -530,6 +526,31 @@ class PostgresJobRepository(JobRepositoryPort):
                 )
                 for r in rows
             ]
+
+    async def get_source_item_for_target(
+        self, target_channel_id: int, target_message_id: int
+    ) -> tuple[int, int] | None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.get_source_item_for_target(target_channel_id, target_message_id)
+            return None
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT j.source_channel_id, q.source_message_id
+                FROM migration_queue q
+                JOIN migration_jobs j ON q.job_id = j.id
+                WHERE j.target_channel_id = $1 AND q.target_message_id = $2
+                LIMIT 1
+                """,
+                target_channel_id,
+                target_message_id,
+            )
+            if row:
+                return int(row["source_channel_id"]), int(row["source_message_id"])
+            return None
 
     async def close(self) -> None:
         if self.pool is not None:

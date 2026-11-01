@@ -25,7 +25,7 @@ class TelegramGatewayPort(ABC):
 
     @abstractmethod
     async def get_message_thumbnail(
-        self, channel_id: int, message_id: int
+        self, channel_id: int, message_id: int, repo: Any = None
     ) -> bytes | None:
         """Retrieve small image thumbnail for a specific channel message."""
         raise NotImplementedError

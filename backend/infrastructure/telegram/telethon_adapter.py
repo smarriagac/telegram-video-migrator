@@ -137,9 +137,9 @@ class TelethonAdapter(TelegramGatewayPort):
             raise
 
     async def get_message_thumbnail(
-        self, channel_id: int, message_id: int
+        self, channel_id: int, message_id: int, repo: Any = None
     ) -> bytes | None:
-        """Fetch small image thumbnail for a message with disk caching."""
+        """Fetch small image thumbnail for a message with disk caching and provenance fallback."""
         cache_dir = Path("/app/data/thumbnails")
         cache_file = cache_dir / f"{channel_id}_{message_id}.jpg"
 
@@ -152,22 +152,43 @@ class TelethonAdapter(TelegramGatewayPort):
 
         try:
             await self._ensure_connected()
-            msg = await self.client.get_messages(channel_id, ids=message_id)
-            if not msg or not msg.media:
-                return None
+            entity = await self.client.get_input_entity(channel_id)
+            msg = await self.client.get_messages(entity, ids=message_id)
+            if msg and msg.media:
+                # Download thumbnail directly to memory buffer
+                thumb_data = await self.client.download_media(msg, file=bytes, thumb=-1)
+                if not thumb_data and getattr(msg, "photo", None):
+                    thumb_data = await self.client.download_media(msg, file=bytes)
 
-            # Download thumbnail directly to memory buffer
-            thumb_data = await self.client.download_media(msg, file=bytes, thumb=-1)
-            if not thumb_data and getattr(msg, "photo", None):
-                # Small photo direct download fallback
-                thumb_data = await self.client.download_media(msg, file=bytes)
+                if thumb_data and isinstance(thumb_data, bytes):
+                    try:
+                        cache_file.write_bytes(thumb_data)
+                    except Exception:
+                        pass
+                    return thumb_data
 
-            if thumb_data and isinstance(thumb_data, bytes):
-                try:
-                    cache_file.write_bytes(thumb_data)
-                except Exception:
-                    pass
-                return thumb_data
+            # Fallback for cloned/migrated messages without embedded thumbnail in target:
+            # Query source channel & message provenance from DB
+            if repo is not None and hasattr(repo, "get_source_item_for_target"):
+                source_info = await repo.get_source_item_for_target(channel_id, message_id)
+                if source_info:
+                    src_chan_id, src_msg_id = source_info
+                    try:
+                        src_entity = await self.client.get_input_entity(src_chan_id)
+                        src_msg = await self.client.get_messages(src_entity, ids=src_msg_id)
+                        if src_msg and src_msg.media:
+                            src_thumb = await self.client.download_media(src_msg, file=bytes, thumb=-1)
+                            if not src_thumb and getattr(src_msg, "photo", None):
+                                src_thumb = await self.client.download_media(src_msg, file=bytes)
+                            if src_thumb and isinstance(src_thumb, bytes):
+                                try:
+                                    cache_file.write_bytes(src_thumb)
+                                except Exception:
+                                    pass
+                                return src_thumb
+                    except Exception as src_err:
+                        logger.debug(f"Could not load thumbnail from source message #{src_msg_id} in {src_chan_id}: {src_err}")
+
             return None
         except Exception as e:
             logger.warning(f"Could not load thumbnail for msg #{message_id} in channel {channel_id}: {e}")

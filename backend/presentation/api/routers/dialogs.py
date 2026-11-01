@@ -12,10 +12,12 @@ from pydantic import BaseModel
 from backend.application.use_cases.get_dialogs_use_case import GetDialogsUseCase
 from backend.application.use_cases.get_chat_messages_use_case import GetChatMessagesUseCase
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
+from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.presentation.dependencies import (
     get_dialogs_use_case,
     get_chat_messages_use_case,
     get_telegram_gateway,
+    get_job_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -263,10 +265,11 @@ async def get_dialog_message_thumbnail_endpoint(
     chat_id: int,
     message_id: int,
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> Response:
-    """Retrieve message media thumbnail with browser caching."""
+    """Retrieve message media thumbnail with browser caching and provenance resolution."""
     try:
-        thumb = await gateway.get_message_thumbnail(channel_id=chat_id, message_id=message_id)
+        thumb = await gateway.get_message_thumbnail(channel_id=chat_id, message_id=message_id, repo=repo)
         if thumb:
             return Response(
                 content=thumb,

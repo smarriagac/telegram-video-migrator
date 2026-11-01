@@ -468,6 +468,26 @@ class SQLiteJobRepository(JobRepositoryPort):
                 for r in rows
             ]
 
+    async def get_source_item_for_target(
+        self, target_channel_id: int, target_message_id: int
+    ) -> tuple[int, int] | None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT mj.source_channel_id, mq.source_message_id
+                FROM migration_queue mq
+                JOIN migration_jobs mj ON mq.job_id = mj.id
+                WHERE mj.target_channel_id = ? AND mq.target_message_id = ?
+                LIMIT 1;
+                """,
+                (target_channel_id, target_message_id),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return int(row[0]), int(row[1])
+                return None
+
     async def close(self) -> None:
         if self._shared_mem_conn is not None:
             await self._shared_mem_conn.close()

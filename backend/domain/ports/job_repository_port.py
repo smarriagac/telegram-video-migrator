@@ -86,3 +86,9 @@ class JobRepositoryPort(ABC):
     async def get_cloned_content_for_channel(self, channel_id: int) -> list[ClonedContentItem]:
         """Retrieve list of all individual messages/content successfully cloned from this channel."""
         raise NotImplementedError
+
+    async def get_source_item_for_target(
+        self, target_channel_id: int, target_message_id: int
+    ) -> tuple[int, int] | None:
+        """Find source_channel_id and source_message_id for a cloned target message."""
+        return None
