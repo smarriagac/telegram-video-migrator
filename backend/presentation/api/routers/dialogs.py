@@ -32,6 +32,7 @@ class DialogResponse(BaseModel):
     last_message: str | None = None
     last_message_date: str | None = None
     avatar_color: str | None = None
+    can_post: bool = True
 
 
 class ChatMessageResponse(BaseModel):
@@ -135,6 +136,7 @@ DEMO_DIALOGS = [
         last_message="Mantenimiento de servidores completado",
         last_message_date="29 Oct",
         avatar_color="bg-teal-500",
+        can_post=False,
     ),
     DialogResponse(
         id=110,
@@ -216,6 +218,7 @@ async def list_dialogs(
                 last_message=d.last_message,
                 last_message_date=d.last_message_date,
                 avatar_color=d.avatar_color,
+                can_post=getattr(d, "can_post", True),
             )
             for d in dialogs
         ]
@@ -266,12 +269,18 @@ DEMO_THUMBNAIL_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="360" heig
 async def get_dialog_message_thumbnail_endpoint(
     chat_id: int,
     message_id: int,
+    account_id: int | None = Query(None),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
     repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> Response:
     """Retrieve message media thumbnail with browser caching and provenance resolution."""
     try:
-        thumb = await gateway.get_message_thumbnail(channel_id=chat_id, message_id=message_id, repo=repo)
+        thumb = await gateway.get_message_thumbnail(
+            channel_id=chat_id,
+            message_id=message_id,
+            repo=repo,
+            account_id=account_id,
+        )
         if thumb:
             return Response(
                 content=thumb,

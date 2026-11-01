@@ -14,3 +14,4 @@ class TelegramDialog:
     last_message: str | None = None
     last_message_date: str | None = None
     avatar_color: str | None = None
+    can_post: bool = True

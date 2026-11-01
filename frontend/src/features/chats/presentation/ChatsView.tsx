@@ -20,7 +20,9 @@ import {
   FileText,
   Check,
   Play,
+  Lock,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
 import { cn } from "@/shared/lib/utils";
@@ -29,15 +31,24 @@ interface ChatMediaThumbnailProps {
   chatId: number;
   messageId: number;
   mediaType: "video" | "photo" | "document" | "text" | undefined;
+  accountId?: number | null;
+  text?: string;
 }
 
 const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   chatId,
   messageId,
   mediaType,
+  accountId,
+  text,
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  const thumbUrl = `/api/dialogs/${chatId}/messages/${messageId}/thumbnail${
+    accountId ? `?account_id=${accountId}` : ""
+  }`;
 
   return (
     <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
@@ -65,15 +76,16 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
         </div>
       ) : (
         <img
-          src={`/api/dialogs/${chatId}/messages/${messageId}/thumbnail`}
+          src={thumbUrl}
           alt={mediaType === "video" ? "Vista previa de video" : "Foto"}
           className={cn(
-            "w-full max-h-64 min-h-[140px] object-cover rounded-md transition-all duration-300 group-hover/preview:scale-[1.02]",
-            !loaded && "hidden"
+            "w-full max-h-64 min-h-[140px] object-cover rounded-md transition-all duration-300 group-hover/preview:scale-[1.02] cursor-pointer",
+            !loaded ? "opacity-0" : "opacity-100"
           )}
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setHasError(true)}
+          onClick={() => setShowModal(true)}
         />
       )}
 
@@ -94,12 +106,79 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
 
       {/* Centered Play Button for Videos when loaded */}
       {mediaType === "video" && loaded && !hasError && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div
+          onClick={() => setShowModal(true)}
+          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+        >
           <div className="w-11 h-11 rounded-full bg-cyan-500/90 backdrop-blur-sm flex items-center justify-center shadow-xl group-hover/preview:scale-110 transition-transform">
             <Play className="w-5 h-5 text-black fill-black ml-0.5" />
           </div>
         </div>
       )}
+
+      {/* Lightbox Modal (Full image uncropped preview) */}
+      {showModal &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+            onClick={() => setShowModal(false)}
+          >
+            <div
+              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-white font-mono">
+                    Mensaje #{messageId}
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                    {mediaType}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Full uncropped image contain */}
+              <div className="relative w-full min-h-[300px] max-h-[65vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
+                <img
+                  src={thumbUrl}
+                  alt="Vista previa completa"
+                  className="max-h-[65vh] w-auto max-w-full object-contain"
+                />
+              </div>
+
+              {text && (
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                    Texto / Descripción:
+                  </span>
+                  <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                    {text}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowModal(false)}
+                  className="h-8 text-xs px-4 bg-zinc-900 border-white/10 hover:bg-white/5"
+                >
+                  Cerrar
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -374,9 +453,16 @@ export const ChatsView: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
-                          {getChatIcon(chat.type)}
-                          <span>{chat.type}</span>
+                        <div className="mt-0.5 flex items-center justify-between">
+                          <div className="flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
+                            {getChatIcon(chat.type)}
+                            <span>{chat.type}</span>
+                          </div>
+                          {chat.can_post === false && (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              Solo Lectura
+                            </span>
+                          )}
                         </div>
                       </div>
                     </button>
@@ -441,10 +527,23 @@ export const ChatsView: React.FC = () => {
                     <h2 className="text-xs font-bold text-white leading-none">
                       {activeChat.title}
                     </h2>
-                    <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      MTProto Conectado
-                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        MTProto Conectado
+                      </span>
+                      {activeChat.can_post === false ? (
+                        <span className="text-[9px] text-amber-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
+                          <Lock className="w-2.5 h-2.5" />
+                          Solo Lectura
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-cyan-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                          <Check className="w-2.5 h-2.5" />
+                          Envío Habilitado
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -541,6 +640,8 @@ export const ChatsView: React.FC = () => {
                             chatId={msg.chat_id}
                             messageId={msg.id}
                             mediaType={msg.media_type}
+                            accountId={selectedAccountId}
+                            text={msg.text}
                           />
                         )}
                         {msg.media_type === "document" && (
@@ -641,67 +742,74 @@ export const ChatsView: React.FC = () => {
                 </div>
               )}
 
-              {/* Message Input Footer (shrink-0) */}
-              <form
-                onSubmit={handleSend}
-                className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2 shrink-0"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      setSelectedFile(file);
+              {/* Message Input Footer or Read-Only Notice (shrink-0) */}
+              {activeChat.can_post === false ? (
+                <div className="p-3 border-t border-white/5 bg-[#10121A] flex items-center justify-center gap-2 text-zinc-400 text-xs shrink-0 font-medium">
+                  <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span>Este canal o grupo es de solo lectura. No tenés permisos para publicar mensajes aquí.</span>
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleSend}
+                  className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2 shrink-0"
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setSelectedFile(file);
+                      }
+                      e.target.value = "";
+                    }}
+                    accept="video/*,image/*,.pdf,.doc,.docx,.zip,.tar,.gz,.txt"
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="h-8 px-2 text-zinc-400 hover:text-cyan-400 hover:bg-white/5 shrink-0"
+                    title="Adjuntar video, foto o archivo local"
+                  >
+                    <Paperclip className="w-4 h-4" />
+                  </Button>
+                  <input
+                    type="text"
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder={
+                      selectedFile
+                        ? "Añadir un comentario o caption al archivo..."
+                        : "Escribí un mensaje..."
                     }
-                    e.target.value = "";
-                  }}
-                  accept="video/*,image/*,.pdf,.doc,.docx,.zip,.tar,.gz,.txt"
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="h-8 px-2 text-zinc-400 hover:text-cyan-400 hover:bg-white/5 shrink-0"
-                  title="Adjuntar video, foto o archivo local"
-                >
-                  <Paperclip className="w-4 h-4" />
-                </Button>
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder={
-                    selectedFile
-                      ? "Añadir un comentario o caption al archivo..."
-                      : "Escribí un mensaje..."
-                  }
-                  disabled={isUploading}
-                  className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
-                  aria-label="Mensaje a enviar"
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isUploading || (!inputText.trim() && !selectedFile)}
-                  className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5 shrink-0"
-                >
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Subiendo...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{selectedFile ? "Publicar" : "Enviar"}</span>
-                    </>
-                  )}
-                </Button>
-              </form>
+                    disabled={isUploading}
+                    className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                    aria-label="Mensaje a enviar"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isUploading || (!inputText.trim() && !selectedFile)}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5 shrink-0"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Subiendo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        <span>{selectedFile ? "Publicar" : "Enviar"}</span>
+                      </>
+                    )}
+                  </Button>
+                </form>
+              )}
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500">

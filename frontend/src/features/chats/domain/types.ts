@@ -26,4 +26,5 @@ export interface Chat {
   last_message?: string;
   last_message_date?: string;
   avatar_color?: string;
+  can_post?: boolean;
 }

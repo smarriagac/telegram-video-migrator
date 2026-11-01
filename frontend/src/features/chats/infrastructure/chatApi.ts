@@ -21,7 +21,7 @@ export const chatApi = {
 
   async fetchAccounts(): Promise<{ id: number; name: string }[]> {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("telegram_hub_token") || localStorage.getItem("token");
       const headers: Record<string, string> = {};
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;

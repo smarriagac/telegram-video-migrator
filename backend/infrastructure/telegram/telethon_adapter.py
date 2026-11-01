@@ -188,11 +188,16 @@ class TelethonAdapter(TelegramGatewayPort):
         try:
             client = self._get_client(account_id)
             await self._ensure_connected(client)
-            entity = await client.get_input_entity(channel_id)
+            try:
+                entity = await client.get_input_entity(channel_id)
+            except Exception:
+                entity = await client.get_entity(channel_id)
             msg = await client.get_messages(entity, ids=message_id)
             if msg and msg.media:
                 # Download thumbnail directly to memory buffer
                 thumb_data = await client.download_media(msg, file=bytes, thumb=-1)
+                if not thumb_data:
+                    thumb_data = await client.download_media(msg, file=bytes, thumb=0)
                 if not thumb_data and getattr(msg, "photo", None):
                     thumb_data = await client.download_media(msg, file=bytes)
 
@@ -220,10 +225,15 @@ class TelethonAdapter(TelegramGatewayPort):
                             pass
 
                     try:
-                        src_entity = await client.get_input_entity(src_chan_id)
+                        try:
+                            src_entity = await client.get_input_entity(src_chan_id)
+                        except Exception:
+                            src_entity = await client.get_entity(src_chan_id)
                         src_msg = await client.get_messages(src_entity, ids=src_msg_id)
                         if src_msg and src_msg.media:
                             src_thumb = await client.download_media(src_msg, file=bytes, thumb=-1)
+                            if not src_thumb:
+                                src_thumb = await client.download_media(src_msg, file=bytes, thumb=0)
                             if not src_thumb and getattr(src_msg, "photo", None):
                                 src_thumb = await client.download_media(src_msg, file=bytes)
                             if src_thumb and isinstance(src_thumb, bytes):
@@ -544,6 +554,26 @@ class TelethonAdapter(TelegramGatewayPort):
                 else:
                     chat_type = "user"
 
+                can_post = True
+                if dialog.is_channel:
+                    entity = dialog.entity
+                    is_broadcast = getattr(entity, "broadcast", False)
+                    is_creator = getattr(entity, "creator", False)
+                    admin_rights = getattr(entity, "admin_rights", None)
+                    default_banned = getattr(entity, "default_banned_rights", None)
+
+                    if is_broadcast:
+                        can_post = bool(is_creator or (admin_rights and getattr(admin_rights, "post_messages", False)))
+                    else:
+                        if not is_creator and not admin_rights:
+                            if default_banned and getattr(default_banned, "send_messages", False):
+                                can_post = False
+                elif dialog.is_group:
+                    entity = dialog.entity
+                    default_banned = getattr(entity, "default_banned_rights", None)
+                    if default_banned and getattr(default_banned, "send_messages", False):
+                        can_post = False
+
                 last_msg_text = None
                 last_msg_date = None
                 if dialog.message:
@@ -565,6 +595,7 @@ class TelethonAdapter(TelegramGatewayPort):
                         last_message=last_msg_text,
                         last_message_date=last_msg_date,
                         avatar_color=avatar_color,
+                        can_post=can_post,
                     )
                 )
             return dialogs_list

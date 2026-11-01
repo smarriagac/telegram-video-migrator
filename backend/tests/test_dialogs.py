@@ -33,6 +33,7 @@ async def test_get_dialogs_use_case():
     assert len(result) == 1
     assert result[0].id == 101
     assert result[0].title == "Chat de Prueba"
+    assert result[0].can_post is True
     mock_gateway.get_dialogs.assert_awaited_once_with(limit=10)
 
 
