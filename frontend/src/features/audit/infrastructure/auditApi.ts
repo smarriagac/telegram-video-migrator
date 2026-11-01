@@ -23,14 +23,18 @@ export const auditApi = {
       searchParams.append("offset", params.offset.toString());
     }
 
-    const token = localStorage.getItem("auth_token");
+    const token =
+      localStorage.getItem("telegram_hub_token") ||
+      localStorage.getItem("auth_token") ||
+      localStorage.getItem("token");
     const res = await fetch(`${API_BASE_URL}/audit?${searchParams.toString()}`, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
     if (!res.ok) {
-      throw new Error("Error al obtener registros de auditoría");
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al obtener registros de auditoría");
     }
     return res.json();
   },
