@@ -111,6 +111,29 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
                 )
                 logger.info("Default administrator seeded: admin@telegramhub.local / admin1234")
 
+            # Seed active Telegram account from environment if telegram_accounts is empty
+            accounts_count = await conn.fetchval("SELECT count(*) FROM telegram_accounts")
+            if accounts_count == 0:
+                api_id = os.getenv("TELEGRAM_API_ID")
+                api_hash = os.getenv("TELEGRAM_API_HASH")
+                session_str = os.getenv("TELEGRAM_SESSION_STRING")
+                if api_id and api_hash:
+                    from backend.infrastructure.security.fernet_encryption_service import FernetEncryptionService
+                    enc_svc = FernetEncryptionService()
+                    await conn.execute(
+                        """
+                        INSERT INTO telegram_accounts (name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active)
+                        VALUES ($1, $2, $3, $4, $5, $6)
+                        """,
+                        "Cuenta Principal",
+                        None,
+                        enc_svc.encrypt(api_id),
+                        enc_svc.encrypt(api_hash),
+                        enc_svc.encrypt(session_str) if session_str else None,
+                        True,
+                    )
+                    logger.info("Active environment Telegram account seeded into PostgreSQL.")
+
     async def get_by_email(self, email: str) -> User | None:
         await self.connect()
         if self._fallback_mode or self.pool is None:
