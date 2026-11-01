@@ -12,11 +12,14 @@ from sse_starlette.sse import EventSourceResponse
 from backend.application.broadcaster import EventBroadcaster
 from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
+from backend.domain.entities.audit_log import AuditLog
 from backend.domain.ports.job_repository_port import JobRepositoryPort
+from backend.domain.ports.audit_repository_port import AuditRepositoryPort
 from backend.presentation.dependencies import (
     get_broadcaster,
     get_job_repository,
     get_migration_use_case,
+    get_audit_repository,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +77,7 @@ async def start_job(
     repo: JobRepositoryPort = Depends(get_job_repository),
     use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
     broadcaster: EventBroadcaster = Depends(get_broadcaster),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
 ) -> JobResponse:
     """Create and start a new video migration job."""
     if req.source_channel_id == req.target_channel_id:
@@ -96,6 +100,27 @@ async def start_job(
         target_account_id=req.target_account_id,
     )
     await repo.create_job(job)
+
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="MIGRATION_START",
+                resource=f"job:{job_id}",
+                details={
+                    "source_id": req.source_channel_id,
+                    "target_id": req.target_channel_id,
+                    "source_title": req.source_channel_title,
+                    "target_title": req.target_channel_title,
+                    "is_full_migration": is_full,
+                    "selected_items_count": len(req.selected_message_ids) if req.selected_message_ids else "all",
+                },
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Could not record audit log for migration start: {e}")
 
     # Background task callback to broadcast events via SSE
     async def on_progress(event: dict[str, Any]):
@@ -252,6 +277,7 @@ async def cancel_job(
     job_id: str,
     repo: JobRepositoryPort = Depends(get_job_repository),
     use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
 ) -> dict[str, str]:
     """Request graceful cancellation of an active migration job."""
     job = await repo.get_job(job_id)
@@ -263,4 +289,16 @@ async def cancel_job(
 
     use_case.cancel_job(job_id)
     await repo.set_job_status(job_id, JobStatus.CANCELLED)
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="MIGRATION_CANCEL",
+                resource=f"job:{job_id}",
+            )
+        )
+    except Exception:
+        pass
     return {"job_id": job_id, "status": JobStatus.CANCELLED.value}

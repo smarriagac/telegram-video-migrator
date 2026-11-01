@@ -1,0 +1,37 @@
+import { AuditLogItem } from "../domain/types";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+
+export const auditApi = {
+  async fetchAuditLogs(params?: {
+    action?: string;
+    user_email?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditLogItem[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.action && params.action !== "ALL") {
+      searchParams.append("action", params.action);
+    }
+    if (params?.user_email) {
+      searchParams.append("user_email", params.user_email);
+    }
+    if (params?.limit) {
+      searchParams.append("limit", params.limit.toString());
+    }
+    if (params?.offset) {
+      searchParams.append("offset", params.offset.toString());
+    }
+
+    const token = localStorage.getItem("auth_token");
+    const res = await fetch(`${API_BASE_URL}/audit?${searchParams.toString()}`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+    if (!res.ok) {
+      throw new Error("Error al obtener registros de auditoría");
+    }
+    return res.json();
+  },
+};

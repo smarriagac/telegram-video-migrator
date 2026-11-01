@@ -15,11 +15,14 @@ from backend.application.broadcaster import EventBroadcaster
 from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
 from backend.domain.entities.channel import Channel
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
+from backend.domain.entities.audit_log import AuditLog
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 from backend.domain.ports.job_repository_port import JobRepositoryPort
+from backend.domain.ports.audit_repository_port import AuditRepositoryPort
 from backend.presentation.dependencies import (
     get_broadcaster,
     get_job_repository,
+    get_audit_repository,
     get_live_sync_service,
     get_migration_use_case,
     get_telegram_gateway,
@@ -535,6 +538,7 @@ class AutoSyncStatusResponse(BaseModel):
 async def toggle_auto_sync(
     req: AutoSyncToggleRequest,
     live_sync_svc: Any = Depends(get_live_sync_service),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
 ) -> AutoSyncBindingResponse:
     """Create or toggle real-time auto-synchronization for a source and target channel."""
     binding = await live_sync_svc.set_binding(
@@ -546,6 +550,24 @@ async def toggle_auto_sync(
         source_account_id=req.source_account_id,
         target_account_id=req.target_account_id,
     )
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="AUTO_SYNC_TOGGLE",
+                resource=f"channel:{req.source_channel_id}->{req.target_channel_id}",
+                details={
+                    "is_active": req.is_active,
+                    "source_title": req.source_title,
+                    "target_title": req.target_title,
+                },
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Could not record audit log for auto-sync: {e}")
+
     return AutoSyncBindingResponse(
         source_channel_id=binding.source_channel_id,
         target_channel_id=binding.target_channel_id,

@@ -34,6 +34,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: MessageSquare,
   },
   {
+    name: "Auditoría del Sistema",
+    path: "/audit",
+    icon: ShieldCheck,
+    minRole: "ADMIN",
+  },
+  {
     name: "Configuración & API",
     path: "/settings",
     icon: Settings,

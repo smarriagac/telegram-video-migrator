@@ -19,5 +19,6 @@ async def clean_database_after_each_test():
                 await conn.execute(
                     "DELETE FROM telegram_accounts WHERE id > 1 AND (name = 'Producción' OR name LIKE 'Cuenta Test%');"
                 )
+                await conn.execute("DELETE FROM audit_logs WHERE action = 'TEST_ACTION';")
     except Exception:
         pass

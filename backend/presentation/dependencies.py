@@ -20,6 +20,7 @@ from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 from backend.domain.ports.user_repository_port import UserRepositoryPort
 from backend.domain.ports.telegram_account_repository_port import TelegramAccountRepositoryPort
+from backend.domain.ports.audit_repository_port import AuditRepositoryPort
 from backend.domain.ports.encryption_port import EncryptionPort
 from backend.domain.ports.token_service_port import TokenServicePort
 
@@ -66,6 +67,10 @@ async def get_user_repository() -> UserRepositoryPort:
 
 
 async def get_account_repository() -> TelegramAccountRepositoryPort:
+    return await get_postgres_repository()
+
+
+async def get_audit_repository() -> AuditRepositoryPort:
     return await get_postgres_repository()
 
 

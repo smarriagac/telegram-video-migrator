@@ -9,6 +9,7 @@ from backend.presentation.api.routers.channels import router as channels_router
 from backend.presentation.api.routers.jobs import router as jobs_router
 from backend.presentation.api.routers.dialogs import router as dialogs_router
 from backend.presentation.api.routers.auth import router as auth_router
+from backend.presentation.api.routers.audit import router as audit_router
 from backend.presentation.api.routers.settings_credentials import router as credentials_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
@@ -75,6 +76,7 @@ app.add_middleware(
 
 # Register presentation routers
 app.include_router(auth_router, prefix="/api")
+app.include_router(audit_router, prefix="/api")
 app.include_router(credentials_router, prefix="/api")
 app.include_router(channels_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")

@@ -7,15 +7,17 @@ import asyncpg
 
 from backend.domain.entities.user import User, Role
 from backend.domain.entities.telegram_account import TelegramAccount
+from backend.domain.entities.audit_log import AuditLog
 from backend.domain.ports.user_repository_port import UserRepositoryPort
 from backend.domain.ports.telegram_account_repository_port import TelegramAccountRepositoryPort
+from backend.domain.ports.audit_repository_port import AuditRepositoryPort
 from backend.infrastructure.security.password_hasher import PasswordHasher
 
 logger = logging.getLogger(__name__)
 
 
-class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
-    """PostgreSQL implementation of User and TelegramAccount repositories with memory fallback for test isolation."""
+class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, AuditRepositoryPort):
+    """PostgreSQL implementation of User, TelegramAccount, and Audit repositories with memory fallback."""
 
     def __init__(self, db_url: str | None = None) -> None:
         self.db_url = db_url or os.getenv(
@@ -26,6 +28,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
         self._fallback_mode = False
         self._users_memory: dict[int, User] = {}
         self._accounts_memory: dict[int, TelegramAccount] = {}
+        self._audit_logs_memory: list[AuditLog] = []
         self._id_counter = 1
         self._seed_memory_admin()
 
@@ -94,6 +97,20 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
+
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                    user_email VARCHAR(255),
+                    action VARCHAR(64) NOT NULL,
+                    resource VARCHAR(128),
+                    details JSONB,
+                    ip_address VARCHAR(64),
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
             """)
 
             # Seed default admin if table is empty
@@ -414,3 +431,90 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
         async with self.pool.acquire() as conn:
             res = await conn.execute("DELETE FROM telegram_accounts WHERE id = $1", account_id)
             return res.endswith("1")
+
+    async def record_audit_log(self, log: AuditLog) -> AuditLog:
+        import json
+        import datetime
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            log.id = len(self._audit_logs_memory) + 1
+            log.created_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            self._audit_logs_memory.append(log)
+            return log
+
+        async with self.pool.acquire() as conn:
+            details_json = json.dumps(log.details) if log.details is not None else None
+            row = await conn.fetchrow(
+                """
+                INSERT INTO audit_logs (user_id, user_email, action, resource, details, ip_address)
+                VALUES ($1, $2, $3, $4, $5, $6)
+                RETURNING id, created_at;
+                """,
+                log.user_id,
+                log.user_email,
+                log.action,
+                log.resource,
+                details_json,
+                log.ip_address,
+            )
+            log.id = row["id"]
+            log.created_at = str(row["created_at"])
+            return log
+
+    async def list_audit_logs(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        action: str | None = None,
+        user_email: str | None = None,
+    ) -> list[AuditLog]:
+        import json
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            results = list(self._audit_logs_memory)
+            if action:
+                results = [r for r in results if r.action.lower() == action.lower()]
+            if user_email:
+                results = [r for r in results if r.user_email and user_email.lower() in r.user_email.lower()]
+            results.reverse()
+            return results[offset : offset + limit]
+
+        async with self.pool.acquire() as conn:
+            query = """
+                SELECT id, user_id, user_email, action, resource, details, ip_address, created_at
+                FROM audit_logs
+                WHERE 1=1
+            """
+            params: list[Any] = []
+            if action:
+                params.append(action.upper())
+                query += f" AND action = ${len(params)}"
+            if user_email:
+                params.append(f"%{user_email.lower()}%")
+                query += f" AND LOWER(user_email) LIKE ${len(params)}"
+
+            params.append(limit)
+            query += f" ORDER BY created_at DESC LIMIT ${len(params)}"
+            params.append(offset)
+            query += f" OFFSET ${len(params)}"
+
+            rows = await conn.fetch(query, *params)
+            audit_logs = []
+            for r in rows:
+                details = None
+                if r["details"]:
+                    details = json.loads(r["details"]) if isinstance(r["details"], str) else dict(r["details"])
+                audit_logs.append(
+                    AuditLog(
+                        id=r["id"],
+                        user_id=r["user_id"],
+                        user_email=r["user_email"],
+                        action=r["action"],
+                        resource=r["resource"],
+                        details=details,
+                        ip_address=r["ip_address"],
+                        created_at=str(r["created_at"]) if r["created_at"] else None,
+                    )
+                )
+            return audit_logs
+
