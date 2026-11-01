@@ -340,9 +340,6 @@ export const ChatsView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const unreadDividerRef = useRef<HTMLDivElement>(null);
-  const sessionCutoffRef = useRef<{ chatId: number; maxInboxId: number } | null>(null);
-  const isFirstLoadForChatRef = useRef<boolean>(true);
-  const prevChatIdRef = useRef<number | null>(null);
 
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
@@ -387,64 +384,34 @@ export const ChatsView: React.FC = () => {
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
 
-  // Track session cutoff for unread divider so it doesn't vanish prematurely on MTProto sync
-  if (activeChat && prevChatIdRef.current !== activeChat.id) {
-    prevChatIdRef.current = activeChat.id;
-    sessionCutoffRef.current = {
-      chatId: activeChat.id,
-      maxInboxId: activeChat.read_inbox_max_id || 0,
-    };
-    isFirstLoadForChatRef.current = true;
-  }
+  const firstUnreadIndex =
+    (activeChat?.unread_count || 0) > 0
+      ? activeMessages.findIndex(
+          (m) =>
+            !m.is_outgoing &&
+            (activeChat?.read_inbox_max_id ? m.id > activeChat.read_inbox_max_id : !m.is_read)
+        )
+      : -1;
 
-  const cutoffId =
-    sessionCutoffRef.current?.chatId === activeChat?.id
-      ? sessionCutoffRef.current.maxInboxId
-      : activeChat?.read_inbox_max_id || 0;
-
-  const firstUnreadIndex = activeMessages.findIndex(
-    (m) =>
-      !m.is_outgoing &&
-      (!m.is_read || (cutoffId > 0 ? m.id > cutoffId : false))
-  );
-
+  // Single-fire scroll on chat change or initial messages load
   useEffect(() => {
     if (activeMessages.length === 0) return;
 
-    if (isFirstLoadForChatRef.current) {
-      isFirstLoadForChatRef.current = false;
-      // Instant viewport positioning on entering a chat (no lagging animation through entire history)
+    const timer = setTimeout(() => {
       if (firstUnreadIndex !== -1 && unreadDividerRef.current) {
         unreadDividerRef.current.scrollIntoView({ behavior: "auto", block: "center" });
       } else {
         messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
       }
+    }, 50);
 
-      // If all messages fit in container without needing to scroll, mark as read automatically
-      const container = messagesContainerRef.current;
-      if (
-        container &&
-        container.scrollHeight <= container.clientHeight + 40 &&
-        activeChat &&
-        activeChat.unread_count > 0
-      ) {
-        const timer = setTimeout(() => {
-          markAsRead(activeChat.id);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      // Subsequent messages in active chat: smooth scroll only if not scrolled up reading old history
-      const lastMsg = activeMessages[activeMessages.length - 1];
-      if (lastMsg?.is_outgoing || !isScrolledUp) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [activeChatId, activeMessages.length, firstUnreadIndex, isScrolledUp, activeChat, markAsRead]);
+    return () => clearTimeout(timer);
+  }, [activeChatId, activeMessages.length > 0]);
 
   // Filter dialogs by search query AND category
   const filteredChats = chats.filter((c) => {
-    const matchesSearch = c.title.toLowerCase().includes(searchFilter.toLowerCase());
+    const title = c.title || "";
+    const matchesSearch = title.toLowerCase().includes(searchFilter.toLowerCase());
     const matchesCategory = categoryFilter === "all" || c.type === categoryFilter;
     return matchesSearch && matchesCategory;
   });
@@ -644,12 +611,12 @@ export const ChatsView: React.FC = () => {
                           chat.avatar_color || "bg-cyan-600"
                         )}
                       >
-                        {chat.title.charAt(0).toUpperCase()}
+                        {(chat.title || "C").charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-zinc-200 truncate">
-                            {chat.title}
+                            {chat.title || "Sin título"}
                           </span>
                           <span className="text-[9px] text-zinc-500 font-mono shrink-0 ml-1">
                             {chat.last_message_date}
@@ -733,11 +700,11 @@ export const ChatsView: React.FC = () => {
                       activeChat.avatar_color || "bg-cyan-600"
                     )}
                   >
-                    {activeChat.title.charAt(0).toUpperCase()}
+                    {(activeChat.title || "C").charAt(0).toUpperCase()}
                   </div>
                   <div>
                     <h2 className="text-xs font-bold text-white leading-none">
-                      {activeChat.title}
+                      {activeChat.title || "Conversación"}
                     </h2>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
@@ -833,7 +800,7 @@ export const ChatsView: React.FC = () => {
                     const isUnreadDividerHere = index === firstUnreadIndex;
                     const isOutgoingRead =
                       msg.is_read ||
-                      (activeChat.read_outbox_max_id
+                      (activeChat?.read_outbox_max_id
                         ? msg.id <= activeChat.read_outbox_max_id
                         : false);
 
