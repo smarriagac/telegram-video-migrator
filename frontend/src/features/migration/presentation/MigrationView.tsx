@@ -31,9 +31,9 @@ export const MigrationView: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[1900px] px-3 sm:px-4 lg:px-6 mx-auto space-y-4 pb-6">
+    <div className="w-full h-full flex flex-col space-y-3 min-h-0 overflow-hidden">
       {/* Top Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-3">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-2.5 flex-shrink-0">
         <div>
           <div className="flex items-center space-x-2.5">
             <BrandLogo size="md" />
@@ -74,16 +74,16 @@ export const MigrationView: React.FC = () => {
       {error && (
         <div
           role="alert"
-          className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in"
+          className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between animate-in fade-in flex-shrink-0"
         >
           <span>{error}</span>
         </div>
       )}
 
-      {/* 2-Panel Split Layout (Optimized: Col 2 'Control Panel' + Col 3 'Media Selector Canvas') */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+      {/* 2-Panel Split Layout (Fluid: Col 2 'Control Panel' + Col 3 'Media Selector Canvas') */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-stretch">
         {/* Column 2: Migration Control Panel (De -> Para + Actions + Progress) */}
-        <div className="lg:col-span-4 xl:col-span-3 w-full">
+        <div className="lg:col-span-4 xl:col-span-3 w-full h-full min-h-0">
           <MigrationControlPanel
             onOpenConfirm={() => setIsConfirmOpen(true)}
             filterQuery={searchFilter}
@@ -91,7 +91,7 @@ export const MigrationView: React.FC = () => {
         </div>
 
         {/* Column 3: Media Gallery & Selector Canvas */}
-        <div className="lg:col-span-8 xl:col-span-9 w-full min-w-0">
+        <div className="lg:col-span-8 xl:col-span-9 w-full min-w-0 h-full min-h-0">
           <MessageSelector />
         </div>
       </div>

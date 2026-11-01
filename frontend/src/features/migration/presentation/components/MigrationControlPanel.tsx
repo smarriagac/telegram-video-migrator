@@ -78,7 +78,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       : 0);
 
   return (
-    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl flex flex-col justify-between space-y-4">
+    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl flex flex-col justify-between space-y-4 h-full min-h-0 overflow-y-auto">
       <div className="space-y-4">
         {/* Panel Title */}
         <div className="border-b border-white/5 pb-2.5 flex items-center justify-between">

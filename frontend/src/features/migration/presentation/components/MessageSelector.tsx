@@ -268,9 +268,9 @@ export const MessageSelector: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-4 shadow-2xl space-y-4 flex flex-col min-h-[520px]">
+    <div className="bg-[#14161F]/95 backdrop-blur-md rounded-2xl border border-white/5 p-3.5 shadow-2xl flex flex-col h-full min-h-0 overflow-hidden space-y-3">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 shrink-0">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold tracking-tight text-white capitalize font-mono">
@@ -349,7 +349,7 @@ export const MessageSelector: React.FC = () => {
 
       {/* Delta Sync Banner (incremental sync between source and target) */}
       {selectedTargetId && selectedSourceId && selectedTargetId !== selectedSourceId && (
-        <div className="rounded-xl border border-white/10 bg-gradient-to-r from-[#171b26] to-[#0f1118] p-3 shadow-lg">
+        <div className="shrink-0 rounded-xl border border-white/10 bg-gradient-to-r from-[#171b26] to-[#0f1118] p-3 shadow-lg">
           {isCheckingSync ? (
             <div className="flex items-center gap-2.5 text-xs text-zinc-400 font-mono py-1">
               <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
@@ -433,7 +433,7 @@ export const MessageSelector: React.FC = () => {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-2.5 justify-between">
+      <div className="shrink-0 flex flex-col xl:flex-row items-stretch xl:items-center gap-2.5 justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {/* Sync Status Filter Group */}
           {selectedTargetId && (
@@ -519,17 +519,17 @@ export const MessageSelector: React.FC = () => {
 
       {/* Main Content: Gallery Grid or List */}
       {isLoadingMessages ? (
-        <div className="py-14 text-center text-zinc-500 text-xs flex flex-col items-center justify-center gap-2.5">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 py-14 text-center text-zinc-500 text-xs">
           <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
           <span className="font-mono text-zinc-400">Escaneando multimedia y generando miniaturas...</span>
         </div>
       ) : filteredMessages.length === 0 ? (
-        <div className="py-10 text-center text-zinc-500 text-xs bg-[#0E1017] rounded-xl border border-white/5 font-mono">
+        <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-zinc-500 text-xs bg-[#0E1017] rounded-xl border border-white/5 font-mono">
           No se encontraron mensajes con los filtros seleccionados.
         </div>
       ) : viewMode === "grid" ? (
         /* VISUAL GALLERY GRID (Responsive columns taking full advantage of widescreen) */
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 max-h-[calc(100vh-240px)] min-h-[450px] overflow-y-auto p-1">
+        <div className="flex-1 min-h-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-3 overflow-y-auto p-1 pr-1.5">
           {filteredMessages.map((msg) => {
             const isSelected = selectedMessageIds.includes(msg.id);
             const sizeStr = formatBytes(msg.file_size);
@@ -616,7 +616,7 @@ export const MessageSelector: React.FC = () => {
         </div>
       ) : (
         /* COMPACT TABLE / LIST VIEW */
-        <div className="max-h-96 overflow-y-auto space-y-1 pr-1 border border-white/5 rounded-xl bg-[#0E1017]/80 divide-y divide-white/[0.03]">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1.5 border border-white/5 rounded-xl bg-[#0E1017]/80 divide-y divide-white/[0.03]">
           {filteredMessages.map((msg) => {
             const isSelected = selectedMessageIds.includes(msg.id);
             const sizeStr = formatBytes(msg.file_size);
@@ -702,7 +702,7 @@ export const MessageSelector: React.FC = () => {
 
       {/* Pagination Footer */}
       {hasMoreMessages && (
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-white/5">
+        <div className="shrink-0 pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-white/5">
           <span className="text-[11px] font-mono text-zinc-500">
             Mostrando {filteredMessages.length} mensajes (cargados {sourceMessages.length} de este canal)
           </span>
