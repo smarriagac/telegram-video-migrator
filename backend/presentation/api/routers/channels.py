@@ -20,6 +20,7 @@ from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.presentation.dependencies import (
     get_broadcaster,
     get_job_repository,
+    get_live_sync_service,
     get_migration_use_case,
     get_telegram_gateway,
 )
@@ -500,3 +501,111 @@ async def edit_channel_message_endpoint(
     except Exception as e:
         logger.error(f"Error editing message {message_id} in channel {channel_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class AutoSyncToggleRequest(BaseModel):
+    source_channel_id: int
+    target_channel_id: int
+    is_active: bool
+    source_title: str | None = None
+    target_title: str | None = None
+    source_account_id: int | None = None
+    target_account_id: int | None = None
+
+
+class AutoSyncBindingResponse(BaseModel):
+    source_channel_id: int
+    target_channel_id: int
+    source_channel_title: str | None = None
+    target_channel_title: str | None = None
+    source_account_id: int | None = None
+    target_account_id: int | None = None
+    is_active: bool
+    last_synced_message_id: int = 0
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class AutoSyncStatusResponse(BaseModel):
+    is_active: bool
+    binding: AutoSyncBindingResponse | None = None
+
+
+@router.post("/auto-sync", response_model=AutoSyncBindingResponse)
+async def toggle_auto_sync(
+    req: AutoSyncToggleRequest,
+    live_sync_svc: Any = Depends(get_live_sync_service),
+) -> AutoSyncBindingResponse:
+    """Create or toggle real-time auto-synchronization for a source and target channel."""
+    binding = await live_sync_svc.set_binding(
+        source_channel_id=req.source_channel_id,
+        target_channel_id=req.target_channel_id,
+        is_active=req.is_active,
+        source_title=req.source_title,
+        target_title=req.target_title,
+        source_account_id=req.source_account_id,
+        target_account_id=req.target_account_id,
+    )
+    return AutoSyncBindingResponse(
+        source_channel_id=binding.source_channel_id,
+        target_channel_id=binding.target_channel_id,
+        source_channel_title=binding.source_channel_title,
+        target_channel_title=binding.target_channel_title,
+        source_account_id=binding.source_account_id,
+        target_account_id=binding.target_account_id,
+        is_active=binding.is_active,
+        last_synced_message_id=binding.last_synced_message_id,
+        created_at=binding.created_at,
+        updated_at=binding.updated_at,
+    )
+
+
+@router.get("/auto-sync", response_model=list[AutoSyncBindingResponse])
+async def list_auto_sync_bindings(
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> list[AutoSyncBindingResponse]:
+    """List all auto-sync bindings."""
+    bindings = await repo.list_sync_bindings()
+    return [
+        AutoSyncBindingResponse(
+            source_channel_id=b.source_channel_id,
+            target_channel_id=b.target_channel_id,
+            source_channel_title=b.source_channel_title,
+            target_channel_title=b.target_channel_title,
+            source_account_id=b.source_account_id,
+            target_account_id=b.target_account_id,
+            is_active=b.is_active,
+            last_synced_message_id=b.last_synced_message_id,
+            created_at=b.created_at,
+            updated_at=b.updated_at,
+        )
+        for b in bindings
+    ]
+
+
+@router.get("/{source_channel_id}/auto-sync-status", response_model=AutoSyncStatusResponse)
+async def get_auto_sync_status(
+    source_channel_id: int,
+    target_channel_id: int = Query(...),
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> AutoSyncStatusResponse:
+    """Retrieve active auto-sync status between two channels."""
+    binding = await repo.get_sync_binding(source_channel_id, target_channel_id)
+    if not binding:
+        return AutoSyncStatusResponse(is_active=False, binding=None)
+    return AutoSyncStatusResponse(
+        is_active=binding.is_active,
+        binding=AutoSyncBindingResponse(
+            source_channel_id=binding.source_channel_id,
+            target_channel_id=binding.target_channel_id,
+            source_channel_title=binding.source_channel_title,
+            target_channel_title=binding.target_channel_title,
+            source_account_id=binding.source_account_id,
+            target_account_id=binding.target_account_id,
+            is_active=binding.is_active,
+            last_synced_message_id=binding.last_synced_message_id,
+            created_at=binding.created_at,
+            updated_at=binding.updated_at,
+        ),
+    )
+

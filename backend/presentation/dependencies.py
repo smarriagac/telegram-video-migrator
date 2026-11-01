@@ -42,6 +42,7 @@ _encryption_service: EncryptionPort | None = None
 _token_service: TokenServicePort | None = None
 _use_case_instance: CloneChannelVideosUseCase | None = None
 _client_pool: TelegramClientPool | None = None
+_live_sync_service: Any = None
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -238,3 +239,22 @@ def require_roles(allowed_roles: list[Role]) -> Callable:
         return current_user
 
     return role_checker
+
+
+async def get_live_sync_service():
+    global _live_sync_service
+    if _live_sync_service is None:
+        from backend.application.services.live_sync_service import LiveSyncService
+
+        repo = await get_job_repository()
+        pool = await get_telegram_client_pool()
+        use_case = await get_migration_use_case()
+        bc = await get_broadcaster()
+        _live_sync_service = LiveSyncService(
+            job_repository=repo,
+            client_pool=pool,
+            migration_use_case=use_case,
+            broadcaster=bc,
+        )
+    return _live_sync_service
+

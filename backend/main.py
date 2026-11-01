@@ -32,15 +32,29 @@ async def lifespan(app: FastAPI):
         await pg_repo.initialize_schema()
 
     # Initialize Telegram Client Pool across all active accounts
-    from backend.presentation.dependencies import refresh_telegram_client_pool
+    from backend.presentation.dependencies import refresh_telegram_client_pool, get_live_sync_service
     try:
         await refresh_telegram_client_pool()
         logger.info("Telegram Client Pool initialized successfully.")
     except Exception as e:
         logger.warning(f"Failed to initialize Telegram Client Pool during startup: {e}")
 
+    # Initialize Live MTProto Auto-Sync Service
+    try:
+        live_sync = await get_live_sync_service()
+        await live_sync.start()
+        logger.info("LiveSyncService started successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to start LiveSyncService during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
+
+    try:
+        live_sync = await get_live_sync_service()
+        await live_sync.stop()
+    except Exception:
+        pass
 
 
 app = FastAPI(

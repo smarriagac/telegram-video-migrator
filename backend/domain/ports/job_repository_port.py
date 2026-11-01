@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
+from backend.domain.entities.sync_binding import ChannelSyncBinding
 
 
 class JobRepositoryPort(ABC):
@@ -98,3 +99,27 @@ class JobRepositoryPort(ABC):
     ) -> set[int]:
         """Retrieve set of source message IDs already cloned to the target channel."""
         return set()
+
+    async def save_sync_binding(self, binding: ChannelSyncBinding) -> ChannelSyncBinding:
+        """Persist or update an auto-sync channel binding."""
+        return binding
+
+    async def get_sync_binding(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> ChannelSyncBinding | None:
+        """Retrieve an auto-sync binding between two channels."""
+        return None
+
+    async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
+        """Retrieve all active real-time channel sync bindings."""
+        return []
+
+    async def list_sync_bindings(self) -> list[ChannelSyncBinding]:
+        """List all auto-sync bindings regardless of status."""
+        return []
+
+    async def delete_sync_binding(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> bool:
+        """Delete an auto-sync binding."""
+        return True

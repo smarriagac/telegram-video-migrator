@@ -44,6 +44,9 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
   const syncStatus = useMigrationStore((state) => state.syncStatus);
   const isCheckingSync = useMigrationStore((state) => state.isCheckingSync);
   const checkSyncStatus = useMigrationStore((state) => state.checkSyncStatus);
+  const autoSyncStatus = useMigrationStore((state) => state.autoSyncStatus);
+  const isLoadingAutoSync = useMigrationStore((state) => state.isLoadingAutoSync);
+  const toggleAutoSync = useMigrationStore((state) => state.toggleAutoSync);
 
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
@@ -219,6 +222,55 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                       className="text-[10px] font-mono text-cyan-400 hover:underline shrink-0 ml-1.5"
                     >
                       Auditar
+                    </button>
+                  </div>
+                )}
+
+                {/* Auto-Sync en Vivo Toggle */}
+                {selectedSourceId && selectedTargetId !== selectedSourceId && (
+                  <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-zinc-950/80 border border-white/5 text-[11px] transition-all">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          autoSyncStatus?.is_active
+                            ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+                            : "bg-zinc-600"
+                        }`}
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-zinc-200 font-semibold text-[11px] truncate flex items-center gap-1.5">
+                          Auto-Sync en Vivo
+                          {autoSyncStatus?.is_active && (
+                            <span className="text-[9px] bg-emerald-500/20 text-emerald-300 px-1 py-0.5 rounded border border-emerald-500/30 font-mono">
+                              MTProto Push
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-[10px] text-zinc-500 truncate">
+                          {autoSyncStatus?.is_active
+                            ? "Sincroniza nuevos posts al instante"
+                            : "Detecta y clona contenido en tiempo real"}
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isLoadingAutoSync}
+                      onClick={() => toggleAutoSync(!autoSyncStatus?.is_active)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        autoSyncStatus?.is_active ? "bg-emerald-500" : "bg-zinc-700"
+                      } ${isLoadingAutoSync ? "opacity-50 cursor-not-allowed" : ""}`}
+                      title={
+                        autoSyncStatus?.is_active
+                          ? "Desactivar auto-sincronización"
+                          : "Activar auto-sincronización"
+                      }
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          autoSyncStatus?.is_active ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
                     </button>
                   </div>
                 )}

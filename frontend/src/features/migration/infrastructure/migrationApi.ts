@@ -1,4 +1,6 @@
 import {
+  AutoSyncBinding,
+  AutoSyncStatus,
   Channel,
   ChannelCloningHistory,
   ChannelMessageItem,
@@ -217,6 +219,36 @@ export const migrationApi = {
     });
     if (!res.ok) {
       throw new Error("Error al editar mensaje");
+    }
+    return res.json();
+  },
+
+  async getAutoSyncStatus(sourceChannelId: number, targetChannelId: number): Promise<AutoSyncStatus> {
+    const res = await fetch(
+      `${API_BASE_URL}/channels/${sourceChannelId}/auto-sync-status?target_channel_id=${targetChannelId}`
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to fetch auto-sync status: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async toggleAutoSync(payload: {
+    source_channel_id: number;
+    target_channel_id: number;
+    is_active: boolean;
+    source_title?: string;
+    target_title?: string;
+    source_account_id?: number;
+    target_account_id?: number;
+  }): Promise<AutoSyncBinding> {
+    const res = await fetch(`${API_BASE_URL}/channels/auto-sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to toggle auto-sync: ${res.statusText}`);
     }
     return res.json();
   },

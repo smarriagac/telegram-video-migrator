@@ -94,3 +94,46 @@ async def test_migrated_item_tracking_and_idempotency(repo: SQLiteJobRepository)
 
     assert await repo.is_item_migrated("job-104", source_msg_id=123)
     assert not await repo.is_item_migrated("job-104", source_msg_id=124)
+
+
+@pytest.mark.asyncio
+async def test_sync_binding_lifecycle(repo: SQLiteJobRepository):
+    from backend.domain.entities.sync_binding import ChannelSyncBinding
+
+    binding = ChannelSyncBinding(
+        source_channel_id=-100111,
+        target_channel_id=-100222,
+        source_channel_title="Source",
+        target_channel_title="Target",
+        source_account_id=1,
+        target_account_id=1,
+        is_active=True,
+        last_synced_message_id=50,
+    )
+
+    saved = await repo.save_sync_binding(binding)
+    assert saved.is_active is True
+
+    fetched = await repo.get_sync_binding(-100111, -100222)
+    assert fetched is not None
+    assert fetched.source_channel_title == "Source"
+    assert fetched.last_synced_message_id == 50
+
+    active_list = await repo.get_active_sync_bindings()
+    assert len(active_list) == 1
+    assert active_list[0].source_channel_id == -100111
+
+    # Update active status
+    binding.is_active = False
+    await repo.save_sync_binding(binding)
+    active_list = await repo.get_active_sync_bindings()
+    assert len(active_list) == 0
+
+    all_list = await repo.list_sync_bindings()
+    assert len(all_list) == 1
+
+    # Delete
+    deleted = await repo.delete_sync_binding(-100111, -100222)
+    assert deleted is True
+    assert await repo.get_sync_binding(-100111, -100222) is None
+

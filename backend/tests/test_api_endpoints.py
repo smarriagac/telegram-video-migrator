@@ -67,3 +67,48 @@ async def test_create_and_get_job_endpoint():
         assert "job_id" in qdata
         assert "stats" in qdata
         assert "items" in qdata
+
+
+@pytest.mark.asyncio
+async def test_auto_sync_api_endpoints():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        src = -100555
+        tgt = -100666
+
+        # Initially inactive / not found
+        status_res = await client.get(f"/api/channels/{src}/auto-sync-status?target_channel_id={tgt}")
+        assert status_res.status_code == 200
+        assert status_res.json()["is_active"] is False
+
+        # Toggle on
+        payload = {
+            "source_channel_id": src,
+            "target_channel_id": tgt,
+            "is_active": True,
+            "source_title": "Source Test",
+            "target_title": "Target Test",
+        }
+        toggle_res = await client.post("/api/channels/auto-sync", json=payload)
+        assert toggle_res.status_code == 200
+        assert toggle_res.json()["is_active"] is True
+        assert toggle_res.json()["source_channel_title"] == "Source Test"
+
+        # Check status again
+        status_res = await client.get(f"/api/channels/{src}/auto-sync-status?target_channel_id={tgt}")
+        assert status_res.status_code == 200
+        assert status_res.json()["is_active"] is True
+        assert status_res.json()["binding"]["source_channel_title"] == "Source Test"
+
+        # List all
+        list_res = await client.get("/api/channels/auto-sync")
+        assert list_res.status_code == 200
+        bindings = list_res.json()
+        assert any(b["source_channel_id"] == src for b in bindings)
+
+        # Toggle off
+        payload["is_active"] = False
+        toggle_off_res = await client.post("/api/channels/auto-sync", json=payload)
+        assert toggle_off_res.status_code == 200
+        assert toggle_off_res.json()["is_active"] is False
+

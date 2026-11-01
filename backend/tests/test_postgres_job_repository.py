@@ -13,12 +13,14 @@ async def repo():
     await repository.initialize_schema()
     if repository.pool:
         async with repository.pool.acquire() as conn:
+            await conn.execute("DELETE FROM channel_sync_bindings WHERE source_channel_id < -900000;")
             await conn.execute("DELETE FROM migration_queue WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_items WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_jobs WHERE id LIKE 'pg-test-%';")
     yield repository
     if repository.pool:
         async with repository.pool.acquire() as conn:
+            await conn.execute("DELETE FROM channel_sync_bindings WHERE source_channel_id < -900000;")
             await conn.execute("DELETE FROM migration_queue WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_items WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_jobs WHERE id LIKE 'pg-test-%';")
@@ -141,3 +143,46 @@ async def test_postgres_queue_lifecycle(repo: PostgresJobRepository):
 
     all_items = await repo.get_queue_items(job_id)
     assert len(all_items) == 3
+
+
+@pytest.mark.asyncio
+async def test_postgres_sync_binding_lifecycle(repo: PostgresJobRepository):
+    from backend.domain.entities.sync_binding import ChannelSyncBinding
+
+    src_id = -999001
+    tgt_id = -999002
+
+    binding = ChannelSyncBinding(
+        source_channel_id=src_id,
+        target_channel_id=tgt_id,
+        source_channel_title="PG Source",
+        target_channel_title="PG Target",
+        source_account_id=1,
+        target_account_id=1,
+        is_active=True,
+        last_synced_message_id=10,
+    )
+
+    saved = await repo.save_sync_binding(binding)
+    assert saved.is_active is True
+
+    fetched = await repo.get_sync_binding(src_id, tgt_id)
+    assert fetched is not None
+    assert fetched.source_channel_title == "PG Source"
+    assert fetched.last_synced_message_id == 10
+
+    active_list = await repo.get_active_sync_bindings()
+    assert any(b.source_channel_id == src_id for b in active_list)
+
+    binding.is_active = False
+    await repo.save_sync_binding(binding)
+    active_after = await repo.get_active_sync_bindings()
+    assert not any(b.source_channel_id == src_id for b in active_after)
+
+    all_list = await repo.list_sync_bindings()
+    assert any(b.source_channel_id == src_id for b in all_list)
+
+    deleted = await repo.delete_sync_binding(src_id, tgt_id)
+    assert deleted is True
+    assert await repo.get_sync_binding(src_id, tgt_id) is None
+

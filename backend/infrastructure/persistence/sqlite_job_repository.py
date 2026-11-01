@@ -7,6 +7,7 @@ import aiosqlite
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
+from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 
 
@@ -104,6 +105,21 @@ class SQLiteJobRepository(JobRepositoryPort):
             """)
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_queue_job_status ON migration_queue(job_id, status);
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS channel_sync_bindings (
+                    source_channel_id INTEGER NOT NULL,
+                    target_channel_id INTEGER NOT NULL,
+                    source_channel_title TEXT,
+                    target_channel_title TEXT,
+                    source_account_id INTEGER,
+                    target_account_id INTEGER,
+                    is_active BOOLEAN NOT NULL DEFAULT 1,
+                    last_synced_message_id INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (source_channel_id, target_channel_id)
+                );
             """)
             await conn.commit()
             self._initialized = True
@@ -521,6 +537,149 @@ class SQLiteJobRepository(JobRepositoryPort):
             ) as cursor:
                 rows = await cursor.fetchall()
                 return {int(r[0]) for r in rows}
+
+    async def save_sync_binding(self, binding: ChannelSyncBinding) -> ChannelSyncBinding:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO channel_sync_bindings (
+                    source_channel_id, target_channel_id,
+                    source_channel_title, target_channel_title,
+                    source_account_id, target_account_id,
+                    is_active, last_synced_message_id, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
+                    source_channel_title = excluded.source_channel_title,
+                    target_channel_title = excluded.target_channel_title,
+                    source_account_id = excluded.source_account_id,
+                    target_account_id = excluded.target_account_id,
+                    is_active = excluded.is_active,
+                    last_synced_message_id = excluded.last_synced_message_id,
+                    updated_at = CURRENT_TIMESTAMP;
+                """,
+                (
+                    binding.source_channel_id,
+                    binding.target_channel_id,
+                    binding.source_channel_title,
+                    binding.target_channel_title,
+                    binding.source_account_id,
+                    binding.target_account_id,
+                    1 if binding.is_active else 0,
+                    binding.last_synced_message_id,
+                ),
+            )
+            await conn.commit()
+        return binding
+
+    async def get_sync_binding(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> ChannelSyncBinding | None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT source_channel_id, target_channel_id,
+                       source_channel_title, target_channel_title,
+                       source_account_id, target_account_id,
+                       is_active, last_synced_message_id, created_at, updated_at
+                FROM channel_sync_bindings
+                WHERE source_channel_id = ? AND target_channel_id = ?
+                LIMIT 1;
+                """,
+                (source_channel_id, target_channel_id),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return None
+                return ChannelSyncBinding(
+                    source_channel_id=int(row[0]),
+                    target_channel_id=int(row[1]),
+                    source_channel_title=row[2],
+                    target_channel_title=row[3],
+                    source_account_id=row[4],
+                    target_account_id=row[5],
+                    is_active=bool(row[6]),
+                    last_synced_message_id=int(row[7]),
+                    created_at=str(row[8]) if row[8] else None,
+                    updated_at=str(row[9]) if row[9] else None,
+                )
+
+    async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT source_channel_id, target_channel_id,
+                       source_channel_title, target_channel_title,
+                       source_account_id, target_account_id,
+                       is_active, last_synced_message_id, created_at, updated_at
+                FROM channel_sync_bindings
+                WHERE is_active = 1
+                ORDER BY updated_at DESC;
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    ChannelSyncBinding(
+                        source_channel_id=int(r[0]),
+                        target_channel_id=int(r[1]),
+                        source_channel_title=r[2],
+                        target_channel_title=r[3],
+                        source_account_id=r[4],
+                        target_account_id=r[5],
+                        is_active=bool(r[6]),
+                        last_synced_message_id=int(r[7]),
+                        created_at=str(r[8]) if r[8] else None,
+                        updated_at=str(r[9]) if r[9] else None,
+                    )
+                    for r in rows
+                ]
+
+    async def list_sync_bindings(self) -> list[ChannelSyncBinding]:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT source_channel_id, target_channel_id,
+                       source_channel_title, target_channel_title,
+                       source_account_id, target_account_id,
+                       is_active, last_synced_message_id, created_at, updated_at
+                FROM channel_sync_bindings
+                ORDER BY updated_at DESC;
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    ChannelSyncBinding(
+                        source_channel_id=int(r[0]),
+                        target_channel_id=int(r[1]),
+                        source_channel_title=r[2],
+                        target_channel_title=r[3],
+                        source_account_id=r[4],
+                        target_account_id=r[5],
+                        is_active=bool(r[6]),
+                        last_synced_message_id=int(r[7]),
+                        created_at=str(r[8]) if r[8] else None,
+                        updated_at=str(r[9]) if r[9] else None,
+                    )
+                    for r in rows
+                ]
+
+    async def delete_sync_binding(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                DELETE FROM channel_sync_bindings
+                WHERE source_channel_id = ? AND target_channel_id = ?;
+                """,
+                (source_channel_id, target_channel_id),
+            )
+            await conn.commit()
+            return True
 
     async def close(self) -> None:
         if self._shared_mem_conn is not None:

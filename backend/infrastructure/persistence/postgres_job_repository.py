@@ -8,6 +8,7 @@ import asyncpg
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
+from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
 
@@ -100,6 +101,20 @@ class PostgresJobRepository(JobRepositoryPort):
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_pg_queue_job_status ON migration_queue(job_id, status);
+
+                CREATE TABLE IF NOT EXISTS channel_sync_bindings (
+                    source_channel_id BIGINT NOT NULL,
+                    target_channel_id BIGINT NOT NULL,
+                    source_channel_title VARCHAR(255),
+                    target_channel_title VARCHAR(255),
+                    source_account_id BIGINT,
+                    target_account_id BIGINT,
+                    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                    last_synced_message_id BIGINT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    PRIMARY KEY (source_channel_id, target_channel_id)
+                );
             """)
         self._initialized = True
 
@@ -592,6 +607,168 @@ class PostgresJobRepository(JobRepositoryPort):
                 target_channel_id,
             )
             return {int(r["source_message_id"]) for r in rows}
+
+    async def save_sync_binding(self, binding: ChannelSyncBinding) -> ChannelSyncBinding:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.save_sync_binding(binding)
+            return binding
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO channel_sync_bindings (
+                    source_channel_id, target_channel_id,
+                    source_channel_title, target_channel_title,
+                    source_account_id, target_account_id,
+                    is_active, last_synced_message_id, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+                ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
+                    source_channel_title = EXCLUDED.source_channel_title,
+                    target_channel_title = EXCLUDED.target_channel_title,
+                    source_account_id = EXCLUDED.source_account_id,
+                    target_account_id = EXCLUDED.target_account_id,
+                    is_active = EXCLUDED.is_active,
+                    last_synced_message_id = EXCLUDED.last_synced_message_id,
+                    updated_at = NOW();
+                """,
+                binding.source_channel_id,
+                binding.target_channel_id,
+                binding.source_channel_title,
+                binding.target_channel_title,
+                binding.source_account_id,
+                binding.target_account_id,
+                binding.is_active,
+                binding.last_synced_message_id,
+            )
+            return binding
+
+    async def get_sync_binding(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> ChannelSyncBinding | None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.get_sync_binding(source_channel_id, target_channel_id)
+            return None
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT source_channel_id, target_channel_id,
+                       source_channel_title, target_channel_title,
+                       source_account_id, target_account_id,
+                       is_active, last_synced_message_id, created_at, updated_at
+                FROM channel_sync_bindings
+                WHERE source_channel_id = $1 AND target_channel_id = $2;
+                """,
+                source_channel_id,
+                target_channel_id,
+            )
+            if not row:
+                return None
+            return ChannelSyncBinding(
+                source_channel_id=int(row["source_channel_id"]),
+                target_channel_id=int(row["target_channel_id"]),
+                source_channel_title=row["source_channel_title"],
+                target_channel_title=row["target_channel_title"],
+                source_account_id=row["source_account_id"],
+                target_account_id=row["target_account_id"],
+                is_active=bool(row["is_active"]),
+                last_synced_message_id=int(row["last_synced_message_id"]),
+                created_at=str(row["created_at"]) if row["created_at"] else None,
+                updated_at=str(row["updated_at"]) if row["updated_at"] else None,
+            )
+
+    async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.get_active_sync_bindings()
+            return []
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT source_channel_id, target_channel_id,
+                       source_channel_title, target_channel_title,
+                       source_account_id, target_account_id,
+                       is_active, last_synced_message_id, created_at, updated_at
+                FROM channel_sync_bindings
+                WHERE is_active = TRUE
+                ORDER BY updated_at DESC;
+                """
+            )
+            return [
+                ChannelSyncBinding(
+                    source_channel_id=int(r["source_channel_id"]),
+                    target_channel_id=int(r["target_channel_id"]),
+                    source_channel_title=r["source_channel_title"],
+                    target_channel_title=r["target_channel_title"],
+                    source_account_id=r["source_account_id"],
+                    target_account_id=r["target_account_id"],
+                    is_active=bool(r["is_active"]),
+                    last_synced_message_id=int(r["last_synced_message_id"]),
+                    created_at=str(r["created_at"]) if r["created_at"] else None,
+                    updated_at=str(r["updated_at"]) if r["updated_at"] else None,
+                )
+                for r in rows
+            ]
+
+    async def list_sync_bindings(self) -> list[ChannelSyncBinding]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.list_sync_bindings()
+            return []
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT source_channel_id, target_channel_id,
+                       source_channel_title, target_channel_title,
+                       source_account_id, target_account_id,
+                       is_active, last_synced_message_id, created_at, updated_at
+                FROM channel_sync_bindings
+                ORDER BY updated_at DESC;
+                """
+            )
+            return [
+                ChannelSyncBinding(
+                    source_channel_id=int(r["source_channel_id"]),
+                    target_channel_id=int(r["target_channel_id"]),
+                    source_channel_title=r["source_channel_title"],
+                    target_channel_title=r["target_channel_title"],
+                    source_account_id=r["source_account_id"],
+                    target_account_id=r["target_account_id"],
+                    is_active=bool(r["is_active"]),
+                    last_synced_message_id=int(r["last_synced_message_id"]),
+                    created_at=str(r["created_at"]) if r["created_at"] else None,
+                    updated_at=str(r["updated_at"]) if r["updated_at"] else None,
+                )
+                for r in rows
+            ]
+
+    async def delete_sync_binding(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.delete_sync_binding(source_channel_id, target_channel_id)
+            return True
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                DELETE FROM channel_sync_bindings
+                WHERE source_channel_id = $1 AND target_channel_id = $2;
+                """,
+                source_channel_id,
+                target_channel_id,
+            )
+            return True
 
     async def close(self) -> None:
         if self.pool is not None:

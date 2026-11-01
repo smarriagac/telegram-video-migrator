@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  AutoSyncStatus,
   Channel,
   ChannelCloningHistory,
   ChannelMessageItem,
@@ -27,6 +28,8 @@ interface MigrationStore {
   syncStatus: ChannelSyncStatus | null;
   isCheckingSync: boolean;
   isSyncingDelta: boolean;
+  autoSyncStatus: AutoSyncStatus | null;
+  isLoadingAutoSync: boolean;
   queueStatus: JobQueueStatus | null;
   activeJob: MigrationJob | null;
   progress: ProgressEventPayload | null;
@@ -40,6 +43,8 @@ interface MigrationStore {
   selectSource: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
   checkSyncStatus: () => Promise<void>;
+  fetchAutoSyncStatus: () => Promise<void>;
+  toggleAutoSync: (enabled: boolean) => Promise<void>;
   startDeltaSync: () => Promise<string | null>;
   selectOnlyMissingMessages: () => void;
   fetchSourceMessages: (channelId: number) => Promise<void>;
@@ -74,6 +79,8 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   syncStatus: null,
   isCheckingSync: false,
   isSyncingDelta: false,
+  autoSyncStatus: null,
+  isLoadingAutoSync: false,
   queueStatus: null,
   activeJob: null,
   progress: null,
@@ -93,6 +100,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         get().fetchChannelCloningHistory(channels[0].id);
         get().fetchChannelClonedContent(channels[0].id);
         get().checkSyncStatus();
+        get().fetchAutoSyncStatus();
       }
     } catch (err: any) {
       set({
@@ -111,6 +119,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       channelCloningHistory: null,
       clonedContentItems: [],
       syncStatus: null,
+      autoSyncStatus: null,
     });
     if (id) {
       get().fetchSourceMessages(id);
@@ -118,6 +127,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       get().fetchChannelClonedContent(id);
       if (get().selectedTargetId && get().selectedTargetId !== id) {
         get().checkSyncStatus();
+        get().fetchAutoSyncStatus();
       }
     } else {
       set({
@@ -128,16 +138,18 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         channelCloningHistory: null,
         clonedContentItems: [],
         syncStatus: null,
+        autoSyncStatus: null,
       });
     }
   },
 
   selectTarget: (id) => {
-    set({ selectedTargetId: id, error: null, syncStatus: null });
+    set({ selectedTargetId: id, error: null, syncStatus: null, autoSyncStatus: null });
     const { selectedSourceId } = get();
     if (selectedSourceId && id && selectedSourceId !== id) {
       get().fetchSourceMessages(selectedSourceId);
       get().checkSyncStatus();
+      get().fetchAutoSyncStatus();
     }
   },
 
@@ -153,6 +165,51 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       set({ syncStatus: status, isCheckingSync: false });
     } catch (err: any) {
       set({ isCheckingSync: false });
+    }
+  },
+
+  fetchAutoSyncStatus: async () => {
+    const { selectedSourceId, selectedTargetId } = get();
+    if (!selectedSourceId || !selectedTargetId || selectedSourceId === selectedTargetId) {
+      set({ autoSyncStatus: null, isLoadingAutoSync: false });
+      return;
+    }
+    set({ isLoadingAutoSync: true });
+    try {
+      const status = await migrationApi.getAutoSyncStatus(selectedSourceId, selectedTargetId);
+      set({ autoSyncStatus: status, isLoadingAutoSync: false });
+    } catch {
+      set({ autoSyncStatus: null, isLoadingAutoSync: false });
+    }
+  },
+
+  toggleAutoSync: async (enabled: boolean) => {
+    const { selectedSourceId, selectedTargetId, channels } = get();
+    if (!selectedSourceId || !selectedTargetId) return;
+    set({ isLoadingAutoSync: true });
+    try {
+      const sourceChan = channels.find((c) => c.id === selectedSourceId);
+      const targetChan = channels.find((c) => c.id === selectedTargetId);
+      const res = await migrationApi.toggleAutoSync({
+        source_channel_id: selectedSourceId,
+        target_channel_id: selectedTargetId,
+        is_active: enabled,
+        source_title: sourceChan?.title,
+        target_title: targetChan?.title,
+        source_account_id: sourceChan?.account_id,
+        target_account_id: targetChan?.account_id,
+      });
+      set({
+        autoSyncStatus: { is_active: res.is_active, binding: res },
+        isLoadingAutoSync: false,
+      });
+      get().addLog(
+        `Auto-Sync en vivo ${enabled ? "ACTIVADO" : "DESACTIVADO"} para ${sourceChan?.title || selectedSourceId} -> ${targetChan?.title || selectedTargetId}`,
+        "info"
+      );
+    } catch (err: any) {
+      set({ isLoadingAutoSync: false, error: err.message });
+      get().addLog(`Error al modificar Auto-Sync: ${err.message}`, "error");
     }
   },
 

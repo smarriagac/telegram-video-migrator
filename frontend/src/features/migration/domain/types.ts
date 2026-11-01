@@ -133,3 +133,22 @@ export interface ChannelSyncStatus {
   missing_messages: ChannelMessageItem[];
 }
 
+export interface AutoSyncBinding {
+  source_channel_id: number;
+  target_channel_id: number;
+  source_channel_title: string | null;
+  target_channel_title: string | null;
+  source_account_id?: number;
+  target_account_id?: number;
+  is_active: boolean;
+  last_synced_message_id: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AutoSyncStatus {
+  is_active: boolean;
+  binding: AutoSyncBinding | null;
+}
+
+
