@@ -118,6 +118,13 @@ async def test_dialogs_api_endpoints():
         assert thumb_res.status_code == 200
         assert len(thumb_res.content) > 0
 
+        # Test GET /api/dialogs/{chat_id}/messages/{message_id}/video
+        video_res = await client.get(
+            f"/api/dialogs/{chat_id}/messages/{uploaded_msg['id']}/video",
+            headers={"Range": "bytes=0-100"},
+        )
+        assert video_res.status_code in [200, 206, 404]
+
         # Test DELETE /api/dialogs/{chat_id}/messages/{message_id}
         del_res = await client.delete(
             f"/api/dialogs/{chat_id}/messages/{created_msg['id']}",

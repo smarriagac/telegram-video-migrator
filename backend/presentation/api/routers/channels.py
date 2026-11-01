@@ -7,7 +7,8 @@ from pathlib import Path
 import tempfile
 from typing import Any
 import uuid
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.application.broadcaster import EventBroadcaster
@@ -254,6 +255,76 @@ async def get_message_thumbnail_endpoint(
         media_type="image/jpeg",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@router.get("/{channel_id}/messages/{message_id}/video")
+async def get_message_video_endpoint(
+    channel_id: int,
+    message_id: int,
+    request: Request,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> Response:
+    """Stream video media directly from Telegram MTProto with HTTP Range support."""
+    try:
+        media_info = await gateway.get_message_media_for_streaming(
+            channel_id=channel_id, message_id=message_id, repo=repo, account_id=account_id
+        )
+        if not media_info:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video no encontrado en este mensaje.",
+            )
+
+        client, media, file_size, mime_type = media_info
+        if file_size <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El archivo multimedia no es reproducible o está vacío.",
+            )
+
+        range_header = request.headers.get("range")
+        start = 0
+        end = file_size - 1
+        status_code = status.HTTP_200_OK
+
+        if range_header:
+            try:
+                range_val = range_header.replace("bytes=", "").strip()
+                parts = range_val.split("-")
+                if parts[0].strip():
+                    start = int(parts[0].strip())
+                if len(parts) > 1 and parts[1].strip():
+                    end = min(int(parts[1].strip()), file_size - 1)
+                status_code = status.HTTP_206_PARTIAL_CONTENT
+            except Exception:
+                start = 0
+                end = file_size - 1
+                status_code = status.HTTP_200_OK
+
+        content_length = (end - start) + 1
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(content_length),
+            "Content-Type": mime_type,
+            "Cache-Control": "public, max-age=86400",
+        }
+
+        return StreamingResponse(
+            gateway.stream_media_range(client=client, media=media, start=start, length=content_length),
+            status_code=status_code,
+            headers=headers,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error streaming video for msg {message_id} in channel {channel_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al transmitir video MTProto: {str(e)}",
+        )
 
 
 class JobHistorySummaryResponse(BaseModel):

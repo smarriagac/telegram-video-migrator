@@ -772,12 +772,23 @@ export const MessageSelector: React.FC = () => {
 
               {/* Media Preview Box (Full uncropped contain) */}
               <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
-                <MessageThumbnailImage
-                  channelId={selectedSourceId}
-                  messageId={previewModalMsg.id}
-                  mediaType={previewModalMsg.media_type}
-                  fit="contain"
-                />
+                {previewModalMsg.media_type === "video" ? (
+                  <video
+                    src={`/api/channels/${selectedSourceId}/messages/${previewModalMsg.id}/video`}
+                    poster={`/api/channels/${selectedSourceId}/messages/${previewModalMsg.id}/thumbnail`}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-h-[55vh] w-auto max-w-full object-contain rounded-lg"
+                  />
+                ) : (
+                  <MessageThumbnailImage
+                    channelId={selectedSourceId}
+                    messageId={previewModalMsg.id}
+                    mediaType={previewModalMsg.media_type}
+                    fit="contain"
+                  />
+                )}
               </div>
 
               {/* Caption / Description */}

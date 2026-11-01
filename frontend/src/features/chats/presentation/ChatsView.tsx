@@ -21,6 +21,7 @@ import {
   Check,
   Play,
   Lock,
+  Maximize2,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -45,10 +46,117 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [isPlayingInline, setIsPlayingInline] = useState(false);
 
   const thumbUrl = `/api/dialogs/${chatId}/messages/${messageId}/thumbnail${
     accountId ? `?account_id=${accountId}` : ""
   }`;
+
+  const videoUrl = `/api/dialogs/${chatId}/messages/${messageId}/video${
+    accountId ? `?account_id=${accountId}` : ""
+  }`;
+
+  // If playing inline, render HTML5 video player inside the chat bubble
+  if (mediaType === "video" && isPlayingInline) {
+    return (
+      <div className="relative mb-2 rounded-lg overflow-hidden bg-black border border-white/10 max-w-sm shadow-xl group/video">
+        <video
+          src={videoUrl}
+          poster={thumbUrl}
+          controls
+          autoPlay
+          playsInline
+          className="w-full max-h-80 object-contain bg-black rounded-lg"
+        />
+        {/* Top-right overlay actions: expand to modal or close inline */}
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/70 backdrop-blur-md rounded-md p-0.5 border border-white/10 z-10">
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            title="Ampliar video (Pantalla completa / modal)"
+            className="p-1 hover:text-cyan-400 text-zinc-300 transition-colors"
+          >
+            <Maximize2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsPlayingInline(false)}
+            title="Detener reproducción inline"
+            className="p-1 hover:text-red-400 text-zinc-300 transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Modal if user clicks expand while playing inline */}
+        {showModal &&
+          createPortal(
+            <div
+              className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+              onClick={() => setShowModal(false)}
+            >
+              <div
+                className="bg-[#14161F] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-white font-mono">
+                      Mensaje #{messageId}
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                      Video
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Video Player in Modal */}
+                <div className="relative w-full min-h-[320px] max-h-[65vh] rounded-xl overflow-hidden bg-black border border-white/10 flex items-center justify-center">
+                  <video
+                    src={videoUrl}
+                    poster={thumbUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg"
+                  />
+                </div>
+
+                {text && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                      Texto / Descripción:
+                    </span>
+                    <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                      {text}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowModal(false)}
+                    className="h-8 text-xs px-4 bg-zinc-900 border-white/10 hover:bg-white/5"
+                  >
+                    Cerrar
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+      </div>
+    );
+  }
 
   return (
     <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
@@ -85,7 +193,13 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setHasError(true)}
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            if (mediaType === "video") {
+              setIsPlayingInline(true);
+            } else {
+              setShowModal(true);
+            }
+          }}
         />
       )}
 
@@ -104,19 +218,39 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
         )}
       </div>
 
-      {/* Centered Play Button for Videos when loaded */}
-      {mediaType === "video" && loaded && !hasError && (
-        <div
-          onClick={() => setShowModal(true)}
-          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+      {/* Top right Expand Button overlay */}
+      {loaded && !hasError && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowModal(true);
+          }}
+          title="Ver en pantalla completa / modal"
+          className="absolute top-2 right-2 p-1 rounded bg-black/70 backdrop-blur-md text-zinc-300 hover:text-cyan-400 border border-white/10 opacity-0 group-hover/preview:opacity-100 transition-opacity"
         >
-          <div className="w-11 h-11 rounded-full bg-cyan-500/90 backdrop-blur-sm flex items-center justify-center shadow-xl group-hover/preview:scale-110 transition-transform">
-            <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-          </div>
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+
+      {/* Centered Telegram-style Circular Play Button for Videos when loaded */}
+      {mediaType === "video" && loaded && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsPlayingInline(true);
+            }}
+            title="Reproducir video inline"
+            className="w-12 h-12 rounded-full bg-cyan-500/90 hover:bg-cyan-400 text-black shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
+          >
+            <Play className="w-5 h-5 fill-black ml-0.5" />
+          </button>
         </div>
       )}
 
-      {/* Lightbox Modal (Full image uncropped preview) */}
+      {/* Lightbox Modal (Full image uncropped preview or Video Player) */}
       {showModal &&
         createPortal(
           <div
@@ -124,7 +258,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
             onClick={() => setShowModal(false)}
           >
             <div
-              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
@@ -145,13 +279,24 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
                 </button>
               </div>
 
-              {/* Full uncropped image contain */}
+              {/* Full Media Contain: Video Player or Image */}
               <div className="relative w-full min-h-[300px] max-h-[65vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
-                <img
-                  src={thumbUrl}
-                  alt="Vista previa completa"
-                  className="max-h-[65vh] w-auto max-w-full object-contain"
-                />
+                {mediaType === "video" ? (
+                  <video
+                    src={videoUrl}
+                    poster={thumbUrl}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg"
+                  />
+                ) : (
+                  <img
+                    src={thumbUrl}
+                    alt="Vista previa completa"
+                    className="max-h-[65vh] w-auto max-w-full object-contain"
+                  />
+                )}
               </div>
 
               {text && (

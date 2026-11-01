@@ -32,6 +32,19 @@ class TelegramGatewayPort(ABC):
         """Retrieve small image thumbnail for a specific channel message."""
         raise NotImplementedError
 
+    async def get_message_media_for_streaming(
+        self, channel_id: int, message_id: int, repo: Any = None, account_id: int | None = None
+    ) -> tuple[Any, Any, int, str] | None:
+        """Fetch client, media object, file size, and mime type for video streaming."""
+        return None
+
+    async def stream_media_range(
+        self, client: Any, media: Any, start: int, length: int, chunk_size: int = 256 * 1024
+    ):
+        """Asynchronously stream chunks of bytes for a media object starting at offset."""
+        if False:
+            yield b""
+
     @abstractmethod
     async def fetch_channel_videos(
         self, channel_id: int, after_message_id: int | None = None, account_id: int | None = None

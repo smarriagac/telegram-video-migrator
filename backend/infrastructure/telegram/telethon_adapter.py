@@ -251,6 +251,62 @@ class TelethonAdapter(TelegramGatewayPort):
             logger.warning(f"Could not load thumbnail for msg #{message_id} in channel {channel_id}: {e}")
             return None
 
+    async def get_message_media_for_streaming(
+        self, channel_id: int, message_id: int, repo: Any = None, account_id: int | None = None
+    ) -> tuple[TelegramClient, Any, int, str] | None:
+        """Fetch client, media object, file size and mime_type for video streaming with provenance fallback."""
+        try:
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            try:
+                entity = await client.get_input_entity(channel_id)
+            except Exception:
+                entity = await client.get_entity(channel_id)
+
+            msg = await client.get_messages(entity, ids=message_id)
+            media = None
+            if msg and msg.media:
+                media = getattr(msg, "video", None) or getattr(msg, "document", None) or msg.media
+
+            if not media and repo is not None and hasattr(repo, "get_source_item_for_target"):
+                source_info = await repo.get_source_item_for_target(channel_id, message_id)
+                if source_info:
+                    src_chan_id, src_msg_id = source_info
+                    try:
+                        src_entity = await client.get_input_entity(src_chan_id)
+                    except Exception:
+                        src_entity = await client.get_entity(src_chan_id)
+                    src_msg = await client.get_messages(src_entity, ids=src_msg_id)
+                    if src_msg and src_msg.media:
+                        media = getattr(src_msg, "video", None) or getattr(src_msg, "document", None) or src_msg.media
+
+            if not media:
+                return None
+
+            file_size = getattr(media, "size", 0)
+            mime_type = getattr(media, "mime_type", "video/mp4") or "video/mp4"
+            return client, media, file_size, mime_type
+        except Exception as e:
+            logger.warning(f"Error fetching media for streaming in chat {channel_id} msg {message_id}: {e}")
+            return None
+
+    @staticmethod
+    async def stream_media_range(
+        client: TelegramClient, media: Any, start: int, length: int, chunk_size: int = 256 * 1024
+    ):
+        """Asynchronously stream chunks of bytes for a media object starting at offset."""
+        bytes_sent = 0
+        async for chunk in client.iter_download(media, offset=start, request_size=chunk_size):
+            remaining = length - bytes_sent
+            if remaining <= 0:
+                break
+            if len(chunk) > remaining:
+                yield chunk[:remaining]
+                bytes_sent += remaining
+                break
+            yield chunk
+            bytes_sent += len(chunk)
+
     async def fetch_channel_videos(
         self, channel_id: int, after_message_id: int | None = None, account_id: int | None = None
     ) -> list[VideoMessage]:
