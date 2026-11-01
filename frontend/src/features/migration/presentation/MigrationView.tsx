@@ -31,7 +31,7 @@ export const MigrationView: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto space-y-4 pb-6">
+    <div className="w-full max-w-[1900px] px-3 sm:px-4 lg:px-6 mx-auto space-y-4 pb-6">
       {/* Top Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/5 pb-3">
         <div>
@@ -80,10 +80,10 @@ export const MigrationView: React.FC = () => {
         </div>
       )}
 
-      {/* 2-Panel Split Layout (Wireframe: Col 2 'migrar canal' + Col 3 'mensajes/videos/imagenes') */}
+      {/* 2-Panel Split Layout (Optimized: Col 2 'Control Panel' + Col 3 'Media Selector Canvas') */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Column 2: Migration Control Panel (De -> Para + Actions + Progress) */}
-        <div className="lg:col-span-4 xl:col-span-4 w-full">
+        <div className="lg:col-span-4 xl:col-span-3 w-full">
           <MigrationControlPanel
             onOpenConfirm={() => setIsConfirmOpen(true)}
             filterQuery={searchFilter}
@@ -91,7 +91,7 @@ export const MigrationView: React.FC = () => {
         </div>
 
         {/* Column 3: Media Gallery & Selector Canvas */}
-        <div className="lg:col-span-8 xl:col-span-8 w-full min-w-0">
+        <div className="lg:col-span-8 xl:col-span-9 w-full min-w-0">
           <MessageSelector />
         </div>
       </div>

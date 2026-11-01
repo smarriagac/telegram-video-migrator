@@ -4,7 +4,6 @@ import {
   CheckSquare,
   Eye,
   FileText,
-  Filter,
   Grid,
   Image as ImageIcon,
   List,
@@ -431,71 +430,79 @@ export const MessageSelector: React.FC = () => {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center gap-2.5 justify-between">
-        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-0.5">
+      <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-2.5 justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Sync Status Filter Group */}
           {selectedTargetId && (
-            <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
+            <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5">
               <button
+                type="button"
                 onClick={() => setFilterState((prev) => ({ ...prev, sync: "all" }))}
-                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all ${
                   filterState.sync === "all"
-                    ? "bg-zinc-700 text-white font-semibold"
+                    ? "bg-zinc-800 text-white font-semibold shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200"
                 }`}
               >
                 Todos
               </button>
               <button
+                type="button"
                 onClick={() => setFilterState((prev) => ({ ...prev, sync: "missing" }))}
-                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center gap-1.5 ${
                   filterState.sync === "missing"
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold"
-                    : "text-amber-400/70 hover:text-amber-300"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold shadow-sm"
+                    : "text-amber-400/80 hover:text-amber-300"
                 }`}
               >
                 <span>★ Novedades</span>
-                <span className="text-[9px] opacity-80">({syncCounts.missing})</span>
+                <span className="text-[10px] px-1 rounded bg-amber-500/10 font-bold">{syncCounts.missing}</span>
               </button>
               <button
+                type="button"
                 onClick={() => setFilterState((prev) => ({ ...prev, sync: "cloned" }))}
-                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center gap-1.5 ${
                   filterState.sync === "cloned"
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold"
-                    : "text-emerald-400/70 hover:text-emerald-300"
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold shadow-sm"
+                    : "text-emerald-400/80 hover:text-emerald-300"
                 }`}
               >
                 <span>✓ Clonados</span>
-                <span className="text-[9px] opacity-80">({syncCounts.cloned})</span>
+                <span className="text-[10px] px-1 rounded bg-emerald-500/10 font-bold">{syncCounts.cloned}</span>
               </button>
             </div>
           )}
 
-          <span className="text-[10px] text-zinc-500 flex items-center mr-1 font-mono">
-            <Filter className="w-3 h-3 mr-1" /> Tipo:
-          </span>
-          {[
-            { id: "all", label: `Todos (${countsByType.all})` },
-            { id: "video", label: `Videos (${countsByType.video})` },
-            { id: "photo", label: `Fotos (${countsByType.photo})` },
-            { id: "document", label: `Archivos (${countsByType.document})` },
-            { id: "text", label: `Texto (${countsByType.text})` },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setFilterState((prev) => ({ ...prev, type: item.id }))}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all whitespace-nowrap ${
-                filterState.type === item.id
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "bg-zinc-900/80 border border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+          {/* Type filters */}
+          <div className="flex flex-wrap items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5">
+            {[
+              { id: "all", label: "Todos", count: countsByType.all },
+              { id: "video", label: "Videos", count: countsByType.video },
+              { id: "photo", label: "Fotos", count: countsByType.photo },
+              { id: "document", label: "Archivos", count: countsByType.document },
+              { id: "text", label: "Texto", count: countsByType.text },
+            ].map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                onClick={() => setFilterState((prev) => ({ ...prev, type: item.id }))}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center gap-1 ${
+                  filterState.type === item.id
+                    ? "bg-cyan-500 text-black font-semibold shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                <span>{item.label}</span>
+                <span className={`text-[10px] opacity-75 ${filterState.type === item.id ? "text-black/80 font-bold" : ""}`}>
+                  ({item.count})
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="relative w-full sm:w-60">
+        {/* Search Input */}
+        <div className="relative w-full xl:w-64 shrink-0">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -518,8 +525,8 @@ export const MessageSelector: React.FC = () => {
           No se encontraron mensajes con los filtros seleccionados.
         </div>
       ) : viewMode === "grid" ? (
-        /* VISUAL GALLERY GRID (4 columns on desktop matching wireframe) */
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[calc(100vh-280px)] min-h-[400px] overflow-y-auto p-1">
+        /* VISUAL GALLERY GRID (Responsive columns taking full advantage of widescreen) */
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 max-h-[calc(100vh-240px)] min-h-[450px] overflow-y-auto p-1">
           {filteredMessages.map((msg) => {
             const isSelected = selectedMessageIds.includes(msg.id);
             const sizeStr = formatBytes(msg.file_size);
