@@ -22,3 +22,12 @@ class AuditRepositoryPort(ABC):
     ) -> list[AuditLog]:
         """Query audit logs with optional filters."""
         raise NotImplementedError
+
+    @abstractmethod
+    async def count_audit_logs(
+        self,
+        action: str | None = None,
+        user_email: str | None = None,
+    ) -> int:
+        """Count total audit logs matching optional filters."""
+        raise NotImplementedError

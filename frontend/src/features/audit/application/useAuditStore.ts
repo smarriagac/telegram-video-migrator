@@ -4,26 +4,61 @@ import { auditApi } from "../infrastructure/auditApi";
 
 interface AuditStore {
   logs: AuditLogItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  currentActionFilter: string | undefined;
   isLoading: boolean;
   error: string | null;
-  fetchLogs: (action?: string) => Promise<void>;
+  fetchLogs: (action?: string, page?: number, pageSize?: number) => Promise<void>;
+  setPage: (page: number) => Promise<void>;
+  setPageSize: (size: number) => Promise<void>;
 }
 
-export const useAuditStore = create<AuditStore>((set) => ({
+export const useAuditStore = create<AuditStore>((set, get) => ({
   logs: [],
+  total: 0,
+  page: 1,
+  pageSize: 25,
+  totalPages: 1,
+  currentActionFilter: undefined,
   isLoading: false,
   error: null,
 
-  fetchLogs: async (action?: string) => {
-    set({ isLoading: true, error: null });
+  fetchLogs: async (action?: string, page?: number, pageSize?: number) => {
+    const p = page ?? get().page;
+    const ps = pageSize ?? get().pageSize;
+    const filter =
+      action !== undefined ? (action === "ALL" ? undefined : action) : get().currentActionFilter;
+
+    set({ isLoading: true, error: null, currentActionFilter: filter });
     try {
-      const logs = await auditApi.fetchAuditLogs({
-        action: action && action !== "ALL" ? action : undefined,
-        limit: 200,
+      const data = await auditApi.fetchAuditLogs({
+        action: filter,
+        page: p,
+        pageSize: ps,
       });
-      set({ logs, isLoading: false });
+      set({
+        logs: data.items,
+        total: data.total,
+        page: data.page,
+        pageSize: data.page_size,
+        totalPages: data.total_pages,
+        isLoading: false,
+      });
     } catch (err: any) {
       set({ error: err.message || "Error al cargar logs", isLoading: false });
     }
+  },
+
+  setPage: async (newPage: number) => {
+    set({ page: newPage });
+    await get().fetchLogs(undefined, newPage);
+  },
+
+  setPageSize: async (newSize: number) => {
+    set({ pageSize: newSize, page: 1 });
+    await get().fetchLogs(undefined, 1, newSize);
   },
 }));

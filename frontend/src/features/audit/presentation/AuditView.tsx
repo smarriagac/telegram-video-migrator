@@ -12,6 +12,8 @@ import {
   Layers,
   Globe,
   Database,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuditStore } from "../application/useAuditStore";
 import { Button } from "@/shared/components/ui/button";
@@ -22,9 +24,15 @@ export const AuditView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   const logs = useAuditStore((state) => state.logs);
+  const total = useAuditStore((state) => state.total);
+  const page = useAuditStore((state) => state.page);
+  const pageSize = useAuditStore((state) => state.pageSize);
+  const totalPages = useAuditStore((state) => state.totalPages);
   const isLoading = useAuditStore((state) => state.isLoading);
   const error = useAuditStore((state) => state.error);
   const fetchLogs = useAuditStore((state) => state.fetchLogs);
+  const setPage = useAuditStore((state) => state.setPage);
+  const setPageSize = useAuditStore((state) => state.setPageSize);
 
   useEffect(() => {
     fetchLogs();
@@ -307,6 +315,58 @@ export const AuditView: React.FC = () => {
               </tbody>
             </table>
           )}
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="p-3 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 bg-black/20 shrink-0">
+          <div className="flex items-center gap-2">
+            <span>Mostrar</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              disabled={isLoading}
+              className="bg-[#0D0E15] border border-white/10 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>por página</span>
+            <span className="text-zinc-600">|</span>
+            <span className="text-zinc-400">
+              Total: <strong className="font-mono text-zinc-200">{total}</strong> eventos
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] text-zinc-400">
+              Página <strong className="text-cyan-400">{page}</strong> de{" "}
+              <strong className="text-zinc-300">{totalPages}</strong>
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page - 1)}
+                disabled={page <= 1 || isLoading}
+                className="h-7 px-2 border-white/10 bg-[#0D0E15] hover:bg-white/5 text-xs text-zinc-300 flex items-center gap-1"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= totalPages || isLoading}
+                className="h-7 px-2 border-white/10 bg-[#0D0E15] hover:bg-white/5 text-xs text-zinc-300 flex items-center gap-1"
+              >
+                Siguiente
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

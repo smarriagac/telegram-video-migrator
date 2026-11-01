@@ -8,3 +8,11 @@ export interface AuditLogItem {
   ip_address: string | null;
   created_at: string | null;
 }
+
+export interface PaginatedAuditLogs {
+  items: AuditLogItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}

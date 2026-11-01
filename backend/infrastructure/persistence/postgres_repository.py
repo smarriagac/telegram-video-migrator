@@ -518,3 +518,30 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
                 )
             return audit_logs
 
+    async def count_audit_logs(
+        self,
+        action: str | None = None,
+        user_email: str | None = None,
+    ) -> int:
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            results = list(self._audit_logs_memory)
+            if action:
+                results = [r for r in results if r.action.lower() == action.lower()]
+            if user_email:
+                results = [r for r in results if r.user_email and user_email.lower() in r.user_email.lower()]
+            return len(results)
+
+        async with self.pool.acquire() as conn:
+            query = "SELECT count(*) FROM audit_logs WHERE 1=1"
+            params: list[Any] = []
+            if action:
+                params.append(action.upper())
+                query += f" AND action = ${len(params)}"
+            if user_email:
+                params.append(f"%{user_email.lower()}%")
+                query += f" AND LOWER(user_email) LIKE ${len(params)}"
+
+            return await conn.fetchval(query, *params)
+
+

@@ -54,8 +54,10 @@ async def test_audit_api_endpoint_rbac_and_logging():
         # 3. Request audit logs as admin
         audit_res = await client.get("/api/audit", headers=headers)
         assert audit_res.status_code == 200
-        logs = audit_res.json()
-        assert isinstance(logs, list)
+        data = audit_res.json()
+        assert "items" in data
+        assert "total" in data
+        logs = data["items"]
 
         # 4. Verify login was audited
         actions = [l["action"] for l in logs]
@@ -64,5 +66,5 @@ async def test_audit_api_endpoint_rbac_and_logging():
         # 5. Filter by action
         filtered_res = await client.get("/api/audit?action=LOGIN", headers=headers)
         assert filtered_res.status_code == 200
-        filtered_logs = filtered_res.json()
-        assert all(l["action"] == "LOGIN" for l in filtered_logs)
+        filtered_data = filtered_res.json()
+        assert all(l["action"] == "LOGIN" for l in filtered_data["items"])
