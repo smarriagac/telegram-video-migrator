@@ -529,21 +529,22 @@ export const MessageSelector: React.FC = () => {
         </div>
       ) : viewMode === "grid" ? (
         /* VISUAL GALLERY GRID (Responsive columns taking full advantage of widescreen) */
-        <div className="flex-1 min-h-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-3 overflow-y-auto p-1 pr-1.5">
-          {filteredMessages.map((msg) => {
-            const isSelected = selectedMessageIds.includes(msg.id);
-            const sizeStr = formatBytes(msg.file_size);
+        <div className="flex-1 min-h-0 overflow-y-auto p-1 pr-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-3">
+            {filteredMessages.map((msg) => {
+              const isSelected = selectedMessageIds.includes(msg.id);
+              const sizeStr = formatBytes(msg.file_size);
 
-            return (
-              <div
-                key={msg.id}
-                onClick={() => toggleSelectMessage(msg.id)}
-                className={`group relative rounded-xl border overflow-hidden cursor-pointer select-none transition-all duration-200 aspect-[4/3] flex flex-col justify-between ${
-                  isSelected
-                    ? "border-cyan-400 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-950/30 scale-[0.99]"
-                    : "border-white/5 hover:border-white/20 bg-zinc-950 hover:shadow-md"
-                }`}
-              >
+              return (
+                <div
+                  key={msg.id}
+                  onClick={() => toggleSelectMessage(msg.id)}
+                  className={`group relative rounded-xl border overflow-hidden cursor-pointer select-none transition-all duration-200 w-full aspect-[4/3] min-h-[140px] flex flex-col justify-between ${
+                    isSelected
+                      ? "border-cyan-400 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-950/30 scale-[0.99]"
+                      : "border-white/5 hover:border-white/20 bg-zinc-950 hover:shadow-md"
+                  }`}
+                >
                 {/* Media Image / Thumbnail */}
                 <div className="absolute inset-0 z-0">
                   <MessageThumbnailImage
@@ -613,6 +614,7 @@ export const MessageSelector: React.FC = () => {
               </div>
             );
           })}
+          </div>
         </div>
       ) : (
         /* COMPACT TABLE / LIST VIEW */
