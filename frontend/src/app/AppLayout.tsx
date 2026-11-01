@@ -4,6 +4,7 @@ import {
   Menu,
   MessageSquare,
   Settings,
+  Sparkles,
   Video,
   X,
   ShieldCheck,
@@ -27,6 +28,11 @@ const NAV_ITEMS: NavItem[] = [
     name: "Clonador de Videos",
     path: "/migration",
     icon: Video,
+  },
+  {
+    name: "Pipeline & Módulos",
+    path: "/pipeline",
+    icon: Sparkles,
   },
   {
     name: "Chats & Mensajes",

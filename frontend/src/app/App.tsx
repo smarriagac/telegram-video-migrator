@@ -4,6 +4,7 @@ import { AppLayout } from "./AppLayout";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { LoginView } from "../features/auth/presentation/LoginView";
 import { MigrationView } from "../features/migration/presentation/MigrationView";
+import { PipelineModulesView } from "../features/migration/presentation/PipelineModulesView";
 import { ChatsView } from "../features/chats/presentation/ChatsView";
 import { SettingsView } from "../features/settings/presentation/SettingsView";
 import { AuditView } from "../features/audit/presentation/AuditView";
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
             <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/migration" replace />} />
               <Route path="/migration" element={<MigrationView />} />
+              <Route path="/pipeline" element={<PipelineModulesView />} />
               <Route path="/chats" element={<ChatsView />} />
               {/* Admin-only route */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>

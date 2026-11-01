@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { NavLink } from "react-router-dom";
 import {
   ArrowDown,
   History,
@@ -289,45 +290,60 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                     </button>
                   </div>
                 )}
-
-                {/* Advanced Pipeline Modules: Caption Rules & Drip Feed Pacing */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setActiveModal("caption_rules")}
-                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition-colors"
-                    title="Configurar limpieza de links, reemplazo de menciones y firmas"
-                  >
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className="truncate">Captions</span>
-                    </div>
-                    {activeRulesCount > 0 ? (
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-medium">
-                        {activeRulesCount} act.
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-zinc-500 font-mono">Off</span>
-                    )}
-                  </button>
-
-                  <div className="relative">
-                    <select
-                      value={dripDelaySeconds}
-                      onChange={(e) => setDripDelaySeconds(Number(e.target.value))}
-                      className="w-full appearance-none px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 focus:outline-none cursor-pointer"
-                      title="Intervalo de publicación (Pacing anti-flood o goteo programado)"
-                    >
-                      <option value={0}>⚡ 2s (Rápido)</option>
-                      <option value={60}>💧 Goteo: 1 min</option>
-                      <option value={300}>💧 Goteo: 5 min</option>
-                      <option value={900}>💧 Goteo: 15 min</option>
-                      <option value={1800}>💧 Goteo: 30 min</option>
-                    </select>
-                  </div>
-                </div>
               </div>
             )}
+          </div>
+
+          {/* Advanced Pipeline Modules: Caption Rules, Drip Feed & Duplicate Guard */}
+          <div className="pt-2 border-t border-zinc-800/80 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 font-semibold">
+                <Sparkles className="w-3 h-3 text-emerald-400" /> Pipeline & Módulos
+              </span>
+              <NavLink
+                to="/pipeline"
+                className="text-[10px] font-mono text-cyan-400 hover:underline flex items-center gap-1"
+                title="Abrir vista completa del pipeline de procesamiento"
+              >
+                Panel completo →
+              </NavLink>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveModal("caption_rules")}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition-colors"
+                title="Configurar limpieza de links, reemplazo de menciones y firmas"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">Captions</span>
+                </div>
+                {activeRulesCount > 0 ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-medium">
+                    {activeRulesCount} act.
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-zinc-500 font-mono">Off</span>
+                )}
+              </button>
+
+              <div className="relative">
+                <select
+                  value={dripDelaySeconds}
+                  onChange={(e) => setDripDelaySeconds(Number(e.target.value))}
+                  className="w-full appearance-none px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 focus:outline-none cursor-pointer"
+                  title="Intervalo de publicación (Pacing anti-flood o goteo programado)"
+                >
+                  <option value={0}>⚡ Pacing: Inmediato (2s)</option>
+                  <option value={60}>💧 Goteo: 1 min</option>
+                  <option value={300}>💧 Goteo: 5 min</option>
+                  <option value={900}>💧 Goteo: 15 min</option>
+                  <option value={1800}>💧 Goteo: 30 min</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
