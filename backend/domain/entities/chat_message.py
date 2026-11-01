@@ -15,3 +15,4 @@ class ChatMessage:
     date: str
     is_outgoing: bool = False
     media_type: str | None = None
+    is_read: bool = False

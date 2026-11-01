@@ -20,6 +20,7 @@ interface ChatState {
   error: string | null;
   accounts: { id: number; name: string }[];
   selectedAccountId: number | null;
+  isScrolledUp: boolean;
 
   // Actions
   loadAccounts: () => Promise<void>;
@@ -28,6 +29,8 @@ interface ChatState {
   loadMoreDialogs: () => Promise<void>;
   setCategoryFilter: (category: "all" | "channel" | "group" | "user") => void;
   selectChat: (chatId: number) => Promise<void>;
+  markAsRead: (chatId: number, maxId?: number) => Promise<void>;
+  setIsScrolledUp: (scrolledUp: boolean) => void;
   sendMessage: (text: string) => Promise<void>;
   uploadMedia: (file: File, caption?: string) => Promise<void>;
   deleteMessage: (messageId: number) => Promise<void>;
@@ -56,6 +59,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   error: null,
   accounts: [],
   selectedAccountId: null,
+  isScrolledUp: false,
+
+  setIsScrolledUp: (scrolledUp: boolean) => set({ isScrolledUp: scrolledUp }),
 
   loadAccounts: async () => {
     try {
@@ -132,7 +138,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       filePreviewUrl: null,
       editingMessage: null,
     });
-    const { messages } = get();
+    const { messages, chats } = get();
 
     // If messages for this chat are not loaded yet, fetch them
     if (!messages[chatId]) {
@@ -152,6 +158,43 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ isLoadingMessages: false });
       }
     }
+
+    // Auto mark as read if chat had unread messages
+    const targetChat = chats.find((c) => c.id === chatId);
+    if (targetChat && targetChat.unread_count > 0) {
+      await get().markAsRead(chatId);
+    }
+  },
+
+  markAsRead: async (chatId: number, maxId?: number) => {
+    try {
+      const accountId = get().selectedAccountId;
+      await chatApi.markAsRead(chatId, maxId, accountId || undefined);
+      set((state) => {
+        const chatMsgs = state.messages[chatId] || [];
+        const highestMsgId =
+          maxId ?? (chatMsgs.length > 0 ? Math.max(...chatMsgs.map((m) => m.id)) : 0);
+        return {
+          chats: state.chats.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  unread_count: 0,
+                  read_inbox_max_id: Math.max(c.read_inbox_max_id || 0, highestMsgId),
+                }
+              : c
+          ),
+          messages: {
+            ...state.messages,
+            [chatId]: chatMsgs.map((m) =>
+              !m.is_outgoing && (!maxId || m.id <= maxId) ? { ...m, is_read: true } : m
+            ),
+          },
+        };
+      });
+    } catch (err) {
+      console.error(`Error al marcar chat ${chatId} como leído:`, err);
+    }
   },
 
   setSearchFilter: (filter: string) => set({ searchFilter: filter }),
@@ -170,6 +213,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       date: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       is_outgoing: true,
       media_type: "text",
+      is_read: false,
     };
 
     const currentList = messages[activeChatId] || [];
@@ -178,6 +222,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ...messages,
         [activeChatId]: [...currentList, optimisticMessage],
       },
+      chats: get().chats.map((c) =>
+        c.id === activeChatId
+          ? {
+              ...c,
+              last_message: text.trim(),
+              last_message_date: new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            }
+          : c
+      ),
     });
 
     try {
@@ -186,7 +242,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: {
           ...state.messages,
           [activeChatId]: (state.messages[activeChatId] || []).map((m) =>
-            m.id === tempId ? sent : m
+            m.id === tempId ? { ...sent, is_read: sent.is_read ?? false } : m
           ),
         },
       }));

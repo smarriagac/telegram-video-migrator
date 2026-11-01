@@ -642,6 +642,10 @@ class TelethonAdapter(TelegramGatewayPort):
                 colors = ["bg-cyan-500", "bg-emerald-500", "bg-purple-500", "bg-blue-500", "bg-amber-500"]
                 avatar_color = colors[abs(dialog.id) % len(colors)]
 
+                raw_d = getattr(dialog, "dialog", None)
+                read_inbox_max_id = getattr(raw_d, "read_inbox_max_id", 0) or 0
+                read_outbox_max_id = getattr(raw_d, "read_outbox_max_id", 0) or 0
+
                 dialogs_list.append(
                     TelegramDialog(
                         id=dialog.id,
@@ -652,6 +656,8 @@ class TelethonAdapter(TelegramGatewayPort):
                         last_message_date=last_msg_date,
                         avatar_color=avatar_color,
                         can_post=can_post,
+                        read_inbox_max_id=read_inbox_max_id,
+                        read_outbox_max_id=read_outbox_max_id,
                     )
                 )
             return dialogs_list
@@ -661,6 +667,23 @@ class TelethonAdapter(TelegramGatewayPort):
             logger.error(f"Error fetching dialogs: {e}")
             raise
 
+    async def mark_dialog_as_read(
+        self, chat_id: int, max_id: int | None = None, account_id: int | None = None
+    ) -> bool:
+        """Acknowledge reading messages up to max_id using MTProto send_read_acknowledge."""
+        try:
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            try:
+                entity = await client.get_input_entity(chat_id)
+            except Exception:
+                entity = await client.get_entity(chat_id)
+            await client.send_read_acknowledge(entity, max_id=max_id)
+            return True
+        except Exception as e:
+            logger.warning(f"Error marking dialog {chat_id} as read: {e}")
+            return False
+
     async def get_chat_messages(
         self, chat_id: int, limit: int = 50, account_id: int | None = None
     ) -> list[ChatMessage]:
@@ -669,6 +692,19 @@ class TelethonAdapter(TelegramGatewayPort):
         try:
             client = self._get_client(account_id)
             await self._ensure_connected(client)
+
+            read_inbox_max_id = 0
+            read_outbox_max_id = 0
+            try:
+                async for d in client.iter_dialogs(limit=50):
+                    if d.id == chat_id:
+                        raw_d = getattr(d, "dialog", None)
+                        read_inbox_max_id = getattr(raw_d, "read_inbox_max_id", 0) or 0
+                        read_outbox_max_id = getattr(raw_d, "read_outbox_max_id", 0) or 0
+                        break
+            except Exception:
+                pass
+
             async for msg in client.iter_messages(chat_id, limit=limit):
                 sender_name = "Desconocido"
                 if msg.sender:
@@ -688,6 +724,8 @@ class TelethonAdapter(TelegramGatewayPort):
                     media_type = "document"
 
                 date_str = msg.date.strftime("%H:%M") if msg.date else ""
+                is_outgoing = bool(msg.out)
+                is_read = (msg.id <= read_outbox_max_id) if is_outgoing else (msg.id <= read_inbox_max_id)
 
                 messages_list.append(
                     ChatMessage(
@@ -697,8 +735,9 @@ class TelethonAdapter(TelegramGatewayPort):
                         sender_name=sender_name,
                         text=msg.message or (f"[{media_type.capitalize()}]" if media_type else ""),
                         date=date_str,
-                        is_outgoing=bool(msg.out),
+                        is_outgoing=is_outgoing,
                         media_type=media_type,
+                        is_read=is_read,
                     )
                 )
             messages_list.reverse()

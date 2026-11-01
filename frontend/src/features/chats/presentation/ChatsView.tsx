@@ -22,6 +22,7 @@ import {
   Play,
   Lock,
   Maximize2,
+  ChevronDown,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -337,6 +338,8 @@ export const ChatsView: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const unreadDividerRef = useRef<HTMLDivElement>(null);
 
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
@@ -354,6 +357,7 @@ export const ChatsView: React.FC = () => {
   const error = useChatStore((state) => state.error);
   const accounts = useChatStore((state) => state.accounts);
   const selectedAccountId = useChatStore((state) => state.selectedAccountId);
+  const isScrolledUp = useChatStore((state) => state.isScrolledUp);
 
   const loadAccounts = useChatStore((state) => state.loadAccounts);
   const setSelectedAccountId = useChatStore((state) => state.setSelectedAccountId);
@@ -361,6 +365,8 @@ export const ChatsView: React.FC = () => {
   const loadMoreDialogs = useChatStore((state) => state.loadMoreDialogs);
   const setCategoryFilter = useChatStore((state) => state.setCategoryFilter);
   const selectChat = useChatStore((state) => state.selectChat);
+  const markAsRead = useChatStore((state) => state.markAsRead);
+  const setIsScrolledUp = useChatStore((state) => state.setIsScrolledUp);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const uploadMedia = useChatStore((state) => state.uploadMedia);
   const deleteMessage = useChatStore((state) => state.deleteMessage);
@@ -377,6 +383,22 @@ export const ChatsView: React.FC = () => {
 
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
+
+  const firstUnreadIndex = activeMessages.findIndex(
+    (m) =>
+      !m.is_outgoing &&
+      (!m.is_read || (activeChat?.read_inbox_max_id ? m.id > activeChat.read_inbox_max_id : false))
+  );
+
+  useEffect(() => {
+    if (activeMessages.length > 0) {
+      if (unreadDividerRef.current) {
+        unreadDividerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  }, [activeChatId, activeMessages.length]);
 
   // Filter dialogs by search query AND category
   const filteredChats = chats.filter((c) => {
@@ -692,6 +714,18 @@ export const ChatsView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {activeChat.unread_count > 0 && (
+                    <Button
+                      onClick={() => markAsRead(activeChat.id)}
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1.5 px-2.5 border border-cyan-500/30 rounded-md"
+                      title="Marcar todos los mensajes como leídos en Telegram"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      <span>Marcar leído ({activeChat.unread_count})</span>
+                    </Button>
+                  )}
                   <button
                     className="p-1 rounded-md hover:bg-white/5 text-zinc-400"
                     aria-label="Más opciones"
@@ -717,7 +751,17 @@ export const ChatsView: React.FC = () => {
               )}
 
               {/* Message Feed (flex-1 min-h-0 overflow-y-auto for smooth scroll) */}
-              <div className="flex-1 min-h-0 p-3 overflow-y-auto space-y-2.5 flex flex-col">
+              <div
+                ref={messagesContainerRef}
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  const isUp = el.scrollHeight - el.scrollTop - el.clientHeight > 120;
+                  if (isUp !== isScrolledUp) {
+                    setIsScrolledUp(isUp);
+                  }
+                }}
+                className="relative flex-1 min-h-0 p-3 overflow-y-auto space-y-2.5 flex flex-col"
+              >
                 <div className="text-center my-1 shrink-0">
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
                     Cifrado y transmitido a través de Telegram MTProto
@@ -734,118 +778,167 @@ export const ChatsView: React.FC = () => {
                     <p className="text-xs">No hay mensajes recientes en esta conversación.</p>
                   </div>
                 ) : (
-                  activeMessages.map((msg) => {
+                  activeMessages.map((msg, index) => {
                     const isEditingThis = editingMessage?.id === msg.id;
+                    const isUnreadDividerHere = index === firstUnreadIndex;
+                    const isOutgoingRead =
+                      msg.is_read ||
+                      (activeChat.read_outbox_max_id
+                        ? msg.id <= activeChat.read_outbox_max_id
+                        : false);
 
                     return (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-md transition-colors",
-                          msg.is_outgoing
-                            ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
-                            : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
-                        )}
-                      >
-                        {/* Sender & Timestamp */}
-                        <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14">
-                          <span className="font-semibold">{msg.sender_name}</span>
-                          <span>{msg.date}</span>
-                        </div>
-
-                        {/* Hover Action Buttons (Edit / Delete) */}
-                        {!isEditingThis && (
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2">
-                            <button
-                              type="button"
-                              onClick={() => handleStartEdit(msg)}
-                              title="Editar mensaje"
-                              className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-cyan-300 transition-colors"
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (window.confirm("¿Seguro que querés eliminar este mensaje de Telegram?")) {
-                                  deleteMessage(msg.id);
-                                }
-                              }}
-                              title="Eliminar mensaje"
-                              className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
+                      <React.Fragment key={msg.id}>
+                        {isUnreadDividerHere && (
+                          <div
+                            ref={unreadDividerRef}
+                            className="flex items-center justify-center my-3 gap-3 shrink-0"
+                          >
+                            <div className="flex-1 border-t border-cyan-500/30" />
+                            <span className="px-3 py-0.5 text-[10px] font-mono font-medium text-cyan-300 bg-cyan-950/80 border border-cyan-500/40 rounded-full shadow-md flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                              Mensajes no leídos
+                            </span>
+                            <div className="flex-1 border-t border-cyan-500/30" />
                           </div>
                         )}
 
-                        {/* Media Preview Card (Video / Photo / Document) */}
-                        {(msg.media_type === "video" || msg.media_type === "photo") && (
-                          <ChatMediaThumbnail
-                            chatId={msg.chat_id}
-                            messageId={msg.id}
-                            mediaType={msg.media_type}
-                            accountId={selectedAccountId}
-                            text={msg.text}
-                          />
-                        )}
-                        {msg.media_type === "document" && (
-                          <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-amber-300 text-[10px] font-mono w-fit">
-                            <FileText className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Documento / Archivo</span>
+                        <div
+                          className={cn(
+                            "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-md transition-colors",
+                            msg.is_outgoing
+                              ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
+                              : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
+                          )}
+                        >
+                          {/* Sender & Timestamp */}
+                          <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14">
+                            <span className="font-semibold">{msg.sender_name}</span>
+                            <span>{msg.date}</span>
                           </div>
-                        )}
 
-                        {/* Message content or inline editing */}
-                        {isEditingThis ? (
-                          <div className="space-y-1.5 mt-0.5">
-                            <input
-                              type="text"
-                              value={editText}
-                              onChange={(e) => setEditText(e.target.value)}
-                              className="w-full bg-black/50 border border-cyan-500/50 rounded px-2 py-1 text-xs text-white focus:outline-none"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  handleSaveEdit(msg.id);
-                                } else if (e.key === "Escape") {
-                                  setEditingMessage(null);
-                                }
-                              }}
-                            />
-                            <div className="flex items-center justify-end gap-1.5">
+                          {/* Hover Action Buttons (Edit / Delete) */}
+                          {!isEditingThis && (
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2">
                               <button
                                 type="button"
-                                onClick={() => setEditingMessage(null)}
-                                className="p-1 px-2 rounded text-[10px] text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 flex items-center gap-1"
+                                onClick={() => handleStartEdit(msg)}
+                                title="Editar mensaje"
+                                className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-cyan-300 transition-colors"
                               >
-                                <X className="w-3 h-3" />
-                                Cancelar
+                                <Pencil className="w-3 h-3" />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleSaveEdit(msg.id)}
-                                className="p-1 px-2 rounded text-[10px] text-black bg-cyan-400 hover:bg-cyan-300 font-semibold flex items-center gap-1"
+                                onClick={() => {
+                                  if (window.confirm("¿Seguro que querés eliminar este mensaje de Telegram?")) {
+                                    deleteMessage(msg.id);
+                                  }
+                                }}
+                                title="Eliminar mensaje"
+                                className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-red-400 transition-colors"
                               >
-                                <Check className="w-3 h-3" />
-                                Guardar
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
-                          </div>
-                        ) : (
-                          <p className="leading-relaxed break-words">{msg.text}</p>
-                        )}
+                          )}
 
-                        {msg.is_outgoing && !isEditingThis && (
-                          <div className="self-end mt-0.5 text-cyan-400 opacity-80">
-                            <CheckCheck className="w-3.5 h-3.5" />
-                          </div>
-                        )}
-                      </div>
+                          {/* Media Preview Card (Video / Photo / Document) */}
+                          {(msg.media_type === "video" || msg.media_type === "photo") && (
+                            <ChatMediaThumbnail
+                              chatId={msg.chat_id}
+                              messageId={msg.id}
+                              mediaType={msg.media_type}
+                              accountId={selectedAccountId}
+                              text={msg.text}
+                            />
+                          )}
+                          {msg.media_type === "document" && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-amber-300 text-[10px] font-mono w-fit">
+                              <FileText className="w-3.5 h-3.5 text-amber-400" />
+                              <span>Documento / Archivo</span>
+                            </div>
+                          )}
+
+                          {/* Message content or inline editing */}
+                          {isEditingThis ? (
+                            <div className="space-y-1.5 mt-0.5">
+                              <input
+                                type="text"
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                className="w-full bg-black/50 border border-cyan-500/50 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    handleSaveEdit(msg.id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingMessage(null);
+                                  }
+                                }}
+                              />
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingMessage(null)}
+                                  className="p-1 px-2 rounded text-[10px] text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 flex items-center gap-1"
+                                >
+                                  <X className="w-3 h-3" />
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(msg.id)}
+                                  className="p-1 px-2 rounded text-[10px] text-black bg-cyan-400 hover:bg-cyan-300 font-semibold flex items-center gap-1"
+                                >
+                                  <Check className="w-3 h-3" />
+                                  Guardar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="leading-relaxed break-words">{msg.text}</p>
+                          )}
+
+                          {msg.is_outgoing && !isEditingThis && (
+                            <div className="self-end mt-0.5 flex items-center gap-0.5">
+                              {isOutgoingRead ? (
+                                <span title="Leído por el destinatario" className="text-cyan-400 flex items-center">
+                                  <CheckCheck className="w-3.5 h-3.5" />
+                                </span>
+                              ) : (
+                                <span title="Entregado al servidor (no leído aún)" className="text-zinc-400 flex items-center">
+                                  <Check className="w-3.5 h-3.5" />
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </React.Fragment>
                     );
                   })
                 )}
                 <div ref={messagesEndRef} />
+
+                {/* Floating Scroll-to-Bottom Button */}
+                {isScrolledUp && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                      setIsScrolledUp(false);
+                    }}
+                    className="sticky bottom-2 self-end mr-2 z-20 p-2 rounded-full bg-zinc-900/95 border border-cyan-500/40 text-cyan-400 shadow-2xl hover:bg-zinc-800 transition-all flex items-center gap-1.5 backdrop-blur-md group"
+                    title="Ir a los mensajes más recientes"
+                  >
+                    <ChevronDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                    {activeChat.unread_count > 0 && (
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-cyan-500 text-black">
+                        {activeChat.unread_count}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* File Attachment Banner (shrink-0) */}

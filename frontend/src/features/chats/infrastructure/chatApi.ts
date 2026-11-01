@@ -83,4 +83,16 @@ export const chatApi = {
     }
     return res.json();
   },
+
+  async markAsRead(chatId: number, maxId?: number, accountId?: number): Promise<void> {
+    const url = accountId ? `/api/dialogs/${chatId}/read?account_id=${accountId}` : `/api/dialogs/${chatId}/read`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ max_id: maxId ?? null }),
+    });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al marcar diálogo como leído`);
+    }
+  },
 };

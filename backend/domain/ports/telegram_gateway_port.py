@@ -85,6 +85,12 @@ class TelegramGatewayPort(ABC):
         """Fetch recent message history from a specific chat."""
         raise NotImplementedError
 
+    async def mark_dialog_as_read(
+        self, chat_id: int, max_id: int | None = None, account_id: int | None = None
+    ) -> bool:
+        """Mark dialog messages up to max_id as read in Telegram MTProto."""
+        return True
+
     @abstractmethod
     async def send_local_media(
         self, channel_id: int, file_path: str, caption: str | None = None

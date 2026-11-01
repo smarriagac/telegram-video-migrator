@@ -16,6 +16,7 @@ export interface Message {
   date: string;
   is_outgoing: boolean;
   media_type?: "video" | "photo" | "document" | "text";
+  is_read?: boolean;
 }
 
 export interface Chat {
@@ -27,4 +28,6 @@ export interface Chat {
   last_message_date?: string;
   avatar_color?: string;
   can_post?: boolean;
+  read_inbox_max_id?: number;
+  read_outbox_max_id?: number;
 }

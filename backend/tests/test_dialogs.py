@@ -125,6 +125,14 @@ async def test_dialogs_api_endpoints():
         )
         assert video_res.status_code in [200, 206, 404]
 
+        # Test POST /api/dialogs/{chat_id}/read
+        read_res = await client.post(
+            f"/api/dialogs/{chat_id}/read",
+            json={"max_id": 10},
+        )
+        assert read_res.status_code == 200
+        assert read_res.json()["success"] is True
+
         # Test DELETE /api/dialogs/{chat_id}/messages/{message_id}
         del_res = await client.delete(
             f"/api/dialogs/{chat_id}/messages/{created_msg['id']}",

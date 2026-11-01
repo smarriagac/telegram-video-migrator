@@ -15,3 +15,5 @@ class TelegramDialog:
     last_message_date: str | None = None
     avatar_color: str | None = None
     can_post: bool = True
+    read_inbox_max_id: int = 0
+    read_outbox_max_id: int = 0

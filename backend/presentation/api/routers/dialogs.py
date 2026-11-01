@@ -34,6 +34,8 @@ class DialogResponse(BaseModel):
     last_message_date: str | None = None
     avatar_color: str | None = None
     can_post: bool = True
+    read_inbox_max_id: int = 0
+    read_outbox_max_id: int = 0
 
 
 class ChatMessageResponse(BaseModel):
@@ -45,6 +47,7 @@ class ChatMessageResponse(BaseModel):
     date: str
     is_outgoing: bool
     media_type: str | None = None
+    is_read: bool = False
 
 
 class SendChatMessageRequest(BaseModel):
@@ -53,6 +56,10 @@ class SendChatMessageRequest(BaseModel):
 
 class EditChatMessageRequest(BaseModel):
     text: str
+
+
+class MarkDialogReadRequest(BaseModel):
+    max_id: int | None = None
 
 
 # Demo Fallbacks for development / unauthorized MTProto environments
@@ -65,6 +72,8 @@ DEMO_DIALOGS = [
         last_message="Che, ¿pudiste migrar los videos del canal?",
         last_message_date="13:42",
         avatar_color="bg-cyan-500",
+        read_inbox_max_id=2,
+        read_outbox_max_id=2,
     ),
     DialogResponse(
         id=102,
@@ -178,6 +187,7 @@ DEMO_MESSAGES: dict[int, list[ChatMessageResponse]] = {
             text="Hola! Cómo va el desarrollo del migrador?",
             date="13:35",
             is_outgoing=False,
+            is_read=True,
         ),
         ChatMessageResponse(
             id=2,
@@ -187,6 +197,7 @@ DEMO_MESSAGES: dict[int, list[ChatMessageResponse]] = {
             text="Impecable, ya soporta clonación limpia por referencia sin descargar nada.",
             date="13:40",
             is_outgoing=True,
+            is_read=True,
         ),
         ChatMessageResponse(
             id=3,
@@ -196,6 +207,17 @@ DEMO_MESSAGES: dict[int, list[ChatMessageResponse]] = {
             text="Che, ¿pudiste migrar los videos del canal?",
             date="13:42",
             is_outgoing=False,
+            is_read=False,
+        ),
+        ChatMessageResponse(
+            id=4,
+            chat_id=101,
+            sender_id=101,
+            sender_name="Carlos Méndez",
+            text="Avisame cualquier duda con las claves de acceso",
+            date="13:43",
+            is_outgoing=False,
+            is_read=False,
         ),
     ]
 }
@@ -220,6 +242,8 @@ async def list_dialogs(
                 last_message_date=d.last_message_date,
                 avatar_color=d.avatar_color,
                 can_post=getattr(d, "can_post", True),
+                read_inbox_max_id=getattr(d, "read_inbox_max_id", 0),
+                read_outbox_max_id=getattr(d, "read_outbox_max_id", 0),
             )
             for d in dialogs
         ]
@@ -248,12 +272,38 @@ async def get_messages(
                 date=m.date,
                 is_outgoing=m.is_outgoing,
                 media_type=m.media_type,
+                is_read=getattr(m, "is_read", False),
             )
             for m in messages
         ]
     except Exception as e:
         logger.warning(f"Error fetching messages for chat {chat_id}: {e}")
         return DEMO_MESSAGES.get(chat_id, [])
+
+
+@router.post("/{chat_id}/read")
+async def mark_dialog_read_endpoint(
+    chat_id: int,
+    payload: MarkDialogReadRequest | None = None,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Mark dialog messages up to max_id as read in Telegram MTProto."""
+    max_id = payload.max_id if payload else None
+    success = await gateway.mark_dialog_as_read(
+        chat_id=chat_id, max_id=max_id, account_id=account_id
+    )
+    for d in DEMO_DIALOGS:
+        if d.id == chat_id:
+            d.unread_count = 0
+            if max_id:
+                d.read_inbox_max_id = max(d.read_inbox_max_id, max_id)
+    if chat_id in DEMO_MESSAGES:
+        for m in DEMO_MESSAGES[chat_id]:
+            if not m.is_outgoing and (max_id is None or m.id <= max_id):
+                m.is_read = True
+
+    return {"success": success, "chat_id": chat_id, "max_id": max_id}
 
 
 DEMO_THUMBNAIL_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200" viewBox="0 0 360 200" fill="none">
