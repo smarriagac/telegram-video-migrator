@@ -9,11 +9,13 @@ interface AuditStore {
   pageSize: number;
   totalPages: number;
   currentActionFilter: string | undefined;
+  selectedLog: AuditLogItem | null;
   isLoading: boolean;
   error: string | null;
   fetchLogs: (action?: string, page?: number, pageSize?: number) => Promise<void>;
   setPage: (page: number) => Promise<void>;
   setPageSize: (size: number) => Promise<void>;
+  setSelectedLog: (log: AuditLogItem | null) => void;
 }
 
 export const useAuditStore = create<AuditStore>((set, get) => ({
@@ -23,8 +25,11 @@ export const useAuditStore = create<AuditStore>((set, get) => ({
   pageSize: 25,
   totalPages: 1,
   currentActionFilter: undefined,
+  selectedLog: null,
   isLoading: false,
   error: null,
+
+  setSelectedLog: (log: AuditLogItem | null) => set({ selectedLog: log }),
 
   fetchLogs: async (action?: string, page?: number, pageSize?: number) => {
     const p = page ?? get().page;

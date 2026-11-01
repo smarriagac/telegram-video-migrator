@@ -14,9 +14,11 @@ import {
   Database,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 import { useAuditStore } from "../application/useAuditStore";
 import { Button } from "@/shared/components/ui/button";
+import { AuditLogDetailModal } from "./components/AuditLogDetailModal";
 
 export const AuditView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
@@ -28,6 +30,8 @@ export const AuditView: React.FC = () => {
   const page = useAuditStore((state) => state.page);
   const pageSize = useAuditStore((state) => state.pageSize);
   const totalPages = useAuditStore((state) => state.totalPages);
+  const selectedLog = useAuditStore((state) => state.selectedLog);
+  const setSelectedLog = useAuditStore((state) => state.setSelectedLog);
   const isLoading = useAuditStore((state) => state.isLoading);
   const error = useAuditStore((state) => state.error);
   const fetchLogs = useAuditStore((state) => state.fetchLogs);
@@ -277,11 +281,16 @@ export const AuditView: React.FC = () => {
                   <th className="py-2.5 px-3">Recurso / Destino</th>
                   <th className="py-2.5 px-3">Detalles</th>
                   <th className="py-2.5 px-3">IP Origen</th>
+                  <th className="py-2.5 px-3 text-right">Acción</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-zinc-300 font-mono text-[11px]">
                 {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                  <tr
+                    key={log.id}
+                    onClick={() => setSelectedLog(log)}
+                    className="hover:bg-white/[0.03] cursor-pointer transition-colors group"
+                  >
                     <td className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3 h-3 text-zinc-500 shrink-0" />
@@ -297,7 +306,7 @@ export const AuditView: React.FC = () => {
                     </td>
                     <td className="py-2.5 px-3 font-sans text-xs text-zinc-400 max-w-sm truncate" title={JSON.stringify(log.details || {})}>
                       {log.details ? (
-                        <span className="font-mono text-[10px] text-zinc-400 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">
+                        <span className="font-mono text-[10px] text-zinc-300 bg-black/40 px-1.5 py-0.5 rounded border border-white/5 hover:border-cyan-500/30 transition-colors">
                           {JSON.stringify(log.details)}
                         </span>
                       ) : (
@@ -309,6 +318,20 @@ export const AuditView: React.FC = () => {
                         <Globe className="w-3 h-3 text-zinc-600 shrink-0" />
                         <span>{log.ip_address || "127.0.0.1"}</span>
                       </div>
+                    </td>
+                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedLog(log);
+                        }}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/5 hover:bg-cyan-500/10 text-cyan-400 hover:text-cyan-300 border border-white/5 hover:border-cyan-500/20 text-[11px] font-sans font-medium transition-all"
+                        title="Ver detalles completos del evento"
+                      >
+                        <Eye className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                        Ver Detalle
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -369,6 +392,9 @@ export const AuditView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Detalle Extendido de Auditoría */}
+      <AuditLogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
     </div>
   );
 };
