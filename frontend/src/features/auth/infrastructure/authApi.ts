@@ -111,4 +111,15 @@ export const authApi = {
     }
     return res.json();
   },
+
+  async deleteTelegramAccount(token: string, accountId: number): Promise<void> {
+    const res = await fetch(`/api/settings/credentials/${accountId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al eliminar la cuenta de Telegram.");
+    }
+  },
 };

@@ -1,20 +1,38 @@
 import { Chat, Message } from "../domain/types";
 
 export const chatApi = {
-  async fetchDialogs(limit: number = 100): Promise<Chat[]> {
-    const res = await fetch(`/api/dialogs?limit=${limit}`);
+  async fetchDialogs(limit: number = 100, accountId?: number): Promise<Chat[]> {
+    const url = accountId ? `/api/dialogs?limit=${limit}&account_id=${accountId}` : `/api/dialogs?limit=${limit}`;
+    const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`Error ${res.status} al obtener diálogos`);
     }
     return res.json();
   },
 
-  async fetchMessages(chatId: number, limit: number = 50): Promise<Message[]> {
-    const res = await fetch(`/api/dialogs/${chatId}/messages?limit=${limit}`);
+  async fetchMessages(chatId: number, limit: number = 50, accountId?: number): Promise<Message[]> {
+    const url = accountId ? `/api/dialogs/${chatId}/messages?limit=${limit}&account_id=${accountId}` : `/api/dialogs/${chatId}/messages?limit=${limit}`;
+    const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`Error ${res.status} al obtener mensajes del chat ${chatId}`);
     }
     return res.json();
+  },
+
+  async fetchAccounts(): Promise<{ id: number; name: string }[]> {
+    try {
+      const token = localStorage.getItem("token");
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const res = await fetch(`/api/settings/credentials`, { headers });
+      if (!res.ok) return [];
+      const accounts = await res.json();
+      return accounts.map((a: any) => ({ id: a.id, name: a.name }));
+    } catch {
+      return [];
+    }
   },
 
   async sendMessage(chatId: number, text: string): Promise<Message> {

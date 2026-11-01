@@ -34,11 +34,14 @@ from backend.infrastructure.telegram.telegram_client_factory import (
 )
 from backend.infrastructure.telegram.telethon_adapter import TelethonAdapter
 
+from backend.infrastructure.telegram.telegram_client_pool import TelegramClientPool
+
 _job_repo: JobRepositoryPort | None = None
 _postgres_repo: PostgresRepository | None = None
 _encryption_service: EncryptionPort | None = None
 _token_service: TokenServicePort | None = None
 _use_case_instance: CloneChannelVideosUseCase | None = None
+_client_pool: TelegramClientPool | None = None
 
 security_scheme = HTTPBearer(auto_error=False)
 
@@ -79,21 +82,66 @@ def get_token_service() -> TokenServicePort:
     return _token_service
 
 
-async def get_telegram_gateway() -> TelegramGatewayPort:
+async def get_telegram_client_pool() -> TelegramClientPool:
+    global _client_pool
+    if _client_pool is None:
+        _client_pool = TelegramClientPool()
+        await refresh_telegram_client_pool()
+    return _client_pool
+
+
+async def refresh_telegram_client_pool() -> TelegramClientPool:
+    global _client_pool
+    if _client_pool is None:
+        _client_pool = TelegramClientPool()
+
     try:
-        acc_use_case = await get_active_credentials_use_case()
-        creds = await acc_use_case.execute()
-        if creds.api_id and creds.api_hash and creds.session_string:
-            client = configure_telegram_client(
-                api_id=creds.api_id,
-                api_hash=creds.api_hash,
-                session_string=creds.session_string,
-            )
-            return TelethonAdapter(client=client)
-    except Exception:
-        pass
-    client = get_telegram_client()
-    return TelethonAdapter(client=client)
+        repo = await get_postgres_repository()
+        enc_svc = get_encryption_service()
+        accounts = await repo.list_active_accounts()
+        from telethon.sessions import StringSession
+        from telethon import TelegramClient
+
+        first = True
+        for acc in accounts:
+            try:
+                api_id = int(enc_svc.decrypt(acc.api_id_encrypted))
+                api_hash = enc_svc.decrypt(acc.api_hash_encrypted)
+                session_str = enc_svc.decrypt(acc.session_string_encrypted) if acc.session_string_encrypted else None
+                if api_id and api_hash and session_str:
+                    try:
+                        session_obj = StringSession(session_str)
+                    except Exception:
+                        session_obj = StringSession()
+                    cl = TelegramClient(session_obj, api_id, api_hash)
+                    _client_pool.register_client(
+                        account_id=acc.id or 1,
+                        account_name=acc.name,
+                        client=cl,
+                        is_default=first,
+                    )
+                    first = False
+            except Exception as e:
+                logger.warning(f"Failed to register client for account #{acc.id} ({acc.name}): {e}")
+    except Exception as ex:
+        logger.warning(f"Error refreshing telegram client pool: {ex}")
+
+    if not _client_pool.list_clients():
+        default_client = get_telegram_client()
+        _client_pool.register_client(
+            account_id=1,
+            account_name="Cuenta Principal",
+            client=default_client,
+            is_default=True,
+        )
+
+    return _client_pool
+
+
+async def get_telegram_gateway() -> TelegramGatewayPort:
+    pool = await get_telegram_client_pool()
+    default_client = pool.get_client(None)
+    return TelethonAdapter(client=default_client, pool=pool)
 
 
 async def get_broadcaster() -> EventBroadcaster:

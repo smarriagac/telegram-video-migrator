@@ -12,6 +12,7 @@ import {
   UserPlus,
   CheckCircle2,
   XCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import {
@@ -46,6 +47,7 @@ export const SettingsView: React.FC = () => {
   const loadAccounts = useAuthStore((state) => state.loadAccounts);
   const loadUsers = useAuthStore((state) => state.loadUsers);
   const saveCredentials = useAuthStore((state) => state.saveCredentials);
+  const deleteAccount = useAuthStore((state) => state.deleteAccount);
   const createUser = useAuthStore((state) => state.createUser);
   const updateUser = useAuthStore((state) => state.updateUser);
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -61,6 +63,18 @@ export const SettingsView: React.FC = () => {
   const showFeedback = (message: string, isError = false) => {
     setFeedback({ message, isError });
     setTimeout(() => setFeedback(null), 3500);
+  };
+
+  const handleDeleteAccount = async (id: number, name: string) => {
+    if (!window.confirm(`¿Estás seguro de desconectar y eliminar la cuenta "${name}"?`)) {
+      return;
+    }
+    const ok = await deleteAccount(id);
+    if (ok) {
+      showFeedback(`Cuenta "${name}" eliminada correctamente.`);
+    } else {
+      showFeedback(`No se pudo eliminar la cuenta "${name}".`, true);
+    }
   };
 
   const handleSaveCredentials = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -323,7 +337,8 @@ export const SettingsView: React.FC = () => {
                     <TableRow className="border-b border-white/5 hover:bg-transparent">
                       <TableHead className="text-zinc-400 font-semibold">Nombre de Cuenta</TableHead>
                       <TableHead className="text-zinc-400 font-semibold">Credenciales En Reposo</TableHead>
-                      <TableHead className="text-right text-zinc-400 font-semibold">Estado</TableHead>
+                      <TableHead className="text-zinc-400 font-semibold">Estado</TableHead>
+                      <TableHead className="text-right text-zinc-400 font-semibold">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -333,8 +348,18 @@ export const SettingsView: React.FC = () => {
                         <TableCell className="text-[10px] text-zinc-400 font-mono">
                           API ID: {acc.api_id_masked} · Hash: {acc.api_hash_masked}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           <Badge variant="admin">Activa</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAccount(acc.id, acc.name)}
+                            className="p-1.5 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            title="Desconectar y eliminar cuenta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     ))}

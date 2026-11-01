@@ -29,6 +29,8 @@ class CreateJobRequest(BaseModel):
     selected_message_ids: list[int] | None = None
     source_channel_title: str | None = None
     target_channel_title: str | None = None
+    source_account_id: int | None = None
+    target_account_id: int | None = None
 
 
 class JobResponse(BaseModel):
@@ -43,6 +45,8 @@ class JobResponse(BaseModel):
     is_full_migration: bool = True
     source_title: str | None = None
     target_title: str | None = None
+    source_account_id: int | None = None
+    target_account_id: int | None = None
 
 
 class QueueItemResponse(BaseModel):
@@ -88,6 +92,8 @@ async def start_job(
         is_full_migration=is_full,
         source_title=req.source_channel_title,
         target_title=req.target_channel_title,
+        source_account_id=req.source_account_id,
+        target_account_id=req.target_account_id,
     )
     await repo.create_job(job)
 
@@ -129,6 +135,8 @@ async def start_job(
         is_full_migration=job.is_full_migration,
         source_title=job.source_title,
         target_title=job.target_title,
+        source_account_id=job.source_account_id,
+        target_account_id=job.target_account_id,
     )
 
 
@@ -157,6 +165,8 @@ async def get_job(
         is_full_migration=job.is_full_migration,
         source_title=job.source_title,
         target_title=job.target_title,
+        source_account_id=job.source_account_id,
+        target_account_id=job.target_account_id,
     )
 
 

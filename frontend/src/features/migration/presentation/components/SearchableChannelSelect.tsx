@@ -54,8 +54,13 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
           <div className="truncate flex-1 mr-2">
             {selectedChannel ? (
               <span className="flex items-center gap-1.5 truncate">
+                {selectedChannel.account_name && (
+                  <span className="text-[9px] text-cyan-400 font-medium px-1 rounded bg-cyan-500/10 border border-cyan-500/20 shrink-0">
+                    {selectedChannel.account_name}
+                  </span>
+                )}
                 {selectedChannel.can_post && (
-                  <span className="text-[10px] text-emerald-400 font-bold px-1 rounded bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="text-[10px] text-emerald-400 font-bold px-1 rounded bg-emerald-500/10 border border-emerald-500/20 shrink-0">
                     ★ Admin
                   </span>
                 )}
@@ -100,6 +105,11 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
                     )}
                   >
                     <div className="flex items-center gap-1.5 truncate mr-2">
+                      {c.account_name && (
+                        <span className="text-[9px] text-cyan-400 font-medium px-1 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/20 shrink-0">
+                          {c.account_name}
+                        </span>
+                      )}
                       {c.can_post && (
                         <span className="text-[9px] text-emerald-400 font-semibold px-1 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/20 shrink-0">
                           ★ Admin

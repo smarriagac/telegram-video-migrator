@@ -14,5 +14,17 @@ class TelegramAccountRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def get_account_by_id(self, account_id: int) -> TelegramAccount | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_active_accounts(self) -> list[TelegramAccount]:
+        raise NotImplementedError
+
+    @abstractmethod
     async def list_accounts(self) -> list[TelegramAccount]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_account(self, account_id: int) -> bool:
         raise NotImplementedError

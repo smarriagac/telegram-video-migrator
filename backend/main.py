@@ -31,6 +31,14 @@ async def lifespan(app: FastAPI):
     if hasattr(pg_repo, "initialize_schema"):
         await pg_repo.initialize_schema()
 
+    # Initialize Telegram Client Pool across all active accounts
+    from backend.presentation.dependencies import refresh_telegram_client_pool
+    try:
+        await refresh_telegram_client_pool()
+        logger.info("Telegram Client Pool initialized successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Telegram Client Pool during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
 

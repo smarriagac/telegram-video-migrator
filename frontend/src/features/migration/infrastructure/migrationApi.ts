@@ -23,7 +23,8 @@ export const migrationApi = {
     channelId: number,
     limit: number = 50,
     offsetId?: number,
-    targetChannelId?: number
+    targetChannelId?: number,
+    accountId?: number
   ): Promise<ChannelMessageItem[]> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (offsetId) {
@@ -31,6 +32,9 @@ export const migrationApi = {
     }
     if (targetChannelId) {
       params.append("target_channel_id", targetChannelId.toString());
+    }
+    if (accountId) {
+      params.append("account_id", accountId.toString());
     }
     const res = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?${params.toString()}`);
     if (!res.ok) {
@@ -80,7 +84,9 @@ export const migrationApi = {
     targetChannelId: number,
     selectedMessageIds?: number[],
     sourceChannelTitle?: string,
-    targetChannelTitle?: string
+    targetChannelTitle?: string,
+    sourceAccountId?: number,
+    targetAccountId?: number
   ): Promise<MigrationJob> {
     const payload: {
       source_channel_id: number;
@@ -88,6 +94,8 @@ export const migrationApi = {
       selected_message_ids?: number[];
       source_channel_title?: string;
       target_channel_title?: string;
+      source_account_id?: number;
+      target_account_id?: number;
     } = {
       source_channel_id: sourceChannelId,
       target_channel_id: targetChannelId,
@@ -100,6 +108,12 @@ export const migrationApi = {
     }
     if (targetChannelTitle) {
       payload.target_channel_title = targetChannelTitle;
+    }
+    if (sourceAccountId) {
+      payload.source_account_id = sourceAccountId;
+    }
+    if (targetAccountId) {
+      payload.target_account_id = targetAccountId;
     }
 
     const res = await fetch(`${API_BASE_URL}/jobs`, {

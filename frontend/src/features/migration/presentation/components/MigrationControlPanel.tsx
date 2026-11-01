@@ -49,7 +49,11 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
 
+  const sourceChannel = channels.find((c) => c.id === selectedSourceId);
   const targetChannel = channels.find((c) => c.id === selectedTargetId);
+  const isCrossAccount = Boolean(
+    sourceChannel && targetChannel && sourceChannel.account_id !== targetChannel.account_id
+  );
 
   const isRunning = activeJob?.status === "RUNNING" || activeJob?.status === "PAUSED_FLOOD_WAIT";
   const isFinished =
@@ -90,9 +94,17 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               Configurá origen y destino para clonar el contenido.
             </p>
           </div>
-          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> MTProto
-          </span>
+          {isCrossAccount ? (
+            <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded font-mono flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+              Puente Multi-Cuenta
+            </span>
+          ) : (
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-mono flex items-center gap-1.5 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Directo MTProto
+            </span>
+          )}
         </div>
 
         {/* Form: De -> Para */}
@@ -300,12 +312,25 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
         {/* Technical Safeguard Note */}
         <div className="p-2.5 rounded-lg bg-zinc-950/40 border border-white/5 text-[11px] text-zinc-400 space-y-1">
-          <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
-            <Tv className="w-3 h-3" /> Modo Seguro MTProto
-          </div>
-          <p className="text-[10px] text-zinc-500 leading-normal">
-            Copia directa por referencia con delay de 1.5–2.0s por elemento para proteger la cuenta contra rate-limits.
-          </p>
+          {isCrossAccount ? (
+            <>
+              <div className="flex items-center gap-1.5 text-indigo-400 font-medium font-mono text-[11px]">
+                🔄 Modo Puente Multi-Cuenta (Streaming)
+              </div>
+              <p className="text-[10px] text-zinc-500 leading-normal">
+                Clonación entre distintas cuentas de Telegram (<span className="text-zinc-300 font-medium">{sourceChannel?.account_name || "Cuenta A"}</span> → <span className="text-zinc-300 font-medium">{targetChannel?.account_name || "Cuenta B"}</span>). Streaming temporal sin almacenamiento persistente en disco.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
+                <Tv className="w-3 h-3" /> ⚡ Modo Directo MTProto (Instantáneo · 0.5s)
+              </div>
+              <p className="text-[10px] text-zinc-500 leading-normal">
+                Misma cuenta detectada. Copia pura por referencia MTProto (sin descargar ni subir archivos) con delay de 1.5–2.0s por elemento para proteger la cuenta contra rate-limits.
+              </p>
+            </>
+          )}
         </div>
       </div>
 

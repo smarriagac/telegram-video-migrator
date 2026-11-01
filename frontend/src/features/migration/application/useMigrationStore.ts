@@ -221,14 +221,16 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   fetchSourceMessages: async (channelId: number) => {
-    const { selectedTargetId } = get();
+    const { selectedTargetId, channels } = get();
+    const sourceChan = channels.find((c) => c.id === channelId);
     set({ isLoadingMessages: true, selectedMessageIds: [], hasMoreMessages: false });
     try {
       const msgs = await migrationApi.fetchChannelMessages(
         channelId,
         100,
         undefined,
-        selectedTargetId || undefined
+        selectedTargetId || undefined,
+        sourceChan?.account_id
       );
       set({
         sourceMessages: msgs,
@@ -242,19 +244,21 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   loadMoreSourceMessages: async () => {
-    const { selectedSourceId, selectedTargetId, sourceMessages, isLoadingMoreMessages, hasMoreMessages } = get();
+    const { selectedSourceId, selectedTargetId, sourceMessages, isLoadingMoreMessages, hasMoreMessages, channels } = get();
     if (!selectedSourceId || isLoadingMoreMessages || !hasMoreMessages || sourceMessages.length === 0) {
       return;
     }
 
     set({ isLoadingMoreMessages: true });
     try {
+      const sourceChan = channels.find((c) => c.id === selectedSourceId);
       const oldestId = Math.min(...sourceMessages.map((m) => m.id));
       const nextBatch = await migrationApi.fetchChannelMessages(
         selectedSourceId,
         100,
         oldestId,
-        selectedTargetId || undefined
+        selectedTargetId || undefined,
+        sourceChan?.account_id
       );
 
       if (nextBatch.length === 0) {
@@ -344,7 +348,9 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         selectedTargetId,
         selectedMessageIds.length > 0 ? selectedMessageIds : undefined,
         sourceChan?.title,
-        targetChan?.title
+        targetChan?.title,
+        sourceChan?.account_id,
+        targetChan?.account_id
       );
       set({
         activeJob: job,

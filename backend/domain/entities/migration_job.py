@@ -31,3 +31,5 @@ class MigrationJob:
     is_full_migration: bool = True
     source_title: str | None = None
     target_title: str | None = None
+    source_account_id: int | None = None
+    target_account_id: int | None = None

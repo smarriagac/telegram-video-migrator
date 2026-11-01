@@ -32,6 +32,8 @@ class ChannelResponse(BaseModel):
     title: str
     username: str | None = None
     can_post: bool = False
+    account_id: int | None = None
+    account_name: str | None = None
 
 
 class ChannelMessageItemResponse(BaseModel):
@@ -48,25 +50,28 @@ class ChannelMessageItemResponse(BaseModel):
 @router.get("", response_model=list[ChannelResponse])
 async def list_channels(
     limit: int = 100,
+    account_id: int | None = Query(None),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
 ) -> list[ChannelResponse]:
-    """Retrieve list of managed Telegram channels."""
+    """Retrieve list of managed Telegram channels across all or a specific account."""
     try:
-        channels = await gateway.get_managed_channels(limit=limit)
+        channels = await gateway.get_managed_channels(limit=limit, account_id=account_id)
         return [
             ChannelResponse(
                 id=c.id,
                 title=c.title,
                 username=c.username,
                 can_post=c.can_post,
+                account_id=c.account_id,
+                account_name=c.account_name,
             )
             for c in channels
         ]
     except Exception as e:
         logger.warning(f"Could not retrieve Telegram channels ({e}). Returning demo/preview channels.")
         return [
-            ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True),
-            ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True),
+            ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True, account_id=1, account_name="Cuenta Principal"),
+            ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True, account_id=1, account_name="Cuenta Principal"),
         ]
 
 
@@ -76,12 +81,20 @@ async def list_channel_messages(
     limit: int = 50,
     offset_id: int | None = None,
     target_channel_id: int | None = Query(None),
+    account_id: int | None = Query(None),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
     repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> list[ChannelMessageItemResponse]:
     """Retrieve preview messages from a channel with optional target clone status."""
     try:
-        messages = await gateway.get_channel_messages(channel_id=channel_id, limit=limit, offset_id=offset_id)
+        if account_id is not None:
+            messages = await gateway.get_channel_messages(
+                channel_id=channel_id, limit=limit, offset_id=offset_id, account_id=account_id
+            )
+        else:
+            messages = await gateway.get_channel_messages(
+                channel_id=channel_id, limit=limit, offset_id=offset_id
+            )
         cloned_ids: set[int] = set()
         if target_channel_id is not None:
             cloned_ids = await repo.get_cloned_source_message_ids(channel_id, target_channel_id)
@@ -221,11 +234,19 @@ async def sync_channel_delta_endpoint(
 async def get_message_thumbnail_endpoint(
     channel_id: int,
     message_id: int,
+    account_id: int | None = Query(None),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
     repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> Response:
     """Retrieve message media thumbnail with aggressive browser caching and provenance fallback."""
-    thumb = await gateway.get_message_thumbnail(channel_id=channel_id, message_id=message_id, repo=repo)
+    if account_id is not None:
+        thumb = await gateway.get_message_thumbnail(
+            channel_id=channel_id, message_id=message_id, repo=repo, account_id=account_id
+        )
+    else:
+        thumb = await gateway.get_message_thumbnail(
+            channel_id=channel_id, message_id=message_id, repo=repo
+        )
     if not thumb:
         raise HTTPException(status_code=404, detail="Thumbnail not available")
     return Response(

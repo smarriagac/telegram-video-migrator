@@ -261,15 +261,10 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
         if self._fallback_mode or self.pool is None:
             self._id_counter += 1
             account.id = self._id_counter
-            for acc in self._accounts_memory.values():
-                acc.is_active = False
             self._accounts_memory[account.id] = account
             return account
 
         async with self.pool.acquire() as conn:
-            if account.is_active:
-                await conn.execute("UPDATE telegram_accounts SET is_active = FALSE")
-
             row = await conn.fetchrow(
                 """
                 INSERT INTO telegram_accounts (name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active)
@@ -298,7 +293,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
                 FROM telegram_accounts
                 WHERE is_active = TRUE
                 ORDER BY id DESC LIMIT 1
@@ -314,19 +309,48 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
                 api_hash_encrypted=row["api_hash_encrypted"],
                 session_string_encrypted=row["session_string_encrypted"],
                 is_active=row["is_active"],
+                created_at=str(row["created_at"]) if row["created_at"] else None,
             )
 
-    async def list_accounts(self) -> list[TelegramAccount]:
+    async def get_account_by_id(self, account_id: int) -> TelegramAccount | None:
         await self.connect()
         if self._fallback_mode or self.pool is None:
-            return list(self._accounts_memory.values())
+            return self._accounts_memory.get(account_id)
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
+                FROM telegram_accounts
+                WHERE id = $1
+                """,
+                account_id,
+            )
+            if not row:
+                return None
+            return TelegramAccount(
+                id=row["id"],
+                name=row["name"],
+                phone=row["phone"],
+                api_id_encrypted=row["api_id_encrypted"],
+                api_hash_encrypted=row["api_hash_encrypted"],
+                session_string_encrypted=row["session_string_encrypted"],
+                is_active=row["is_active"],
+                created_at=str(row["created_at"]) if row["created_at"] else None,
+            )
+
+    async def list_active_accounts(self) -> list[TelegramAccount]:
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            return [acc for acc in self._accounts_memory.values() if acc.is_active]
 
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
                 FROM telegram_accounts
-                ORDER BY id DESC
+                WHERE is_active = TRUE
+                ORDER BY id ASC
                 """
             )
             return [
@@ -338,6 +362,43 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
                     api_hash_encrypted=r["api_hash_encrypted"],
                     session_string_encrypted=r["session_string_encrypted"],
                     is_active=r["is_active"],
+                    created_at=str(r["created_at"]) if r["created_at"] else None,
                 )
                 for r in rows
             ]
+
+    async def list_accounts(self) -> list[TelegramAccount]:
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            return list(self._accounts_memory.values())
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
+                FROM telegram_accounts
+                ORDER BY id ASC
+                """
+            )
+            return [
+                TelegramAccount(
+                    id=r["id"],
+                    name=r["name"],
+                    phone=r["phone"],
+                    api_id_encrypted=r["api_id_encrypted"],
+                    api_hash_encrypted=r["api_hash_encrypted"],
+                    session_string_encrypted=r["session_string_encrypted"],
+                    is_active=r["is_active"],
+                    created_at=str(r["created_at"]) if r["created_at"] else None,
+                )
+                for r in rows
+            ]
+
+    async def delete_account(self, account_id: int) -> bool:
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            return self._accounts_memory.pop(account_id, None) is not None
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute("DELETE FROM telegram_accounts WHERE id = $1", account_id)
+            return res.endswith("1")

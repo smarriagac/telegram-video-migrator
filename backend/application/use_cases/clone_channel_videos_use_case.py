@@ -68,7 +68,15 @@ class CloneChannelVideosUseCase:
 
         if not existing_queue:
             # Discover messages from source channel
-            all_videos = await self.gateway.fetch_channel_videos(job.source_id)
+            if getattr(job, "source_account_id", None) is not None:
+                try:
+                    all_videos = await self.gateway.fetch_channel_videos(
+                        job.source_id, account_id=job.source_account_id
+                    )
+                except TypeError:
+                    all_videos = await self.gateway.fetch_channel_videos(job.source_id)
+            else:
+                all_videos = await self.gateway.fetch_channel_videos(job.source_id)
             if selected_message_ids is not None:
                 selected_set = set(selected_message_ids)
                 videos_to_queue = [v for v in all_videos if v.message_id in selected_set]
@@ -157,11 +165,37 @@ class CloneChannelVideosUseCase:
             max_retries = 2
             last_error: str | None = None
 
+            is_cross_account = (
+                getattr(job, "source_account_id", None) is not None
+                and getattr(job, "target_account_id", None) is not None
+                and job.source_account_id != job.target_account_id
+            )
+
             while target_msg_id is None and retry_count <= max_retries:
                 try:
-                    target_msg_id = await self.gateway.copy_video_by_reference(
-                        job.target_id, video
-                    )
+                    if is_cross_account:
+                        target_msg_id = await self.gateway.copy_media_cross_account(
+                            source_channel_id=job.source_id,
+                            target_channel_id=job.target_id,
+                            video=video,
+                            source_account_id=job.source_account_id,  # type: ignore
+                            target_account_id=job.target_account_id,  # type: ignore
+                        )
+                    else:
+                        acc_id = getattr(job, "source_account_id", None) or getattr(job, "target_account_id", None)
+                        if acc_id is not None:
+                            try:
+                                target_msg_id = await self.gateway.copy_video_by_reference(
+                                    job.target_id, video, account_id=acc_id
+                                )
+                            except TypeError:
+                                target_msg_id = await self.gateway.copy_video_by_reference(
+                                    job.target_id, video
+                                )
+                        else:
+                            target_msg_id = await self.gateway.copy_video_by_reference(
+                                job.target_id, video
+                            )
                 except FloodWaitDomainException as fw:
                     wait_time = fw.seconds + 2
                     logger.warning(

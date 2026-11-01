@@ -11,3 +11,5 @@ class Channel:
     title: str
     username: str | None = None
     can_post: bool = False
+    account_id: int | None = None
+    account_name: str | None = None

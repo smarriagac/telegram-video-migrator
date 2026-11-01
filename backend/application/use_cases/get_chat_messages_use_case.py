@@ -10,5 +10,9 @@ class GetChatMessagesUseCase:
     def __init__(self, telegram_gateway: TelegramGatewayPort) -> None:
         self.telegram_gateway = telegram_gateway
 
-    async def execute(self, chat_id: int, limit: int = 50) -> list[ChatMessage]:
+    async def execute(
+        self, chat_id: int, limit: int = 50, account_id: int | None = None
+    ) -> list[ChatMessage]:
+        if account_id is not None:
+            return await self.telegram_gateway.get_chat_messages(chat_id=chat_id, limit=limit, account_id=account_id)
         return await self.telegram_gateway.get_chat_messages(chat_id=chat_id, limit=limit)

@@ -42,6 +42,16 @@ class MockTelegramGateway(TelegramGatewayPort):
         self.copied_calls.append((target_channel_id, video.message_id))
         return new_msg_id
 
+    async def copy_media_cross_account(
+        self,
+        source_channel_id: int,
+        target_channel_id: int,
+        video: VideoMessage,
+        source_account_id: int,
+        target_account_id: int,
+    ) -> int:
+        return await self.copy_video_by_reference(target_channel_id, video)
+
     async def get_dialogs(self, limit: int = 50) -> list[Any]:
         return []
 

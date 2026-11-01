@@ -12,40 +12,56 @@ class TelegramGatewayPort(ABC):
     """Port defining Telegram MTProto gateway operations."""
 
     @abstractmethod
-    async def get_managed_channels(self, limit: int = 100) -> list[Channel]:
+    async def get_managed_channels(
+        self, limit: int = 100, account_id: int | None = None
+    ) -> list[Channel]:
         """Retrieve channels where authenticated user has management/posting permissions."""
         raise NotImplementedError
 
     @abstractmethod
     async def get_channel_messages(
-        self, channel_id: int, limit: int = 50, offset_id: int | None = None
+        self, channel_id: int, limit: int = 50, offset_id: int | None = None, account_id: int | None = None
     ) -> list[ChannelMessage]:
         """Fetch preview messages from a channel for user selection."""
         raise NotImplementedError
 
     @abstractmethod
     async def get_message_thumbnail(
-        self, channel_id: int, message_id: int, repo: Any = None
+        self, channel_id: int, message_id: int, repo: Any = None, account_id: int | None = None
     ) -> bytes | None:
         """Retrieve small image thumbnail for a specific channel message."""
         raise NotImplementedError
 
     @abstractmethod
     async def fetch_channel_videos(
-        self, channel_id: int, after_message_id: int | None = None
+        self, channel_id: int, after_message_id: int | None = None, account_id: int | None = None
     ) -> list[VideoMessage]:
         """Fetch video messages from source channel, optionally after a message ID."""
         raise NotImplementedError
 
     @abstractmethod
     async def copy_video_by_reference(
-        self, target_channel_id: int, video: VideoMessage
+        self, target_channel_id: int, video: VideoMessage, account_id: int | None = None
     ) -> int:
         """Post video to target channel using MTProto document reference. Returns target message ID."""
         raise NotImplementedError
 
     @abstractmethod
-    async def get_dialogs(self, limit: int = 50) -> list[TelegramDialog]:
+    async def copy_media_cross_account(
+        self,
+        source_channel_id: int,
+        target_channel_id: int,
+        video: VideoMessage,
+        source_account_id: int,
+        target_account_id: int,
+    ) -> int:
+        """Bridge copy media between different accounts using temporary streaming buffer."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_dialogs(
+        self, limit: int = 50, account_id: int | None = None
+    ) -> list[TelegramDialog]:
         """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""
         raise NotImplementedError
 

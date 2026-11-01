@@ -58,6 +58,10 @@ async def save_credentials(
             phone=req.phone,
             session_string=req.session_string,
         )
+        # Hot reload client pool with new account
+        from backend.presentation.dependencies import refresh_telegram_client_pool
+        await refresh_telegram_client_pool()
+
         return TelegramAccountResponse(
             id=saved.id or 1,
             name=saved.name,
@@ -96,3 +100,22 @@ async def list_credentials(
         )
         for acc in accounts
     ]
+
+
+@router.delete("/{account_id}", status_code=status.HTTP_200_OK)
+async def delete_credential(
+    account_id: int,
+    acc_repo: TelegramAccountRepositoryPort = Depends(get_account_repository),
+    _: User = Depends(require_roles([Role.ADMIN])),
+):
+    """Admin-only: Deletes a Telegram account and removes it from the active client pool."""
+    success = await acc_repo.delete_account(account_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cuenta #{account_id} no encontrada.",
+        )
+    from backend.presentation.dependencies import get_telegram_client_pool
+    pool = await get_telegram_client_pool()
+    pool.remove_client(account_id)
+    return {"status": "ok", "message": f"Cuenta #{account_id} eliminada exitosamente."}

@@ -37,6 +37,7 @@ services:
       - MIGRATION_DB_PATH=/app/data/migration.db
     volumes:
       - ./data:/app/data
+      - ./backend:/app/backend
     depends_on:
       postgres:
         condition: service_healthy

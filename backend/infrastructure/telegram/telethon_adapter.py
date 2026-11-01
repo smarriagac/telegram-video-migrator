@@ -28,24 +28,34 @@ logger = logging.getLogger(__name__)
 class TelethonAdapter(TelegramGatewayPort):
     """Telethon implementation of TelegramGatewayPort using MTProto."""
 
-    def __init__(self, client: TelegramClient) -> None:
+    def __init__(self, client: TelegramClient, pool: Any = None) -> None:
         self.client = client
+        self.pool = pool
 
-    async def _ensure_connected(self) -> None:
-        if not self.client.is_connected():
-            await self.client.connect()
-        if not await self.client.is_user_authorized():
+    def _get_client(self, account_id: int | None = None) -> TelegramClient:
+        if self.pool and account_id is not None:
+            c = self.pool.get_client(account_id)
+            if c:
+                return c
+        return self.client
+
+    async def _ensure_connected(self, client: TelegramClient | None = None) -> None:
+        target = client or self.client
+        if not target.is_connected():
+            await target.connect()
+        if not await target.is_user_authorized():
             raise ChannelAccessDeniedException(
                 "La cuenta de Telegram no está autorizada. Por favor vinculá una sesión válida en Configuración o con el script."
             )
 
-    async def get_managed_channels(self, limit: int = 100) -> list[Channel]:
-        """Retrieve channels where the authenticated user has posting rights."""
+    async def _fetch_channels_for_client(
+        self, client: TelegramClient, limit: int, account_id: int, account_name: str | None
+    ) -> list[Channel]:
         channels: list[Channel] = []
         try:
-            await self._ensure_connected()
+            await self._ensure_connected(client)
             scan_limit = max(limit * 2, 250)
-            dialogs = await self.client.get_dialogs(limit=scan_limit)
+            dialogs = await client.get_dialogs(limit=scan_limit)
             for dialog in dialogs:
                 if not dialog.is_channel:
                     continue
@@ -63,30 +73,55 @@ class TelethonAdapter(TelegramGatewayPort):
                         title=dialog.name or "Untitled Channel",
                         username=getattr(entity, "username", None),
                         can_post=can_post,
+                        account_id=account_id,
+                        account_name=account_name,
                     )
                 )
 
-            # Prioritize channels where user has posting rights
             channels.sort(key=lambda c: (not c.can_post, c.title.lower()))
             return channels[:limit]
         except FloodWaitError as e:
             raise FloodWaitDomainException(seconds=e.seconds) from e
         except Exception as e:
-            logger.error(f"Error fetching managed channels: {e}")
+            logger.error(f"Error fetching managed channels for account #{account_id}: {e}")
             raise
 
+    async def get_managed_channels(self, limit: int = 100, account_id: int | None = None) -> list[Channel]:
+        """Retrieve channels where the authenticated user has posting rights."""
+        if self.pool and account_id is None:
+            all_channels: list[Channel] = []
+            seen_keys = set()
+            for acc_id, acc_name, cl in self.pool.list_clients():
+                try:
+                    channels = await self._fetch_channels_for_client(cl, limit, acc_id, acc_name)
+                    for ch in channels:
+                        key = (ch.id, ch.account_id)
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            all_channels.append(ch)
+                except Exception as ex:
+                    logger.warning(f"Error fetching channels for account {acc_name} (#{acc_id}): {ex}")
+            all_channels.sort(key=lambda c: (not c.can_post, c.title.lower()))
+            return all_channels
+
+        target_client = self._get_client(account_id)
+        acc_name = self.pool.get_account_name(account_id) if self.pool and account_id else "Cuenta Principal"
+        effective_acc_id = account_id or 1
+        return await self._fetch_channels_for_client(target_client, limit, effective_acc_id, acc_name)
+
     async def get_channel_messages(
-        self, channel_id: int, limit: int = 50, offset_id: int | None = None
+        self, channel_id: int, limit: int = 50, offset_id: int | None = None, account_id: int | None = None
     ) -> list[ChannelMessage]:
         """Fetch preview messages from a channel for user selection."""
         results: list[ChannelMessage] = []
         try:
-            await self._ensure_connected()
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
             iter_kwargs: dict[str, Any] = {"limit": limit}
             if offset_id:
                 iter_kwargs["offset_id"] = offset_id
 
-            async for message in self.client.iter_messages(channel_id, **iter_kwargs):
+            async for message in client.iter_messages(channel_id, **iter_kwargs):
                 if isinstance(message, types.MessageService) or getattr(message, "action", None) is not None:
                     continue
 
@@ -137,7 +172,7 @@ class TelethonAdapter(TelegramGatewayPort):
             raise
 
     async def get_message_thumbnail(
-        self, channel_id: int, message_id: int, repo: Any = None
+        self, channel_id: int, message_id: int, repo: Any = None, account_id: int | None = None
     ) -> bytes | None:
         """Fetch small image thumbnail for a message with disk caching and provenance fallback."""
         cache_dir = Path("/app/data/thumbnails")
@@ -151,14 +186,15 @@ class TelethonAdapter(TelegramGatewayPort):
             pass
 
         try:
-            await self._ensure_connected()
-            entity = await self.client.get_input_entity(channel_id)
-            msg = await self.client.get_messages(entity, ids=message_id)
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            entity = await client.get_input_entity(channel_id)
+            msg = await client.get_messages(entity, ids=message_id)
             if msg and msg.media:
                 # Download thumbnail directly to memory buffer
-                thumb_data = await self.client.download_media(msg, file=bytes, thumb=-1)
+                thumb_data = await client.download_media(msg, file=bytes, thumb=-1)
                 if not thumb_data and getattr(msg, "photo", None):
-                    thumb_data = await self.client.download_media(msg, file=bytes)
+                    thumb_data = await client.download_media(msg, file=bytes)
 
                 if thumb_data and isinstance(thumb_data, bytes):
                     try:
@@ -184,12 +220,12 @@ class TelethonAdapter(TelegramGatewayPort):
                             pass
 
                     try:
-                        src_entity = await self.client.get_input_entity(src_chan_id)
-                        src_msg = await self.client.get_messages(src_entity, ids=src_msg_id)
+                        src_entity = await client.get_input_entity(src_chan_id)
+                        src_msg = await client.get_messages(src_entity, ids=src_msg_id)
                         if src_msg and src_msg.media:
-                            src_thumb = await self.client.download_media(src_msg, file=bytes, thumb=-1)
+                            src_thumb = await client.download_media(src_msg, file=bytes, thumb=-1)
                             if not src_thumb and getattr(src_msg, "photo", None):
-                                src_thumb = await self.client.download_media(src_msg, file=bytes)
+                                src_thumb = await client.download_media(src_msg, file=bytes)
                             if src_thumb and isinstance(src_thumb, bytes):
                                 try:
                                     cache_file.write_bytes(src_thumb)
@@ -206,14 +242,15 @@ class TelethonAdapter(TelegramGatewayPort):
             return None
 
     async def fetch_channel_videos(
-        self, channel_id: int, after_message_id: int | None = None
+        self, channel_id: int, after_message_id: int | None = None, account_id: int | None = None
     ) -> list[VideoMessage]:
         """Fetch all messages (videos, photos, documents, text) sequentially from channel."""
         messages_to_migrate: list[VideoMessage] = []
         min_id = after_message_id or 0
         try:
-            await self._ensure_connected()
-            async for message in self.client.iter_messages(channel_id, min_id=min_id, reverse=True):
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            async for message in client.iter_messages(channel_id, min_id=min_id, reverse=True):
                 # Ignore service messages (e.g. pinned message, member join/leave, avatar changes)
                 if isinstance(message, types.MessageService) or getattr(message, "action", None) is not None:
                     continue
@@ -306,7 +343,7 @@ class TelethonAdapter(TelegramGatewayPort):
             raise ChannelAccessDeniedException(str(e)) from e
 
     async def copy_video_by_reference(
-        self, target_channel_id: int, video: VideoMessage
+        self, target_channel_id: int, video: VideoMessage, account_id: int | None = None
     ) -> int:
         """Post existing message (video, photo, document, text) to target channel.
         
@@ -325,10 +362,13 @@ class TelethonAdapter(TelegramGatewayPort):
                 except Exception:
                     pass
 
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+
         # 1. Plain text messages
         if video.media_type == "text":
             try:
-                sent_msg = await self.client.send_message(
+                sent_msg = await client.send_message(
                     target_channel_id,
                     message=video.caption or "",
                     formatting_entities=raw_entities,
@@ -360,7 +400,7 @@ class TelethonAdapter(TelegramGatewayPort):
 
         try:
             if media_handle is not None:
-                sent_msg = await self.client.send_file(
+                sent_msg = await client.send_file(
                     target_channel_id,
                     file=media_handle,
                     caption=video.caption or "",
@@ -382,15 +422,15 @@ class TelethonAdapter(TelegramGatewayPort):
                 import tempfile
                 import os
 
-                source_msg = await self.client.get_messages(video.source_channel_id, ids=video.message_id)
+                source_msg = await client.get_messages(video.source_channel_id, ids=video.message_id)
                 if source_msg and source_msg.media:
                     suffix = ".mp4" if video.media_type == "video" else (".jpg" if video.media_type == "photo" else "")
                     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                         tmp_path = tmp.name
                     try:
-                        downloaded = await self.client.download_media(source_msg, file=tmp_path)
+                        downloaded = await client.download_media(source_msg, file=tmp_path)
                         if downloaded and os.path.exists(downloaded):
-                            sent_msg = await self.client.send_file(
+                            sent_msg = await client.send_file(
                                 target_channel_id,
                                 file=downloaded,
                                 caption=video.caption or "",
@@ -405,12 +445,95 @@ class TelethonAdapter(TelegramGatewayPort):
                                 pass
             raise
 
-    async def get_dialogs(self, limit: int = 50) -> list[TelegramDialog]:
+    async def copy_media_cross_account(
+        self,
+        source_channel_id: int,
+        target_channel_id: int,
+        video: VideoMessage,
+        source_account_id: int,
+        target_account_id: int,
+    ) -> int:
+        """Bridge copy media between different accounts using temporary streaming buffer."""
+        src_client = self._get_client(source_account_id)
+        tgt_client = self._get_client(target_account_id)
+        await self._ensure_connected(src_client)
+        await self._ensure_connected(tgt_client)
+
+        raw_entities = None
+        if getattr(video, "entities", None):
+            raw_entities = []
+            for ent_dict in video.entities:
+                try:
+                    if isinstance(ent_dict, dict):
+                        raw_entities.append(types.TypeMessageEntity.from_dict(ent_dict))
+                    else:
+                        raw_entities.append(ent_dict)
+                except Exception:
+                    pass
+
+        caption = video.caption or ""
+
+        # 1. Plain text messages
+        if video.media_type == "text" or (not video.input_document_id and video.media_type != "photo"):
+            try:
+                sent_msg = await tgt_client.send_message(
+                    target_channel_id,
+                    message=caption,
+                    formatting_entities=raw_entities,
+                )
+                return sent_msg.id
+            except FloodWaitError as e:
+                raise FloodWaitDomainException(seconds=e.seconds) from e
+            except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+                raise ChannelAccessDeniedException(str(e)) from e
+
+        # 2. Media messages (video, photo, document)
+        import tempfile
+        import os
+
+        suffix = ".mp4" if video.media_type == "video" else (".jpg" if video.media_type == "photo" else "")
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp_path = tmp.name
+
+        try:
+            src_msg = await src_client.get_messages(source_channel_id, ids=video.message_id)
+            if not src_msg or not src_msg.media:
+                sent_msg = await tgt_client.send_message(
+                    target_channel_id,
+                    message=caption,
+                    formatting_entities=raw_entities,
+                )
+                return sent_msg.id
+
+            downloaded = await src_client.download_media(src_msg, file=tmp_path)
+            if not downloaded or not os.path.exists(downloaded):
+                raise RuntimeError(f"Failed to download media for message #{video.message_id}")
+
+            sent_msg = await tgt_client.send_file(
+                target_channel_id,
+                file=downloaded,
+                caption=caption,
+                formatting_entities=raw_entities,
+            )
+            return sent_msg.id
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        finally:
+            if os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+
+    async def get_dialogs(self, limit: int = 50, account_id: int | None = None) -> list[TelegramDialog]:
         """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""
         dialogs_list: list[TelegramDialog] = []
         try:
-            await self._ensure_connected()
-            dialogs = await self.client.get_dialogs(limit=limit)
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            dialogs = await client.get_dialogs(limit=limit)
             for dialog in dialogs:
                 if dialog.is_user:
                     chat_type = "user"
@@ -452,12 +575,14 @@ class TelethonAdapter(TelegramGatewayPort):
             raise
 
     async def get_chat_messages(
-        self, chat_id: int, limit: int = 50
+        self, chat_id: int, limit: int = 50, account_id: int | None = None
     ) -> list[ChatMessage]:
         """Fetch recent message history from a specific chat in chronological order."""
         messages_list: list[ChatMessage] = []
         try:
-            async for msg in self.client.iter_messages(chat_id, limit=limit):
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            async for msg in client.iter_messages(chat_id, limit=limit):
                 sender_name = "Desconocido"
                 if msg.sender:
                     first = getattr(msg.sender, "first_name", "") or ""

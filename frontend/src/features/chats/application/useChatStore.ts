@@ -18,8 +18,12 @@ interface ChatState {
   editingMessage: { id: number; text: string } | null;
   searchFilter: string;
   error: string | null;
+  accounts: { id: number; name: string }[];
+  selectedAccountId: number | null;
 
   // Actions
+  loadAccounts: () => Promise<void>;
+  setSelectedAccountId: (accountId: number | null) => Promise<void>;
   loadDialogs: (resetLimit?: boolean) => Promise<void>;
   loadMoreDialogs: () => Promise<void>;
   setCategoryFilter: (category: "all" | "channel" | "group" | "user") => void;
@@ -50,12 +54,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
   editingMessage: null,
   searchFilter: "",
   error: null,
+  accounts: [],
+  selectedAccountId: null,
+
+  loadAccounts: async () => {
+    try {
+      const accs = await chatApi.fetchAccounts();
+      set({ accounts: accs });
+      if (accs.length > 0 && get().selectedAccountId === null) {
+        set({ selectedAccountId: accs[0].id });
+      }
+    } catch {
+      // fallback
+    }
+  },
+
+  setSelectedAccountId: async (accountId: number | null) => {
+    set({ selectedAccountId: accountId, activeChatId: null, messages: {} });
+    await get().loadDialogs(true);
+  },
 
   loadDialogs: async (resetLimit: boolean = false) => {
     const limit = resetLimit ? 100 : get().dialogsLimit;
+    const accountId = get().selectedAccountId;
     set({ isLoadingDialogs: true, error: null, dialogsLimit: limit });
     try {
-      const dialogs = await chatApi.fetchDialogs(limit);
+      const dialogs = await chatApi.fetchDialogs(limit, accountId || undefined);
       set({
         chats: dialogs,
         hasMoreDialogs: dialogs.length >= limit,
@@ -76,9 +100,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadMoreDialogs: async () => {
     if (get().isLoadingMoreDialogs || !get().hasMoreDialogs) return;
     const nextLimit = get().dialogsLimit + 50;
+    const accountId = get().selectedAccountId;
     set({ isLoadingMoreDialogs: true, error: null });
     try {
-      const dialogs = await chatApi.fetchDialogs(nextLimit);
+      const dialogs = await chatApi.fetchDialogs(nextLimit, accountId || undefined);
       set({
         chats: dialogs,
         dialogsLimit: nextLimit,
@@ -113,7 +138,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (!messages[chatId]) {
       set({ isLoadingMessages: true });
       try {
-        const chatMsgs = await chatApi.fetchMessages(chatId);
+        const accountId = get().selectedAccountId;
+        const chatMsgs = await chatApi.fetchMessages(chatId, 50, accountId || undefined);
         set((state) => ({
           messages: {
             ...state.messages,

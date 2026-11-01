@@ -128,7 +128,11 @@ export const ChatsView: React.FC = () => {
   const filePreviewUrl = useChatStore((state) => state.filePreviewUrl);
   const editingMessage = useChatStore((state) => state.editingMessage);
   const error = useChatStore((state) => state.error);
+  const accounts = useChatStore((state) => state.accounts);
+  const selectedAccountId = useChatStore((state) => state.selectedAccountId);
 
+  const loadAccounts = useChatStore((state) => state.loadAccounts);
+  const setSelectedAccountId = useChatStore((state) => state.setSelectedAccountId);
   const loadDialogs = useChatStore((state) => state.loadDialogs);
   const loadMoreDialogs = useChatStore((state) => state.loadMoreDialogs);
   const setCategoryFilter = useChatStore((state) => state.setCategoryFilter);
@@ -143,8 +147,9 @@ export const ChatsView: React.FC = () => {
   const clearError = useChatStore((state) => state.clearError);
 
   useEffect(() => {
+    loadAccounts();
     loadDialogs();
-  }, [loadDialogs]);
+  }, [loadAccounts, loadDialogs]);
 
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
@@ -206,18 +211,42 @@ export const ChatsView: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          onClick={() => loadDialogs(true)}
-          disabled={isLoadingDialogs}
-          variant="outline"
-          size="sm"
-          className="rounded-md border-white/10 text-xs hover:bg-white/5 h-8 shrink-0"
-        >
-          <RefreshCw
-            className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
-          />
-          Sincronizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {accounts.length > 1 && (
+            <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-0.5 gap-1 shrink-0">
+              {accounts.map((acc) => {
+                const isActive = selectedAccountId === acc.id;
+                return (
+                  <button
+                    key={acc.id}
+                    onClick={() => setSelectedAccountId(acc.id)}
+                    className={cn(
+                      "px-2.5 py-1 text-xs rounded-md font-medium transition-all",
+                      isActive
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                        : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                    )}
+                  >
+                    {acc.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <Button
+            onClick={() => loadDialogs(true)}
+            disabled={isLoadingDialogs}
+            variant="outline"
+            size="sm"
+            className="rounded-md border-white/10 text-xs hover:bg-white/5 h-8 shrink-0"
+          >
+            <RefreshCw
+              className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
+            />
+            Sincronizar
+          </Button>
+        </div>
       </div>
 
       {/* Main Chat Interface: Bound height with flex/grid */}

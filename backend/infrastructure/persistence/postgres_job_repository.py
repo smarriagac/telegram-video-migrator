@@ -69,8 +69,13 @@ class PostgresJobRepository(JobRepositoryPort):
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     is_full_migration BOOLEAN DEFAULT TRUE,
                     source_channel_title VARCHAR(255),
-                    target_channel_title VARCHAR(255)
+                    target_channel_title VARCHAR(255),
+                    source_account_id BIGINT,
+                    target_account_id BIGINT
                 );
+
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS source_account_id BIGINT;
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS target_account_id BIGINT;
 
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id VARCHAR(64) NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
@@ -116,8 +121,9 @@ class PostgresJobRepository(JobRepositoryPort):
                 INSERT INTO migration_jobs (
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
-                    created_at, updated_at, is_full_migration, source_channel_title, target_channel_title
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10)
+                    created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
+                    source_account_id, target_account_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12)
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
                     total_videos = EXCLUDED.total_videos,
@@ -126,6 +132,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     is_full_migration = EXCLUDED.is_full_migration,
                     source_channel_title = EXCLUDED.source_channel_title,
                     target_channel_title = EXCLUDED.target_channel_title,
+                    source_account_id = EXCLUDED.source_account_id,
+                    target_account_id = EXCLUDED.target_account_id,
                     updated_at = NOW();
                 """,
                 job.job_id,
@@ -138,6 +146,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 job.is_full_migration,
                 job.source_title,
                 job.target_title,
+                job.source_account_id,
+                job.target_account_id,
             )
 
     async def update_job_progress(
@@ -192,7 +202,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 """
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
-                       created_at, updated_at, is_full_migration, source_channel_title, target_channel_title
+                       created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
+                       source_account_id, target_account_id
                 FROM migration_jobs
                 WHERE id = $1;
                 """,
@@ -213,6 +224,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 is_full_migration=bool(row["is_full_migration"]) if row["is_full_migration"] is not None else True,
                 source_title=str(row["source_channel_title"]) if row["source_channel_title"] is not None else None,
                 target_title=str(row["target_channel_title"]) if row["target_channel_title"] is not None else None,
+                source_account_id=int(row["source_account_id"]) if row["source_account_id"] is not None else None,
+                target_account_id=int(row["target_account_id"]) if row["target_account_id"] is not None else None,
             )
 
     async def record_migrated_item(
@@ -443,7 +456,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 """
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
-                       created_at, updated_at, is_full_migration, source_channel_title, target_channel_title
+                       created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
+                       source_account_id, target_account_id
                 FROM migration_jobs
                 WHERE source_channel_id = $1
                 ORDER BY created_at DESC;
@@ -467,6 +481,8 @@ class PostgresJobRepository(JobRepositoryPort):
                         is_full_migration=bool(r["is_full_migration"]) if r["is_full_migration"] is not None else True,
                         source_title=str(r["source_channel_title"]) if r["source_channel_title"] is not None else None,
                         target_title=str(r["target_channel_title"]) if r["target_channel_title"] is not None else None,
+                        source_account_id=int(r["source_account_id"]) if r["source_account_id"] is not None else None,
+                        target_account_id=int(r["target_account_id"]) if r["target_account_id"] is not None else None,
                     )
                 )
 

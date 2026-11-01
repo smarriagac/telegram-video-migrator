@@ -68,6 +68,14 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE migration_jobs ADD COLUMN target_title TEXT;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN source_account_id INTEGER;")
+            except Exception:
+                pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN target_account_id INTEGER;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id TEXT NOT NULL,
@@ -113,8 +121,9 @@ class SQLiteJobRepository(JobRepositoryPort):
                 INSERT OR REPLACE INTO migration_jobs (
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
-                    created_at, updated_at, is_full_migration, source_title, target_title
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?);
+                    created_at, updated_at, is_full_migration, source_title, target_title,
+                    source_account_id, target_account_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?);
                 """,
                 (
                     job.job_id,
@@ -129,6 +138,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     1 if job.is_full_migration else 0,
                     job.source_title,
                     job.target_title,
+                    job.source_account_id,
+                    job.target_account_id,
                 ),
             )
             await conn.commit()
@@ -172,7 +183,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                 """
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
-                       created_at, updated_at, is_full_migration, source_title, target_title
+                       created_at, updated_at, is_full_migration, source_title, target_title,
+                       source_account_id, target_account_id
                 FROM migration_jobs
                 WHERE id = ?;
                 """,
@@ -194,6 +206,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     is_full_migration=bool(row[9]) if row[9] is not None else True,
                     source_title=str(row[10]) if row[10] is not None else None,
                     target_title=str(row[11]) if row[11] is not None else None,
+                    source_account_id=int(row[12]) if row[12] is not None else None,
+                    target_account_id=int(row[13]) if row[13] is not None else None,
                 )
 
     async def record_migrated_item(
@@ -384,7 +398,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                 """
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
-                       created_at, updated_at, is_full_migration, source_title, target_title
+                       created_at, updated_at, is_full_migration, source_title, target_title,
+                       source_account_id, target_account_id
                 FROM migration_jobs
                 WHERE source_channel_id = ?
                 ORDER BY created_at DESC;
@@ -409,6 +424,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                         is_full_migration=bool(r[9]) if r[9] is not None else True,
                         source_title=str(r[10]) if r[10] is not None else None,
                         target_title=str(r[11]) if r[11] is not None else None,
+                        source_account_id=int(r[12]) if r[12] is not None else None,
+                        target_account_id=int(r[13]) if r[13] is not None else None,
                     )
                 )
 

@@ -11,6 +11,8 @@ export interface Channel {
   title: string;
   username: string | null;
   can_post: boolean;
+  account_id?: number;
+  account_name?: string;
 }
 
 export interface MigrationJob {
@@ -22,6 +24,8 @@ export interface MigrationJob {
   processed_videos: number;
   last_processed_id: number | null;
   created_at?: string;
+  source_account_id?: number;
+  target_account_id?: number;
 }
 
 export interface ProgressEventPayload {

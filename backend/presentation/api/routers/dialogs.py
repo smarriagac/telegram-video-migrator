@@ -201,11 +201,12 @@ DEMO_MESSAGES: dict[int, list[ChatMessageResponse]] = {
 @router.get("", response_model=list[DialogResponse])
 async def list_dialogs(
     limit: int = Query(100, ge=1, le=500),
+    account_id: int | None = Query(None),
     use_case: GetDialogsUseCase = Depends(get_dialogs_use_case),
 ) -> list[DialogResponse]:
     """Retrieve Telegram dialogs with unread counts and last message."""
     try:
-        dialogs = await use_case.execute(limit=limit)
+        dialogs = await use_case.execute(limit=limit, account_id=account_id)
         return [
             DialogResponse(
                 id=d.id,
@@ -227,11 +228,12 @@ async def list_dialogs(
 async def get_messages(
     chat_id: int,
     limit: int = Query(50, ge=1, le=200),
+    account_id: int | None = Query(None),
     use_case: GetChatMessagesUseCase = Depends(get_chat_messages_use_case),
 ) -> list[ChatMessageResponse]:
     """Retrieve message history for a specific Telegram chat."""
     try:
-        messages = await use_case.execute(chat_id=chat_id, limit=limit)
+        messages = await use_case.execute(chat_id=chat_id, limit=limit, account_id=account_id)
         return [
             ChatMessageResponse(
                 id=m.id,

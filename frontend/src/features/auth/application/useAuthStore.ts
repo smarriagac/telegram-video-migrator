@@ -22,6 +22,7 @@ interface AuthState {
     api_hash: string;
     session_string?: string;
   }) => Promise<boolean>;
+  deleteAccount: (accountId: number) => Promise<boolean>;
   loadUsers: () => Promise<void>;
   createUser: (payload: { email: string; password: string; role: Role }) => Promise<boolean>;
   updateUser: (userId: number, payload: { role?: Role; is_active?: boolean }) => Promise<boolean>;
@@ -109,6 +110,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return true;
     } catch (err: any) {
       set({ error: err.message, isLoading: false });
+      return false;
+    }
+  },
+
+  deleteAccount: async (accountId: number) => {
+    const { token } = get();
+    if (!token) return false;
+    try {
+      await authApi.deleteTelegramAccount(token, accountId);
+      set((state) => ({
+        accounts: state.accounts.filter((a) => a.id !== accountId),
+      }));
+      return true;
+    } catch (err: any) {
+      set({ error: err.message });
       return false;
     }
   },
