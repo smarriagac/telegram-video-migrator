@@ -50,6 +50,7 @@ export const SettingsView: React.FC = () => {
   const deleteAccount = useAuthStore((state) => state.deleteAccount);
   const createUser = useAuthStore((state) => state.createUser);
   const updateUser = useAuthStore((state) => state.updateUser);
+  const deleteUser = useAuthStore((state) => state.deleteUser);
   const isLoading = useAuthStore((state) => state.isLoading);
   const user = useAuthStore((state) => state.user);
 
@@ -145,6 +146,18 @@ export const SettingsView: React.FC = () => {
       );
     } else {
       showFeedback("Error modificando estado del usuario.", true);
+    }
+  };
+
+  const handleDeleteUser = async (targetId: number, targetEmail: string) => {
+    if (!window.confirm(`¿Estás seguro de eliminar permanentemente al usuario "${targetEmail}"?`)) {
+      return;
+    }
+    const ok = await deleteUser(targetId);
+    if (ok) {
+      showFeedback(`Usuario ${targetEmail} eliminado.`);
+    } else {
+      showFeedback("Error eliminando el usuario.", true);
     }
   };
 
@@ -525,31 +538,43 @@ export const SettingsView: React.FC = () => {
                       </TableCell>
 
                       <TableCell className="text-right">
-                        <Button
-                          onClick={() => handleToggleStatus(u.id, u.is_active)}
-                          disabled={u.id === user?.id}
-                          variant="outline"
-                          size="sm"
-                          className={cn(
-                            "h-7 px-2.5 rounded-md text-[10px] font-mono font-semibold transition-colors gap-1.5",
-                            u.is_active
-                              ? "border-white/10 text-zinc-400 hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
-                              : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                          )}
-                          title={u.id === user?.id ? "No puedes suspender tu propia cuenta" : undefined}
-                        >
-                          {u.is_active ? (
-                            <>
-                              <XCircle className="w-3 h-3" />
-                              <span>Suspender</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Activar</span>
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            onClick={() => handleToggleStatus(u.id, u.is_active)}
+                            disabled={u.id === user?.id}
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "h-7 px-2.5 rounded-md text-[10px] font-mono font-semibold transition-colors gap-1.5",
+                              u.is_active
+                                ? "border-white/10 text-zinc-400 hover:border-rose-500/30 hover:bg-rose-500/10 hover:text-rose-400"
+                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                            )}
+                            title={u.id === user?.id ? "No puedes suspender tu propia cuenta" : undefined}
+                          >
+                            {u.is_active ? (
+                              <>
+                                <XCircle className="w-3 h-3" />
+                                <span>Suspender</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Activar</span>
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            disabled={u.id === user?.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            title={u.id === user?.id ? "No puedes eliminar tu propia cuenta" : "Eliminar usuario"}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

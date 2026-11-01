@@ -35,29 +35,33 @@ async def test_list_and_update_user_use_cases():
         )
     )
 
-    # Admin promotes operator to ADMIN
-    updated = await update_uc.execute(
-        current_admin_id=admin_user.id or 1,
-        target_user_id=new_user.id or 2,
-        role=Role.ADMIN,
-    )
-    assert updated.role == Role.ADMIN
-
-    # Admin self-deactivation attempt must fail
-    with pytest.raises(DomainException):
-        await update_uc.execute(
+    try:
+        # Admin promotes operator to ADMIN
+        updated = await update_uc.execute(
             current_admin_id=admin_user.id or 1,
-            target_user_id=admin_user.id or 1,
-            is_active=False,
+            target_user_id=new_user.id or 2,
+            role=Role.ADMIN,
         )
+        assert updated.role == Role.ADMIN
 
-    # Updating non-existent user fails
-    with pytest.raises(UserNotFoundException):
-        await update_uc.execute(
-            current_admin_id=admin_user.id or 1,
-            target_user_id=999999,
-            role=Role.VIEWER,
-        )
+        # Admin self-deactivation attempt must fail
+        with pytest.raises(DomainException):
+            await update_uc.execute(
+                current_admin_id=admin_user.id or 1,
+                target_user_id=admin_user.id or 1,
+                is_active=False,
+            )
+
+        # Updating non-existent user fails
+        with pytest.raises(UserNotFoundException):
+            await update_uc.execute(
+                current_admin_id=admin_user.id or 1,
+                target_user_id=999999,
+                role=Role.VIEWER,
+            )
+    finally:
+        if new_user.id:
+            await repo.delete_user(new_user.id)
 
 
 @pytest.mark.asyncio
@@ -87,25 +91,29 @@ async def test_api_user_management_endpoints():
         assert create_res.status_code == 201
         created_id = create_res.json()["id"]
 
-        # List users
-        list_res = await client.get("/api/auth/users", headers=headers)
-        assert list_res.status_code == 200
-        user_list = list_res.json()
-        assert len(user_list) >= 2
+        try:
+            # List users
+            list_res = await client.get("/api/auth/users", headers=headers)
+            assert list_res.status_code == 200
+            user_list = list_res.json()
+            assert len(user_list) >= 2
 
-        # Update operator to VIEWER
-        patch_res = await client.patch(
-            f"/api/auth/users/{created_id}",
-            headers=headers,
-            json={"role": "VIEWER"},
-        )
-        assert patch_res.status_code == 200
-        assert patch_res.json()["role"] == "VIEWER"
+            # Update operator to VIEWER
+            patch_res = await client.patch(
+                f"/api/auth/users/{created_id}",
+                headers=headers,
+                json={"role": "VIEWER"},
+            )
+            assert patch_res.status_code == 200
+            assert patch_res.json()["role"] == "VIEWER"
 
-        # Attempt to self-deactivate admin (ID 1)
-        self_deact_res = await client.patch(
-            "/api/auth/users/1",
-            headers=headers,
-            json={"is_active": False},
-        )
-        assert self_deact_res.status_code == 400
+            # Attempt to self-deactivate admin (ID 1)
+            self_deact_res = await client.patch(
+                "/api/auth/users/1",
+                headers=headers,
+                json={"is_active": False},
+            )
+            assert self_deact_res.status_code == 400
+        finally:
+            del_res = await client.delete(f"/api/auth/users/{created_id}", headers=headers)
+            assert del_res.status_code == 200

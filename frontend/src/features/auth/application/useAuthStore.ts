@@ -26,6 +26,7 @@ interface AuthState {
   loadUsers: () => Promise<void>;
   createUser: (payload: { email: string; password: string; role: Role }) => Promise<boolean>;
   updateUser: (userId: number, payload: { role?: Role; is_active?: boolean }) => Promise<boolean>;
+  deleteUser: (userId: number) => Promise<boolean>;
 }
 
 const TOKEN_KEY = "telegram_hub_token";
@@ -165,6 +166,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const updated = await authApi.updateUser(token, userId, payload);
       set((state) => ({
         usersList: state.usersList.map((u) => (u.id === userId ? updated : u)),
+        isLoading: false,
+      }));
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, isLoading: false });
+      return false;
+    }
+  },
+
+  deleteUser: async (userId) => {
+    const { token } = get();
+    if (!token) return false;
+    set({ isLoading: true, error: null });
+    try {
+      await authApi.deleteUser(token, userId);
+      set((state) => ({
+        usersList: state.usersList.filter((u) => u.id !== userId),
         isLoading: false,
       }));
       return true;

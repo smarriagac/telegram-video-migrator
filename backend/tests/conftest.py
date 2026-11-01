@@ -1,0 +1,23 @@
+from __future__ import annotations
+
+import pytest
+from backend.infrastructure.persistence.postgres_repository import PostgresRepository
+
+
+@pytest.fixture(autouse=True)
+async def clean_database_after_each_test():
+    """Ensure no test accounts or users pollute the database across test runs."""
+    yield
+    repo = PostgresRepository()
+    try:
+        await repo.connect()
+        if repo.pool:
+            async with repo.pool.acquire() as conn:
+                await conn.execute(
+                    "DELETE FROM users WHERE id > 1 AND (email LIKE 'test_%' OR email LIKE 'nuevo_operador_%');"
+                )
+                await conn.execute(
+                    "DELETE FROM telegram_accounts WHERE id > 1 AND (name = 'Producción' OR name LIKE 'Cuenta Test%');"
+                )
+    except Exception:
+        pass

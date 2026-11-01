@@ -76,6 +76,17 @@ export const authApi = {
     return res.json();
   },
 
+  async deleteUser(token: string, userId: number): Promise<void> {
+    const res = await fetch(`/api/auth/users/${userId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al eliminar el usuario.");
+    }
+  },
+
   async saveTelegramCredentials(
     token: string,
     payload: {

@@ -26,3 +26,7 @@ class UserRepositoryPort(ABC):
         self, user_id: int, role: Role | None = None, is_active: bool | None = None
     ) -> User | None:
         raise NotImplementedError
+
+    @abstractmethod
+    async def delete_user(self, user_id: int) -> bool:
+        raise NotImplementedError

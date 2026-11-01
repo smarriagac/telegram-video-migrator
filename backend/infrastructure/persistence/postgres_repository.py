@@ -256,6 +256,18 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort):
                 is_active=row["is_active"],
             )
 
+    async def delete_user(self, user_id: int) -> bool:
+        await self.connect()
+        if self._fallback_mode or self.pool is None:
+            if user_id in self._users_memory:
+                del self._users_memory[user_id]
+                return True
+            return False
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute("DELETE FROM users WHERE id = $1", user_id)
+            return "DELETE 1" in res
+
     async def save_account(self, account: TelegramAccount) -> TelegramAccount:
         await self.connect()
         if self._fallback_mode or self.pool is None:

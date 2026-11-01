@@ -67,7 +67,7 @@ async def test_telegram_credentials_encryption_use_cases():
     save_uc = SaveTelegramCredentialsUseCase(account_repository=repo, encryption_service=enc_svc)
     get_uc = GetActiveTelegramCredentialsUseCase(account_repository=repo, encryption_service=enc_svc)
 
-    await save_uc.execute(
+    created_acc = await save_uc.execute(
         name="Producción",
         api_id="987654",
         api_hash="hash_secret_abcdef",
@@ -75,11 +75,15 @@ async def test_telegram_credentials_encryption_use_cases():
         session_string="session_blob_xyz",
     )
 
-    decrypted = await get_uc.execute()
-    assert decrypted.name == "Producción"
-    assert decrypted.api_id == "987654"
-    assert decrypted.api_hash == "hash_secret_abcdef"
-    assert decrypted.session_string == "session_blob_xyz"
+    try:
+        decrypted = await get_uc.execute()
+        assert decrypted.name == "Producción"
+        assert decrypted.api_id == "987654"
+        assert decrypted.api_hash == "hash_secret_abcdef"
+        assert decrypted.session_string == "session_blob_xyz"
+    finally:
+        if created_acc and created_acc.id and created_acc.id > 1:
+            await repo.delete_account(created_acc.id)
 
 
 @pytest.mark.asyncio
@@ -108,17 +112,25 @@ async def test_api_auth_and_rbac_flow():
             "/api/settings/credentials",
             headers=headers,
             json={
-                "name": "Cuenta Principal",
+                "name": "Cuenta Test RBAC",
                 "api_id": "112233",
                 "api_hash": "aabbccddeeff0011223344",
             },
         )
         assert save_res.status_code == 201
+        created_acc_id = save_res.json().get("id")
         assert "api_id_masked" in save_res.json()
 
-        # 4. Attempt to save credentials without token (401)
-        unauth_res = await client.post(
-            "/api/settings/credentials",
-            json={"name": "Fail", "api_id": "1", "api_hash": "2"},
-        )
-        assert unauth_res.status_code == 401
+        try:
+            # 4. Attempt to save credentials without token (401)
+            unauth_res = await client.post(
+                "/api/settings/credentials",
+                json={"name": "Fail", "api_id": "1", "api_hash": "2"},
+            )
+            assert unauth_res.status_code == 401
+        finally:
+            if created_acc_id and created_acc_id > 1:
+                del_acc_res = await client.delete(
+                    f"/api/settings/credentials/{created_acc_id}", headers=headers
+                )
+                assert del_acc_res.status_code == 200
