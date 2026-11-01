@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Settings,
-  Database,
-  Cpu,
-  Globe,
   Lock,
   Plus,
   KeyRound,
@@ -584,63 +581,6 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Infrastructure Telemetry */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 shrink-0">
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="p-1.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              <Database className="w-3.5 h-3.5" />
-            </span>
-            <span className="text-[10px] font-mono text-emerald-400">Puerto 7902</span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-white">PostgreSQL 18</h3>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
-              Usuarios, Roles (RBAC) y Cuentas Cifradas
-            </span>
-          </div>
-          <div className="text-[9px] text-zinc-500 font-mono pt-1.5 border-t border-white/5">
-            Docker: telegram_migrator_postgres
-          </div>
-        </div>
-
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              <Cpu className="w-3.5 h-3.5" />
-            </span>
-            <span className="text-[10px] font-mono text-cyan-400">Puerto 7901</span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-white">FastAPI Core</h3>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
-              Clean Architecture · Telethon MTProto
-            </span>
-          </div>
-          <div className="text-[9px] text-zinc-500 font-mono pt-1.5 border-t border-white/5">
-            Docker: telegram_migrator_backend
-          </div>
-        </div>
-
-        <div className="bg-[#14161F] border border-white/5 rounded-xl p-3.5 shadow-xl space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Globe className="w-3.5 h-3.5" />
-            </span>
-            <span className="text-[10px] font-mono text-emerald-400">Puerto 7900</span>
-          </div>
-          <div>
-            <h3 className="text-xs font-bold text-white">Frontend SPA</h3>
-            <span className="text-[10px] text-zinc-400 block mt-0.5">
-              React Router v7 · Radix UI · Tailwind
-            </span>
-          </div>
-          <div className="text-[9px] text-zinc-500 font-mono pt-1.5 border-t border-white/5">
-            Docker: telegram_migrator_frontend
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

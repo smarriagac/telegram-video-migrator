@@ -197,23 +197,6 @@ export const AppLayout: React.FC = () => {
             </span>
           </div>
         </div>
-
-        {/* Status / Infrastructure Footer */}
-        <div className="p-2.5 border-t border-zinc-800 m-2.5 rounded-lg bg-[#13151d] border text-[10px] font-mono text-zinc-500 space-y-1 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-400">PostgreSQL:</span>
-            <span className="text-emerald-400 font-medium">7902 · Online</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-zinc-400">Backend API:</span>
-            <span className="text-cyan-400 font-medium">7901 · FastAPI</span>
-          </div>
-          <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
-            <span className="flex items-center gap-1.5 text-zinc-400">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Cifrado AES-256
-            </span>
-          </div>
-        </div>
       </aside>
 
       {/* Main Content Area */}
