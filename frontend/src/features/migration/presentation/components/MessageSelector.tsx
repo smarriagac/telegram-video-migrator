@@ -167,8 +167,11 @@ export const MessageSelector: React.FC = () => {
         missing++;
       }
     }
-    return { cloned, missing };
-  }, [sourceMessages, clonedMsgIds]);
+    return {
+      cloned: syncStatus ? syncStatus.already_cloned_count : cloned,
+      missing: syncStatus ? syncStatus.missing_count : missing,
+    };
+  }, [sourceMessages, clonedMsgIds, syncStatus]);
 
   const selectedSizeSum = useMemo(() => {
     return sourceMessages
@@ -374,14 +377,14 @@ export const MessageSelector: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                    Novedades detectadas: {syncStatus.missing_count} mensajes faltantes
+                    Novedades detectadas: {syncStatus.missing_count} mensajes nuevos
                   </span>
                   <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.2 rounded-full font-mono">
                     ✓ {syncStatus.already_cloned_count} ya clonados
                   </span>
                 </div>
                 <p className="text-[11px] text-zinc-400">
-                  El canal origen tiene contenido que todavía no está en el destino. Podés sincronizar únicamente las novedades sin reclonar todo.
+                  Se detectaron mensajes nuevos publicados después de la última clonación. Podés clonar solo las novedades sin duplicar contenido.
                 </p>
               </div>
 

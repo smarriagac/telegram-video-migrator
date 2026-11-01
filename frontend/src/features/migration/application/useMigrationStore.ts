@@ -207,8 +207,17 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   selectOnlyMissingMessages: () => {
-    const missing = get().sourceMessages.filter((m) => !m.is_migrated);
-    set({ selectedMessageIds: missing.map((m) => m.id) });
+    const { syncStatus, sourceMessages } = get();
+    if (syncStatus?.missing_messages && syncStatus.missing_messages.length > 0) {
+      const missingIds = new Set(syncStatus.missing_messages.map((m) => m.id));
+      const loadedMissing = sourceMessages.filter((m) => missingIds.has(m.id)).map((m) => m.id);
+      set({
+        selectedMessageIds: loadedMissing.length > 0 ? loadedMissing : syncStatus.missing_messages.map((m) => m.id),
+      });
+    } else {
+      const missing = sourceMessages.filter((m) => !m.is_migrated);
+      set({ selectedMessageIds: missing.map((m) => m.id) });
+    }
   },
 
   fetchSourceMessages: async (channelId: number) => {
