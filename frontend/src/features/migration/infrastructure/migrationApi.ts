@@ -2,6 +2,7 @@ import {
   Channel,
   ChannelCloningHistory,
   ChannelMessageItem,
+  ChannelSyncStatus,
   ClonedContentItem,
   JobQueueStatus,
   MigrationJob,
@@ -21,15 +22,55 @@ export const migrationApi = {
   async fetchChannelMessages(
     channelId: number,
     limit: number = 50,
-    offsetId?: number
+    offsetId?: number,
+    targetChannelId?: number
   ): Promise<ChannelMessageItem[]> {
     const params = new URLSearchParams({ limit: limit.toString() });
     if (offsetId) {
       params.append("offset_id", offsetId.toString());
     }
+    if (targetChannelId) {
+      params.append("target_channel_id", targetChannelId.toString());
+    }
     const res = await fetch(`${API_BASE_URL}/channels/${channelId}/messages?${params.toString()}`);
     if (!res.ok) {
       throw new Error(`Failed to fetch channel messages: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async fetchChannelSyncStatus(
+    sourceChannelId: number,
+    targetChannelId: number
+  ): Promise<ChannelSyncStatus> {
+    const res = await fetch(
+      `${API_BASE_URL}/channels/${sourceChannelId}/sync-status?target_channel_id=${targetChannelId}`
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to check sync status: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async triggerDeltaSync(
+    sourceChannelId: number,
+    targetChannelId: number,
+    sourceChannelTitle?: string,
+    targetChannelTitle?: string
+  ): Promise<{ job_id: string; total_videos: number; status: string }> {
+    const payload = {
+      target_channel_id: targetChannelId,
+      source_channel_title: sourceChannelTitle,
+      target_channel_title: targetChannelTitle,
+    };
+    const res = await fetch(`${API_BASE_URL}/channels/${sourceChannelId}/sync-delta`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al iniciar sincronización delta");
     }
     return res.json();
   },

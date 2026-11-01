@@ -99,6 +99,7 @@ class PostgresJobRepository(JobRepositoryPort):
         self._initialized = True
 
     async def _ensure_initialized(self) -> None:
+        await self.connect()
         if not self._initialized:
             await self.initialize_schema()
 
@@ -551,6 +552,30 @@ class PostgresJobRepository(JobRepositoryPort):
             if row:
                 return int(row["source_channel_id"]), int(row["source_message_id"])
             return None
+
+    async def get_cloned_source_message_ids(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> set[int]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.get_cloned_source_message_ids(source_channel_id, target_channel_id)
+            return set()
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT mq.source_message_id
+                FROM migration_queue mq
+                JOIN migration_jobs mj ON mq.job_id = mj.id
+                WHERE mj.source_channel_id = $1
+                  AND mj.target_channel_id = $2
+                  AND mq.status = 'COMPLETED'
+                """,
+                source_channel_id,
+                target_channel_id,
+            )
+            return {int(r["source_message_id"]) for r in rows}
 
     async def close(self) -> None:
         if self.pool is not None:

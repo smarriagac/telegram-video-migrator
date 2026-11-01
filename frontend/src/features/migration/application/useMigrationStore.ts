@@ -3,6 +3,7 @@ import {
   Channel,
   ChannelCloningHistory,
   ChannelMessageItem,
+  ChannelSyncStatus,
   ClonedContentItem,
   JobQueueStatus,
   LogEntry,
@@ -23,6 +24,9 @@ interface MigrationStore {
   channelCloningHistory: ChannelCloningHistory | null;
   clonedContentItems: ClonedContentItem[];
   isLoadingHistory: boolean;
+  syncStatus: ChannelSyncStatus | null;
+  isCheckingSync: boolean;
+  isSyncingDelta: boolean;
   queueStatus: JobQueueStatus | null;
   activeJob: MigrationJob | null;
   progress: ProgressEventPayload | null;
@@ -35,6 +39,9 @@ interface MigrationStore {
   fetchChannels: () => Promise<void>;
   selectSource: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
+  checkSyncStatus: () => Promise<void>;
+  startDeltaSync: () => Promise<string | null>;
+  selectOnlyMissingMessages: () => void;
   fetchSourceMessages: (channelId: number) => Promise<void>;
   loadMoreSourceMessages: () => Promise<void>;
   fetchChannelCloningHistory: (channelId: number) => Promise<void>;
@@ -64,6 +71,9 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   channelCloningHistory: null,
   clonedContentItems: [],
   isLoadingHistory: false,
+  syncStatus: null,
+  isCheckingSync: false,
+  isSyncingDelta: false,
   queueStatus: null,
   activeJob: null,
   progress: null,
@@ -82,6 +92,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         get().fetchSourceMessages(channels[0].id);
         get().fetchChannelCloningHistory(channels[0].id);
         get().fetchChannelClonedContent(channels[0].id);
+        get().checkSyncStatus();
       }
     } catch (err: any) {
       set({
@@ -99,11 +110,15 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       selectedMessageIds: [],
       channelCloningHistory: null,
       clonedContentItems: [],
+      syncStatus: null,
     });
     if (id) {
       get().fetchSourceMessages(id);
       get().fetchChannelCloningHistory(id);
       get().fetchChannelClonedContent(id);
+      if (get().selectedTargetId && get().selectedTargetId !== id) {
+        get().checkSyncStatus();
+      }
     } else {
       set({
         sourceMessages: [],
@@ -112,16 +127,100 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         isLoadingMoreMessages: false,
         channelCloningHistory: null,
         clonedContentItems: [],
+        syncStatus: null,
       });
     }
   },
 
-  selectTarget: (id) => set({ selectedTargetId: id, error: null }),
+  selectTarget: (id) => {
+    set({ selectedTargetId: id, error: null, syncStatus: null });
+    const { selectedSourceId } = get();
+    if (selectedSourceId && id && selectedSourceId !== id) {
+      get().fetchSourceMessages(selectedSourceId);
+      get().checkSyncStatus();
+    }
+  },
+
+  checkSyncStatus: async () => {
+    const { selectedSourceId, selectedTargetId } = get();
+    if (!selectedSourceId || !selectedTargetId || selectedSourceId === selectedTargetId) {
+      set({ syncStatus: null, isCheckingSync: false });
+      return;
+    }
+    set({ isCheckingSync: true });
+    try {
+      const status = await migrationApi.fetchChannelSyncStatus(selectedSourceId, selectedTargetId);
+      set({ syncStatus: status, isCheckingSync: false });
+    } catch (err: any) {
+      set({ isCheckingSync: false });
+    }
+  },
+
+  startDeltaSync: async () => {
+    const { selectedSourceId, selectedTargetId, channels } = get();
+    if (!selectedSourceId || !selectedTargetId) {
+      set({ error: "Seleccioná origen y destino para sincronizar novedades." });
+      return null;
+    }
+    set({ isSyncingDelta: true, error: null });
+    try {
+      const sourceChan = channels.find((c) => c.id === selectedSourceId);
+      const targetChan = channels.find((c) => c.id === selectedTargetId);
+      const res = await migrationApi.triggerDeltaSync(
+        selectedSourceId,
+        selectedTargetId,
+        sourceChan?.title,
+        targetChan?.title
+      );
+      if (res.job_id) {
+        const total = res.total_videos || 0;
+        set({
+          activeJob: {
+            job_id: res.job_id,
+            source_id: selectedSourceId,
+            target_id: selectedTargetId,
+            status: "PENDING",
+            total_videos: total,
+            processed_videos: 0,
+            last_processed_id: null,
+          },
+          isSyncingDelta: false,
+          progress: {
+            job_id: res.job_id,
+            status: "PENDING",
+            percentage: 0,
+            processed_videos: 0,
+            total_videos: total,
+          },
+        });
+        get().addLog(`Sincronización incremental iniciada (${total} novedades): ${res.job_id}`, "info");
+        get().fetchQueueStatus(res.job_id);
+        return res.job_id;
+      }
+      set({ isSyncingDelta: false });
+      return null;
+    } catch (err: any) {
+      set({ isSyncingDelta: false, error: err.message || "Error al sincronizar novedades" });
+      get().addLog(`Error en sincronización incremental: ${err.message}`, "error");
+      return null;
+    }
+  },
+
+  selectOnlyMissingMessages: () => {
+    const missing = get().sourceMessages.filter((m) => !m.is_migrated);
+    set({ selectedMessageIds: missing.map((m) => m.id) });
+  },
 
   fetchSourceMessages: async (channelId: number) => {
+    const { selectedTargetId } = get();
     set({ isLoadingMessages: true, selectedMessageIds: [], hasMoreMessages: false });
     try {
-      const msgs = await migrationApi.fetchChannelMessages(channelId, 100);
+      const msgs = await migrationApi.fetchChannelMessages(
+        channelId,
+        100,
+        undefined,
+        selectedTargetId || undefined
+      );
       set({
         sourceMessages: msgs,
         isLoadingMessages: false,
@@ -134,7 +233,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   loadMoreSourceMessages: async () => {
-    const { selectedSourceId, sourceMessages, isLoadingMoreMessages, hasMoreMessages } = get();
+    const { selectedSourceId, selectedTargetId, sourceMessages, isLoadingMoreMessages, hasMoreMessages } = get();
     if (!selectedSourceId || isLoadingMoreMessages || !hasMoreMessages || sourceMessages.length === 0) {
       return;
     }
@@ -142,7 +241,12 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     set({ isLoadingMoreMessages: true });
     try {
       const oldestId = Math.min(...sourceMessages.map((m) => m.id));
-      const nextBatch = await migrationApi.fetchChannelMessages(selectedSourceId, 100, oldestId);
+      const nextBatch = await migrationApi.fetchChannelMessages(
+        selectedSourceId,
+        100,
+        oldestId,
+        selectedTargetId || undefined
+      );
 
       if (nextBatch.length === 0) {
         set({ hasMoreMessages: false, isLoadingMoreMessages: false });

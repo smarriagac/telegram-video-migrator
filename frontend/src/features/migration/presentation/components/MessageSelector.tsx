@@ -92,39 +92,60 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
 
 export const MessageSelector: React.FC = () => {
   const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
+  const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
   const sourceMessages = useMigrationStore((state) => state.sourceMessages);
   const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
   const isLoadingMessages = useMigrationStore((state) => state.isLoadingMessages);
   const hasMoreMessages = useMigrationStore((state) => state.hasMoreMessages);
   const isLoadingMoreMessages = useMigrationStore((state) => state.isLoadingMoreMessages);
   const clonedItems = useMigrationStore((state) => state.clonedContentItems);
+  const syncStatus = useMigrationStore((state) => state.syncStatus);
+  const isCheckingSync = useMigrationStore((state) => state.isCheckingSync);
+  const isSyncingDelta = useMigrationStore((state) => state.isSyncingDelta);
   const fetchSourceMessages = useMigrationStore((state) => state.fetchSourceMessages);
   const loadMoreSourceMessages = useMigrationStore((state) => state.loadMoreSourceMessages);
   const toggleSelectMessage = useMigrationStore((state) => state.toggleSelectMessage);
   const selectAllMessages = useMigrationStore((state) => state.selectAllMessages);
   const deselectAllMessages = useMigrationStore((state) => state.deselectAllMessages);
+  const checkSyncStatus = useMigrationStore((state) => state.checkSyncStatus);
+  const startDeltaSync = useMigrationStore((state) => state.startDeltaSync);
+  const selectOnlyMissingMessages = useMigrationStore((state) => state.selectOnlyMissingMessages);
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [filterState, setFilterState] = useState<{
+    type: string;
+    sync: "all" | "missing" | "cloned";
+    search: string;
+  }>({
+    type: "all",
+    sync: "all",
+    search: "",
+  });
   const [previewModalMsg, setPreviewModalMsg] = useState<ChannelMessageItem | null>(null);
 
   const clonedMsgIds = useMemo(() => new Set(clonedItems.map((c) => c.source_message_id)), [clonedItems]);
 
   const filteredMessages = useMemo(() => {
     return sourceMessages.filter((msg) => {
-      if (typeFilter !== "all" && msg.media_type !== typeFilter) {
+      if (filterState.type !== "all" && msg.media_type !== filterState.type) {
         return false;
       }
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
+      const isCloned = msg.is_migrated || clonedMsgIds.has(msg.id);
+      if (filterState.sync === "missing" && isCloned) {
+        return false;
+      }
+      if (filterState.sync === "cloned" && !isCloned) {
+        return false;
+      }
+      if (filterState.search.trim()) {
+        const q = filterState.search.toLowerCase();
         const textMatch = msg.text.toLowerCase().includes(q);
         const idMatch = msg.id.toString().includes(q);
         if (!textMatch && !idMatch) return false;
       }
       return true;
     });
-  }, [sourceMessages, typeFilter, searchQuery]);
+  }, [sourceMessages, filterState, clonedMsgIds]);
 
   const countsByType = useMemo(() => {
     const counts = { all: sourceMessages.length, video: 0, photo: 0, document: 0, text: 0 };
@@ -136,6 +157,19 @@ export const MessageSelector: React.FC = () => {
     }
     return counts;
   }, [sourceMessages]);
+
+  const syncCounts = useMemo(() => {
+    let cloned = 0;
+    let missing = 0;
+    for (const m of sourceMessages) {
+      if (m.is_migrated || clonedMsgIds.has(m.id)) {
+        cloned++;
+      } else {
+        missing++;
+      }
+    }
+    return { cloned, missing };
+  }, [sourceMessages, clonedMsgIds]);
 
   const selectedSizeSum = useMemo(() => {
     return sourceMessages
@@ -311,11 +345,134 @@ export const MessageSelector: React.FC = () => {
         </div>
       </div>
 
+      {/* Delta Sync Banner (incremental sync between source and target) */}
+      {selectedTargetId && selectedSourceId && selectedTargetId !== selectedSourceId && (
+        <div className="rounded-xl border border-white/10 bg-gradient-to-r from-[#171b26] to-[#0f1118] p-3 shadow-lg">
+          {isCheckingSync ? (
+            <div className="flex items-center gap-2.5 text-xs text-zinc-400 font-mono py-1">
+              <Loader2 className="w-4 h-4 text-cyan-400 animate-spin" />
+              <span>Comprobando novedades en canal origen contra destino...</span>
+            </div>
+          ) : syncStatus?.is_in_sync ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-mono text-emerald-400">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Canales 100% sincronizados ({syncStatus.already_cloned_count} mensajes en destino). No hay novedades pendientes.</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => checkSyncStatus()}
+                disabled={isCheckingSync}
+                className="h-7 px-2.5 text-[11px] font-mono text-emerald-300 hover:bg-emerald-500/10 border border-emerald-500/20"
+              >
+                <RefreshCw className="w-3 h-3 mr-1" /> Recomprobar
+              </Button>
+            </div>
+          ) : syncStatus && syncStatus.missing_count > 0 ? (
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                    Novedades detectadas: {syncStatus.missing_count} mensajes faltantes
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.2 rounded-full font-mono">
+                    ✓ {syncStatus.already_cloned_count} ya clonados
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400">
+                  El canal origen tiene contenido que todavía no está en el destino. Podés sincronizar únicamente las novedades sin reclonar todo.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={selectOnlyMissingMessages}
+                  className="h-8 text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 font-mono"
+                  title="Marca en la galería solo los mensajes faltantes"
+                >
+                  Seleccionar novedades
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={startDeltaSync}
+                  disabled={isSyncingDelta}
+                  className="h-8 text-xs bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-md shadow-cyan-950/40 font-mono"
+                >
+                  {isSyncingDelta ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sincronizando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Sincronizar novedades (+{syncStatus.missing_count})
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between text-xs text-zinc-400 font-mono py-1">
+              <span>Sincronización lista para verificar.</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => checkSyncStatus()}
+                className="h-7 px-2 text-[11px] text-cyan-400 hover:bg-white/5"
+              >
+                Comprobar diferencias
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-center gap-2.5 justify-between">
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto py-0.5">
+          {/* Sync Status Filter Group */}
+          {selectedTargetId && (
+            <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
+              <button
+                onClick={() => setFilterState((prev) => ({ ...prev, sync: "all" }))}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${
+                  filterState.sync === "all"
+                    ? "bg-zinc-700 text-white font-semibold"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setFilterState((prev) => ({ ...prev, sync: "missing" }))}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 ${
+                  filterState.sync === "missing"
+                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold"
+                    : "text-amber-400/70 hover:text-amber-300"
+                }`}
+              >
+                <span>★ Novedades</span>
+                <span className="text-[9px] opacity-80">({syncCounts.missing})</span>
+              </button>
+              <button
+                onClick={() => setFilterState((prev) => ({ ...prev, sync: "cloned" }))}
+                className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all flex items-center gap-1 ${
+                  filterState.sync === "cloned"
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold"
+                    : "text-emerald-400/70 hover:text-emerald-300"
+                }`}
+              >
+                <span>✓ Clonados</span>
+                <span className="text-[9px] opacity-80">({syncCounts.cloned})</span>
+              </button>
+            </div>
+          )}
+
           <span className="text-[10px] text-zinc-500 flex items-center mr-1 font-mono">
-            <Filter className="w-3 h-3 mr-1" /> Filtro:
+            <Filter className="w-3 h-3 mr-1" /> Tipo:
           </span>
           {[
             { id: "all", label: `Todos (${countsByType.all})` },
@@ -326,9 +483,9 @@ export const MessageSelector: React.FC = () => {
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setTypeFilter(item.id)}
+              onClick={() => setFilterState((prev) => ({ ...prev, type: item.id }))}
               className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all whitespace-nowrap ${
-                typeFilter === item.id
+                filterState.type === item.id
                   ? "bg-cyan-500 text-black font-semibold shadow-sm"
                   : "bg-zinc-900/80 border border-white/5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
               }`}
@@ -343,8 +500,8 @@ export const MessageSelector: React.FC = () => {
           <input
             type="text"
             placeholder="Buscar por texto o #ID..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={filterState.search}
+            onChange={(e) => setFilterState((prev) => ({ ...prev, search: e.target.value }))}
             className="w-full bg-[#0E1017] border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 h-8"
           />
         </div>
@@ -401,11 +558,15 @@ export const MessageSelector: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1">
-                    {clonedMsgIds.has(msg.id) && (
+                    {msg.is_migrated || clonedMsgIds.has(msg.id) ? (
                       <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-emerald-500/25 text-emerald-300 border border-emerald-500/35" title="Este mensaje ya fue clonado previamente">
                         ✓ Clonado
                       </span>
-                    )}
+                    ) : selectedTargetId ? (
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/35" title="Novedad: mensaje nuevo aún no clonado">
+                        ★ Novedad
+                      </span>
+                    ) : null}
                     {getTypeBadge(msg.media_type)}
                   </div>
                 </div>
@@ -481,12 +642,16 @@ export const MessageSelector: React.FC = () => {
                   #{msg.id}
                 </span>
 
-                <div className="shrink-0 flex items-center gap-1.5 w-36">
-                  {clonedMsgIds.has(msg.id) && (
+                <div className="shrink-0 flex items-center gap-1.5 w-40">
+                  {msg.is_migrated || clonedMsgIds.has(msg.id) ? (
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-emerald-500/25 text-emerald-300 border border-emerald-500/35">
                       ✓ Clonado
                     </span>
-                  )}
+                  ) : selectedTargetId ? (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/35">
+                      ★ Novedad
+                    </span>
+                  ) : null}
                   {getTypeBadge(msg.media_type)}
                 </div>
 

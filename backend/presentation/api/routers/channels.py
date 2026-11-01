@@ -1,16 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
-import tempfile
 from pathlib import Path
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+import tempfile
+from typing import Any
+import uuid
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel
 
+from backend.application.broadcaster import EventBroadcaster
+from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
 from backend.domain.entities.channel import Channel
+from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 from backend.domain.ports.job_repository_port import JobRepositoryPort
-from backend.presentation.dependencies import get_telegram_gateway, get_job_repository
+from backend.presentation.dependencies import (
+    get_broadcaster,
+    get_job_repository,
+    get_migration_use_case,
+    get_telegram_gateway,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/channels", tags=["Channels"])
@@ -64,11 +75,17 @@ async def list_channel_messages(
     channel_id: int,
     limit: int = 50,
     offset_id: int | None = None,
+    target_channel_id: int | None = Query(None),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> list[ChannelMessageItemResponse]:
-    """Retrieve preview messages from a channel for selection before migration."""
+    """Retrieve preview messages from a channel with optional target clone status."""
     try:
         messages = await gateway.get_channel_messages(channel_id=channel_id, limit=limit, offset_id=offset_id)
+        cloned_ids: set[int] = set()
+        if target_channel_id is not None:
+            cloned_ids = await repo.get_cloned_source_message_ids(channel_id, target_channel_id)
+
         return [
             ChannelMessageItemResponse(
                 id=m.id,
@@ -78,13 +95,126 @@ async def list_channel_messages(
                 date=m.date,
                 file_size=m.file_size,
                 views=m.views,
-                is_migrated=m.is_migrated,
+                is_migrated=(m.id in cloned_ids) if target_channel_id is not None else m.is_migrated,
             )
             for m in messages
         ]
     except Exception as e:
         logger.error(f"Error listing messages for channel {channel_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ChannelSyncStatusResponse(BaseModel):
+    source_channel_id: int
+    target_channel_id: int
+    total_source_messages: int
+    already_cloned_count: int
+    missing_count: int
+    is_in_sync: bool
+    missing_messages: list[ChannelMessageItemResponse]
+
+
+class SyncDeltaRequest(BaseModel):
+    target_channel_id: int
+    source_channel_title: str | None = None
+    target_channel_title: str | None = None
+
+
+@router.get("/{channel_id}/sync-status", response_model=ChannelSyncStatusResponse)
+async def get_channel_sync_status_endpoint(
+    channel_id: int,
+    target_channel_id: int = Query(...),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> ChannelSyncStatusResponse:
+    """Check sync delta: messages in source channel that have NOT been cloned to target."""
+    try:
+        cloned_ids = await repo.get_cloned_source_message_ids(channel_id, target_channel_id)
+        max_cloned_id = max(cloned_ids) if cloned_ids else 0
+        new_videos = await gateway.fetch_channel_videos(channel_id, after_message_id=max_cloned_id)
+
+        missing: list[ChannelMessageItemResponse] = []
+        for v in new_videos:
+            if v.message_id not in cloned_ids:
+                missing.append(
+                    ChannelMessageItemResponse(
+                        id=v.message_id,
+                        channel_id=channel_id,
+                        text=v.caption or "",
+                        media_type=getattr(v, "media_type", "video"),
+                        date="",
+                        file_size=None,
+                        views=None,
+                        is_migrated=False,
+                    )
+                )
+
+        return ChannelSyncStatusResponse(
+            source_channel_id=channel_id,
+            target_channel_id=target_channel_id,
+            total_source_messages=len(cloned_ids) + len(missing),
+            already_cloned_count=len(cloned_ids),
+            missing_count=len(missing),
+            is_in_sync=(len(missing) == 0),
+            missing_messages=missing,
+        )
+    except Exception as e:
+        logger.error(f"Error checking sync status between {channel_id} and {target_channel_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{channel_id}/sync-delta", status_code=status.HTTP_201_CREATED)
+async def sync_channel_delta_endpoint(
+    channel_id: int,
+    req: SyncDeltaRequest,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+):
+    """Trigger incremental sync: only clones messages not yet in target."""
+    cloned_ids = await repo.get_cloned_source_message_ids(channel_id, req.target_channel_id)
+    max_cloned_id = max(cloned_ids) if cloned_ids else 0
+    new_videos = await gateway.fetch_channel_videos(channel_id, after_message_id=max_cloned_id)
+    missing_ids = [v.message_id for v in new_videos if v.message_id not in cloned_ids]
+
+    if not missing_ids:
+        return {
+            "status": "already_synced",
+            "message": "Los canales ya están 100% sincronizados. No hay mensajes nuevos para clonar.",
+            "synced_count": 0,
+        }
+
+    job_id = str(uuid.uuid4())
+    job = MigrationJob(
+        job_id=job_id,
+        source_id=channel_id,
+        target_id=req.target_channel_id,
+        status=JobStatus.PENDING,
+        is_full_migration=False,
+        source_title=req.source_channel_title,
+        target_title=req.target_channel_title,
+        total_videos=len(missing_ids),
+    )
+    await repo.create_job(job)
+
+    async def on_progress(event: dict[str, Any]):
+        await broadcaster.publish(job_id, event)
+
+    async def run_worker():
+        try:
+            await use_case.execute(job_id, on_progress=on_progress, selected_message_ids=missing_ids)
+        except Exception as e:
+            logger.error(f"Delta sync worker failed for job {job_id}: {e}")
+
+    asyncio.create_task(run_worker())
+
+    return {
+        "job_id": job_id,
+        "status": "started",
+        "missing_count": len(missing_ids),
+        "message": f"Iniciando sincronización incremental de {len(missing_ids)} mensajes nuevos.",
+    }
 
 
 @router.get("/{channel_id}/messages/{message_id}/thumbnail")

@@ -173,6 +173,16 @@ class TelethonAdapter(TelegramGatewayPort):
                 source_info = await repo.get_source_item_for_target(channel_id, message_id)
                 if source_info:
                     src_chan_id, src_msg_id = source_info
+                    src_cache_file = cache_dir / f"{src_chan_id}_{src_msg_id}.jpg"
+                    if src_cache_file.exists():
+                        try:
+                            data = src_cache_file.read_bytes()
+                            if data:
+                                cache_file.write_bytes(data)
+                                return data
+                        except Exception:
+                            pass
+
                     try:
                         src_entity = await self.client.get_input_entity(src_chan_id)
                         src_msg = await self.client.get_messages(src_entity, ids=src_msg_id)
@@ -183,6 +193,7 @@ class TelethonAdapter(TelegramGatewayPort):
                             if src_thumb and isinstance(src_thumb, bytes):
                                 try:
                                     cache_file.write_bytes(src_thumb)
+                                    src_cache_file.write_bytes(src_thumb)
                                 except Exception:
                                     pass
                                 return src_thumb
@@ -201,6 +212,7 @@ class TelethonAdapter(TelegramGatewayPort):
         messages_to_migrate: list[VideoMessage] = []
         min_id = after_message_id or 0
         try:
+            await self._ensure_connected()
             async for message in self.client.iter_messages(channel_id, min_id=min_id, reverse=True):
                 # Ignore service messages (e.g. pinned message, member join/leave, avatar changes)
                 if isinstance(message, types.MessageService) or getattr(message, "action", None) is not None:

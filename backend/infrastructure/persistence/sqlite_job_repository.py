@@ -488,6 +488,23 @@ class SQLiteJobRepository(JobRepositoryPort):
                     return int(row[0]), int(row[1])
                 return None
 
+    async def get_cloned_source_message_ids(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> set[int]:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT DISTINCT mq.source_message_id
+                FROM migration_queue mq
+                JOIN migration_jobs mj ON mq.job_id = mj.id
+                WHERE mj.source_channel_id = ? AND mj.target_channel_id = ? AND mq.status = 'COMPLETED';
+                """,
+                (source_channel_id, target_channel_id),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return {int(r[0]) for r in rows}
+
     async def close(self) -> None:
         if self._shared_mem_conn is not None:
             await self._shared_mem_conn.close()

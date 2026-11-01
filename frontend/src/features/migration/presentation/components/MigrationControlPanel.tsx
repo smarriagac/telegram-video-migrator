@@ -4,6 +4,7 @@ import {
   History,
   Layers,
   Play,
+  RefreshCw,
   RotateCcw,
   StopCircle,
   Terminal,
@@ -40,6 +41,9 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
   const resetJob = useMigrationStore((state) => state.resetJob);
   const logs = useMigrationStore((state) => state.logs);
   const history = useMigrationStore((state) => state.channelCloningHistory);
+  const syncStatus = useMigrationStore((state) => state.syncStatus);
+  const isCheckingSync = useMigrationStore((state) => state.isCheckingSync);
+  const checkSyncStatus = useMigrationStore((state) => state.checkSyncStatus);
 
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
@@ -164,20 +168,49 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
             {/* Direct Local Upload Button */}
             {selectedTargetId && (
-              <button
-                type="button"
-                onClick={() => setIsUploadOpen(true)}
-                className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-emerald-500/30 text-left transition-all group"
-                title="Subir archivo local directamente a este canal"
-              >
-                <div className="flex items-center gap-1.5 text-[11px]">
-                  <UploadCloud className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-zinc-300 font-medium">Subir desde mi PC</span>
-                </div>
-                <span className="text-[10px] font-mono text-emerald-400 group-hover:underline">
-                  + Publicar directo
-                </span>
-              </button>
+              <div className="space-y-1.5 mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsUploadOpen(true)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-emerald-500/30 text-left transition-all group"
+                  title="Subir archivo local directamente a este canal"
+                >
+                  <div className="flex items-center gap-1.5 text-[11px]">
+                    <UploadCloud className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+                    <span className="text-zinc-300 font-medium">Subir desde mi PC</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-400 group-hover:underline">
+                    + Publicar directo
+                  </span>
+                </button>
+
+                {selectedSourceId && selectedTargetId !== selectedSourceId && (
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 text-[11px]">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isCheckingSync ? "animate-spin text-cyan-400" : syncStatus?.is_in_sync ? "text-emerald-400" : "text-amber-400"}`} />
+                      {isCheckingSync ? (
+                        <span className="text-zinc-400 truncate">Comprobando delta...</span>
+                      ) : syncStatus?.is_in_sync ? (
+                        <span className="text-emerald-300 font-medium truncate">✓ 100% sincronizado</span>
+                      ) : syncStatus ? (
+                        <span className="text-amber-300 font-medium font-mono truncate">
+                          {syncStatus.missing_count} novedades
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400 truncate">Sin verificar</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => checkSyncStatus()}
+                      disabled={isCheckingSync}
+                      className="text-[10px] font-mono text-cyan-400 hover:underline shrink-0 ml-1.5"
+                    >
+                      Auditar
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

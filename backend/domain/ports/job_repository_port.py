@@ -92,3 +92,9 @@ class JobRepositoryPort(ABC):
     ) -> tuple[int, int] | None:
         """Find source_channel_id and source_message_id for a cloned target message."""
         return None
+
+    async def get_cloned_source_message_ids(
+        self, source_channel_id: int, target_channel_id: int
+    ) -> set[int]:
+        """Retrieve set of source message IDs already cloned to the target channel."""
+        return set()

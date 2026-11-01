@@ -118,3 +118,14 @@ export interface ClonedContentItem {
   target_channel_id: number;
   target_channel_title: string | null;
 }
+
+export interface ChannelSyncStatus {
+  source_channel_id: number;
+  target_channel_id: number;
+  total_source_messages: number;
+  already_cloned_count: number;
+  missing_count: number;
+  is_in_sync: boolean;
+  missing_messages: ChannelMessageItem[];
+}
+
