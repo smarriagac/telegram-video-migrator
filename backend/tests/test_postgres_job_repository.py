@@ -13,14 +13,14 @@ async def repo():
     await repository.initialize_schema()
     if repository.pool:
         async with repository.pool.acquire() as conn:
-            await conn.execute("DELETE FROM channel_sync_bindings WHERE source_channel_id < -900000;")
+            await conn.execute("DELETE FROM channel_sync_bindings WHERE source_channel_id IN (-999001, -999002);")
             await conn.execute("DELETE FROM migration_queue WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_items WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_jobs WHERE id LIKE 'pg-test-%';")
     yield repository
     if repository.pool:
         async with repository.pool.acquire() as conn:
-            await conn.execute("DELETE FROM channel_sync_bindings WHERE source_channel_id < -900000;")
+            await conn.execute("DELETE FROM channel_sync_bindings WHERE source_channel_id IN (-999001, -999002);")
             await conn.execute("DELETE FROM migration_queue WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_items WHERE job_id LIKE 'pg-test-%';")
             await conn.execute("DELETE FROM migration_jobs WHERE id LIKE 'pg-test-%';")
