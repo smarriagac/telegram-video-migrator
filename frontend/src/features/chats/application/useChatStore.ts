@@ -138,7 +138,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       filePreviewUrl: null,
       editingMessage: null,
     });
-    const { messages, chats } = get();
+    const { messages } = get();
 
     // If messages for this chat are not loaded yet, fetch them
     if (!messages[chatId]) {
@@ -157,12 +157,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } finally {
         set({ isLoadingMessages: false });
       }
-    }
-
-    // Auto mark as read if chat had unread messages
-    const targetChat = chats.find((c) => c.id === chatId);
-    if (targetChat && targetChat.unread_count > 0) {
-      await get().markAsRead(chatId);
     }
   },
 

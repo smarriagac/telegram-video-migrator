@@ -340,6 +340,9 @@ export const ChatsView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const unreadDividerRef = useRef<HTMLDivElement>(null);
+  const sessionCutoffRef = useRef<{ chatId: number; maxInboxId: number } | null>(null);
+  const isFirstLoadForChatRef = useRef<boolean>(true);
+  const prevChatIdRef = useRef<number | null>(null);
 
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
@@ -384,21 +387,60 @@ export const ChatsView: React.FC = () => {
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
 
+  // Track session cutoff for unread divider so it doesn't vanish prematurely on MTProto sync
+  if (activeChat && prevChatIdRef.current !== activeChat.id) {
+    prevChatIdRef.current = activeChat.id;
+    sessionCutoffRef.current = {
+      chatId: activeChat.id,
+      maxInboxId: activeChat.read_inbox_max_id || 0,
+    };
+    isFirstLoadForChatRef.current = true;
+  }
+
+  const cutoffId =
+    sessionCutoffRef.current?.chatId === activeChat?.id
+      ? sessionCutoffRef.current.maxInboxId
+      : activeChat?.read_inbox_max_id || 0;
+
   const firstUnreadIndex = activeMessages.findIndex(
     (m) =>
       !m.is_outgoing &&
-      (!m.is_read || (activeChat?.read_inbox_max_id ? m.id > activeChat.read_inbox_max_id : false))
+      (!m.is_read || (cutoffId > 0 ? m.id > cutoffId : false))
   );
 
   useEffect(() => {
-    if (activeMessages.length > 0) {
-      if (unreadDividerRef.current) {
-        unreadDividerRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (activeMessages.length === 0) return;
+
+    if (isFirstLoadForChatRef.current) {
+      isFirstLoadForChatRef.current = false;
+      // Instant viewport positioning on entering a chat (no lagging animation through entire history)
+      if (firstUnreadIndex !== -1 && unreadDividerRef.current) {
+        unreadDividerRef.current.scrollIntoView({ behavior: "auto", block: "center" });
       } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }
+
+      // If all messages fit in container without needing to scroll, mark as read automatically
+      const container = messagesContainerRef.current;
+      if (
+        container &&
+        container.scrollHeight <= container.clientHeight + 40 &&
+        activeChat &&
+        activeChat.unread_count > 0
+      ) {
+        const timer = setTimeout(() => {
+          markAsRead(activeChat.id);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      // Subsequent messages in active chat: smooth scroll only if not scrolled up reading old history
+      const lastMsg = activeMessages[activeMessages.length - 1];
+      if (lastMsg?.is_outgoing || !isScrolledUp) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
     }
-  }, [activeChatId, activeMessages.length]);
+  }, [activeChatId, activeMessages.length, firstUnreadIndex, isScrolledUp, activeChat, markAsRead]);
 
   // Filter dialogs by search query AND category
   const filteredChats = chats.filter((c) => {
@@ -420,6 +462,9 @@ export const ChatsView: React.FC = () => {
       await sendMessage(inputText);
       setInputText("");
     }
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
   };
 
   const handleStartEdit = (msg: { id: number; text: string }) => {
@@ -755,9 +800,14 @@ export const ChatsView: React.FC = () => {
                 ref={messagesContainerRef}
                 onScroll={(e) => {
                   const el = e.currentTarget;
-                  const isUp = el.scrollHeight - el.scrollTop - el.clientHeight > 120;
+                  const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+                  const isUp = distanceToBottom > 100;
                   if (isUp !== isScrolledUp) {
                     setIsScrolledUp(isUp);
+                  }
+
+                  if (distanceToBottom <= 20 && activeChat && activeChat.unread_count > 0) {
+                    markAsRead(activeChat.id);
                   }
                 }}
                 className="relative flex-1 min-h-0 p-3 overflow-y-auto space-y-2.5 flex flex-col"
@@ -926,6 +976,9 @@ export const ChatsView: React.FC = () => {
                     type="button"
                     onClick={() => {
                       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+                      if (activeChat && activeChat.unread_count > 0) {
+                        markAsRead(activeChat.id);
+                      }
                       setIsScrolledUp(false);
                     }}
                     className="sticky bottom-2 self-end mr-2 z-20 p-2 rounded-full bg-zinc-900/95 border border-cyan-500/40 text-cyan-400 shadow-2xl hover:bg-zinc-800 transition-all flex items-center gap-1.5 backdrop-blur-md group"
