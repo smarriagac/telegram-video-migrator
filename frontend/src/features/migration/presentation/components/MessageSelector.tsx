@@ -32,6 +32,7 @@ interface ThumbnailProps {
   messageId: number;
   mediaType: string | null;
   className?: string;
+  fit?: "cover" | "contain";
 }
 
 const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
@@ -39,6 +40,7 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
   messageId,
   mediaType,
   className = "",
+  fit = "cover",
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -69,7 +71,7 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
   const thumbUrl = `/api/channels/${channelId}/messages/${messageId}/thumbnail`;
 
   return (
-    <div className={`relative w-full h-full bg-zinc-950 overflow-hidden ${className}`}>
+    <div className={`relative w-full h-full bg-zinc-950 overflow-hidden flex items-center justify-center ${className}`}>
       {!loaded && (
         <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center">
           <Loader2 className="w-5 h-5 text-zinc-700 animate-spin" />
@@ -81,9 +83,9 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
         loading="lazy"
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
-        }`}
+        className={`w-full h-full transition-opacity duration-300 ${
+          fit === "contain" ? "object-contain" : "object-cover"
+        } ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </div>
   );
@@ -738,7 +740,7 @@ export const MessageSelector: React.FC = () => {
           onClick={() => setPreviewModalMsg(null)}
         >
           <div
-            className="bg-[#14161F] border border-white/10 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl space-y-4 p-5"
+            className="bg-[#14161F] border border-white/10 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/5 pb-3">
@@ -766,13 +768,13 @@ export const MessageSelector: React.FC = () => {
               </div>
             )}
 
-            {/* Media Preview Box */}
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-black border border-white/5 flex items-center justify-center">
+            {/* Media Preview Box (Full uncropped contain) */}
+            <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
               <MessageThumbnailImage
                 channelId={selectedSourceId}
                 messageId={previewModalMsg.id}
                 mediaType={previewModalMsg.media_type}
-                className="object-contain"
+                fit="contain"
               />
             </div>
 
