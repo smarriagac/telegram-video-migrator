@@ -79,12 +79,12 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] min-w-[280px] p-0 border-white/15 bg-[#14161F]"
+        className="w-[max(var(--radix-popover-trigger-width),420px)] max-w-[95vw] p-0 border-white/15 bg-[#14161F] shadow-2xl z-50"
         align="start"
       >
         <Command>
           <CommandInput placeholder="Buscar por nombre, @usuario o ID..." />
-          <CommandList className="max-h-56">
+          <CommandList className="max-h-60">
             <CommandEmpty>No se encontraron canales.</CommandEmpty>
             <CommandGroup>
               {channels.map((c) => {
@@ -104,7 +104,7 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
                       isSelected && "text-cyan-300 font-medium bg-cyan-500/10"
                     )}
                   >
-                    <div className="flex items-center gap-1.5 truncate mr-2">
+                    <div className="flex items-center gap-1.5 truncate mr-2 min-w-0 flex-1">
                       {c.account_name && (
                         <span className="text-[9px] text-cyan-400 font-medium px-1 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/20 shrink-0">
                           {c.account_name}
@@ -115,7 +115,7 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
                           ★ Admin
                         </span>
                       )}
-                      <span className="truncate">{c.title}</span>
+                      <span className="truncate text-zinc-100 font-medium">{c.title}</span>
                       {c.username ? (
                         <span className="text-[10px] text-zinc-500 shrink-0">@{c.username}</span>
                       ) : (

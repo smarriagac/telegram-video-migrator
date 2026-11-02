@@ -99,7 +99,7 @@ export const CreateSyncBindingModal: React.FC = () => {
 
   return (
     <Dialog open={isCreateModalOpen} onOpenChange={setCreateModalOpen}>
-      <DialogContent className="sm:max-w-[540px] bg-zinc-950 border-zinc-800 text-zinc-100 rounded-md">
+      <DialogContent className="sm:max-w-[720px] md:max-w-[760px] bg-zinc-950 border-zinc-800 text-zinc-100 rounded-md">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-emerald-400" />

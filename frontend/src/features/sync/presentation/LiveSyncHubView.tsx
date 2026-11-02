@@ -86,7 +86,7 @@ export const LiveSyncHubView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
+    <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* View Header */}
       <ViewHeader
         icon={<Radio className="w-4 h-4" />}
@@ -115,81 +115,81 @@ export const LiveSyncHubView: React.FC = () => {
       </ViewHeader>
 
       {error && (
-        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 flex items-center gap-2">
+        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400 flex items-center gap-2">
           <AlertCircle className="h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {/* Daemon Status Bar */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
               Estado del Motor MTProto
             </CardTitle>
-            <div className="relative flex h-3 w-3">
+            <div className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold text-white flex items-center gap-2">
+          <CardContent className="p-2.5 pt-0">
+            <div className="text-base sm:text-lg font-bold text-white flex items-center gap-1.5 font-mono">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               {health?.is_running ? "DAEMON ACTIVO" : "INICIANDO"}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-400 mt-0.5">
               Escucha pasiva de eventos NewMessage
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
               Clientes Conectados
             </CardTitle>
-            <Radio className="h-4 w-4 text-cyan-400" />
+            <Radio className="h-3.5 w-3.5 text-cyan-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
+          <CardContent className="p-2.5 pt-0">
+            <div className="text-xl font-bold font-mono text-white">
               {health?.attached_clients_count || 1}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-400 mt-0.5">
               Pool MTProto de cuentas vinculadas
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
               Rutas Activas
             </CardTitle>
-            <ArrowRight className="h-4 w-4 text-emerald-400" />
+            <ArrowRight className="h-3.5 w-3.5 text-emerald-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
+          <CardContent className="p-2.5 pt-0">
+            <div className="text-xl font-bold font-mono text-white">
               {bindings.filter((b) => b.is_active).length} / {bindings.length}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-400 mt-0.5">
               Pares en escucha continua
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
               Cola de Despacho
             </CardTitle>
-            <ShieldAlert className="h-4 w-4 text-amber-400" />
+            <ShieldAlert className="h-3.5 w-3.5 text-amber-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-white">
+          <CardContent className="p-2.5 pt-0">
+            <div className="text-xl font-bold font-mono text-white">
               {health?.queue_depth || 0}
             </div>
-            <p className="text-xs text-zinc-400 mt-1">
+            <p className="text-[11px] text-zinc-400 mt-0.5">
               Mensajes en tránsito inmediato
             </p>
           </CardContent>
@@ -197,11 +197,11 @@ export const LiveSyncHubView: React.FC = () => {
       </div>
 
       {/* Main Bindings Matrix Card */}
-      <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm backdrop-blur">
-        <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+        <CardHeader className="p-3 pb-2">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-base font-medium text-white">
+              <CardTitle className="text-sm font-semibold text-white">
                 Pares de Canales Vinculados
               </CardTitle>
               <CardDescription className="text-xs text-zinc-400">
@@ -209,40 +209,40 @@ export const LiveSyncHubView: React.FC = () => {
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-500" />
+              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-zinc-500" />
               <Input
                 placeholder="Buscar por nombre o ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 bg-zinc-950/50 border-zinc-800 text-xs text-white placeholder:text-zinc-500 h-9"
+                className="pl-8 bg-zinc-950/50 border-zinc-800 text-xs text-white placeholder:text-zinc-500 h-7.5"
               />
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-3 pt-0">
           <div className="rounded-md border border-zinc-800 overflow-hidden">
             <Table>
               <TableHeader className="bg-zinc-950/80">
                 <TableRow className="border-zinc-800 hover:bg-transparent">
-                  <TableHead className="text-zinc-400 text-xs">Canal Origen</TableHead>
-                  <TableHead className="text-zinc-400 text-xs text-center w-12"></TableHead>
-                  <TableHead className="text-zinc-400 text-xs">Canal Destino</TableHead>
-                  <TableHead className="text-zinc-400 text-xs">Filtros & Reglas</TableHead>
-                  <TableHead className="text-zinc-400 text-xs">Último Sincronizado</TableHead>
-                  <TableHead className="text-zinc-400 text-xs text-center">Estado</TableHead>
-                  <TableHead className="text-zinc-400 text-xs text-right">Acciones</TableHead>
+                  <TableHead className="text-zinc-400 text-xs py-2 px-3">Canal Origen</TableHead>
+                  <TableHead className="text-zinc-400 text-xs text-center w-10 py-2 px-1"></TableHead>
+                  <TableHead className="text-zinc-400 text-xs py-2 px-3">Canal Destino</TableHead>
+                  <TableHead className="text-zinc-400 text-xs py-2 px-3">Filtros & Reglas</TableHead>
+                  <TableHead className="text-zinc-400 text-xs py-2 px-3">Último Sincronizado</TableHead>
+                  <TableHead className="text-zinc-400 text-xs text-center py-2 px-3">Estado</TableHead>
+                  <TableHead className="text-zinc-400 text-xs text-right py-2 px-3">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-xs text-zinc-500">
+                    <TableCell colSpan={7} className="h-24 text-center text-xs text-zinc-500">
                       Cargando matriz de sincronización...
                     </TableCell>
                   </TableRow>
                 ) : filteredBindings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-xs text-zinc-500">
+                    <TableCell colSpan={7} className="h-24 text-center text-xs text-zinc-500">
                       No hay canales vinculados para sincronización en vivo. Haz clic en "+ Vincular Canales" para iniciar.
                     </TableCell>
                   </TableRow>
@@ -259,57 +259,57 @@ export const LiveSyncHubView: React.FC = () => {
                         className="border-zinc-800/60 hover:bg-zinc-800/30"
                       >
                         {/* Source Channel */}
-                        <TableCell>
+                        <TableCell className="py-2 px-3">
                           <div className="flex flex-col">
                             <span className="font-medium text-white text-xs">
                               {binding.source_channel_title || "Canal Origen"}
                             </span>
-                            <span className="font-mono text-[11px] text-zinc-500">
+                            <span className="font-mono text-[10px] text-zinc-500">
                               {binding.source_channel_id}
                             </span>
                           </div>
                         </TableCell>
 
                         {/* Arrow */}
-                        <TableCell className="text-center">
-                          <ArrowRight className="h-4 w-4 text-emerald-500 inline-block" />
+                        <TableCell className="text-center py-2 px-1">
+                          <ArrowRight className="h-3.5 w-3.5 text-emerald-500 inline-block" />
                         </TableCell>
 
                         {/* Target Channel */}
-                        <TableCell>
+                        <TableCell className="py-2 px-3">
                           <div className="flex flex-col">
                             <span className="font-medium text-white text-xs">
                               {binding.target_channel_title || "Canal Destino"}
                             </span>
-                            <span className="font-mono text-[11px] text-zinc-500">
+                            <span className="font-mono text-[10px] text-zinc-500">
                               {binding.target_channel_id}
                             </span>
                           </div>
                         </TableCell>
 
                         {/* Filters & Rules */}
-                        <TableCell>
-                          <div className="flex flex-wrap items-center gap-1.5">
+                        <TableCell className="py-2 px-3">
+                          <div className="flex flex-wrap items-center gap-1">
                             {allowVideo && (
-                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-cyan-400">
+                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-cyan-400 text-[10px]">
                                 <FileVideo className="h-3 w-3 shrink-0" />
                                 <span>Video</span>
                               </Badge>
                             )}
                             {allowPhoto && (
-                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-amber-400">
+                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-amber-400 text-[10px]">
                                 <Image className="h-3 w-3 shrink-0" />
                                 <span>Foto</span>
                               </Badge>
                             )}
                             {allowDoc && (
-                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-purple-400">
+                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-purple-400 text-[10px]">
                                 <File className="h-3 w-3 shrink-0" />
                                 <span>Doc</span>
                               </Badge>
                             )}
                             {stripLinks && (
-                              <Badge variant="outline" className="border-emerald-500/30 bg-zinc-950/40 text-emerald-400">
+                              <Badge variant="outline" className="border-emerald-500/30 bg-zinc-950/40 text-emerald-400 text-[10px]">
                                 <span>Anti-Spam</span>
                               </Badge>
                             )}
@@ -317,21 +317,21 @@ export const LiveSyncHubView: React.FC = () => {
                         </TableCell>
 
                         {/* Last Synced Message ID */}
-                        <TableCell>
-                          <Badge variant="outline" className="border-zinc-800 bg-zinc-950/60 font-mono text-[11px] text-zinc-300">
+                        <TableCell className="py-2 px-3">
+                          <Badge variant="outline" className="border-zinc-800 bg-zinc-950/60 font-mono text-[10px] text-zinc-300">
                             <span>Msg #{binding.last_synced_message_id}</span>
                           </Badge>
                         </TableCell>
 
                         {/* Active Toggle */}
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <TableCell className="text-center py-2 px-3">
+                          <div className="flex items-center justify-center gap-1.5">
                             <Switch
                               checked={binding.is_active}
                               onCheckedChange={() => toggleActive(binding)}
                             />
                             <span
-                              className={`text-[10px] font-semibold uppercase ${
+                              className={`text-[9px] font-semibold uppercase font-mono ${
                                 binding.is_active ? "text-emerald-400" : "text-zinc-500"
                               }`}
                             >
@@ -341,14 +341,14 @@ export const LiveSyncHubView: React.FC = () => {
                         </TableCell>
 
                         {/* Action Buttons */}
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <TableCell className="text-right py-2 px-3">
+                          <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleOpenRules(binding)}
-                              className="h-8 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                              title="Configurar Reglas de Pipeline"
+                              className="h-7 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs"
+                              title="Configurar filtros y reglas de este canal"
                             >
                               <Sliders className="h-3.5 w-3.5" />
                             </Button>
@@ -356,8 +356,8 @@ export const LiveSyncHubView: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(binding)}
-                              className="h-8 px-2 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
-                              title="Desvincular Canal"
+                              className="h-7 px-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 text-xs"
+                              title="Eliminar vinculación"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
