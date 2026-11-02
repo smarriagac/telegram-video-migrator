@@ -206,7 +206,7 @@ export const AppLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-0 relative z-10 px-3 py-3 md:px-5 md:py-3.5 overflow-hidden flex flex-col">
+      <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto md:overflow-hidden flex flex-col">
         <Outlet />
       </main>
     </div>

@@ -81,11 +81,11 @@ export const PipelineModulesView: React.FC = () => {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-900 border border-zinc-800 self-start sm:self-auto">
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-900 border border-zinc-800 overflow-x-auto max-w-full shrink-0 no-scrollbar self-start sm:self-auto">
           <button
             type="button"
             onClick={() => setActiveTab("captions")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               activeTab === "captions"
                 ? "bg-zinc-800 text-emerald-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
@@ -97,7 +97,7 @@ export const PipelineModulesView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("drip")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               activeTab === "drip"
                 ? "bg-zinc-800 text-sky-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
@@ -109,7 +109,7 @@ export const PipelineModulesView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("dedup")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               activeTab === "dedup"
                 ? "bg-zinc-800 text-indigo-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
@@ -121,7 +121,7 @@ export const PipelineModulesView: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("quality")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
               activeTab === "quality"
                 ? "bg-zinc-800 text-amber-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
@@ -184,7 +184,7 @@ export const PipelineModulesView: React.FC = () => {
                 <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
                   <AtSign className="w-3.5 h-3.5 text-zinc-400" /> Reemplazo automático de mención
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="text"
                     placeholder="@canal_viejo"

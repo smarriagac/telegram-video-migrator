@@ -657,7 +657,7 @@ export const MessageSelector: React.FC = () => {
                   #{msg.id}
                 </span>
 
-                <div className="shrink-0 flex items-center gap-1.5 w-40">
+                <div className="shrink-0 flex items-center gap-1.5 w-auto sm:w-40">
                   {msg.is_migrated || clonedMsgIds.has(msg.id) ? (
                     <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-semibold bg-emerald-500/25 text-emerald-300 border border-emerald-500/35">
                       ✓ Clonado
@@ -670,7 +670,7 @@ export const MessageSelector: React.FC = () => {
                   {getTypeBadge(msg.media_type)}
                 </div>
 
-                <div className="flex-1 truncate text-xs">
+                <div className="flex-1 truncate text-xs min-w-0">
                   {msg.text ? (
                     <span className="text-zinc-200">{msg.text}</span>
                   ) : (
@@ -679,12 +679,12 @@ export const MessageSelector: React.FC = () => {
                 </div>
 
                 {sizeStr && (
-                  <span className="text-[10px] font-mono text-cyan-400/90 shrink-0 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                  <span className="text-[10px] font-mono text-cyan-400/90 shrink-0 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-500/20 hidden xs:inline">
                     {sizeStr}
                   </span>
                 )}
 
-                <span className="text-[10px] font-mono text-zinc-500 shrink-0">
+                <span className="text-[10px] font-mono text-zinc-500 shrink-0 hidden md:inline">
                   {msg.date}
                 </span>
 
@@ -738,11 +738,11 @@ export const MessageSelector: React.FC = () => {
       {previewModalMsg &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
             onClick={() => setPreviewModalMsg(null)}
           >
             <div
-              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/5 pb-3">

@@ -178,7 +178,7 @@ export const AuditView: React.FC = () => {
       </header>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
         <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
           <div className="flex items-center justify-between text-zinc-400 text-xs">
             <span>Total Eventos</span>
@@ -272,7 +272,7 @@ export const AuditView: React.FC = () => {
               <p>No se encontraron registros de auditoría para el criterio seleccionado.</p>
             </div>
           ) : (
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full min-w-[700px] text-left text-xs border-collapse">
               <thead className="bg-[#090a0e] text-zinc-400 sticky top-0 font-mono text-xs border-b border-zinc-800">
                 <tr>
                   <th className="py-2.5 px-3">Fecha y Hora</th>

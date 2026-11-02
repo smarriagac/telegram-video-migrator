@@ -110,7 +110,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       : 0);
 
   return (
-    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-4 shadow-sm flex flex-col justify-between space-y-4 h-full min-h-0 overflow-y-auto">
+    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3 sm:p-4 shadow-sm flex flex-col justify-between space-y-4 h-full min-h-0 overflow-y-auto">
       <div className="space-y-4">
         {/* Panel Title */}
         <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
@@ -311,7 +311,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               </NavLink>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"

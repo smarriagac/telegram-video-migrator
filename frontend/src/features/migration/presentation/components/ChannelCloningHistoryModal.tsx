@@ -85,7 +85,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
         </DialogHeader>
 
         {/* 3 Metric Cards */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
           {/* Metric 1: Veces Clonado */}
           <div className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">

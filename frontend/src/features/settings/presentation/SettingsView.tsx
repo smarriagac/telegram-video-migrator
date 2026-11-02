@@ -185,7 +185,7 @@ export const SettingsView: React.FC = () => {
 
         {/* Tab Switcher for Admins */}
         {user?.role === "ADMIN" && (
-          <div className="flex items-center gap-1 p-0.5 bg-zinc-950/80 border border-white/5 rounded-lg shrink-0">
+          <div className="flex items-center gap-1 p-0.5 bg-zinc-950/80 border border-white/5 rounded-lg shrink-0 overflow-x-auto max-w-full">
             <button
               onClick={() => setActiveTab("credentials")}
               className={cn(
@@ -341,7 +341,7 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {accounts.length > 0 ? (
-              <div className="rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden">
+              <div className="rounded-lg bg-zinc-950/60 border border-white/5 overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-white/[0.02]">
                     <TableRow className="border-b border-white/5 hover:bg-transparent">
@@ -469,7 +469,7 @@ export const SettingsView: React.FC = () => {
               </span>
             </div>
 
-            <div className="rounded-lg bg-zinc-950/60 border border-white/5 overflow-hidden">
+            <div className="rounded-lg bg-zinc-950/60 border border-white/5 overflow-x-auto">
               <Table>
                 <TableHeader className="bg-white/[0.02]">
                   <TableRow className="border-b border-white/5 hover:bg-transparent">

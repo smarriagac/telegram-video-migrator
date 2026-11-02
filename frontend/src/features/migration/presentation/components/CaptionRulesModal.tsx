@@ -1,8 +1,15 @@
 import React, { useState } from "react";
-import { Link2, AtSign, ShieldAlert, Sparkles, X, Check } from "lucide-react";
+import { Link2, AtSign, ShieldAlert, Sparkles, Check } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/shared/components/ui/dialog";
 
 interface CaptionRulesModalProps {
   isOpen: boolean;
@@ -81,23 +88,17 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#12141a] border border-zinc-800 rounded-xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col p-0 bg-[#12141a] border-zinc-800">
         {/* Header */}
-        <div className="p-4 border-b border-zinc-800 flex items-center justify-between">
+        <DialogHeader className="p-4 border-b border-zinc-800 shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-semibold text-zinc-100">
+            <DialogTitle className="text-sm font-semibold text-zinc-100">
               Reglas de Caption y Sanitización
-            </h3>
+            </DialogTitle>
           </div>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-200 p-1 rounded-md transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Form Body */}
         <div className="p-4 overflow-y-auto space-y-4 text-xs text-zinc-300">
@@ -143,7 +144,7 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
             <div className="font-medium text-zinc-200 flex items-center gap-1.5">
               <AtSign className="w-3.5 h-3.5 text-zinc-400" /> Reemplazar mención específica
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
                 type="text"
                 placeholder="@canal_origen"
@@ -212,7 +213,7 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-zinc-800 flex items-center justify-between bg-zinc-950/40">
+        <DialogFooter className="p-3 border-t border-zinc-800 flex flex-row items-center justify-between bg-zinc-950/40 sm:justify-between shrink-0">
           <Button
             variant="ghost"
             size="sm"
@@ -238,8 +239,8 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
               <Check className="w-3.5 h-3.5" /> Guardar Reglas
             </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

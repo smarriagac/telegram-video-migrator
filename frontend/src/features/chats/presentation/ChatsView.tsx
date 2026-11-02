@@ -23,6 +23,7 @@ import {
   Lock,
   Maximize2,
   ChevronDown,
+  ChevronLeft,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -510,7 +511,12 @@ export const ChatsView: React.FC = () => {
       {/* Main Chat Interface: Bound height with flex/grid */}
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
         {/* Left Column: Chat List (4 cols on lg, 3 cols on xl) */}
-        <aside className="md:col-span-5 lg:col-span-4 xl:col-span-3 border-r border-white/5 flex flex-col bg-[#10121A]/50 h-full min-h-0 overflow-hidden">
+        <aside
+          className={cn(
+            "md:col-span-5 lg:col-span-4 xl:col-span-3 border-r border-white/5 flex flex-col bg-[#10121A]/50 h-full min-h-0 overflow-hidden",
+            activeChatId ? "hidden md:flex" : "flex"
+          )}
+        >
           {/* Search Bar (shrink-0) */}
           <div className="p-2.5 border-b border-white/5 shrink-0">
             <div className="relative">
@@ -688,27 +694,41 @@ export const ChatsView: React.FC = () => {
         </aside>
 
         {/* Right Column: Active Conversation (7-8 cols on lg, 9 cols on xl) */}
-        <section className="md:col-span-7 lg:col-span-8 xl:col-span-9 flex flex-col bg-[#14161F] h-full min-h-0 overflow-hidden">
+        <section
+          className={cn(
+            "md:col-span-7 lg:col-span-8 xl:col-span-9 flex flex-col bg-[#14161F] h-full min-h-0 overflow-hidden",
+            activeChatId ? "flex" : "hidden md:flex"
+          )}
+        >
           {activeChat ? (
             <>
               {/* Conversation Header (shrink-0) */}
               <div className="p-2.5 px-3 border-b border-white/5 flex items-center justify-between bg-[#12141C] shrink-0">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => selectChat(0)}
+                    className="md:hidden p-1.5 -ml-1 text-zinc-400 hover:text-white rounded-md hover:bg-white/5 transition-colors"
+                    title="Volver a la lista de chats"
+                    aria-label="Volver a la lista de chats"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
                   <div
                     className={cn(
-                      "w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] text-white",
+                      "w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] text-white shrink-0",
                       activeChat.avatar_color || "bg-cyan-600"
                     )}
                   >
                     {(activeChat.title || "C").charAt(0).toUpperCase()}
                   </div>
-                  <div>
-                    <h2 className="text-xs font-bold text-white leading-none">
+                  <div className="min-w-0">
+                    <h2 className="text-xs font-bold text-white leading-none truncate max-w-[200px] sm:max-w-xs">
                       {activeChat.title || "Conversación"}
                     </h2>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                         MTProto Conectado
                       </span>
                       {activeChat.can_post === false ? (
@@ -731,11 +751,12 @@ export const ChatsView: React.FC = () => {
                       onClick={() => markAsRead(activeChat.id)}
                       variant="ghost"
                       size="sm"
-                      className="h-7 text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1.5 px-2.5 border border-cyan-500/30 rounded-md"
+                      className="h-7 text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1 px-2 sm:px-2.5 border border-cyan-500/30 rounded-md shrink-0"
                       title="Marcar todos los mensajes como leídos en Telegram"
                     >
                       <CheckCheck className="w-3.5 h-3.5" />
-                      <span>Marcar leído ({activeChat.unread_count})</span>
+                      <span className="hidden sm:inline">Marcar leído </span>
+                      <span>({activeChat.unread_count})</span>
                     </Button>
                   )}
                   <button
