@@ -16,6 +16,14 @@ import {
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { Switch } from "@/shared/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { cn } from "@/shared/lib/utils";
 
 export const PipelineModulesView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
@@ -65,9 +73,9 @@ export const PipelineModulesView: React.FC = () => {
   const previewResult = computePreview(testText);
 
   return (
-    <div className="w-full h-full flex flex-col space-y-4 min-h-0 overflow-y-auto pr-1">
+    <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* Header */}
-      <header className="border-b border-zinc-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0">
+      <header className="border-b border-zinc-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
           <div className="flex items-center gap-2">
             <Sliders className="w-5 h-5 text-emerald-400" />
@@ -80,55 +88,61 @@ export const PipelineModulesView: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-zinc-900 border border-zinc-800 overflow-x-auto max-w-full shrink-0 no-scrollbar self-start sm:self-auto">
+        {/* Tab Switcher: 2x2 grid on mobile (< 640px), inline row on >= 640px */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 p-1 rounded-lg bg-zinc-900 border border-zinc-800 w-full sm:w-auto shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab("captions")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "captions"
                 ? "bg-zinc-800 text-emerald-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            )}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            Captions
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span>Captions</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("drip")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "drip"
                 ? "bg-zinc-800 text-sky-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            )}
           >
-            <Clock className="w-3.5 h-3.5" />
-            Drip Feed
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            <span>Drip Feed</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("dedup")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "dedup"
                 ? "bg-zinc-800 text-indigo-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            )}
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            Duplicate Guard
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden xs:inline">Duplicate Guard</span>
+            <span className="xs:hidden">Dedup</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("quality")}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap ${
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "quality"
                 ? "bg-zinc-800 text-amber-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            )}
           >
-            <Filter className="w-3.5 h-3.5" />
-            Filtros Calidad
+            <Filter className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden xs:inline">Filtros Calidad</span>
+            <span className="xs:hidden">Calidad</span>
           </button>
         </div>
       </header>
@@ -138,7 +152,7 @@ export const PipelineModulesView: React.FC = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             {/* Left: Rules Configuration Form */}
-            <div className="lg:col-span-7 bg-[#0e1015] border border-zinc-800 rounded-xl p-4 space-y-4">
+            <div className="lg:col-span-7 bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-4 space-y-3.5 sm:space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="text-xs font-semibold text-zinc-200 font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Reglas de Sanitización
@@ -148,33 +162,35 @@ export const PipelineModulesView: React.FC = () => {
 
               {/* Toggles */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <Link2 className="w-4 h-4 text-sky-400" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Link2 className="w-4 h-4 text-sky-400 shrink-0" />
+                    <div className="min-w-0">
                       <div className="font-medium text-xs text-zinc-200">Limpiar enlaces externos (URLs)</div>
-                      <div className="text-[11px] text-zinc-400">Elimina enlaces web (http, https y t.me/...)</div>
+                      <div className="text-[11px] text-zinc-400 truncate sm:whitespace-normal">Elimina enlaces web (http, https y t.me/...)</div>
                     </div>
                   </div>
                   <Switch
                     checked={Boolean(captionRules.strip_links)}
                     onCheckedChange={(checked) => setCaptionRules({ strip_links: checked })}
                     aria-label="Limpiar enlaces externos"
+                    className="shrink-0"
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <AtSign className="w-4 h-4 text-amber-400" />
-                    <div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <AtSign className="w-4 h-4 text-amber-400 shrink-0" />
+                    <div className="min-w-0">
                       <div className="font-medium text-xs text-zinc-200">Eliminar todas las menciones</div>
-                      <div className="text-[11px] text-zinc-400">Quita cualquier username de spam (@usuario)</div>
+                      <div className="text-[11px] text-zinc-400 truncate sm:whitespace-normal">Quita cualquier username de spam (@usuario)</div>
                     </div>
                   </div>
                   <Switch
                     checked={Boolean(captionRules.strip_all_mentions)}
                     onCheckedChange={(checked) => setCaptionRules({ strip_all_mentions: checked })}
                     aria-label="Eliminar todas las menciones"
+                    className="shrink-0"
                   />
                 </div>
               </div>
@@ -295,9 +311,9 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 2: Drip Feed & Scheduler Pacing */}
       {activeTab === "drip" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-5 space-y-5 max-w-3xl">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Clock className="w-4 h-4 text-sky-400" />
+            <Clock className="w-4 h-4 text-sky-400 shrink-0" />
             <div>
               <h2 className="text-sm font-semibold text-zinc-100 font-mono">
                 Control de Ritmo y Publicación Programada (Drip Feed)
@@ -308,7 +324,7 @@ export const PipelineModulesView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
             {[
               { sec: 0, title: "Inmediato (2s)", desc: "Delay anti-flood básico de 1.5–2.0s por archivo. Ideal para canales nuevos vacíos." },
               { sec: 60, title: "Goteo 1 minuto", desc: "1 post por minuto. Distribución constante sin alerta de spam." },
@@ -318,11 +334,12 @@ export const PipelineModulesView: React.FC = () => {
             ].map((option) => (
               <label
                 key={option.sec}
-                className={`p-3.5 rounded-lg border cursor-pointer transition-all flex flex-col justify-between ${
+                className={cn(
+                  "p-3 sm:p-3.5 rounded-lg border cursor-pointer transition-all flex flex-col justify-between gap-1.5",
                   dripDelaySeconds === option.sec
-                    ? "bg-sky-500/10 border-sky-500/40 text-sky-300"
+                    ? "bg-sky-500/10 border-sky-500/40 text-sky-300 shadow-sm"
                     : "bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:border-zinc-700"
-                }`}
+                )}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-xs text-zinc-200 font-mono">{option.title}</span>
@@ -334,7 +351,7 @@ export const PipelineModulesView: React.FC = () => {
                     className="w-4 h-4 text-sky-500 focus:ring-0 cursor-pointer"
                   />
                 </div>
-                <p className="text-[11px] text-zinc-400 mt-1.5 leading-relaxed">{option.desc}</p>
+                <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">{option.desc}</p>
               </label>
             ))}
           </div>
@@ -350,9 +367,9 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 3: Duplicate Guard */}
       {activeTab === "dedup" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-5 space-y-5 max-w-3xl">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <ShieldCheck className="w-4 h-4 text-indigo-400" />
+            <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
             <div>
               <h2 className="text-sm font-semibold text-zinc-100 font-mono">
                 Deduplicador Inteligente por Huella Digital (Duplicate Guard)
@@ -363,7 +380,7 @@ export const PipelineModulesView: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 rounded-lg bg-zinc-950 border border-zinc-800 space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-lg bg-zinc-950 border border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -378,10 +395,10 @@ export const PipelineModulesView: React.FC = () => {
               Cada archivo migrado genera una huella criptográfica determinística calculada a partir de su identificador MTProto global (<code className="text-zinc-300">input_document_id</code>), tamaño en bytes y dimensiones. Si el elemento ya fue publicado previamente en el canal destino, el sistema lo marcará como <span className="text-amber-400 font-mono">SKIPPED</span> automáticamente sin consumir ancho de banda ni duplicar el feed.
             </p>
 
-            <div className="pt-2 border-t border-zinc-800/80 grid grid-cols-2 gap-3 text-xs font-mono">
+            <div className="pt-2 border-t border-zinc-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 text-xs font-mono">
               <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800">
                 <span className="text-zinc-500 block text-[10px]">Almacenamiento</span>
-                <span className="text-zinc-200 font-semibold">PostgreSQL (migrated_media_fingerprints)</span>
+                <span className="text-zinc-200 font-semibold break-words">PostgreSQL (migrated_media_fingerprints)</span>
               </div>
               <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800">
                 <span className="text-zinc-500 block text-[10px]">Estrategia</span>
@@ -394,14 +411,14 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 4: Quality & Duration Gates */}
       {activeTab === "quality" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-5 space-y-5 max-w-3xl">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Filter className="w-4 h-4 text-amber-400" />
+            <Filter className="w-4 h-4 text-amber-400 shrink-0" />
             <div>
               <h2 className="text-sm font-semibold text-zinc-100 font-mono">
                 Filtros de Calidad y Duración (Quality Gates)
               </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
                 Descarta clips cortos, reels de baja resolución o archivos pesados antes de copiar, sin consumo de CPU ni descargas.
               </p>
             </div>
@@ -475,7 +492,7 @@ export const PipelineModulesView: React.FC = () => {
           </div>
 
           {/* Tipos de Contenido Permitidos */}
-          <div className="p-4 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2">
+          <div className="p-3.5 sm:p-4 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2.5">
             <span className="text-xs font-medium text-zinc-300 font-mono block">
               Tipos de Medios Permitidos:
             </span>
@@ -489,37 +506,45 @@ export const PipelineModulesView: React.FC = () => {
                 const currentTypes = mediaFilterRules.allowed_media_types || ["video", "photo", "document", "text"];
                 const isSelected = currentTypes.includes(type);
                 return (
-                  <label
+                  <div
                     key={type}
-                    className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    onClick={() => {
+                      const next = isSelected
+                        ? currentTypes.filter((t) => t !== type)
+                        : [...currentTypes, type];
+                      setMediaFilterRules({ allowed_media_types: next });
+                    }}
+                    className={cn(
+                      "flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors",
                       isSelected
                         ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
                         : "bg-zinc-900/30 border-zinc-800 text-zinc-400 hover:border-zinc-700"
-                    }`}
+                    )}
                   >
-                    <input
-                      type="checkbox"
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span className="text-xs font-medium truncate">{label}</span>
+                    </div>
+                    <Switch
                       checked={isSelected}
-                      onChange={(e) => {
-                        const next = e.target.checked
+                      onCheckedChange={(checked) => {
+                        const next = checked
                           ? [...currentTypes, type]
                           : currentTypes.filter((t) => t !== type);
                         setMediaFilterRules({ allowed_media_types: next });
                       }}
-                      className="w-4 h-4 rounded border-zinc-700 text-amber-500 focus:ring-0 cursor-pointer"
+                      className="data-[state=checked]:bg-amber-500 shrink-0 scale-90"
                     />
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="text-xs font-medium">{label}</span>
-                  </label>
+                  </div>
                 );
               })}
             </div>
           </div>
 
           {/* Reglas Cuantitativas (Duración, Resolución, Peso) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
             {/* Duración Mínima */}
-            <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
+            <div className="p-3 sm:p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
               <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
                 <span>Duración Mínima:</span>
                 <span className="text-[10px] text-zinc-500 font-mono">segundos</span>
@@ -527,13 +552,13 @@ export const PipelineModulesView: React.FC = () => {
               <input
                 type="number"
                 min="0"
-                placeholder="Ej: 15 (0 = desactivado)"
+                placeholder="Ej: 15 (0 = off)"
                 value={mediaFilterRules.min_duration_seconds ?? ""}
                 onChange={(e) => {
                   const val = e.target.value ? parseInt(e.target.value, 10) : null;
                   setMediaFilterRules({ min_duration_seconds: val });
                 }}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
+                className="w-full h-8 bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
               />
               <span className="text-[10px] text-zinc-500 block">
                 Descarta reels o clips ultracortos.
@@ -541,31 +566,35 @@ export const PipelineModulesView: React.FC = () => {
             </div>
 
             {/* Resolución Mínima */}
-            <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
+            <div className="p-3 sm:p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
               <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
                 <span>Resolución Mínima:</span>
                 <span className="text-[10px] text-zinc-500 font-mono">altura (p)</span>
               </label>
-              <select
-                value={mediaFilterRules.min_height ?? 0}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10);
-                  setMediaFilterRules({ min_height: val > 0 ? val : null });
+              <Select
+                value={String(mediaFilterRules.min_height ?? 0)}
+                onValueChange={(val) => {
+                  const num = parseInt(val, 10);
+                  setMediaFilterRules({ min_height: num > 0 ? num : null });
                 }}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono cursor-pointer"
               >
-                <option value={0}>Cualquiera (Sin filtro)</option>
-                <option value={480}>&ge; 480p (SD)</option>
-                <option value={720}>&ge; 720p (HD)</option>
-                <option value={1080}>&ge; 1080p (Full HD)</option>
-              </select>
+                <SelectTrigger className="w-full bg-zinc-900 border-zinc-800 text-xs text-zinc-200 h-8 font-mono">
+                  <SelectValue placeholder="Cualquiera (Sin filtro)" />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 font-mono">
+                  <SelectItem value="0">Cualquiera (Sin filtro)</SelectItem>
+                  <SelectItem value="480">&ge; 480p (SD)</SelectItem>
+                  <SelectItem value="720">&ge; 720p (HD)</SelectItem>
+                  <SelectItem value="1080">&ge; 1080p (Full HD)</SelectItem>
+                </SelectContent>
+              </Select>
               <span className="text-[10px] text-zinc-500 block">
                 Filtra videos con baja definición.
               </span>
             </div>
 
             {/* Tamaño Máximo */}
-            <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
+            <div className="p-3 sm:p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
               <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
                 <span>Tamaño Máximo:</span>
                 <span className="text-[10px] text-zinc-500 font-mono">MB</span>
@@ -585,7 +614,7 @@ export const PipelineModulesView: React.FC = () => {
                     max_file_size_bytes: mb ? mb * 1024 * 1024 : null,
                   });
                 }}
-                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
+                className="w-full h-8 bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
               />
               <span className="text-[10px] text-zinc-500 block">
                 Evita saturar almacenamiento.
