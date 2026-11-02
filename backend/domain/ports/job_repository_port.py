@@ -53,6 +53,11 @@ class JobRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def reconcile_orphaned_jobs(self) -> int:
+        """Transition any orphaned jobs in RUNNING state to PAUSED on server startup."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int
     ) -> None:

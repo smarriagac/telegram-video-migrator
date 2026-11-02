@@ -371,6 +371,21 @@ class SQLiteJobRepository(JobRepositoryPort):
             await conn.commit()
             return True
 
+    async def reconcile_orphaned_jobs(self) -> int:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                """
+                UPDATE migration_jobs
+                SET status = 'PAUSED',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE status = 'RUNNING';
+                """
+            )
+            count = cursor.rowcount
+            await conn.commit()
+            return count
+
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int
     ) -> None:

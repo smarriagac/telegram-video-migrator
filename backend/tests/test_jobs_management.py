@@ -71,6 +71,19 @@ async def test_list_and_manage_jobs():
             deleted_job = await repo.get_job("job-test-123")
             assert deleted_job is None
 
+            # Test reconcile_orphaned_jobs
+            zombie_job = MigrationJob(
+                job_id="zombie-1",
+                source_id=-1,
+                target_id=-2,
+                status=JobStatus.RUNNING,
+            )
+            await repo.create_job(zombie_job)
+            reconciled = await repo.reconcile_orphaned_jobs()
+            assert reconciled >= 1
+            zombie_check = await repo.get_job("zombie-1")
+            assert zombie_check.status == JobStatus.PAUSED
+
         app.dependency_overrides.clear()
     finally:
         if os.path.exists(db_path):
