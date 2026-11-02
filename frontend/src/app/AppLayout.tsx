@@ -78,9 +78,9 @@ export const AppLayout: React.FC = () => {
   };
 
   return (
-    <div className="h-screen h-dvh bg-[#090a0e] text-zinc-200 flex flex-col md:flex-row overflow-hidden">
-      {/* Mobile Top Bar */}
-      <div className="md:hidden flex items-center justify-between p-3.5 bg-[#0e1015] border-b border-zinc-800 z-40 flex-shrink-0">
+    <div className="h-screen h-dvh bg-[#090a0e] text-zinc-200 flex flex-col lg:flex-row overflow-hidden">
+      {/* Mobile & Tablet Top Bar (< 1024px) */}
+      <div className="lg:hidden flex items-center justify-between p-3.5 bg-[#0e1015] border-b border-zinc-800 z-40 flex-shrink-0">
         <div className="flex items-center space-x-2.5">
           <BrandLogo size="md" />
           <span className="font-semibold text-sm text-zinc-100">Telegram Hub</span>
@@ -94,19 +94,19 @@ export const AppLayout: React.FC = () => {
         </button>
       </div>
 
-      {/* Mobile Backdrop Overlay */}
+      {/* Mobile & Tablet Backdrop Overlay (< 1024px) */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/70 z-40 md:hidden"
+          className="fixed inset-0 bg-black/70 z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation: Drawer on < lg, Pinned on >= lg */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-[#0e1015] border-r border-zinc-800 flex flex-col transition-transform duration-200 md:static md:translate-x-0 md:h-full md:flex-shrink-0",
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-50 w-64 bg-[#0e1015] border-r border-zinc-800 flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 lg:h-full lg:flex-shrink-0",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Brand Header */}
@@ -206,7 +206,7 @@ export const AppLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto md:overflow-hidden flex flex-col">
+      <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col">
         <Outlet />
       </main>
     </div>

@@ -245,52 +245,56 @@ export const MessageSelector: React.FC = () => {
     switch (type) {
       case "video":
         return (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30">
-            <Video className="w-2.5 h-2.5" /> Video
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+            <Video className="w-2.5 h-2.5" />
+            <span className="hidden xs:inline">Video</span>
           </span>
         );
       case "photo":
         return (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-            <ImageIcon className="w-2.5 h-2.5" /> Foto
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shrink-0">
+            <ImageIcon className="w-2.5 h-2.5" />
+            <span className="hidden xs:inline">Foto</span>
           </span>
         );
       case "document":
         return (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
-            <FileText className="w-2.5 h-2.5" /> Archivo
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0">
+            <FileText className="w-2.5 h-2.5" />
+            <span className="hidden xs:inline">Archivo</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-zinc-800 text-zinc-400 border border-white/5">
-            <MessageSquare className="w-2.5 h-2.5" /> Texto
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-medium bg-zinc-800 text-zinc-400 border border-white/5 shrink-0">
+            <MessageSquare className="w-2.5 h-2.5" />
+            <span className="hidden xs:inline">Texto</span>
           </span>
         );
     }
   };
 
   return (
-    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-3">
+    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3 sm:p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-2.5 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
-              Mensajes, videos e imágenes del canal a copiar
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 border-b border-zinc-800 pb-2.5 shrink-0">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xs sm:text-sm font-semibold tracking-tight text-zinc-100 font-mono truncate">
+              Mensajes y multimedia del canal
             </h2>
-            <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono">
+            <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono shrink-0">
               {selectedMessageIds.length > 0
-                ? `${selectedMessageIds.length} seleccionados (${formatBytes(selectedSizeSum)})`
+                ? `${selectedMessageIds.length} selec. (${formatBytes(selectedSizeSum)})`
                 : `${filteredMessages.length} elementos`}
             </span>
           </div>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <p className="text-[11px] text-zinc-400 mt-0.5 hidden xs:block">
             Hacé click en cada miniatura para seleccionarlo o previsualizarlo antes de migrar.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">
           {/* View mode toggle */}
           <div className="flex items-center bg-zinc-900 border border-white/10 rounded-lg p-0.5">
             <button
@@ -303,7 +307,7 @@ export const MessageSelector: React.FC = () => {
               title="Vista Cuadrícula Visual"
             >
               <Grid className="w-3.5 h-3.5" />
-              <span className="hidden md:inline text-[11px]">Galería</span>
+              <span className="hidden sm:inline text-[11px]">Galería</span>
             </button>
             <button
               onClick={() => setViewMode("list")}
@@ -315,7 +319,7 @@ export const MessageSelector: React.FC = () => {
               title="Vista Lista Compacta"
             >
               <List className="w-3.5 h-3.5" />
-              <span className="hidden md:inline text-[11px]">Lista</span>
+              <span className="hidden sm:inline text-[11px]">Lista</span>
             </button>
           </div>
 
@@ -324,7 +328,7 @@ export const MessageSelector: React.FC = () => {
             size="sm"
             onClick={() => fetchSourceMessages(selectedSourceId)}
             disabled={isLoadingMessages}
-            className="h-8 px-2.5 text-xs text-zinc-400 hover:text-zinc-200 border border-white/5"
+            className="h-8 px-2 sm:px-2.5 text-xs text-zinc-400 hover:text-zinc-200 border border-white/5"
             title="Recargar mensajes"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMessages ? "animate-spin" : ""}`} />
@@ -335,15 +339,17 @@ export const MessageSelector: React.FC = () => {
             size="sm"
             onClick={handleToggleSelectAll}
             disabled={filteredMessages.length === 0}
-            className="h-8 px-3 text-xs border-white/10 text-zinc-200 hover:bg-white/5"
+            className="h-8 px-2.5 sm:px-3 text-xs border-white/10 text-zinc-200 hover:bg-white/5"
           >
             {allFilteredSelected ? (
               <>
-                <Square className="w-3.5 h-3.5 mr-1.5 text-zinc-400" /> Desmarcar ({filteredMessages.length})
+                <Square className="w-3.5 h-3.5 mr-1 sm:mr-1.5 text-zinc-400" />
+                <span>Desmarcar ({filteredMessages.length})</span>
               </>
             ) : (
               <>
-                <CheckSquare className="w-3.5 h-3.5 mr-1.5 text-cyan-400" /> Marcar ({filteredMessages.length})
+                <CheckSquare className="w-3.5 h-3.5 mr-1 sm:mr-1.5 text-cyan-400" />
+                <span>Marcar ({filteredMessages.length})</span>
               </>
             )}
           </Button>
@@ -375,14 +381,14 @@ export const MessageSelector: React.FC = () => {
               </Button>
             </div>
           ) : syncStatus && syncStatus.missing_count > 0 ? (
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                     Novedades detectadas: {syncStatus.missing_count} mensajes nuevos
                   </span>
-                  <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.2 rounded-full font-mono">
+                  <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.2 rounded-full font-mono shrink-0">
                     ✓ {syncStatus.already_cloned_count} ya clonados
                   </span>
                 </div>
@@ -391,12 +397,12 @@ export const MessageSelector: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto shrink-0">
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={selectOnlyMissingMessages}
-                  className="h-8 text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 font-mono"
+                  className="h-8 text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 font-mono w-full sm:w-auto"
                   title="Marca en la galería solo los mensajes faltantes"
                 >
                   Seleccionar novedades
@@ -405,7 +411,7 @@ export const MessageSelector: React.FC = () => {
                   size="sm"
                   onClick={startDeltaSync}
                   disabled={isSyncingDelta}
-                  className="h-8 text-xs bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-md shadow-cyan-950/40 font-mono"
+                  className="h-8 text-xs bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-md shadow-cyan-950/40 font-mono w-full sm:w-auto"
                 >
                   {isSyncingDelta ? (
                     <>
@@ -413,7 +419,8 @@ export const MessageSelector: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Sincronizar novedades (+{syncStatus.missing_count})
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                      <span className="truncate">Sincronizar novedades (+{syncStatus.missing_count})</span>
                     </>
                   )}
                 </Button>
@@ -436,11 +443,11 @@ export const MessageSelector: React.FC = () => {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="shrink-0 flex flex-col xl:flex-row items-stretch xl:items-center gap-2.5 justify-between">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="shrink-0 flex flex-col xl:flex-row items-stretch xl:items-center gap-2 justify-between">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-0.5">
           {/* Sync Status Filter Group */}
           {selectedTargetId && (
-            <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5">
+            <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 shrink-0">
               <button
                 type="button"
                 onClick={() => setFilterState((prev) => ({ ...prev, sync: "all" }))}
@@ -480,7 +487,7 @@ export const MessageSelector: React.FC = () => {
           )}
 
           {/* Type filters */}
-          <div className="flex flex-wrap items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5">
+          <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 shrink-0">
             {[
               { id: "all", label: "Todos", count: countsByType.all },
               { id: "video", label: "Videos", count: countsByType.video },
@@ -508,7 +515,7 @@ export const MessageSelector: React.FC = () => {
         </div>
 
         {/* Search Input */}
-        <div className="relative w-full xl:w-64 shrink-0">
+        <div className="relative w-full xl:w-56 shrink-0">
           <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -533,7 +540,7 @@ export const MessageSelector: React.FC = () => {
       ) : viewMode === "grid" ? (
         /* VISUAL GALLERY GRID (Responsive columns taking full advantage of widescreen) */
         <div className="flex-1 min-h-0 overflow-y-auto p-1 pr-1.5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-3">
             {filteredMessages.map((msg) => {
               const isSelected = selectedMessageIds.includes(msg.id);
               const sizeStr = formatBytes(msg.file_size);
