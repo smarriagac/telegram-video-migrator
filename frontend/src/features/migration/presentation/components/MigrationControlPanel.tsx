@@ -22,6 +22,14 @@ import { CaptionRulesModal } from "./CaptionRulesModal";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
 import { Switch } from "@/shared/components/ui/switch";
+import { Badge } from "@/shared/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 
 interface MigrationControlPanelProps {
   onOpenConfirm: () => void;
@@ -147,10 +155,12 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
             {/* Audit History Trigger Pill */}
             {selectedSourceId && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setActiveModal("history")}
-                className="w-full mt-1.5 flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-cyan-500/30 text-left transition-all group"
+                className="w-full mt-1.5 flex items-center justify-between px-2.5 h-8 bg-zinc-950/70 border-white/5 hover:border-cyan-500/30 text-left font-normal transition-all group"
                 title="Ver historial de clonaciones y contenido copiado"
               >
                 <div className="flex items-center gap-1.5 text-[11px]">
@@ -159,19 +169,19 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                     Clonado {history?.total_clones ?? 0} {(history?.total_clones ?? 0) === 1 ? "vez" : "veces"}
                   </span>
                   {history?.has_full_clone ? (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                    <Badge variant="admin" className="text-[10px] px-1.5 py-0">
                       ✓ Completo
-                    </span>
+                    </Badge>
                   ) : (history?.total_clones ?? 0) > 0 ? (
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-300 border border-amber-500/25">
                       Parcial
-                    </span>
+                    </Badge>
                   ) : null}
                 </div>
                 <span className="text-[10px] font-mono text-cyan-400 group-hover:underline">
                   Auditar →
                 </span>
-              </button>
+              </Button>
             )}
           </div>
 
@@ -201,10 +211,12 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
             {/* Direct Local Upload Button */}
             {selectedTargetId && (
               <div className="space-y-1.5 mt-1.5">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setActiveModal("upload")}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 hover:border-emerald-500/30 text-left transition-all group"
+                  className="w-full flex items-center justify-between px-2.5 h-8 bg-zinc-950/70 border-white/5 hover:border-emerald-500/30 text-left font-normal transition-all group"
                   title="Subir archivo local directamente a este canal"
                 >
                   <div className="flex items-center gap-1.5 text-[11px]">
@@ -214,7 +226,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                   <span className="text-[10px] font-mono text-emerald-400 group-hover:underline">
                     + Publicar directo
                   </span>
-                </button>
+                </Button>
 
                 {selectedSourceId && selectedTargetId !== selectedSourceId && (
                   <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 text-[11px]">
@@ -223,23 +235,25 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                       {isCheckingSync ? (
                         <span className="text-zinc-400 truncate">Comprobando delta...</span>
                       ) : syncStatus?.is_in_sync ? (
-                        <span className="text-emerald-300 font-medium truncate">✓ 100% sincronizado</span>
+                        <Badge variant="admin" className="text-[10px] px-1.5 py-0 font-medium">✓ 100% sincronizado</Badge>
                       ) : syncStatus ? (
-                        <span className="text-amber-300 font-medium font-mono truncate">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium font-mono text-amber-300 bg-amber-500/15 border-amber-500/25">
                           {syncStatus.missing_count} novedades
-                        </span>
+                        </Badge>
                       ) : (
                         <span className="text-zinc-400 truncate">Sin verificar</span>
                       )}
                     </div>
-                    <button
+                    <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={() => checkSyncStatus()}
                       disabled={isCheckingSync}
-                      className="text-[10px] font-mono text-cyan-400 hover:underline shrink-0 ml-1.5"
+                      className="h-6 px-1.5 text-[10px] font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 shrink-0 ml-1.5"
                     >
                       Auditar
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -298,10 +312,12 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setActiveModal("caption_rules")}
-                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 transition-colors"
+                className="flex items-center justify-between px-2.5 h-8 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/60 text-xs text-zinc-300 font-normal w-full"
                 title="Configurar limpieza de links, reemplazo de menciones y firmas"
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -309,28 +325,31 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                   <span className="truncate">Captions</span>
                 </div>
                 {activeRulesCount > 0 ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono font-medium">
+                  <Badge variant="admin" className="px-1.5 py-0 text-[10px] font-mono font-medium">
                     {activeRulesCount} act.
-                  </span>
+                  </Badge>
                 ) : (
-                  <span className="text-[10px] text-zinc-500 font-mono">Off</span>
+                  <Badge variant="viewer" className="px-1.5 py-0 text-[10px] font-mono text-zinc-500">
+                    Off
+                  </Badge>
                 )}
-              </button>
+              </Button>
 
-              <div className="relative">
-                <select
-                  value={dripDelaySeconds}
-                  onChange={(e) => setDripDelaySeconds(Number(e.target.value))}
-                  className="w-full appearance-none px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 focus:outline-none cursor-pointer"
-                  title="Intervalo de publicación (Pacing anti-flood o goteo programado)"
-                >
-                  <option value={0}>⚡ Pacing: Inmediato (2s)</option>
-                  <option value={60}>💧 Goteo: 1 min</option>
-                  <option value={300}>💧 Goteo: 5 min</option>
-                  <option value={900}>💧 Goteo: 15 min</option>
-                  <option value={1800}>💧 Goteo: 30 min</option>
-                </select>
-              </div>
+              <Select
+                value={String(dripDelaySeconds)}
+                onValueChange={(val) => setDripDelaySeconds(Number(val))}
+              >
+                <SelectTrigger className="h-8 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 px-2.5 focus:ring-0 focus:ring-offset-0">
+                  <SelectValue placeholder="Pacing" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#14161F] border-zinc-800 text-xs">
+                  <SelectItem value="0" className="text-xs">⚡ Inmediato (2s)</SelectItem>
+                  <SelectItem value="60" className="text-xs">💧 Goteo: 1 min</SelectItem>
+                  <SelectItem value="300" className="text-xs">💧 Goteo: 5 min</SelectItem>
+                  <SelectItem value="900" className="text-xs">💧 Goteo: 15 min</SelectItem>
+                  <SelectItem value="1800" className="text-xs">💧 Goteo: 30 min</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

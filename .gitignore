@@ -56,3 +56,5 @@ Thumbs.db
 .grok/
 # Docker persistent data
 data/
+# Local AI runtime state
+.atl/
