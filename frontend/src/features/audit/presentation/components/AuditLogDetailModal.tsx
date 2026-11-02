@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
 import { AuditLogItem } from "../../domain/types";
 import {
   Clock,
@@ -65,47 +66,47 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
     switch (action) {
       case "LOGIN":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <Badge variant="outline" className="gap-1.5 font-mono text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
             <LogIn className="w-3.5 h-3.5" /> INICIO DE SESIÓN
-          </span>
+          </Badge>
         );
       case "LOGIN_FAILED":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <Badge variant="destructive" className="gap-1.5 font-mono text-xs">
             <AlertTriangle className="w-3.5 h-3.5" /> LOGIN FALLIDO
-          </span>
+          </Badge>
         );
       case "MIGRATION_START":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <Badge variant="outline" className="gap-1.5 font-mono text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
             <PlayCircle className="w-3.5 h-3.5" /> INICIO DE CLONACIÓN
-          </span>
+          </Badge>
         );
       case "MIGRATION_CANCEL":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <Badge variant="destructive" className="gap-1.5 font-mono text-xs">
             MIGRACIÓN CANCELADA
-          </span>
+          </Badge>
         );
       case "AUTO_SYNC_TOGGLE":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <Badge variant="outline" className="gap-1.5 font-mono text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
             <Radio className="w-3.5 h-3.5" /> CONFIGURACIÓN AUTO-SYNC
-          </span>
+          </Badge>
         );
       case "USER_CREATE":
       case "USER_UPDATE":
       case "USER_DELETE":
         return (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+          <Badge variant="outline" className="gap-1.5 font-mono text-xs bg-purple-500/10 text-purple-400 border-purple-500/20">
             <UserPlus className="w-3.5 h-3.5" /> GESTIÓN RBAC ({action})
-          </span>
+          </Badge>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-zinc-800 text-zinc-300 border border-zinc-700">
+          <Badge variant="secondary" className="font-mono text-xs">
             {action}
-          </span>
+          </Badge>
         );
     }
   };
@@ -289,14 +290,16 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                 <Code className="w-3.5 h-3.5 text-zinc-400" />
                 Payload Estructurado (JSON)
               </h4>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={handleCopyJson}
-                className="text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                className="h-7 px-2 text-xs font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? "Copiado!" : "Copiar JSON"}
-              </button>
+              </Button>
             </div>
             <pre className="p-3 rounded-lg bg-[#090a0e] border border-zinc-800 font-mono text-xs text-zinc-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">
               {JSON.stringify(log.details || {}, null, 2)}

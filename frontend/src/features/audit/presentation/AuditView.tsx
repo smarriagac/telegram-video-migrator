@@ -18,6 +18,25 @@ import {
 } from "lucide-react";
 import { useAuditStore } from "../application/useAuditStore";
 import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
+import { Input } from "@/shared/components/ui/input";
+import { Card, CardContent } from "@/shared/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/components/ui/table";
+import { cn } from "@/shared/lib/utils";
 import { AuditLogDetailModal } from "./components/AuditLogDetailModal";
 
 export const AuditView: React.FC = () => {
@@ -80,47 +99,47 @@ export const AuditView: React.FC = () => {
     switch (action) {
       case "LOGIN":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
             <LogIn className="w-3 h-3" /> LOGIN
-          </span>
+          </Badge>
         );
       case "LOGIN_FAILED":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          <Badge variant="destructive" className="gap-1 font-mono text-[10px]">
             <AlertTriangle className="w-3 h-3" /> LOGIN FALLIDO
-          </span>
+          </Badge>
         );
       case "MIGRATION_START":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
             <PlayCircle className="w-3 h-3" /> MIGRACIÓN
-          </span>
+          </Badge>
         );
       case "MIGRATION_CANCEL":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+          <Badge variant="destructive" className="gap-1 font-mono text-[10px]">
             MIGRACIÓN CANCELADA
-          </span>
+          </Badge>
         );
       case "AUTO_SYNC_TOGGLE":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
             <Radio className="w-3 h-3" /> AUTO-SYNC
-          </span>
+          </Badge>
         );
       case "USER_CREATE":
       case "USER_UPDATE":
       case "USER_DELETE":
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-purple-500/10 text-purple-400 border border-purple-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/20">
             <UserPlus className="w-3 h-3" /> {action}
-          </span>
+          </Badge>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-zinc-800 text-zinc-300 border border-white/5">
+          <Badge variant="secondary" className="font-mono text-[10px]">
             {action}
-          </span>
+          </Badge>
         );
     }
   };
@@ -143,19 +162,19 @@ export const AuditView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col space-y-4 min-h-0 overflow-y-auto">
+    <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-800 pb-3 shrink-0">
         <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
             <h1 className="text-lg font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
               Auditoría del Sistema
-              <span className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded">
+              <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
                 PostgreSQL Logbook
-              </span>
+              </Badge>
             </h1>
             <p className="text-xs text-zinc-400 mt-0.5">
               Registro inmutable de accesos de usuarios, clonaciones de canales y cambios de configuración.
@@ -163,7 +182,7 @@ export const AuditView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-start md:self-auto">
           <Button
             variant="outline"
             size="sm"
@@ -171,7 +190,7 @@ export const AuditView: React.FC = () => {
             disabled={isLoading}
             className="text-xs text-zinc-300 flex items-center gap-1.5 h-8"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-cyan-400" : ""}`} />
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
             Actualizar
           </Button>
         </div>
@@ -179,43 +198,51 @@ export const AuditView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
-            <span>Total Eventos</span>
-            <Layers className="w-4 h-4 text-cyan-400" />
-          </div>
-          <p className="text-xl font-semibold font-mono text-zinc-100">{totalEvents}</p>
-        </div>
+        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+          <CardContent className="p-3 space-y-1">
+            <div className="flex items-center justify-between text-zinc-400 text-xs">
+              <span>Total Eventos</span>
+              <Layers className="w-4 h-4 text-cyan-400" />
+            </div>
+            <p className="text-xl font-semibold font-mono text-zinc-100">{totalEvents}</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
-            <span>Inicios de Sesión</span>
-            <LogIn className="w-4 h-4 text-emerald-400" />
-          </div>
-          <p className="text-xl font-semibold font-mono text-emerald-400">{loginEvents}</p>
-        </div>
+        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+          <CardContent className="p-3 space-y-1">
+            <div className="flex items-center justify-between text-zinc-400 text-xs">
+              <span>Inicios de Sesión</span>
+              <LogIn className="w-4 h-4 text-emerald-400" />
+            </div>
+            <p className="text-xl font-semibold font-mono text-emerald-400">{loginEvents}</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
-            <span>Clonaciones Canales</span>
-            <PlayCircle className="w-4 h-4 text-cyan-400" />
-          </div>
-          <p className="text-xl font-semibold font-mono text-cyan-400">{migrationEvents}</p>
-        </div>
+        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+          <CardContent className="p-3 space-y-1">
+            <div className="flex items-center justify-between text-zinc-400 text-xs">
+              <span>Clonaciones Canales</span>
+              <PlayCircle className="w-4 h-4 text-cyan-400" />
+            </div>
+            <p className="text-xl font-semibold font-mono text-cyan-400">{migrationEvents}</p>
+          </CardContent>
+        </Card>
 
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-lg p-3 shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400 text-xs">
-            <span>Vínculos Auto-Sync</span>
-            <Radio className="w-4 h-4 text-amber-400" />
-          </div>
-          <p className="text-xl font-semibold font-mono text-amber-400">{syncEvents}</p>
-        </div>
+        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+          <CardContent className="p-3 space-y-1">
+            <div className="flex items-center justify-between text-zinc-400 text-xs">
+              <span>Vínculos Auto-Sync</span>
+              <Radio className="w-4 h-4 text-amber-400" />
+            </div>
+            <p className="text-xl font-semibold font-mono text-amber-400">{syncEvents}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#0e1015] border border-zinc-800 p-2.5 rounded-lg shrink-0">
         {/* Categories */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
           {[
             { id: "ALL", label: "Todos" },
             { id: "AUTH", label: "Accesos / Login" },
@@ -223,35 +250,38 @@ export const AuditView: React.FC = () => {
             { id: "SYNC", label: "Auto-Sync" },
             { id: "USERS", label: "Usuarios RBAC" },
           ].map((cat) => (
-            <button
+            <Button
               key={cat.id}
+              variant={filterCategory === cat.id ? "secondary" : "ghost"}
+              size="sm"
               onClick={() => setFilterCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors text-xs whitespace-nowrap ${
+              className={cn(
+                "h-8 px-3 text-xs whitespace-nowrap",
                 filterCategory === cat.id
                   ? "bg-zinc-800 text-white border border-zinc-700/80 shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-850"
-              }`}
+                  : "text-zinc-400 hover:text-zinc-200"
+              )}
             >
               {cat.label}
-            </button>
+            </Button>
           ))}
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input
+          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
+          <Input
             type="text"
             placeholder="Buscar por usuario, acción o detalle..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-md pl-8 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 w-full sm:w-64 transition-colors"
+            className="pl-8 h-8 text-xs bg-zinc-900 border-zinc-800 w-full sm:w-64"
           />
         </div>
       </div>
 
       {/* Audit Log Table */}
-      <div className="bg-[#0e1015] border border-zinc-800 rounded-lg shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+      <Card className="bg-[#0e1015] border-zinc-800 rounded-lg shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="p-3 border-b border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
           <span className="font-medium text-zinc-300">
             Registros Encontrados: <span className="font-mono text-cyan-400">{filteredLogs.length}</span>
@@ -272,39 +302,39 @@ export const AuditView: React.FC = () => {
               <p>No se encontraron registros de auditoría para el criterio seleccionado.</p>
             </div>
           ) : (
-            <table className="w-full min-w-[700px] text-left text-xs border-collapse">
-              <thead className="bg-[#090a0e] text-zinc-400 sticky top-0 font-mono text-xs border-b border-zinc-800">
-                <tr>
-                  <th className="py-2.5 px-3">Fecha y Hora</th>
-                  <th className="py-2.5 px-3">Evento</th>
-                  <th className="py-2.5 px-3">Usuario</th>
-                  <th className="py-2.5 px-3">Recurso / Destino</th>
-                  <th className="py-2.5 px-3">Detalles</th>
-                  <th className="py-2.5 px-3">IP Origen</th>
-                  <th className="py-2.5 px-3 text-right">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800/60 text-zinc-300 font-mono text-xs">
+            <Table className="w-full min-w-[700px] text-left text-xs border-collapse">
+              <TableHeader className="bg-[#090a0e] text-zinc-400 sticky top-0 font-mono text-xs border-b border-zinc-800 z-10">
+                <TableRow className="border-b border-zinc-800 hover:bg-transparent">
+                  <TableHead className="py-2.5 px-3">Fecha y Hora</TableHead>
+                  <TableHead className="py-2.5 px-3">Evento</TableHead>
+                  <TableHead className="py-2.5 px-3">Usuario</TableHead>
+                  <TableHead className="py-2.5 px-3">Recurso / Destino</TableHead>
+                  <TableHead className="py-2.5 px-3">Detalles</TableHead>
+                  <TableHead className="py-2.5 px-3">IP Origen</TableHead>
+                  <TableHead className="py-2.5 px-3 text-right">Acción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-zinc-800/60 text-zinc-300 font-mono text-xs">
                 {filteredLogs.map((log) => (
-                  <tr
+                  <TableRow
                     key={log.id}
                     onClick={() => setSelectedLog(log)}
                     className="hover:bg-zinc-800/30 cursor-pointer transition-colors group"
                   >
-                    <td className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
+                    <TableCell className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3 h-3 text-zinc-500 shrink-0" />
                         <span>{formatDate(log.created_at)}</span>
                       </div>
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap">{getActionBadge(log.action)}</td>
-                    <td className="py-2.5 px-3 text-zinc-200 font-sans font-medium">
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 whitespace-nowrap">{getActionBadge(log.action)}</TableCell>
+                    <TableCell className="py-2.5 px-3 text-zinc-200 font-sans font-medium">
                       {log.user_email || <span className="text-zinc-500 italic font-mono text-[10px]">Sistema / Bot</span>}
-                    </td>
-                    <td className="py-2.5 px-3 text-cyan-300 font-mono max-w-xs truncate" title={log.resource || ""}>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 text-cyan-300 font-mono max-w-xs truncate" title={log.resource || ""}>
                       {log.resource || "-"}
-                    </td>
-                    <td className="py-2.5 px-3 font-sans text-xs text-zinc-400 max-w-sm truncate" title={JSON.stringify(log.details || {})}>
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 font-sans text-xs text-zinc-400 max-w-sm truncate" title={JSON.stringify(log.details || {})}>
                       {log.details ? (
                         <span className="font-mono text-[10px] text-zinc-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 hover:border-cyan-500/30 transition-colors">
                           {JSON.stringify(log.details)}
@@ -312,31 +342,33 @@ export const AuditView: React.FC = () => {
                       ) : (
                         "-"
                       )}
-                    </td>
-                    <td className="py-2.5 px-3 whitespace-nowrap text-zinc-500">
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 whitespace-nowrap text-zinc-500">
                       <div className="flex items-center gap-1">
                         <Globe className="w-3 h-3 text-zinc-600 shrink-0" />
                         <span>{log.ip_address || "127.0.0.1"}</span>
                       </div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right whitespace-nowrap">
-                      <button
+                    </TableCell>
+                    <TableCell className="py-2.5 px-3 text-right whitespace-nowrap">
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedLog(log);
                         }}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-800/80 hover:bg-zinc-800 text-zinc-200 border border-zinc-700/80 hover:border-zinc-600 text-xs font-sans font-medium transition-colors"
+                        className="h-7 px-2 text-xs font-sans font-medium"
                         title="Ver detalles completos del evento"
                       >
-                        <Eye className="w-3 h-3 group-hover:scale-105 transition-transform" />
+                        <Eye className="w-3 h-3 group-hover:scale-105 transition-transform mr-1" />
                         Ver Detalle
-                      </button>
-                    </td>
-                  </tr>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </div>
 
@@ -344,17 +376,21 @@ export const AuditView: React.FC = () => {
         <div className="p-3 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 bg-[#090a0e] shrink-0">
           <div className="flex items-center gap-2">
             <span>Mostrar</span>
-            <select
-              value={pageSize}
-              onChange={(e) => setPageSize(Number(e.target.value))}
+            <Select
+              value={String(pageSize)}
+              onValueChange={(val) => setPageSize(Number(val))}
               disabled={isLoading}
-              className="bg-zinc-900 border border-zinc-800 rounded px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:border-cyan-500"
             >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
+              <SelectTrigger className="w-16 h-7 bg-zinc-900 border-zinc-800 text-xs text-zinc-200 font-mono">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 font-mono">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
             <span>por página</span>
             <span className="text-zinc-600">|</span>
             <span className="text-zinc-400">
@@ -391,7 +427,7 @@ export const AuditView: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Modal de Detalle Extendido de Auditoría */}
       <AuditLogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} />
