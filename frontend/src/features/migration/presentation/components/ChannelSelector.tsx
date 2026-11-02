@@ -26,8 +26,8 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-        <div className="h-44 bg-zinc-900/60 rounded-xl border border-white/5" />
-        <div className="h-44 bg-zinc-900/60 rounded-xl border border-white/5" />
+        <div className="h-44 bg-zinc-900/60 rounded-md border border-white/5" />
+        <div className="h-44 bg-zinc-900/60 rounded-md border border-white/5" />
       </div>
     );
   }
@@ -40,7 +40,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
       </div>
 
       {/* Source Channel Card */}
-      <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm transition-colors">
+      <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-3.5 shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center space-x-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
@@ -74,7 +74,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
       </div>
 
       {/* Destination Channel Card */}
-      <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm transition-colors">
+      <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-3.5 shadow-sm transition-colors">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center space-x-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />

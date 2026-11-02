@@ -152,7 +152,7 @@ export const PipelineModulesView: React.FC = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             {/* Left: Rules Configuration Form */}
-            <div className="lg:col-span-7 bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-4 space-y-3.5 sm:space-y-4">
+            <div className="lg:col-span-7 bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-4 space-y-3.5 sm:space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="text-xs font-semibold text-zinc-200 font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Reglas de Sanitización
@@ -274,7 +274,7 @@ export const PipelineModulesView: React.FC = () => {
             </div>
 
             {/* Right: Live Interactive Sandbox Preview */}
-            <div className="lg:col-span-5 bg-[#0e1015] border border-zinc-800 rounded-xl p-4 space-y-3">
+            <div className="lg:col-span-5 bg-[#0e1015] border border-zinc-800 rounded-md p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
                 <span className="text-xs font-semibold text-zinc-200 font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <Eye className="w-3.5 h-3.5 text-cyan-400" /> Simulador en Tiempo Real
@@ -311,7 +311,7 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 2: Drip Feed & Scheduler Pacing */}
       {activeTab === "drip" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
             <Clock className="w-4 h-4 text-sky-400 shrink-0" />
             <div>
@@ -367,7 +367,7 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 3: Duplicate Guard */}
       {activeTab === "dedup" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
             <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
             <div>
@@ -411,7 +411,7 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 4: Quality & Duration Gates */}
       {activeTab === "quality" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
             <Filter className="w-4 h-4 text-amber-400 shrink-0" />
             <div>

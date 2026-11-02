@@ -52,7 +52,7 @@ export const QueueViewer: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3.5 shadow-sm space-y-3">
+    <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-3.5 shadow-sm space-y-3">
       {/* Header and Counters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">

@@ -194,13 +194,13 @@ export const DirectUploadModal: React.FC<Props> = ({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center space-y-2 ${
+                className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center space-y-2 ${
                   isDragging
                     ? "border-cyan-400 bg-cyan-950/20"
                     : "border-white/10 hover:border-cyan-500/40 bg-zinc-950/40 hover:bg-zinc-950/80"
                 }`}
               >
-                <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-cyan-400">
+                <div className="w-10 h-10 rounded-md bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-cyan-400">
                   <UploadCloud className="w-5 h-5" />
                 </div>
                 <div>
@@ -213,7 +213,7 @@ export const DirectUploadModal: React.FC<Props> = ({
                 </div>
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-zinc-950/90 border border-cyan-500/30 flex items-center justify-between gap-3 shadow-md">
+              <div className="p-3 rounded-md bg-zinc-950/90 border border-cyan-500/30 flex items-center justify-between gap-3 shadow-md">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2 rounded-lg bg-zinc-900 border border-white/5 shrink-0">
                     {getFileIcon(selectedFile.type)}
@@ -258,7 +258,7 @@ export const DirectUploadModal: React.FC<Props> = ({
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Escribí el texto, emojis, hashtags o descripción que acompañará la publicación..."
-              className="w-full bg-[#10121A] border border-white/10 rounded-xl p-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none font-sans"
+              className="w-full bg-[#10121A] border border-white/10 rounded-md p-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none font-sans"
               disabled={isUploading}
             />
           </div>

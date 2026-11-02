@@ -233,7 +233,7 @@ export const SettingsView: React.FC = () => {
       {activeTab === "credentials" && user?.role === "ADMIN" && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-start">
           {/* Left: Credentials Form (5 cols on xl) */}
-          <div className="xl:col-span-5 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-4">
+          <div className="xl:col-span-5 bg-[#14161F] border border-white/5 rounded-md p-4 md:p-5 shadow-xl space-y-4">
             <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
@@ -327,7 +327,7 @@ export const SettingsView: React.FC = () => {
           </div>
 
           {/* Right: Configured Accounts Table (7 cols on xl) */}
-          <div className="xl:col-span-7 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+          <div className="xl:col-span-7 bg-[#14161F] border border-white/5 rounded-md p-4 md:p-5 shadow-xl space-y-3">
             <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
               <div>
                 <h2 className="text-xs font-bold text-white">Cuentas Registradas</h2>
@@ -393,7 +393,7 @@ export const SettingsView: React.FC = () => {
       {activeTab === "users" && user?.role === "ADMIN" && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-start">
           {/* Create User Card (Left on xl: 4 cols) */}
-          <div className="xl:col-span-4 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+          <div className="xl:col-span-4 bg-[#14161F] border border-white/5 rounded-md p-4 md:p-5 shadow-xl space-y-3">
             <div className="flex items-center gap-2 pb-2.5 border-b border-white/5">
               <span className="p-1.5 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <UserPlus className="w-4 h-4" />
@@ -456,7 +456,7 @@ export const SettingsView: React.FC = () => {
           </div>
 
           {/* Users Table Card (Right on xl: 8 cols) */}
-          <div className="xl:col-span-8 bg-[#14161F] border border-white/5 rounded-xl p-4 md:p-5 shadow-xl space-y-3">
+          <div className="xl:col-span-8 bg-[#14161F] border border-white/5 rounded-md p-4 md:p-5 shadow-xl space-y-3">
             <div className="flex items-center justify-between pb-2.5 border-b border-white/5">
               <div className="flex items-center gap-2">
                 <span className="p-1.5 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">

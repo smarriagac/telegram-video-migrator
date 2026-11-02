@@ -30,7 +30,7 @@ export const TerminalLog: React.FC = () => {
   return (
     <section
       aria-label="Registro de actividad y logs en vivo"
-      className="bg-[#090A0F] rounded-xl border border-white/5 overflow-hidden shadow-2xl"
+      className="bg-[#090A0F] rounded-md border border-white/5 overflow-hidden shadow-2xl"
     >
       <div className="bg-zinc-950/80 px-3.5 py-2 border-b border-white/5 flex items-center justify-between">
         <div className="flex items-center space-x-2">

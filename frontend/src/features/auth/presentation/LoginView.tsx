@@ -27,7 +27,7 @@ export const LoginView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#090a0e] text-zinc-200 flex flex-col justify-center items-center px-4 relative">
-      <div className="relative z-10 w-full max-w-sm bg-[#0e1015] border border-zinc-800 rounded-xl p-6 shadow-xl space-y-4">
+      <div className="relative z-10 w-full max-w-sm bg-[#0e1015] border border-zinc-800 rounded-md p-6 shadow-xl space-y-4">
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-1">

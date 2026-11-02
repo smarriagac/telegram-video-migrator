@@ -185,7 +185,7 @@ export const MessageSelector: React.FC = () => {
 
   if (!selectedSourceId) {
     return (
-      <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-4 shadow-sm space-y-4 flex flex-col min-h-[520px]">
+      <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-4 shadow-sm space-y-4 flex flex-col min-h-[520px]">
         <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
@@ -200,8 +200,8 @@ export const MessageSelector: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center space-y-4 border border-dashed border-white/10 rounded-xl bg-black/20">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center space-y-4 border border-dashed border-white/10 rounded-md bg-black/20">
+          <div className="w-12 h-12 rounded-md bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
             <Video className="w-6 h-6" />
           </div>
           <div className="max-w-sm space-y-1">
@@ -218,7 +218,7 @@ export const MessageSelector: React.FC = () => {
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-[4/3] rounded-xl border border-dashed border-white/20 bg-white/5 flex flex-col justify-between p-2"
+                className="aspect-[4/3] rounded-md border border-dashed border-white/20 bg-white/5 flex flex-col justify-between p-2"
               >
                 <div className="w-4 h-4 rounded border border-white/20" />
                 <div className="w-12 h-2 rounded bg-white/10 self-end" />
@@ -276,7 +276,7 @@ export const MessageSelector: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#0e1015] rounded-xl border border-zinc-800 p-3 sm:p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
+    <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-3 sm:p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
       {/* Header & Controls */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 border-b border-zinc-800 pb-2.5 shrink-0">
         <div className="min-w-0">
@@ -547,7 +547,7 @@ export const MessageSelector: React.FC = () => {
           <span className="font-mono text-zinc-400">Escaneando multimedia y generando miniaturas...</span>
         </div>
       ) : filteredMessages.length === 0 ? (
-        <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-zinc-500 text-xs bg-[#0E1017] rounded-xl border border-white/5 font-mono">
+        <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-zinc-500 text-xs bg-[#0E1017] rounded-md border border-white/5 font-mono">
           No se encontraron mensajes con los filtros seleccionados.
         </div>
       ) : viewMode === "grid" ? (
@@ -562,7 +562,7 @@ export const MessageSelector: React.FC = () => {
                 <div
                   key={msg.id}
                   onClick={() => toggleSelectMessage(msg.id)}
-                  className={`group relative rounded-xl border overflow-hidden cursor-pointer select-none transition-all duration-200 w-full aspect-[4/3] min-h-[140px] flex flex-col justify-between ${
+                  className={`group relative rounded-md border overflow-hidden cursor-pointer select-none transition-all duration-200 w-full aspect-[4/3] min-h-[140px] flex flex-col justify-between ${
                     isSelected
                       ? "border-cyan-400 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-950/30 scale-[0.99]"
                       : "border-white/5 hover:border-white/20 bg-zinc-950 hover:shadow-md"
@@ -641,7 +641,7 @@ export const MessageSelector: React.FC = () => {
         </div>
       ) : (
         /* COMPACT TABLE / LIST VIEW */
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1.5 border border-white/5 rounded-xl bg-[#0E1017]/80 divide-y divide-white/[0.03]">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1.5 border border-white/5 rounded-md bg-[#0E1017]/80 divide-y divide-white/[0.03]">
           {filteredMessages.map((msg) => {
             const isSelected = selectedMessageIds.includes(msg.id);
             const sizeStr = formatBytes(msg.file_size);
@@ -762,7 +762,7 @@ export const MessageSelector: React.FC = () => {
             onClick={() => setPreviewModalMsg(null)}
           >
             <div
-              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5"
+              className="bg-[#14161F] border border-white/10 rounded-md max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
@@ -791,7 +791,7 @@ export const MessageSelector: React.FC = () => {
               )}
 
               {/* Media Preview Box (Full uncropped contain) */}
-              <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
+              <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-md overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
                 {previewModalMsg.media_type === "video" ? (
                   <video
                     src={`/api/channels/${selectedSourceId}/messages/${previewModalMsg.id}/video`}

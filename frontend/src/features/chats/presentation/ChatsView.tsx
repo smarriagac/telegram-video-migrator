@@ -98,7 +98,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
               onClick={() => setShowModal(false)}
             >
               <div
-                className="bg-[#14161F] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+                className="bg-[#14161F] border border-white/10 rounded-md max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-white/5 pb-3">
@@ -113,14 +113,14 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+                    className="text-zinc-400 hover:text-white p-1 rounded-sm hover:bg-white/5 transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
                 {/* Video Player in Modal */}
-                <div className="relative w-full min-h-[320px] max-h-[65vh] rounded-xl overflow-hidden bg-black border border-white/10 flex items-center justify-center">
+                <div className="relative w-full min-h-[320px] max-h-[65vh] rounded-md overflow-hidden bg-black border border-white/10 flex items-center justify-center">
                   <video
                     src={videoUrl}
                     poster={thumbUrl}
@@ -260,7 +260,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
             onClick={() => setShowModal(false)}
           >
             <div
-              className="bg-[#14161F] border border-white/10 rounded-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+              className="bg-[#14161F] border border-white/10 rounded-md max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between border-b border-white/5 pb-3">
@@ -275,14 +275,14 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
+                  className="text-zinc-400 hover:text-white p-1 rounded-sm hover:bg-white/5 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Full Media Contain: Video Player or Image */}
-              <div className="relative w-full min-h-[300px] max-h-[65vh] rounded-xl overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
+              <div className="relative w-full min-h-[300px] max-h-[65vh] rounded-md overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
                 {mediaType === "video" ? (
                   <video
                     src={videoUrl}
@@ -509,7 +509,7 @@ export const ChatsView: React.FC = () => {
       </div>
 
       {/* Main Chat Interface: Bound height with flex/grid */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-md overflow-hidden shadow-2xl">
         {/* Left Column: Chat List (4 cols on lg, 3 cols on xl) */}
         <aside
           className={cn(

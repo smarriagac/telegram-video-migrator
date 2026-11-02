@@ -67,7 +67,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
         {/* Header */}
         <DialogHeader>
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+            <div className="w-9 h-9 rounded-md bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
               <History className="w-5 h-5" />
             </div>
             <div>
@@ -87,7 +87,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
         {/* 3 Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
           {/* Metric 1: Veces Clonado */}
-          <div className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
+          <div className="p-3 rounded-md bg-zinc-950/80 border border-white/5 space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
               Veces Clonado
             </span>
@@ -102,7 +102,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
           </div>
 
           {/* Metric 2: ¿Se clonó todo? */}
-          <div className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
+          <div className="p-3 rounded-md bg-zinc-950/80 border border-white/5 space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
               ¿Se clonó todo?
             </span>
@@ -122,7 +122,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
           </div>
 
           {/* Metric 3: Elementos Copiados */}
-          <div className="p-3 rounded-xl bg-zinc-950/80 border border-white/5 space-y-1">
+          <div className="p-3 rounded-md bg-zinc-950/80 border border-white/5 space-y-1">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 block">
               Contenido Copiado
             </span>
@@ -178,7 +178,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
         {activeTab === "jobs" && (
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 max-h-[360px]">
             {(!history || history.jobs.length === 0) ? (
-              <div className="text-center py-12 text-zinc-500 text-xs border border-dashed border-white/10 rounded-xl bg-black/20">
+              <div className="text-center py-12 text-zinc-500 text-xs border border-dashed border-white/10 rounded-md bg-black/20">
                 <History className="w-8 h-8 mx-auto mb-2 opacity-40 text-zinc-500" />
                 Este canal no tiene registros de migraciones previas.
               </div>
@@ -188,7 +188,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
                 return (
                   <div
                     key={job.job_id}
-                    className="p-3.5 rounded-xl bg-zinc-950/60 border border-white/5 hover:border-white/15 transition-all space-y-2"
+                    className="p-3.5 rounded-md bg-zinc-950/60 border border-white/5 hover:border-white/15 transition-all space-y-2"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -246,7 +246,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
         {activeTab === "content" && (
           <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1 max-h-[360px]">
             {filteredContent.length === 0 ? (
-              <div className="text-center py-12 text-zinc-500 text-xs border border-dashed border-white/10 rounded-xl bg-black/20">
+              <div className="text-center py-12 text-zinc-500 text-xs border border-dashed border-white/10 rounded-md bg-black/20">
                 <FileText className="w-8 h-8 mx-auto mb-2 opacity-40 text-zinc-500" />
                 No se encontraron elementos clonados para los criterios de búsqueda.
               </div>
