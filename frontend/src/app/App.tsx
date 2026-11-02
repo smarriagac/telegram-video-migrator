@@ -11,6 +11,7 @@ import { LiveSyncHubView } from "../features/sync/presentation/LiveSyncHubView";
 import { AnalyticsView } from "../features/analytics/presentation/AnalyticsView";
 import { SettingsView } from "../features/settings/presentation/SettingsView";
 import { AuditView } from "../features/audit/presentation/AuditView";
+import { BillingPlansView } from "../features/billing/presentation/BillingPlansView";
 import { ErrorBoundary } from "../shared/components/ErrorBoundary";
 
 export const App: React.FC = () => {
@@ -31,6 +32,7 @@ export const App: React.FC = () => {
               <Route path="/chats" element={<ChatsView />} />
               <Route path="/jobs" element={<JobsView />} />
               <Route path="/analytics" element={<AnalyticsView />} />
+              <Route path="/billing" element={<BillingPlansView />} />
               {/* Admin-only route */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="/audit" element={<AuditView />} />

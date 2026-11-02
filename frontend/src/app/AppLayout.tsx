@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
@@ -65,6 +66,11 @@ const NAV_ITEMS: NavItem[] = [
     name: "Analíticas & Rendimiento",
     path: "/analytics",
     icon: BarChart3,
+  },
+  {
+    name: "Suscripción & Planes",
+    path: "/billing",
+    icon: CreditCard,
   },
   {
     name: "Auditoría del Sistema",
