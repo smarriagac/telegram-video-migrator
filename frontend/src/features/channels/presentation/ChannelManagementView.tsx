@@ -62,6 +62,9 @@ interface ViewState {
   modalChannelId: number;
   modalDays: number;
   modalUsername: string;
+  modalAutoSendDm: boolean;
+  lastDmSent: boolean | null;
+  lastDmError: string | null;
   generatedLink: string | null;
   copied: boolean;
   isSubmitting: boolean;
@@ -80,6 +83,9 @@ export const ChannelManagementView: React.FC = () => {
     modalChannelId: 0,
     modalDays: 30,
     modalUsername: "",
+    modalAutoSendDm: true,
+    lastDmSent: null,
+    lastDmError: null,
     generatedLink: null,
     copied: false,
     isSubmitting: false,
@@ -126,11 +132,14 @@ export const ChannelManagementView: React.FC = () => {
       const pass = await channelApi.createVipInvite(
         state.modalChannelId,
         state.modalDays,
-        state.modalUsername
+        state.modalUsername,
+        state.modalAutoSendDm
       );
       setState((s) => ({
         ...s,
         generatedLink: pass.invite_link || null,
+        lastDmSent: pass.dm_sent ?? false,
+        lastDmError: pass.dm_error ?? null,
         members: [pass, ...s.members],
         isSubmitting: false,
       }));
@@ -242,6 +251,8 @@ export const ChannelManagementView: React.FC = () => {
                 ...s,
                 modalOpen: true,
                 generatedLink: null,
+                lastDmSent: null,
+                lastDmError: null,
                 modalUsername: "",
               }))
             }
@@ -612,6 +623,8 @@ export const ChannelManagementView: React.FC = () => {
                                 modalOpen: true,
                                 modalChannelId: channel.id,
                                 generatedLink: null,
+                                lastDmSent: null,
+                                lastDmError: null,
                                 modalUsername: "",
                               }))
                             }
@@ -690,21 +703,49 @@ export const ChannelManagementView: React.FC = () => {
 
             <div className="space-y-1.5">
               <label className="font-semibold text-foreground block">
-                Usuario o Referencia (Opcional)
+                Usuario Telegram de Destino (Opcional)
               </label>
               <Input
-                placeholder="Ej: cliente_vip_123 o @telegram_user"
+                placeholder="Ej: @Smpyt o 123456789"
                 value={state.modalUsername}
                 onChange={(e) => setState((s) => ({ ...s, modalUsername: e.target.value }))}
                 className="h-8 text-xs"
               />
+              <div className="flex items-center space-x-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="auto-send-dm"
+                  checked={state.modalAutoSendDm}
+                  onChange={(e) => setState((s) => ({ ...s, modalAutoSendDm: e.target.checked }))}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary accent-primary cursor-pointer"
+                />
+                <label htmlFor="auto-send-dm" className="text-xs text-foreground cursor-pointer select-none">
+                  Auto-enviar enlace por mensaje privado al usuario vía MTProto
+                </label>
+              </div>
             </div>
 
             {state.generatedLink && (
               <div className="bg-primary/10 border border-primary/30 rounded-md p-3 space-y-2 mt-2">
-                <span className="text-xs font-semibold text-primary block">
-                  ¡Enlace Único Generado con Éxito!
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-primary block">
+                    ¡Enlace Único Generado!
+                  </span>
+                  {state.modalAutoSendDm && state.modalUsername && (
+                    state.lastDmSent ? (
+                      <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border-emerald-500/30 gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Enviado por DM
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/15 text-amber-500 border-amber-500/30 gap-1" title={state.lastDmError || "No se pudo entregar por DM"}>
+                        <AlertCircle className="w-3 h-3" />
+                        No entregado por DM
+                      </Badge>
+                    )
+                  )}
+                </div>
+
                 <div className="flex items-center gap-2">
                   <Input
                     readOnly
@@ -721,9 +762,20 @@ export const ChannelManagementView: React.FC = () => {
                     {state.copied ? "Copiado" : "Copiar"}
                   </Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Este enlace expira automáticamente en Telegram y admite un solo ingreso.
-                </p>
+
+                {state.lastDmSent ? (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    ✓ El enlace fue auto-enviado con éxito a {state.modalUsername} por mensaje privado en Telegram.
+                  </p>
+                ) : state.lastDmError ? (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    ⚠️ Telegram no permitió enviar el DM a {state.modalUsername} ({state.lastDmError}). Copiá el enlace manualmente.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">
+                    Este enlace expira automáticamente en Telegram y admite un solo ingreso.
+                  </p>
+                )}
               </div>
             )}
           </div>

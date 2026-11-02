@@ -656,6 +656,7 @@ class CreateVipInviteRequest(BaseModel):
     duration_days: int = 30
     account_id: int | None = None
     telegram_username: str | None = None
+    auto_send_dm: bool = True
 
 
 class ChannelMembershipResponse(BaseModel):
@@ -668,6 +669,8 @@ class ChannelMembershipResponse(BaseModel):
     status: str
     expires_at: str
     created_at: str | None = None
+    dm_sent: bool = False
+    dm_error: str | None = None
 
 
 @router.post("/gatekeeper/invite", response_model=ChannelMembershipResponse)
@@ -688,6 +691,29 @@ async def create_vip_invite_pass(
         account_id=req.account_id,
     )
     membership.telegram_username = req.telegram_username
+
+    dm_sent = False
+    dm_error = None
+    if req.auto_send_dm and req.telegram_username and membership.invite_link:
+        target_user = req.telegram_username.strip()
+        dm_text = (
+            f"👋 ¡Hola! Te compartimos tu pase de acceso VIP exclusivo:\n\n"
+            f"🔗 Enlace de ingreso (válido para 1 uso):\n{membership.invite_link}\n\n"
+            f"⏳ Validez: {req.duration_days} días.\n"
+            f"¡Bienvenido a la comunidad!"
+        )
+        try:
+            dm_sent = await gateway.send_direct_message(
+                recipient=target_user,
+                text=dm_text,
+                account_id=req.account_id,
+            )
+            if not dm_sent:
+                dm_error = "No se pudo entregar el mensaje directo (revisar configuración de privacidad o si el usuario existe)."
+        except Exception as ex:
+            logger.warning(f"Error auto-sending VIP invite DM to {target_user}: {ex}")
+            dm_sent = False
+            dm_error = str(ex)
 
     try:
         await pg_repo.connect()
@@ -723,6 +749,8 @@ async def create_vip_invite_pass(
         status=membership.status.value,
         expires_at=membership.expires_at,
         created_at=membership.created_at,
+        dm_sent=dm_sent,
+        dm_error=dm_error,
     )
 
 

@@ -19,6 +19,8 @@ export interface VipMembership {
   status: "INVITED" | "ACTIVE" | "GRACE_PERIOD" | "EXPIRED" | "KICKED" | "CANCELLED";
   expires_at: string;
   created_at?: string | null;
+  dm_sent?: boolean;
+  dm_error?: string | null;
 }
 
 const getAuthHeaders = (): HeadersInit => {
@@ -68,7 +70,8 @@ export const channelApi = {
   async createVipInvite(
     channelId: number,
     durationDays: number = 30,
-    username?: string
+    username?: string,
+    autoSendDm: boolean = true
   ): Promise<VipMembership> {
     const res = await fetch("/api/channels/gatekeeper/invite", {
       method: "POST",
@@ -77,6 +80,7 @@ export const channelApi = {
         channel_id: channelId,
         duration_days: durationDays,
         telegram_username: username || null,
+        auto_send_dm: autoSendDm,
       }),
     });
     if (!res.ok) {

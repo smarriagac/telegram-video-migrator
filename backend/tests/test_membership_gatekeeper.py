@@ -113,3 +113,19 @@ async def test_gatekeeper_generates_single_use_pass():
     assert pass_obj.status == MembershipStatus.INVITED
     assert pass_obj.expires_at is not None
     mock_gateway.create_channel_invite_link.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_gateway_send_direct_message_signature():
+    mock_gateway = MagicMock()
+    mock_gateway.send_direct_message = AsyncMock(return_value=True)
+
+    sent = await mock_gateway.send_direct_message(
+        recipient="@Smpyt",
+        text="Tu enlace VIP: https://t.me/+AbCdEfGhIjK",
+    )
+    assert sent is True
+    mock_gateway.send_direct_message.assert_awaited_once_with(
+        recipient="@Smpyt",
+        text="Tu enlace VIP: https://t.me/+AbCdEfGhIjK",
+    )

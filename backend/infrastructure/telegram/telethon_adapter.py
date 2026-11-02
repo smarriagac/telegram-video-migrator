@@ -955,3 +955,21 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.error(f"Error creating invite link for channel {channel_id}: {e}")
             raise
+
+    async def send_direct_message(
+        self, recipient: str | int, text: str, account_id: int | None = None
+    ) -> bool:
+        """Send a direct private message to a Telegram user by username or user_id."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            target = recipient.strip() if isinstance(recipient, str) else recipient
+            await client.send_message(target, text)
+            logger.info(f"Direct message sent successfully to {target} via account {account_id or 1}.")
+            return True
+        except FloodWaitError as e:
+            logger.warning(f"Flood wait when sending DM to {recipient}: {e.seconds}s")
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except Exception as e:
+            logger.warning(f"Failed to send direct message to {recipient}: {e}")
+            return False

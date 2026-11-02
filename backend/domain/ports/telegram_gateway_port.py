@@ -130,3 +130,9 @@ class TelegramGatewayPort(ABC):
     ) -> str:
         """Create a single-use or expiring invite link for a channel."""
         return ""
+
+    async def send_direct_message(
+        self, recipient: str | int, text: str, account_id: int | None = None
+    ) -> bool:
+        """Send a direct private message to a Telegram user or username."""
+        return False
