@@ -20,6 +20,7 @@ export interface VipMembership {
   joined_at?: string | null;
   expires_at: string;
   created_at?: string | null;
+  kick_reason?: string | null;
   dm_sent?: boolean;
   dm_error?: string | null;
 }

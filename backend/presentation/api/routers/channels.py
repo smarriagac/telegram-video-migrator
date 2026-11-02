@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone, timedelta
+import json
 import logging
 import os
 from pathlib import Path
@@ -674,6 +675,7 @@ class ChannelMembershipResponse(BaseModel):
     joined_at: str | None = None
     expires_at: str
     created_at: str | None = None
+    kick_reason: str | None = None
     dm_sent: bool = False
     dm_error: str | None = None
 
@@ -804,7 +806,7 @@ async def list_channel_memberships(
             async with pg_repo.pool.acquire() as conn:
                 query = """
                     SELECT id, tenant_id, channel_id, telegram_user_id, telegram_username,
-                           invite_link, status, joined_at, expires_at, created_at
+                           invite_link, status, joined_at, expires_at, created_at, kick_reason
                     FROM channel_memberships
                     WHERE tenant_id = $1::uuid
                 """
@@ -827,6 +829,7 @@ async def list_channel_memberships(
                         joined_at=str(r["joined_at"]) if r["joined_at"] else None,
                         expires_at=str(r["expires_at"]),
                         created_at=str(r["created_at"]) if r["created_at"] else None,
+                        kick_reason=r.get("kick_reason") if "kick_reason" in r else None,
                     )
                     for r in rows
                 ]
@@ -982,9 +985,10 @@ async def kick_channel_member(
                     await conn.execute(
                         """
                         UPDATE channel_memberships
-                        SET status = 'KICKED', updated_at = $1
-                        WHERE id = $2::uuid AND tenant_id = $3::uuid
+                        SET status = 'KICKED', kick_reason = $1, updated_at = $2
+                        WHERE id = $3::uuid AND tenant_id = $4::uuid
                         """,
+                        payload.reason,
                         now,
                         payload.membership_id,
                         tenant_id,
@@ -993,14 +997,31 @@ async def kick_channel_member(
                     await conn.execute(
                         """
                         UPDATE channel_memberships
-                        SET status = 'KICKED', updated_at = $1
-                        WHERE channel_id = $2 AND telegram_user_id = $3 AND tenant_id = $4::uuid
+                        SET status = 'KICKED', kick_reason = $1, updated_at = $2
+                        WHERE channel_id = $3 AND telegram_user_id = $4 AND tenant_id = $5::uuid
                         """,
+                        payload.reason,
                         now,
                         payload.channel_id,
                         payload.user_id,
                         tenant_id,
                     )
+                # Audit log
+                await conn.execute(
+                    """
+                    INSERT INTO audit_logs (tenant_id, user_email, action, resource, details)
+                    VALUES ($1::uuid, $2, 'KICK_VIP_MEMBER', $3, $4::jsonb)
+                    """,
+                    tenant_id,
+                    current_user.email,
+                    f"channel:{payload.channel_id}:user:{payload.user_id}",
+                    json.dumps({
+                        "channel_id": payload.channel_id,
+                        "telegram_user_id": payload.user_id,
+                        "membership_id": payload.membership_id,
+                        "reason": payload.reason or "Incumplimiento de normas",
+                    }),
+                )
     except Exception as ex:
         logger.warning(f"Error updating membership status to KICKED in postgres: {ex}")
 

@@ -24,6 +24,7 @@ import { ViewHeader } from "@/shared/components/ViewHeader";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
+import { Textarea } from "@/shared/components/ui/textarea";
 import {
   Card,
   CardContent,
@@ -60,6 +61,13 @@ import {
   VipMembership,
   JoinRequest,
 } from "../infrastructure/channelApi";
+
+const KICK_REASON_PRESETS = [
+  "Incumplimiento de normas",
+  "Spam / Publicidad no autorizada",
+  "Conducta tóxica o faltas de respeto",
+  "Filtración de contenido / Piratería",
+];
 
 interface ActionModalState {
   type: "EVICT_EXPIRED" | "KICK_MEMBER" | "REJECT_REQUEST" | null;
@@ -833,12 +841,22 @@ export const ChannelManagementView: React.FC = () => {
                           </Badge>
                         )}
                         {member.status === "KICKED" && (
-                          <Badge
-                            variant="outline"
-                            className="bg-destructive/10 text-destructive border-destructive/30 text-[10px]"
-                          >
-                            Expulsado
-                          </Badge>
+                          <div className="flex flex-col gap-0.5">
+                            <Badge
+                              variant="outline"
+                              className="bg-destructive/10 text-destructive border-destructive/30 text-[10px] w-fit"
+                            >
+                              Expulsado
+                            </Badge>
+                            {member.kick_reason && (
+                              <span
+                                className="text-[10px] text-muted-foreground truncate max-w-[150px]"
+                                title={`Motivo: ${member.kick_reason}`}
+                              >
+                                {member.kick_reason}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="py-2.5 px-4 text-xs font-mono">
@@ -1211,26 +1229,73 @@ export const ChannelManagementView: React.FC = () => {
           </DialogHeader>
 
           {state.actionModal?.type === "KICK_MEMBER" && (
-            <div className="space-y-2 py-2">
-              <label className="text-xs font-semibold text-foreground block">
-                Motivo de la expulsión:
-              </label>
-              <Input
-                value={state.actionModal.reason || ""}
-                onChange={(e) =>
-                  setState((s) => ({
-                    ...s,
-                    actionModal: s.actionModal
-                      ? { ...s.actionModal, reason: e.target.value }
-                      : null,
-                  }))
-                }
-                placeholder="Ej: Incumplimiento de normas o conducta inadecuada"
-                className="h-8 text-xs bg-background"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                El usuario será expulsado de Telegram en tiempo real vía MTProto.
-              </p>
+            <div className="space-y-3 py-2">
+              {state.actionModal.member && (
+                <div className="p-2.5 rounded border border-border bg-secondary/40 text-xs flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">
+                      {state.actionModal.member.telegram_username
+                        ? `@${state.actionModal.member.telegram_username}`
+                        : `UID ${state.actionModal.member.telegram_user_id}`}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] bg-background font-mono">
+                      UID: {state.actionModal.member.telegram_user_id}
+                    </Badge>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    Canal: {state.channels.find((c) => c.id === state.actionModal?.member?.channel_id)?.title || state.actionModal.member.channel_id}
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground block">
+                  Motivo de la expulsión:
+                </label>
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {KICK_REASON_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() =>
+                        setState((s) => ({
+                          ...s,
+                          actionModal: s.actionModal ? { ...s.actionModal, reason: preset } : null,
+                        }))
+                      }
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
+                        state.actionModal?.reason === preset
+                          ? "bg-destructive/20 border-destructive text-destructive font-medium"
+                          : "bg-secondary text-muted-foreground border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={state.actionModal.reason || ""}
+                  onChange={(e) =>
+                    setState((s) => ({
+                      ...s,
+                      actionModal: s.actionModal
+                        ? { ...s.actionModal, reason: e.target.value }
+                        : null,
+                    }))
+                  }
+                  placeholder="Escribí o seleccioná el motivo detallado de la expulsión..."
+                  className="min-h-[75px] text-xs bg-background resize-none"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-start gap-2 p-2 rounded bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  El usuario será expulsado de Telegram inmediatamente vía MTProto y su membresía quedará registrada como expulsada con este motivo.
+                </span>
+              </div>
             </div>
           )}
 
