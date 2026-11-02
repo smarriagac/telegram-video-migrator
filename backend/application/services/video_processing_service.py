@@ -444,23 +444,23 @@ class VideoProcessingService:
             w = max(min(w, width - x), 10)
             h = max(min(h, height - y), 10)
         elif preset == "center":
-            w = max(int(width * 0.52), 60)
-            h = max(int(height * 0.22), 40)
+            w = max(int(width * 0.32), 60)
+            h = max(int(height * 0.12), 40)
             x = max(int((width - w) / 2), 0)
             y = max(int((height - h) / 2), 0)
         elif preset == "top_right":
-            w = max(int(width * 0.35), 60)
-            h = max(int(height * 0.15), 40)
+            w = max(int(width * 0.30), 60)
+            h = max(int(height * 0.10), 40)
             x = max(width - w - 15, 0)
             y = 15
         elif preset == "bottom_right":
-            w = max(int(width * 0.35), 60)
-            h = max(int(height * 0.15), 40)
+            w = max(int(width * 0.30), 60)
+            h = max(int(height * 0.10), 40)
             x = max(width - w - 15, 0)
             y = max(height - h - 15, 0)
         elif preset == "bottom_bar":
             w = width
-            h = max(int(height * 0.16), 40)
+            h = max(int(height * 0.12), 40)
             x = 0
             y = max(height - h, 0)
         elif preset == "custom":
@@ -468,17 +468,21 @@ class VideoProcessingService:
             y = int(params.get("y", 0))
             w = int(params.get("w", 100))
             h = int(params.get("h", 100))
-            # Bound check
-            x = max(min(x, width - 10), 0)
-            y = max(min(y, height - 10), 0)
-            w = max(min(w, width - x), 10)
-            h = max(min(h, height - y), 10)
         else:
-            # Default center
-            w = max(int(width * 0.50), 60)
-            h = max(int(height * 0.20), 40)
+            w = max(int(width * 0.30), 60)
+            h = max(int(height * 0.10), 40)
             x = max(int((width - w) / 2), 0)
             y = max(int((height - h) / 2), 0)
+
+        # STRICT SAFETY CLAMPING:
+        # Delogo gradient interpolation across large regions destroys content and creates streaks.
+        if preset != "bottom_bar":
+            max_w = int(width * 0.38)
+            w = min(w, max_w)
+        max_h = int(height * 0.20)
+        h = min(h, max_h)
+        x = max(min(x, width - w), 0)
+        y = max(min(y, height - h), 0)
 
         if filter_type == "blur":
             # Box blur over bounding box
