@@ -3,23 +3,31 @@ import { useNavigate } from "react-router-dom";
 import {
   Tv,
   Search,
+  CheckCircle2,
   ShieldCheck,
-  Radio,
-  Copy,
-  Check,
-  Plus,
+  Clock,
   RefreshCw,
-  UserX,
+  Plus,
+  Key,
   MessageSquare,
   ArrowRightLeft,
-  Key,
+  UserX,
+  Copy,
+  Check,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
-import { Card, CardContent } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import {
   Table,
   TableBody,
@@ -49,7 +57,7 @@ interface ViewState {
   channels: ManagedChannel[];
   members: VipMembership[];
   loading: boolean;
-  filter: string;
+  searchQuery: string;
   modalOpen: boolean;
   modalChannelId: number;
   modalDays: number;
@@ -57,16 +65,17 @@ interface ViewState {
   generatedLink: string | null;
   copied: boolean;
   isSubmitting: boolean;
+  error: string | null;
 }
 
 export const ChannelManagementView: React.FC = () => {
-  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (only 2 used)
-  const [activeTab, setActiveTab] = useState<"channels" | "vip">("channels");
+  // STRICT ARCHITECTURAL CONSTRAINT: Exactly 2 useState hooks
+  const [filterCategory, setFilterCategory] = useState<string>("ALL");
   const [state, setState] = useState<ViewState>({
     channels: [],
     members: [],
     loading: true,
-    filter: "",
+    searchQuery: "",
     modalOpen: false,
     modalChannelId: 0,
     modalDays: 30,
@@ -74,17 +83,22 @@ export const ChannelManagementView: React.FC = () => {
     generatedLink: null,
     copied: false,
     isSubmitting: false,
+    error: null,
   });
 
   const navigate = useNavigate();
 
   const loadData = async () => {
-    setState((s) => ({ ...s, loading: true }));
+    setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const [channelsData, membersData] = await Promise.all([
+      const [channelsRes, membersRes] = await Promise.allSettled([
         channelApi.listManagedChannels(),
         channelApi.listVipMembers(),
       ]);
+
+      const channelsData = channelsRes.status === "fulfilled" ? channelsRes.value : [];
+      const membersData = membersRes.status === "fulfilled" ? membersRes.value : [];
+
       setState((s) => ({
         ...s,
         channels: channelsData,
@@ -93,7 +107,11 @@ export const ChannelManagementView: React.FC = () => {
         loading: false,
       }));
     } catch {
-      setState((s) => ({ ...s, loading: false }));
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: "Error al sincronizar datos del servidor.",
+      }));
     }
   };
 
@@ -123,7 +141,7 @@ export const ChannelManagementView: React.FC = () => {
   };
 
   const handleEvictExpired = async () => {
-    if (!window.confirm("¿Deseas ejecutar el desalojo (Auto-Kick) de miembros VIP con suscripción vencida?")) {
+    if (!window.confirm("¿Deseas ejecutar el desalojo (Auto-Kick) de miembros VIP con membresía vencida?")) {
       return;
     }
     setState((s) => ({ ...s, isSubmitting: true }));
@@ -132,7 +150,7 @@ export const ChannelManagementView: React.FC = () => {
       alert(`Desalojo completado. Miembros expulsados: ${res.evicted_count}`);
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Error al ejecutar desalojo.");
+      alert(err.message || "Error al ejecutar desalojo de miembros.");
     } finally {
       setState((s) => ({ ...s, isSubmitting: false }));
     }
@@ -146,8 +164,19 @@ export const ChannelManagementView: React.FC = () => {
     }, 2000);
   };
 
+  // KPIs
+  const totalChannels = state.channels.length;
+  const adminChannels = state.channels.filter((c) => c.can_post).length;
+  const activeVipCount = state.members.filter((m) => m.status === "ACTIVE" || m.status === "INVITED").length;
+  const expiredVipCount = state.members.filter((m) => m.status === "EXPIRED").length;
+
+  // Filtered Channels
   const filteredChannels = state.channels.filter((c) => {
-    const q = state.filter.toLowerCase();
+    if (filterCategory === "ADMIN" && !c.can_post) return false;
+    if (filterCategory === "READONLY" && c.can_post) return false;
+
+    if (!state.searchQuery.trim()) return true;
+    const q = state.searchQuery.toLowerCase();
     return (
       c.title.toLowerCase().includes(q) ||
       (c.username && c.username.toLowerCase().includes(q)) ||
@@ -155,8 +184,10 @@ export const ChannelManagementView: React.FC = () => {
     );
   });
 
+  // Filtered Members
   const filteredMembers = state.members.filter((m) => {
-    const q = state.filter.toLowerCase();
+    if (!state.searchQuery.trim()) return true;
+    const q = state.searchQuery.toLowerCase();
     return (
       (m.telegram_username && m.telegram_username.toLowerCase().includes(q)) ||
       m.channel_id.toString().includes(q) ||
@@ -166,307 +197,437 @@ export const ChannelManagementView: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-y-auto pr-0 sm:pr-1">
-      {/* Standardized ViewHeader with Shadcn Actions */}
+      {/* View Header with project design system */}
       <ViewHeader
         icon={<Tv className="w-4 h-4" />}
         iconBoxColor="cyan"
         title="Administrador de Canales"
-        subtitle="Supervisión integral de canales vinculados, permisos de administración y orquestación de miembros VIP (Gatekeeper)."
+        subtitle="Supervisión centralizada de canales de Telegram, control de permisos MTProto y automatización de membresías VIP con Gatekeeper."
+        badge={
+          <Badge
+            variant="outline"
+            className="text-[10px] font-mono bg-cyan-500/15 text-cyan-500 dark:text-cyan-400 border-cyan-500/30"
+          >
+            MTProto Pool ({totalChannels} canales)
+          </Badge>
+        }
       >
         <div className="flex items-center gap-2">
-          {/* Tabs using Shadcn Button components */}
-          <div className="flex items-center gap-1 bg-secondary p-1 rounded-md border border-border">
-            <Button
-              variant={activeTab === "channels" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setActiveTab("channels")}
-              className="h-7 text-xs px-2.5 font-medium"
-            >
-              <Radio className="w-3.5 h-3.5 mr-1 text-primary" />
-              Canales ({state.channels.length})
-            </Button>
-            <Button
-              variant={activeTab === "vip" ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setActiveTab("vip")}
-              className="h-7 text-xs px-2.5 font-medium"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-500" />
-              Miembros VIP ({state.members.length})
-            </Button>
-          </div>
-
           <Button
             variant="outline"
             size="sm"
             onClick={loadData}
             disabled={state.loading}
-            className="h-8 px-2.5"
-            title="Actualizar datos"
+            className="h-8 border-border bg-card/60 hover:bg-muted text-foreground text-xs flex items-center gap-1.5"
+            title="Recargar datos de canales"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5", state.loading && "animate-spin")} />
+            <RefreshCw className={cn("w-3.5 h-3.5", state.loading && "animate-spin text-primary")} />
+            Recargar Canales
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEvictExpired}
+            disabled={state.isSubmitting}
+            className="h-8 text-xs gap-1.5 border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+            title="Expulsar miembros con membresía vencida"
+          >
+            <UserX className="w-3.5 h-3.5 text-destructive" />
+            Purgar Vencidos
+          </Button>
+          <Button
+            size="sm"
+            onClick={() =>
+              setState((s) => ({
+                ...s,
+                modalOpen: true,
+                generatedLink: null,
+                modalUsername: "",
+              }))
+            }
+            className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs flex items-center shadow-sm gap-1.5"
+          >
+            <Key className="w-3.5 h-3.5" />
+            Crear Pase VIP
           </Button>
         </div>
       </ViewHeader>
 
-      {/* Control & Filter Card */}
-      <Card className="border border-border shadow-xs">
-        <CardContent className="p-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={
-                activeTab === "channels"
-                  ? "Buscar canal por título, @username o ID..."
-                  : "Buscar miembro por username o ID de canal..."
-              }
-              value={state.filter}
-              onChange={(e) => setState((s) => ({ ...s, filter: e.target.value }))}
-              className="pl-9 h-8 text-xs"
-            />
-          </div>
+      {state.error && (
+        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400 flex items-center gap-2">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>{state.error}</span>
+        </div>
+      )}
 
-          {activeTab === "vip" && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleEvictExpired}
-                disabled={state.isSubmitting}
-                className="h-8 text-xs gap-1.5 border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-              >
-                <UserX className="w-3.5 h-3.5 text-destructive" />
-                Purgar Vencidos (Auto-Kick)
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() =>
-                  setState((s) => ({
-                    ...s,
-                    modalOpen: true,
-                    generatedLink: null,
-                    modalUsername: "",
-                  }))
-                }
-                className="h-8 text-xs gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Crear Pase VIP
-              </Button>
+      {/* KPI Stat Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5 shrink-0">
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
+              Total Canales MTProto
+            </CardTitle>
+            <Tv className="w-3.5 h-3.5 text-primary shrink-0" />
+          </CardHeader>
+          <CardContent className="p-2.5 sm:p-3 pt-0">
+            <div className="text-base sm:text-xl font-bold font-mono text-foreground">
+              {totalChannels}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
+              Detectados en sesión activa
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
+              Con Permiso de Admin
+            </CardTitle>
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
+          </CardHeader>
+          <CardContent className="p-2.5 sm:p-3 pt-0">
+            <div className="text-base sm:text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+              {adminChannels}
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
+              Capacidad de publicación directa
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
+              Pases VIP Activos
+            </CardTitle>
+            <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
+          </CardHeader>
+          <CardContent className="p-2.5 sm:p-3 pt-0">
+            <div className="text-base sm:text-xl font-bold font-mono text-primary">
+              {activeVipCount}
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
+              Membresías temporales vigentes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
+              Vencidos / Auto-Kick
+            </CardTitle>
+            <Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+          </CardHeader>
+          <CardContent className="p-2.5 sm:p-3 pt-0">
+            <div className="text-base sm:text-xl font-bold font-mono text-amber-600 dark:text-amber-400">
+              {expiredVipCount}
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
+              Candidatos para expulsión
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filter and Search Bar Card */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-card border border-border p-2.5 rounded-lg shrink-0 shadow-sm">
+        {/* Category Filter Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
+          {[
+            { id: "ALL", label: `Todos (${totalChannels})` },
+            { id: "ADMIN", label: `Admin (${adminChannels})` },
+            { id: "READONLY", label: `Solo Lectura (${totalChannels - adminChannels})` },
+            { id: "VIP", label: `Membresías VIP (${state.members.length})` },
+          ].map((cat) => (
+            <Button
+              key={cat.id}
+              variant={filterCategory === cat.id ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setFilterCategory(cat.id)}
+              className={cn(
+                "h-7 text-xs px-2.5 rounded-md transition-colors",
+                filterCategory === cat.id
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              {cat.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Search Bar Input */}
+        <div className="relative w-full sm:w-72">
+          <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <Input
+            type="text"
+            placeholder={
+              filterCategory === "VIP"
+                ? "Buscar por username o ID de canal..."
+                : "Buscar por título, @username o ID..."
+            }
+            value={state.searchQuery}
+            onChange={(e) => setState((s) => ({ ...s, searchQuery: e.target.value }))}
+            className="pl-8 h-8 text-xs bg-background border-border"
+          />
+        </div>
+      </div>
 
       {/* Main Table Card */}
-      <Card className="flex-1 min-h-0 border border-border overflow-hidden shadow-xs">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            {activeTab === "channels" ? (
-              <Table>
-                <TableHeader className="bg-secondary/60">
-                  <TableRow className="border-b border-border">
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal / Comunidad</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Cuenta MTProto</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Permisos de Edición</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase text-right">Acciones Directas</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredChannels.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-muted-foreground text-xs">
-                        No se encontraron canales vinculados.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredChannels.map((channel) => (
-                      <TableRow key={`${channel.id}-${channel.account_id}`} className="hover:bg-muted/40 transition-colors">
-                        <TableCell className="py-3 px-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-foreground text-xs sm:text-sm">
-                              {channel.title}
-                            </span>
-                            <span className="text-muted-foreground font-mono text-[11px]">
-                              {channel.username ? `@${channel.username}` : `ID: ${channel.id}`}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-3 px-4">
-                          <Badge variant="outline" className="text-[11px] font-normal bg-secondary">
-                            {channel.account_name || `Cuenta #${channel.account_id || 1}`}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="py-3 px-4">
-                          {channel.can_post ? (
-                            <Badge
-                              variant="outline"
-                              className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
-                            >
-                              <Check className="w-3 h-3" />
-                              Admin / Puede Publicar
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-[10px] text-muted-foreground">
-                              Solo Lectura
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-3 px-4">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Conectado
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate("/chats")}
-                              className="h-7 w-7 p-0"
-                              title="Abrir mensajes y chat"
-                            >
-                              <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate("/migration")}
-                              className="h-7 w-7 p-0"
-                              title="Clonar a otro canal"
-                            >
-                              <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
-                            </Button>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() =>
-                                setState((s) => ({
-                                  ...s,
-                                  modalOpen: true,
-                                  modalChannelId: channel.id,
-                                  generatedLink: null,
-                                  modalUsername: "",
-                                }))
-                              }
-                              className="h-7 text-xs px-2 gap-1"
-                            >
-                              <Key className="w-3 h-3" />
-                              Pase VIP
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            ) : (
-              <Table>
-                <TableHeader className="bg-secondary/60">
-                  <TableRow className="border-b border-border">
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal Destino</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Usuario VIP</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Enlace de Invitación</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado</TableHead>
-                    <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Expiración</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredMembers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-muted-foreground text-xs">
-                        No hay miembros VIP registrados en el Gatekeeper. Creá un enlace con el botón superior.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredMembers.map((member) => (
-                      <TableRow key={member.id} className="hover:bg-muted/40 transition-colors">
-                        <TableCell className="py-3 px-4 font-mono text-xs font-semibold text-foreground">
-                          {state.channels.find((c) => c.id === member.channel_id)?.title || `ID: ${member.channel_id}`}
-                        </TableCell>
-                        <TableCell className="py-3 px-4">
-                          <div className="flex flex-col">
-                            <span className="font-semibold text-foreground text-xs">
-                              {member.telegram_username ? `@${member.telegram_username}` : "Pendiente de ingreso"}
-                            </span>
-                            {member.telegram_user_id && (
-                              <span className="text-[10px] text-muted-foreground font-mono">
-                                UID: {member.telegram_user_id}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-3 px-4">
-                          {member.invite_link ? (
-                            <div className="flex items-center gap-1.5 max-w-xs">
-                              <Input
-                                readOnly
-                                value={member.invite_link}
-                                className="h-7 text-[11px] font-mono select-all bg-secondary/80 w-48"
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => copyToClipboard(member.invite_link!)}
-                                className="h-7 w-7 p-0"
-                                title="Copiar enlace"
-                              >
-                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-3 px-4">
-                          {member.status === "ACTIVE" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30 text-[10px]"
-                            >
-                              Activo
-                            </Badge>
-                          )}
-                          {member.status === "INVITED" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-primary/10 text-primary border-primary/30 text-[10px]"
-                            >
-                              Invitación Emitida
-                            </Badge>
-                          )}
-                          {member.status === "EXPIRED" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-amber-500/10 text-amber-500 border-amber-500/30 text-[10px]"
-                            >
-                              Vencido
-                            </Badge>
-                          )}
-                          {member.status === "KICKED" && (
-                            <Badge
-                              variant="outline"
-                              className="bg-destructive/10 text-destructive border-destructive/30 text-[10px]"
-                            >
-                              Expulsado
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-3 px-4 text-muted-foreground font-mono text-[11px]">
-                          {member.expires_at ? new Date(member.expires_at).toLocaleDateString() : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            )}
+      <Card className="border border-border bg-card shadow-sm flex-1 min-h-0 overflow-hidden flex flex-col">
+        <CardHeader className="p-3 pb-2 border-b border-border flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-semibold text-foreground">
+              {filterCategory === "VIP"
+                ? "Membresías VIP y Registros Gatekeeper"
+                : "Listado de Canales y Permisos de Administración"}
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              {filterCategory === "VIP"
+                ? "Gestión de accesos con expiración y expulsión programada mediante MTProto."
+                : "Canales vinculados a tu cuenta MTProto con estado de publicación y acciones rápidas."}
+            </CardDescription>
           </div>
+          <Badge variant="outline" className="text-xs font-mono">
+            {filterCategory === "VIP"
+              ? `${filteredMembers.length} miembros`
+              : `${filteredChannels.length} canales`}
+          </Badge>
+        </CardHeader>
+
+        <CardContent className="p-0 flex-1 overflow-auto">
+          {filterCategory === "VIP" ? (
+            <Table>
+              <TableHeader className="bg-muted/40 sticky top-0 z-10">
+                <TableRow className="border-b border-border">
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal Destino</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Usuario VIP</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Enlace de Invitación Efímero</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado Gatekeeper</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Expiración</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {state.loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs font-mono">
+                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
+                      Cargando registros Gatekeeper...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredMembers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">
+                      No hay miembros VIP registrados aún en el Gatekeeper. Creá un enlace con el botón superior "+ Crear Pase VIP".
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredMembers.map((member) => (
+                    <TableRow key={member.id} className="hover:bg-muted/40 transition-colors border-b border-border/50">
+                      <TableCell className="py-2.5 px-4 font-mono text-xs font-semibold text-foreground">
+                        {state.channels.find((c) => c.id === member.channel_id)?.title || `Canal ${member.channel_id}`}
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-foreground text-xs">
+                            {member.telegram_username ? `@${member.telegram_username}` : "Pendiente de ingreso"}
+                          </span>
+                          {member.telegram_user_id && (
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              UID: {member.telegram_user_id}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        {member.invite_link ? (
+                          <div className="flex items-center gap-1.5 max-w-xs">
+                            <Input
+                              readOnly
+                              value={member.invite_link}
+                              className="h-7 text-[11px] font-mono select-all bg-secondary/80 w-48"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copyToClipboard(member.invite_link!)}
+                              className="h-7 w-7 p-0"
+                              title="Copiar enlace"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        {member.status === "ACTIVE" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30 text-[10px]"
+                          >
+                            Activo
+                          </Badge>
+                        )}
+                        {member.status === "INVITED" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/30 text-[10px]"
+                          >
+                            Invitación Emitida
+                          </Badge>
+                        )}
+                        {member.status === "EXPIRED" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30 text-[10px]"
+                          >
+                            Vencido
+                          </Badge>
+                        )}
+                        {member.status === "KICKED" && (
+                          <Badge
+                            variant="outline"
+                            className="bg-destructive/10 text-destructive border-destructive/30 text-[10px]"
+                          >
+                            Expulsado
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4 text-muted-foreground font-mono text-[11px]">
+                        {member.expires_at ? new Date(member.expires_at).toLocaleString() : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          ) : (
+            <Table>
+              <TableHeader className="bg-muted/40 sticky top-0 z-10">
+                <TableRow className="border-b border-border">
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal / Comunidad</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Cuenta MTProto</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Permisos de Publicación</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase text-right">Acciones Rápidas</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {state.loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs font-mono">
+                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
+                      Cargando canales desde el motor MTProto...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredChannels.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">
+                      No se encontraron canales que coincidan con la búsqueda.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredChannels.map((channel) => (
+                    <TableRow
+                      key={`${channel.id}-${channel.account_id}`}
+                      className="hover:bg-muted/40 transition-colors border-b border-border/50"
+                    >
+                      <TableCell className="py-2.5 px-4">
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-foreground text-xs sm:text-sm">
+                            {channel.title}
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {channel.username ? (
+                              <span className="text-primary font-mono text-[11px]">
+                                @{channel.username}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-[11px] italic">Canal Privado</span>
+                            )}
+                            <span className="text-[10px] text-muted-foreground font-mono">
+                              [ID: {channel.id}]
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        <Badge variant="outline" className="text-[11px] font-normal bg-secondary">
+                          {channel.account_name || `Cuenta #${channel.account_id || 1}`}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        {channel.can_post ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30 text-[10px] gap-1"
+                          >
+                            <Check className="w-3 h-3" />
+                            Admin / Puede Publicar
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] text-muted-foreground">
+                            Solo Lectura
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          Conectado
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate("/chats")}
+                            className="h-7 px-2 text-xs gap-1 border-border hover:bg-muted"
+                            title="Abrir mensajes y chat"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                            <span className="hidden sm:inline">Mensajes</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate("/migration")}
+                            className="h-7 px-2 text-xs gap-1 border-border hover:bg-muted"
+                            title="Clonar a otro canal"
+                          >
+                            <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
+                            <span className="hidden sm:inline">Clonar</span>
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() =>
+                              setState((s) => ({
+                                ...s,
+                                modalOpen: true,
+                                modalChannelId: channel.id,
+                                generatedLink: null,
+                                modalUsername: "",
+                              }))
+                            }
+                            className="h-7 px-2 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                          >
+                            <Key className="w-3 h-3" />
+                            <span>Pase VIP</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

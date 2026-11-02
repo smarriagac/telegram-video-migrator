@@ -22,7 +22,11 @@ export interface VipMembership {
 }
 
 const getAuthHeaders = (): HeadersInit => {
-  const token = useAuthStore.getState().token;
+  const token =
+    localStorage.getItem("telegram_hub_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("token") ||
+    useAuthStore.getState().token;
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -31,26 +35,34 @@ const getAuthHeaders = (): HeadersInit => {
 
 export const channelApi = {
   async listManagedChannels(): Promise<ManagedChannel[]> {
-    const res = await fetch("/api/channels", {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error("Error al listar canales gestionados.");
+    try {
+      const res = await fetch("/api/channels", {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        return [];
+      }
+      return await res.json();
+    } catch {
+      return [];
     }
-    return res.json();
   },
 
   async listVipMembers(channelId?: number): Promise<VipMembership[]> {
-    const url = channelId
-      ? `/api/channels/gatekeeper/members?channel_id=${channelId}`
-      : "/api/channels/gatekeeper/members";
-    const res = await fetch(url, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) {
-      throw new Error("Error al consultar miembros VIP.");
+    try {
+      const url = channelId
+        ? `/api/channels/gatekeeper/members?channel_id=${channelId}`
+        : "/api/channels/gatekeeper/members";
+      const res = await fetch(url, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        return [];
+      }
+      return await res.json();
+    } catch {
+      return [];
     }
-    return res.json();
   },
 
   async createVipInvite(
