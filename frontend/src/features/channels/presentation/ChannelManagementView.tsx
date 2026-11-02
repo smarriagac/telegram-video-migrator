@@ -65,6 +65,7 @@ interface ViewState {
   channels: ManagedChannel[];
   members: VipMembership[];
   requests: JoinRequest[];
+  requestDurations: Record<number, number>;
   loading: boolean;
   searchQuery: string;
   modalOpen: boolean;
@@ -88,6 +89,7 @@ export const ChannelManagementView: React.FC = () => {
     channels: [],
     members: [],
     requests: [],
+    requestDurations: {},
     loading: true,
     searchQuery: "",
     modalOpen: false,
@@ -576,9 +578,35 @@ export const ChannelManagementView: React.FC = () => {
                           {req.date ? new Date(req.date).toLocaleString() : "Reciente"}
                         </TableCell>
                         <TableCell className="py-2.5 px-4">
-                          <Badge variant="outline" className="bg-secondary text-[11px] font-mono">
-                            30 Días (Mensual)
-                          </Badge>
+                          <div className="w-48">
+                            <Select
+                              value={String(state.requestDurations[req.user_id] ?? 30)}
+                              onValueChange={(val) =>
+                                setState((s) => ({
+                                  ...s,
+                                  requestDurations: {
+                                    ...s.requestDurations,
+                                    [req.user_id]: Number(val),
+                                  },
+                                }))
+                              }
+                            >
+                              <SelectTrigger className="h-7 text-xs bg-secondary/80 border-border">
+                                <SelectValue placeholder="Elegir duración" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">1 Día (Acceso 24h)</SelectItem>
+                                <SelectItem value="3">3 Días (Fin de semana)</SelectItem>
+                                <SelectItem value="7">7 Días (Semanal)</SelectItem>
+                                <SelectItem value="15">15 Días (Quincenal)</SelectItem>
+                                <SelectItem value="30">30 Días (Mensual)</SelectItem>
+                                <SelectItem value="60">60 Días (Bimestral)</SelectItem>
+                                <SelectItem value="90">90 Días (Trimestral)</SelectItem>
+                                <SelectItem value="180">180 Días (Semestral)</SelectItem>
+                                <SelectItem value="365">365 Días (Anual)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                         <TableCell className="py-2.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -595,12 +623,15 @@ export const ChannelManagementView: React.FC = () => {
                             <Button
                               variant="default"
                               size="sm"
-                              onClick={() => handleApproveRequest(req, 30)}
+                              onClick={() => {
+                                const days = state.requestDurations[req.user_id] ?? 30;
+                                handleApproveRequest(req, days);
+                              }}
                               disabled={state.isSubmitting}
                               className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1 font-semibold"
                             >
                               <UserCheck className="w-3.5 h-3.5" />
-                              Aprobar y Activar
+                              Aprobar ({state.requestDurations[req.user_id] ?? 30}d)
                             </Button>
                           </div>
                         </TableCell>
