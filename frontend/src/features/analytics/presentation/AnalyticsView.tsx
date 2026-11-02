@@ -210,22 +210,27 @@ export const AnalyticsView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-2 pt-1">
+                <div className="space-y-2.5 pt-1">
                   {data.daily_volume.map((item) => {
-                    const percentage = Math.max(Math.round((item.count / maxDailyCount) * 100), 4);
+                    const percentage = Math.round((item.count / maxDailyCount) * 100);
                     return (
-                      <div key={item.date} className="space-y-0.5">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="font-mono text-muted-foreground">{item.date}</span>
-                          <span className="text-muted-foreground font-medium">
-                            <span className="text-foreground font-semibold font-mono">{item.count.toLocaleString()}</span> items ({(item.estimated_mb / 1024).toFixed(1)} GB)
+                      <div key={item.date} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-xs">
+                        <div className="flex items-center justify-between sm:w-24 shrink-0">
+                          <span className="font-mono text-muted-foreground text-[11px]">{item.date}</span>
+                          <span className="sm:hidden font-mono text-[11px] text-muted-foreground">
+                            <span className="text-foreground font-semibold">{item.count.toLocaleString()}</span>{" "}
+                            {item.count === 1 ? "item" : "items"} ({(item.estimated_mb / 1024).toFixed(1)} GB)
                           </span>
                         </div>
-                        <div className="h-2 w-full bg-secondary rounded-sm overflow-hidden p-0.5 border border-border">
+                        <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden border border-border/40">
                           <div
-                            className="h-full bg-primary rounded-sm transition-all duration-500"
-                            style={{ width: `${percentage}%` }}
+                            className="h-full bg-primary rounded-full transition-all duration-500"
+                            style={{ width: `${Math.max(percentage, 1)}%` }}
                           />
+                        </div>
+                        <div className="hidden sm:block w-40 text-right shrink-0 font-mono text-[11px] text-muted-foreground">
+                          <span className="text-foreground font-semibold">{item.count.toLocaleString()}</span>{" "}
+                          {item.count === 1 ? "item" : "items"} ({(item.estimated_mb / 1024).toFixed(1)} GB)
                         </div>
                       </div>
                     );
