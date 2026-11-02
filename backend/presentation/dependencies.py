@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+logger = logging.getLogger(__name__)
 
 from backend.application.broadcaster import broadcaster, EventBroadcaster
 from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
@@ -124,6 +127,7 @@ async def refresh_telegram_client_pool() -> TelegramClientPool:
                         account_id=acc.id or 1,
                         account_name=acc.name,
                         client=cl,
+                        tenant_id=acc.tenant_id,
                         is_default=first,
                     )
                     first = False
@@ -144,10 +148,10 @@ async def refresh_telegram_client_pool() -> TelegramClientPool:
     return _client_pool
 
 
-async def get_telegram_gateway() -> TelegramGatewayPort:
+async def get_telegram_gateway(tenant_id: str | None = None) -> TelegramGatewayPort:
     pool = await get_telegram_client_pool()
-    default_client = pool.get_client(None)
-    return TelethonAdapter(client=default_client, pool=pool)
+    default_client = pool.get_client(tenant_id=tenant_id) or pool.get_client(None)
+    return TelethonAdapter(client=default_client, pool=pool, tenant_id=tenant_id)
 
 
 async def get_broadcaster() -> EventBroadcaster:

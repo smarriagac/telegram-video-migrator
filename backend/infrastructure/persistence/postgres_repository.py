@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from typing import Any
 import asyncpg
 
@@ -111,6 +112,9 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
 
                 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
                 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID;
+                ALTER TABLE telegram_accounts ADD COLUMN IF NOT EXISTS tenant_id UUID;
             """)
 
             # Seed default admin if table is empty
@@ -294,10 +298,11 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
             return account
 
         async with self.pool.acquire() as conn:
+            tenant_uuid = uuid.UUID(account.tenant_id) if account.tenant_id else None
             row = await conn.fetchrow(
                 """
-                INSERT INTO telegram_accounts (name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO telegram_accounts (name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, tenant_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING id, created_at
                 """,
                 account.name,
@@ -306,6 +311,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
                 account.api_hash_encrypted,
                 account.session_string_encrypted,
                 account.is_active,
+                tenant_uuid,
             )
             account.id = row["id"]
             account.created_at = str(row["created_at"])
@@ -322,7 +328,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, tenant_id, created_at
                 FROM telegram_accounts
                 WHERE is_active = TRUE
                 ORDER BY id DESC LIMIT 1
@@ -338,6 +344,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
                 api_hash_encrypted=row["api_hash_encrypted"],
                 session_string_encrypted=row["session_string_encrypted"],
                 is_active=row["is_active"],
+                tenant_id=str(row["tenant_id"]) if ("tenant_id" in row and row["tenant_id"]) else None,
                 created_at=str(row["created_at"]) if row["created_at"] else None,
             )
 
@@ -349,7 +356,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
-                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, tenant_id, created_at
                 FROM telegram_accounts
                 WHERE id = $1
                 """,
@@ -365,6 +372,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
                 api_hash_encrypted=row["api_hash_encrypted"],
                 session_string_encrypted=row["session_string_encrypted"],
                 is_active=row["is_active"],
+                tenant_id=str(row["tenant_id"]) if ("tenant_id" in row and row["tenant_id"]) else None,
                 created_at=str(row["created_at"]) if row["created_at"] else None,
             )
 
@@ -376,7 +384,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, tenant_id, created_at
                 FROM telegram_accounts
                 WHERE is_active = TRUE
                 ORDER BY id ASC
@@ -391,6 +399,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
                     api_hash_encrypted=r["api_hash_encrypted"],
                     session_string_encrypted=r["session_string_encrypted"],
                     is_active=r["is_active"],
+                    tenant_id=str(r["tenant_id"]) if ("tenant_id" in r and r["tenant_id"]) else None,
                     created_at=str(r["created_at"]) if r["created_at"] else None,
                 )
                 for r in rows
@@ -404,7 +413,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, created_at
+                SELECT id, name, phone, api_id_encrypted, api_hash_encrypted, session_string_encrypted, is_active, tenant_id, created_at
                 FROM telegram_accounts
                 ORDER BY id ASC
                 """
@@ -418,6 +427,7 @@ class PostgresRepository(UserRepositoryPort, TelegramAccountRepositoryPort, Audi
                     api_hash_encrypted=r["api_hash_encrypted"],
                     session_string_encrypted=r["session_string_encrypted"],
                     is_active=r["is_active"],
+                    tenant_id=str(r["tenant_id"]) if ("tenant_id" in r and r["tenant_id"]) else None,
                     created_at=str(r["created_at"]) if r["created_at"] else None,
                 )
                 for r in rows

@@ -28,15 +28,24 @@ logger = logging.getLogger(__name__)
 class TelethonAdapter(TelegramGatewayPort):
     """Telethon implementation of TelegramGatewayPort using MTProto."""
 
-    def __init__(self, client: TelegramClient, pool: Any = None) -> None:
+    def __init__(self, client: TelegramClient, pool: Any = None, tenant_id: str | None = None) -> None:
         self.client = client
         self.pool = pool
+        self.tenant_id = str(tenant_id) if tenant_id is not None else None
 
     def _get_client(self, account_id: int | None = None) -> TelegramClient:
         if self.pool and account_id is not None:
-            c = self.pool.get_client(account_id)
+            c = self.pool.get_client(account_id, tenant_id=self.tenant_id)
             if c:
                 return c
+            if self.tenant_id is not None:
+                raise ChannelAccessDeniedException(
+                    f"Account #{account_id} does not belong to tenant '{self.tenant_id}' or is not active."
+                )
+        if self.pool and self.tenant_id:
+            tenant_client = self.pool.get_client(tenant_id=self.tenant_id)
+            if tenant_client:
+                return tenant_client
         return self.client
 
     async def _ensure_connected(self, client: TelegramClient | None = None) -> None:
@@ -91,7 +100,12 @@ class TelethonAdapter(TelegramGatewayPort):
         if self.pool and account_id is None:
             all_channels: list[Channel] = []
             seen_keys = set()
-            for acc_id, acc_name, cl in self.pool.list_clients():
+            clients_to_query = (
+                self.pool.list_clients(tenant_id=self.tenant_id)
+                if self.tenant_id
+                else self.pool.list_clients()
+            )
+            for acc_id, acc_name, cl in clients_to_query:
                 try:
                     channels = await self._fetch_channels_for_client(cl, limit, acc_id, acc_name)
                     for ch in channels:

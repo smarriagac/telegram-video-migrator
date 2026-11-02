@@ -12,6 +12,10 @@ Delivery strategy: single-pr
   - Adding `tenant_id UUID` foreign keys and compound indices `(tenant_id, ...)` across existing entities (`telegram_accounts`, `users`, `channel_sync_bindings`, `migration_jobs`, `audit_logs`).
   - Row-Level Security (RLS) policy template: `USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid)`.
 - S3: Unit tests verifying domain entity creation, quota enforcement logic, and serialization.
+- S4: MTProto Telethon Session Isolation per Tenant:
+  - `TelegramClientPool`: segregated `_tenant_clients` mappings preventing cross-tenant client access.
+  - `TelethonAdapter`: tenant-scoped adapter throwing `ChannelAccessDeniedException` if a tenant attempts to operate on another tenant's MTProto client.
+  - Channel discovery isolation: `get_managed_channels` restricted to the active tenant's client instances.
 
 ## Tasks
 - [x] T1 (S1): Create `backend/domain/entities/tenant.py` with `Tenant`, `PlanTier`, `TenantStatus`, and quota validation [inline]
@@ -21,8 +25,15 @@ Delivery strategy: single-pr
 - [x] T5 (S3): Implement unit tests in `backend/tests/test_saas_multi_tenant.py` verifying domain logic and quotas [inline]
 - [x] T6 (S1-S3): Run full test suite in Docker container to ensure zero regressions [inline]
 - [x] T7 (S1-S3): Commit cleanly with Conventional Commits [inline]
+- [x] T8 (S4): Refactor `TelegramClientPool` with tenant-segregated client registries and strict boundary checks [inline]
+- [x] T9 (S4): Update `TelethonAdapter` to enforce tenant isolation and prevent cross-tenant message/channel operations [inline]
+- [x] T10 (S4): Add `tenant_id` to `PostgresRepository` account persistence and apply DDL migration in Postgres database [inline]
+- [x] T11 (S4): Implement unit tests in `test_tenant_session_isolation.py` (3 new tests, 80 total tests passing) [inline]
 
 ## Log
 - L1: User requested architecture and data model definition to sell Telegram Hub as a subscription-based multi-tenant SaaS.
 - L2: Designed shared database architecture with PostgreSQL RLS + explicit tenant isolation.
 - L3: Created ODD task specification.
+- L4: Implemented tenant-isolated `TelegramClientPool` and updated `TelethonAdapter` with strict tenant boundary checks.
+- L5: Applied PostgreSQL DDL migration `001_multi_tenant_saas.sql` enabling RLS policies on tables.
+- L6: Verified 80 tests passing in backend container.
