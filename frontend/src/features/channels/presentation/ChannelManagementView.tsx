@@ -19,6 +19,10 @@ import {
   Inbox,
   XCircle,
   Users,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { ViewHeader } from "@/shared/components/ViewHeader";
@@ -31,6 +35,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
@@ -97,6 +102,8 @@ interface ViewState {
   selectedStatusFilter: string;
   channelMembersModal: ManagedChannel | null;
   selectedMemberIds: string[];
+  currentPage: number;
+  pageSize: number;
   modalOpen: boolean;
   modalChannelId: number;
   modalDays: number;
@@ -126,6 +133,8 @@ export const ChannelManagementView: React.FC = () => {
     selectedStatusFilter: "ALL",
     channelMembersModal: null,
     selectedMemberIds: [],
+    currentPage: 1,
+    pageSize: 10,
     modalOpen: false,
     modalChannelId: 0,
     modalDays: 30,
@@ -396,7 +405,28 @@ export const ChannelManagementView: React.FC = () => {
     );
   });
 
-  const eligibleMemberIds = filteredMembers
+  // Active tab items and pagination
+  const currentTabItemsCount =
+    filterCategory === "REQUESTS"
+      ? filteredRequests.length
+      : filterCategory === "VIP"
+      ? filteredMembers.length
+      : filteredChannels.length;
+
+  const totalPages = Math.max(1, Math.ceil(currentTabItemsCount / state.pageSize));
+  const currentPage = Math.min(Math.max(1, state.currentPage), totalPages);
+
+  const startIndex = (currentPage - 1) * state.pageSize;
+  const endIndex = startIndex + state.pageSize;
+
+  const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+  const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
+  const paginatedChannels = filteredChannels.slice(startIndex, endIndex);
+
+  const startItem = currentTabItemsCount > 0 ? startIndex + 1 : 0;
+  const endItem = Math.min(endIndex, currentTabItemsCount);
+
+  const currentPageEligibleIds = paginatedMembers
     .filter((m) => m.telegram_user_id && m.status !== "KICKED")
     .map((m) => m.id);
 
@@ -411,12 +441,14 @@ export const ChannelManagementView: React.FC = () => {
 
   const handleToggleSelectAllMembers = () => {
     setState((s) => {
-      const allSelected =
-        eligibleMemberIds.length > 0 &&
-        eligibleMemberIds.every((id) => s.selectedMemberIds.includes(id));
+      const allCurrentSelected =
+        currentPageEligibleIds.length > 0 &&
+        currentPageEligibleIds.every((id) => s.selectedMemberIds.includes(id));
       return {
         ...s,
-        selectedMemberIds: allSelected ? [] : eligibleMemberIds,
+        selectedMemberIds: allCurrentSelected
+          ? s.selectedMemberIds.filter((id) => !currentPageEligibleIds.includes(id))
+          : Array.from(new Set([...s.selectedMemberIds, ...currentPageEligibleIds])),
       };
     });
   };
@@ -558,7 +590,10 @@ export const ChannelManagementView: React.FC = () => {
             "border-border bg-card shadow-sm transition-colors cursor-pointer",
             pendingRequestsCount > 0 && "border-amber-500/40 bg-amber-500/5"
           )}
-          onClick={() => setFilterCategory("REQUESTS")}
+          onClick={() => {
+            setFilterCategory("REQUESTS");
+            setState((s) => ({ ...s, currentPage: 1 }));
+          }}
         >
           <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
             <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
@@ -656,7 +691,10 @@ export const ChannelManagementView: React.FC = () => {
               key={cat.id}
               variant={filterCategory === cat.id ? "default" : "ghost"}
               size="sm"
-              onClick={() => setFilterCategory(cat.id)}
+              onClick={() => {
+                setFilterCategory(cat.id);
+                setState((s) => ({ ...s, currentPage: 1 }));
+              }}
               className={cn(
                 "h-7 text-xs px-2.5 rounded-md transition-colors gap-1.5",
                 filterCategory === cat.id
@@ -682,7 +720,13 @@ export const ChannelManagementView: React.FC = () => {
                 : "Buscar por título o @username..."
             }
             value={state.searchQuery}
-            onChange={(e) => setState((s) => ({ ...s, searchQuery: e.target.value }))}
+            onChange={(e) =>
+              setState((s) => ({
+                ...s,
+                searchQuery: e.target.value,
+                currentPage: 1,
+              }))
+            }
             className="pl-8 h-8 text-xs bg-background border-border"
           />
         </div>
@@ -699,6 +743,7 @@ export const ChannelManagementView: React.FC = () => {
                 setState((s) => ({
                   ...s,
                   selectedChannelFilter: val === "ALL" ? null : Number(val),
+                  currentPage: 1,
                 }))
               }
             >
@@ -723,7 +768,13 @@ export const ChannelManagementView: React.FC = () => {
             <span className="text-[11px] text-muted-foreground font-mono font-semibold">Estado:</span>
             <Select
               value={state.selectedStatusFilter}
-              onValueChange={(val) => setState((s) => ({ ...s, selectedStatusFilter: val }))}
+              onValueChange={(val) =>
+                setState((s) => ({
+                  ...s,
+                  selectedStatusFilter: val,
+                  currentPage: 1,
+                }))
+              }
             >
               <SelectTrigger className="h-7 text-xs bg-secondary/60 border-border flex-1">
                 <SelectValue placeholder="Todos los estados" />
@@ -747,6 +798,7 @@ export const ChannelManagementView: React.FC = () => {
                   ...s,
                   selectedChannelFilter: null,
                   selectedStatusFilter: "ALL",
+                  currentPage: 1,
                 }))
               }
               className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
@@ -864,7 +916,7 @@ export const ChannelManagementView: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRequests.map((req) => {
+                  paginatedRequests.map((req) => {
                     const channel = state.channels.find((c) => c.id === req.channel_id);
                     return (
                       <TableRow
@@ -969,12 +1021,12 @@ export const ChannelManagementView: React.FC = () => {
                     <input
                       type="checkbox"
                       checked={
-                        eligibleMemberIds.length > 0 &&
-                        eligibleMemberIds.every((id) => state.selectedMemberIds.includes(id))
+                        currentPageEligibleIds.length > 0 &&
+                        currentPageEligibleIds.every((id: string) => state.selectedMemberIds.includes(id))
                       }
                       onChange={handleToggleSelectAllMembers}
                       className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
-                      title="Seleccionar todos los miembros elegibles"
+                      title="Seleccionar miembros elegibles de esta página"
                     />
                   </TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal Destino</TableHead>
@@ -1014,7 +1066,7 @@ export const ChannelManagementView: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredMembers.map((member) => (
+                  paginatedMembers.map((member) => (
                     <TableRow key={member.id} className="hover:bg-muted/40 transition-colors border-b border-border/50">
                       <TableCell className="py-2.5 px-3 w-10 text-center">
                         {member.telegram_user_id && member.status !== "KICKED" ? (
@@ -1192,7 +1244,7 @@ export const ChannelManagementView: React.FC = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredChannels.map((channel) => (
+                  paginatedChannels.map((channel) => (
                     <TableRow
                       key={`${channel.id}-${channel.account_id}`}
                       className="hover:bg-muted/40 transition-colors border-b border-border/50"
@@ -1358,6 +1410,88 @@ export const ChannelManagementView: React.FC = () => {
             </Table>
           )}
         </CardContent>
+
+        {/* Pagination Controls */}
+        <CardFooter className="py-2.5 px-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-muted/15 text-xs">
+          <div className="flex items-center gap-2 text-muted-foreground font-mono text-[11px]">
+            <span>
+              Mostrando <strong className="text-foreground">{startItem}</strong> - <strong className="text-foreground">{endItem}</strong> de <strong className="text-foreground">{currentTabItemsCount}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center sm:justify-end">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-mono">Por página:</span>
+              <Select
+                value={String(state.pageSize)}
+                onValueChange={(val) =>
+                  setState((s) => ({
+                    ...s,
+                    pageSize: Number(val),
+                    currentPage: 1,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-7 w-16 text-xs bg-secondary/80 border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-1 font-mono text-[11px]">
+              <span className="text-muted-foreground mr-1">
+                Pág. <strong className="text-foreground">{currentPage}</strong> de <strong className="text-foreground">{totalPages}</strong>
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setState((s) => ({ ...s, currentPage: 1 }))}
+                disabled={currentPage <= 1}
+                className="h-7 w-7 p-0"
+                title="Primera página"
+              >
+                <ChevronsLeft className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setState((s) => ({ ...s, currentPage: Math.max(1, s.currentPage - 1) }))}
+                disabled={currentPage <= 1}
+                className="h-7 w-7 p-0"
+                title="Página anterior"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setState((s) => ({ ...s, currentPage: Math.min(totalPages, s.currentPage + 1) }))}
+                disabled={currentPage >= totalPages}
+                className="h-7 w-7 p-0"
+                title="Página siguiente"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setState((s) => ({ ...s, currentPage: totalPages }))}
+                disabled={currentPage >= totalPages}
+                className="h-7 w-7 p-0"
+                title="Última página"
+              >
+                <ChevronsRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        </CardFooter>
       </Card>
 
       {/* Shadcn Dialog: Create VIP Pass Modal */}
