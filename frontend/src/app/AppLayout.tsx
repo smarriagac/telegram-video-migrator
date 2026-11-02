@@ -13,10 +13,16 @@ import {
   ListOrdered,
   Radio,
   BarChart3,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { BrandLogo } from "@/shared/components/BrandLogo";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/components/ui/popover";
 
 interface NavItem {
   name: string;
@@ -95,21 +101,83 @@ export const AppLayout: React.FC = () => {
     }
   };
 
+  const userInitials = (user?.email?.slice(0, 2) || "AD").toUpperCase();
+
   return (
     <div className="h-screen h-dvh bg-[#090a0e] text-zinc-200 flex flex-col lg:flex-row overflow-hidden">
       {/* Mobile & Tablet Top Bar (< 1024px) */}
-      <div className="lg:hidden flex items-center justify-between p-3.5 bg-[#0e1015] border-b border-zinc-800 z-40 flex-shrink-0">
+      <div className="lg:hidden flex items-center justify-between p-3 px-3.5 bg-[#0e1015] border-b border-zinc-800 z-40 flex-shrink-0">
+        {/* Left: Drawer Toggle Button alongside Brand Logo & Title */}
         <div className="flex items-center space-x-2.5">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors"
+            aria-label="Toggle navigation menu"
+          >
+            {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+          </button>
           <BrandLogo size="md" />
           <span className="font-semibold text-sm text-zinc-100">Telegram Hub</span>
         </div>
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white"
-          aria-label="Toggle navigation menu"
-        >
-          {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+
+        {/* Right: User Avatar with Logout Dropdown Popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              className="flex items-center gap-1.5 p-1 pl-1.5 pr-2 rounded-full bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:text-white transition-all select-none focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              aria-label="Menú de usuario"
+            >
+              <div className="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-mono text-[10px] font-bold">
+                {userInitials}
+              </div>
+              <ChevronDown className="w-3 h-3 text-zinc-400" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="end"
+            sideOffset={8}
+            className="w-64 p-3 bg-zinc-950 border border-zinc-800 shadow-2xl rounded-lg"
+          >
+            {/* User Identity Header */}
+            <div className="flex items-center gap-2.5 pb-2.5 border-b border-zinc-800">
+              <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-mono text-xs font-bold shrink-0">
+                {userInitials}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-zinc-100 truncate">
+                  {user?.email ? user.email.split("@")[0] : "Admin"}
+                </p>
+                <p className="text-[10px] text-zinc-400 font-mono truncate">
+                  {user?.email || "admin@telegramhub.local"}
+                </p>
+              </div>
+            </div>
+
+            {/* Role Badge */}
+            <div className="flex items-center justify-between py-2 border-b border-zinc-800/60 text-[11px]">
+              <span className="text-zinc-500 font-mono">Rol Activo:</span>
+              <span
+                className={cn(
+                  "text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold",
+                  getRoleBadgeColor(user?.role)
+                )}
+              >
+                {user?.role || "ADMIN"}
+              </span>
+            </div>
+
+            {/* Logout Action */}
+            <div className="pt-2">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Cerrar Sesión</span>
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
       {/* Mobile & Tablet Backdrop Overlay (< 1024px) */}
