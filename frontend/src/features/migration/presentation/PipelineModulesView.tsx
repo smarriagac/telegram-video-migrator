@@ -78,7 +78,7 @@ export const PipelineModulesView: React.FC = () => {
       {/* Header */}
       <ViewHeader
         icon={<Sliders className="w-4 h-4" />}
-        iconBoxColor="emerald"
+        iconBoxColor="cyan"
         title="Pipeline & Módulos de Procesamiento"
         subtitle="Configuración global de los motores del pipeline: Sanitización de texto, Goteo programado, Duplicate Guard y Filtros de Calidad."
       >
@@ -91,7 +91,7 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "captions"
-                ? "bg-zinc-800 text-emerald-400 shadow-sm"
+                ? "bg-zinc-800 text-cyan-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
             )}
           >
@@ -104,7 +104,7 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "drip"
-                ? "bg-zinc-800 text-sky-400 shadow-sm"
+                ? "bg-zinc-800 text-cyan-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
             )}
           >
@@ -117,7 +117,7 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "dedup"
-                ? "bg-zinc-800 text-indigo-400 shadow-sm"
+                ? "bg-zinc-800 text-cyan-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
             )}
           >
@@ -131,7 +131,7 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "quality"
-                ? "bg-zinc-800 text-amber-400 shadow-sm"
+                ? "bg-zinc-800 text-cyan-400 shadow-sm"
                 : "text-zinc-400 hover:text-zinc-200"
             )}
           >

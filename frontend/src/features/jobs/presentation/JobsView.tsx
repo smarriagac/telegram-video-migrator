@@ -205,11 +205,11 @@ export const JobsView: React.FC = () => {
       {/* Header */}
       <ViewHeader
         icon={<ListOrdered className="w-4 h-4" />}
-        iconBoxColor="indigo"
+        iconBoxColor="cyan"
         title="Cola de Trabajos & Tareas"
         subtitle="Supervisión de procesos en segundo plano, control de ritmo (Drip Feed) y recuperación de fallos."
         badge={
-          <Badge variant="outline" className="text-[10px] font-mono bg-indigo-500/15 text-indigo-400 border-indigo-500/30">
+          <Badge variant="outline" className="text-[10px] font-mono bg-cyan-500/15 text-cyan-400 border-cyan-500/30">
             Scheduler Queue
           </Badge>
         }

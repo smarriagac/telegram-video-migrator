@@ -102,7 +102,7 @@ export const CreateSyncBindingModal: React.FC = () => {
       <DialogContent className="sm:max-w-[720px] md:max-w-[760px] bg-zinc-950 border-zinc-800 text-zinc-100 rounded-md">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-emerald-400" />
+            <Sparkles className="h-5 w-5 text-cyan-400" />
             Vincular Nuevo Par de Sincronización en Vivo
           </DialogTitle>
           <DialogDescription className="text-xs text-zinc-400">
@@ -176,7 +176,7 @@ export const CreateSyncBindingModal: React.FC = () => {
                       isManualTarget: !prev.isManualTarget,
                     }))
                   }
-                  className="text-[10px] font-mono text-emerald-400 hover:underline"
+                  className="text-[10px] font-mono text-cyan-400 hover:underline"
                 >
                   {formData.isManualTarget ? "Buscar en lista" : "ID manual"}
                 </button>
@@ -206,7 +206,7 @@ export const CreateSyncBindingModal: React.FC = () => {
                   channels={channels}
                   disabledId={formData.sourceChannelId}
                   placeholder="Buscar canal destino..."
-                  accentColor="emerald"
+                  accentColor="cyan"
                 />
               )}
             </div>
@@ -305,7 +305,7 @@ export const CreateSyncBindingModal: React.FC = () => {
               type="submit"
               size="sm"
               disabled={isSubmitDisabled}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white"
+              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-sm"
             >
               {isLoading ? "Creando enlace..." : "Vincular y Activar Daemon"}
               <ArrowRight className="h-4 w-4 ml-1.5" />

@@ -53,7 +53,7 @@ export const AnalyticsView: React.FC = () => {
       {/* View Header */}
       <ViewHeader
         icon={<Activity className="w-4 h-4" />}
-        iconBoxColor="emerald"
+        iconBoxColor="cyan"
         title="Analíticas & Rendimiento MTProto"
         subtitle="Métricas operacionales de ahorro de ancho de banda, bypass de descargas locales y salud del pipeline."
       >
@@ -64,7 +64,7 @@ export const AnalyticsView: React.FC = () => {
           disabled={isLoading}
           className="h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200 text-xs flex items-center gap-1.5"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-cyan-400" : ""}`} />
           Actualizar Métricas
         </Button>
       </ViewHeader>
@@ -77,7 +77,7 @@ export const AnalyticsView: React.FC = () => {
       )}
 
       {/* Top KPI Cards */}
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
         {/* Bandwidth Savings */}
         <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">

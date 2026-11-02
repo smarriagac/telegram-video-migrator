@@ -234,7 +234,7 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
             <Button
               size="sm"
               onClick={handleSave}
-              className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-medium flex items-center gap-1.5"
+              className="text-xs bg-cyan-500 hover:bg-cyan-400 text-black font-semibold flex items-center gap-1.5 shadow-sm"
             >
               <Check className="w-3.5 h-3.5" /> Guardar Reglas
             </Button>
