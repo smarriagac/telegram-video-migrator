@@ -267,3 +267,17 @@ async def get_live_sync_service():
         )
     return _live_sync_service
 
+
+_video_processing_service = None
+
+async def get_video_processing_service():
+    global _video_processing_service
+    if _video_processing_service is None:
+        from backend.application.services.video_processing_service import VideoProcessingService
+        pg_repo = await get_postgres_repository()
+        _video_processing_service = VideoProcessingService(
+            pg_repo=pg_repo,
+            gateway_provider=get_telegram_gateway,
+        )
+    return _video_processing_service
+

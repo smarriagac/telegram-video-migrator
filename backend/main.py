@@ -14,6 +14,7 @@ from backend.presentation.api.routers.settings_credentials import router as cred
 from backend.presentation.api.routers.analytics import router as analytics_router
 from backend.presentation.api.routers.sync import router as sync_router
 from backend.presentation.api.routers.billing import router as billing_router
+from backend.presentation.api.routers.video_processing import router as video_processing_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
@@ -59,12 +60,27 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to start LiveSyncService during startup: {e}")
 
+    # Initialize FFmpeg Video Processing Queue Service
+    from backend.presentation.dependencies import get_video_processing_service
+    try:
+        video_processing = await get_video_processing_service()
+        await video_processing.start()
+        logger.info("VideoProcessingService started successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to start VideoProcessingService during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
 
     try:
         live_sync = await get_live_sync_service()
         await live_sync.stop()
+    except Exception:
+        pass
+
+    try:
+        video_processing = await get_video_processing_service()
+        await video_processing.stop()
     except Exception:
         pass
 
@@ -94,6 +110,7 @@ app.include_router(jobs_router, prefix="/api")
 app.include_router(dialogs_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
+app.include_router(video_processing_router, prefix="/api")
 app.include_router(billing_router)
 
 

@@ -15,6 +15,7 @@ import {
   Search,
   Square,
   Video,
+  Wand2,
   X,
 } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
@@ -22,6 +23,7 @@ import { ChannelMessageItem } from "../../domain/types";
 import { Button } from "@/shared/components/ui/button";
 import { MediaGallerySkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
+import { VideoSanitizerModal } from "./VideoSanitizerModal";
 
 function formatBytes(bytes: number | null): string {
   if (!bytes || bytes <= 0) return "";
@@ -114,8 +116,10 @@ export const MessageSelector: React.FC = () => {
   const checkSyncStatus = useMigrationStore((state) => state.checkSyncStatus);
   const startDeltaSync = useMigrationStore((state) => state.startDeltaSync);
   const selectOnlyMissingMessages = useMigrationStore((state) => state.selectOnlyMissingMessages);
+  const channels = useMigrationStore((state) => state.channels);
 
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
+  // Hook 1: Filter criteria state
   const [filterState, setFilterState] = useState<{
     type: string;
     sync: "all" | "missing" | "cloned";
@@ -125,7 +129,17 @@ export const MessageSelector: React.FC = () => {
     sync: "all",
     search: "",
   });
-  const [previewModalMsg, setPreviewModalMsg] = useState<ChannelMessageItem | null>(null);
+
+  // Hook 2: UI view mode and modal inspection states
+  const [uiState, setUiState] = useState<{
+    viewMode: "grid" | "list";
+    previewModalMsg: ChannelMessageItem | null;
+    sanitizerMsg: ChannelMessageItem | null;
+  }>({
+    viewMode: "grid",
+    previewModalMsg: null,
+    sanitizerMsg: null,
+  });
 
   const clonedMsgIds = useMemo(() => new Set(clonedItems.map((c) => c.source_message_id)), [clonedItems]);
 
@@ -300,9 +314,9 @@ export const MessageSelector: React.FC = () => {
           {/* View mode toggle */}
           <div className="flex items-center bg-muted/80 border border-border rounded-lg p-0.5">
             <button
-              onClick={() => setViewMode("grid")}
+              onClick={() => setUiState((prev) => ({ ...prev, viewMode: "grid" }))}
               className={`p-1.5 rounded-md text-xs flex items-center gap-1 transition-colors ${
-                viewMode === "grid"
+                uiState.viewMode === "grid"
                   ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -312,9 +326,9 @@ export const MessageSelector: React.FC = () => {
               <span className="hidden sm:inline text-[11px]">Galería</span>
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => setUiState((prev) => ({ ...prev, viewMode: "list" }))}
               className={`p-1.5 rounded-md text-xs flex items-center gap-1 transition-colors ${
-                viewMode === "list"
+                uiState.viewMode === "list"
                   ? "bg-primary text-primary-foreground font-semibold shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
@@ -548,7 +562,7 @@ export const MessageSelector: React.FC = () => {
         <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-muted-foreground text-xs bg-secondary/40 rounded-md border border-border font-mono">
           No se encontraron mensajes con los filtros seleccionados.
         </div>
-      ) : viewMode === "grid" ? (
+      ) : uiState.viewMode === "grid" ? (
         /* VISUAL GALLERY GRID (Responsive columns taking full advantage of widescreen) */
         <div className="flex-1 min-h-0 overflow-y-auto p-1 pr-1.5">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1900px]:grid-cols-6 gap-2 sm:gap-2.5">
@@ -603,19 +617,32 @@ export const MessageSelector: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Center Hover Action: Zoom Preview */}
-                <div className="relative z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Center Hover Action: Zoom Preview & Delogo */}
+                <div className="relative z-10 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setPreviewModalMsg(msg);
+                      setUiState((prev) => ({ ...prev, previewModalMsg: msg }));
                     }}
-                    className="p-1 rounded-full bg-black/70 border border-white/20 text-white hover:bg-primary hover:text-primary-foreground transition-colors"
+                    className="p-1.5 rounded-full bg-black/70 border border-white/20 text-white hover:bg-primary hover:text-primary-foreground transition-colors"
                     title="Previsualizar mensaje completo"
                   >
                     <Maximize2 className="w-3 h-3" />
                   </button>
+                  {msg.media_type === "video" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setUiState((prev) => ({ ...prev, sanitizerMsg: msg }));
+                      }}
+                      className="p-1.5 rounded-full bg-purple-900/80 border border-purple-400/40 text-purple-200 hover:bg-purple-600 hover:text-white transition-colors"
+                      title="Quitar marca de agua con FFmpeg"
+                    >
+                      <Wand2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
 
                 {/* Bottom overlay: Message info & Size */}
@@ -706,17 +733,33 @@ export const MessageSelector: React.FC = () => {
                   {msg.date}
                 </span>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPreviewModalMsg(msg);
-                  }}
-                  className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-                  title="Ver detalles"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {msg.media_type === "video" && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setUiState((prev) => ({ ...prev, sanitizerMsg: msg }));
+                      }}
+                      className="p-1 rounded text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 transition-colors"
+                      title="Quitar marca de agua con FFmpeg"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUiState((prev) => ({ ...prev, previewModalMsg: msg }));
+                    }}
+                    className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
+                    title="Ver detalles"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -753,11 +796,11 @@ export const MessageSelector: React.FC = () => {
       )}
 
       {/* Lightbox / Details Modal */}
-      {previewModalMsg &&
+      {uiState.previewModalMsg &&
         createPortal(
           <div
             className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
-            onClick={() => setPreviewModalMsg(null)}
+            onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
           >
             <div
               className="bg-card border border-border rounded-md max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5 text-card-foreground"
@@ -766,12 +809,12 @@ export const MessageSelector: React.FC = () => {
               <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-foreground font-mono">
-                    Mensaje #{previewModalMsg.id}
+                    Mensaje #{uiState.previewModalMsg.id}
                   </span>
-                  {getTypeBadge(previewModalMsg.media_type)}
+                  {getTypeBadge(uiState.previewModalMsg.media_type)}
                 </div>
                 <button
-                  onClick={() => setPreviewModalMsg(null)}
+                  onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
                   className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5"
                 >
                   <X className="w-4 h-4" />
@@ -779,7 +822,7 @@ export const MessageSelector: React.FC = () => {
               </div>
 
               {/* Previously Cloned Alert */}
-              {clonedMsgIds.has(previewModalMsg.id) && (
+              {clonedMsgIds.has(uiState.previewModalMsg.id) && (
                 <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                   <span>
@@ -790,10 +833,10 @@ export const MessageSelector: React.FC = () => {
 
               {/* Media Preview Box (Full uncropped contain) */}
               <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-md overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
-                {previewModalMsg.media_type === "video" ? (
+                {uiState.previewModalMsg.media_type === "video" ? (
                   <video
-                    src={`/api/channels/${selectedSourceId}/messages/${previewModalMsg.id}/video`}
-                    poster={`/api/channels/${selectedSourceId}/messages/${previewModalMsg.id}/thumbnail`}
+                    src={`/api/channels/${selectedSourceId}/messages/${uiState.previewModalMsg.id}/video`}
+                    poster={`/api/channels/${selectedSourceId}/messages/${uiState.previewModalMsg.id}/thumbnail`}
                     controls
                     autoPlay
                     playsInline
@@ -802,8 +845,8 @@ export const MessageSelector: React.FC = () => {
                 ) : (
                   <MessageThumbnailImage
                     channelId={selectedSourceId}
-                    messageId={previewModalMsg.id}
-                    mediaType={previewModalMsg.media_type}
+                    messageId={uiState.previewModalMsg.id}
+                    mediaType={uiState.previewModalMsg.media_type}
                     fit="contain"
                   />
                 )}
@@ -815,7 +858,7 @@ export const MessageSelector: React.FC = () => {
                   Texto / Descripción:
                 </span>
                 <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
-                  {previewModalMsg.text || <span className="text-zinc-600 italic">Este mensaje no contiene texto.</span>}
+                  {uiState.previewModalMsg.text || <span className="text-zinc-600 italic">Este mensaje no contiene texto.</span>}
                 </p>
               </div>
 
@@ -823,34 +866,53 @@ export const MessageSelector: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 text-xs font-mono text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-white/5">
                 <div>
                   <span className="text-zinc-600 block text-[10px]">TAMAÑO ESTIMADO</span>
-                  <span className="text-zinc-200">{formatBytes(previewModalMsg.file_size) || "N/A"}</span>
+                  <span className="text-zinc-200">{formatBytes(uiState.previewModalMsg.file_size) || "N/A"}</span>
                 </div>
                 <div>
                   <span className="text-zinc-600 block text-[10px]">FECHA ORIGINAL</span>
-                  <span className="text-zinc-200">{previewModalMsg.date || "N/A"}</span>
+                  <span className="text-zinc-200">{uiState.previewModalMsg.date || "N/A"}</span>
                 </div>
               </div>
 
               {/* Modal Actions */}
-              <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant={selectedMessageIds.includes(previewModalMsg.id) ? "destructive" : "default"}
-                  size="sm"
-                  onClick={() => {
-                    toggleSelectMessage(previewModalMsg.id);
-                    setPreviewModalMsg(null);
-                  }}
-                  className="h-8 text-xs px-4"
-                >
-                  {selectedMessageIds.includes(previewModalMsg.id)
-                    ? "Desmarcar este elemento"
-                    : "Seleccionar para clonar"}
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={selectedMessageIds.includes(uiState.previewModalMsg.id) ? "destructive" : "default"}
+                    size="sm"
+                    onClick={() => {
+                      if (!uiState.previewModalMsg) return;
+                      toggleSelectMessage(uiState.previewModalMsg.id);
+                      setUiState((prev) => ({ ...prev, previewModalMsg: null }));
+                    }}
+                    className="h-8 text-xs px-4"
+                  >
+                    {selectedMessageIds.includes(uiState.previewModalMsg.id)
+                      ? "Desmarcar este elemento"
+                      : "Seleccionar para clonar"}
+                  </Button>
+
+                  {uiState.previewModalMsg.media_type === "video" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const target = uiState.previewModalMsg;
+                        setUiState((prev) => ({ ...prev, previewModalMsg: null, sanitizerMsg: target }));
+                      }}
+                      className="h-8 text-xs px-3 border-purple-500/40 text-purple-300 hover:bg-purple-500/10 gap-1.5 font-mono"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" />
+                      Quitar Marca (FFmpeg)
+                    </Button>
+                  )}
+                </div>
 
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setPreviewModalMsg(null)}
+                  onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
                   className="h-8 text-xs text-zinc-400 hover:text-white"
                 >
                   Cerrar
@@ -860,6 +922,18 @@ export const MessageSelector: React.FC = () => {
           </div>,
           document.body
         )}
+
+      {/* Video Sanitizer Modal */}
+      {selectedSourceId && uiState.sanitizerMsg && (
+        <VideoSanitizerModal
+          isOpen={Boolean(uiState.sanitizerMsg)}
+          onClose={() => setUiState((prev) => ({ ...prev, sanitizerMsg: null }))}
+          message={uiState.sanitizerMsg}
+          sourceChannelId={selectedSourceId}
+          channels={channels}
+          selectedTargetId={selectedTargetId}
+        />
+      )}
     </div>
   );
 };

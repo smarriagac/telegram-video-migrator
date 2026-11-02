@@ -136,6 +136,28 @@ class PostgresJobRepository(JobRepositoryPort):
                     UNIQUE(target_channel_id, fingerprint_hash)
                 );
                 CREATE INDEX IF NOT EXISTS idx_media_fingerprint ON migrated_media_fingerprints(target_channel_id, fingerprint_hash);
+
+                CREATE TABLE IF NOT EXISTS video_processing_jobs (
+                    id UUID PRIMARY KEY,
+                    tenant_id UUID NOT NULL,
+                    source_channel_id BIGINT NOT NULL,
+                    source_channel_title TEXT,
+                    source_message_id BIGINT NOT NULL,
+                    target_channel_id BIGINT NOT NULL,
+                    target_channel_title TEXT,
+                    filter_type VARCHAR(32) NOT NULL DEFAULT 'delogo',
+                    filter_params JSONB NOT NULL DEFAULT '{}'::jsonb,
+                    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                    progress REAL NOT NULL DEFAULT 0.0,
+                    original_caption TEXT,
+                    new_caption TEXT,
+                    target_message_id BIGINT,
+                    error_message TEXT,
+                    account_id INT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_video_processing_status ON video_processing_jobs(status, created_at);
             """)
         self._initialized = True
 
