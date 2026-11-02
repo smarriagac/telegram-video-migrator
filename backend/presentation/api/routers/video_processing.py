@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from backend.domain.entities.user import User
-from backend.presentation.dependencies import get_current_user, get_video_processing_service
+from backend.presentation.dependencies import (
+    get_current_user,
+    get_job_repository,
+    get_telegram_gateway,
+    get_video_processing_service,
+)
+from backend.application.services.watermark_detector import WatermarkDetector
 
 logger = logging.getLogger("telegram_migrator.video_processing_api")
 router = APIRouter(prefix="/video-processing", tags=["Video Processing (FFmpeg)"])
@@ -22,6 +28,49 @@ class EnqueueVideoJobRequest(BaseModel):
     target_channel_title: str | None = None
     account_id: int | None = None
     new_caption: str | None = None
+
+
+class DetectWatermarkRequest(BaseModel):
+    source_channel_id: int
+    source_message_id: int
+    account_id: int | None = None
+
+
+@router.post("/detect")
+async def detect_watermark_endpoint(
+    payload: DetectWatermarkRequest,
+    current_user: User = Depends(get_current_user),
+    gateway: Any = Depends(get_telegram_gateway),
+    repo: Any = Depends(get_job_repository),
+) -> dict[str, Any]:
+    """Analyze video thumbnail with computer vision and OCR to auto-detect watermark coordinates."""
+    try:
+        thumb_bytes = await gateway.get_message_thumbnail(
+            channel_id=payload.source_channel_id,
+            message_id=payload.source_message_id,
+            repo=repo,
+            account_id=payload.account_id,
+        )
+        if not thumb_bytes:
+            return {
+                "success": True,
+                "detected": False,
+                "confidence": 0.4,
+                "preset": "center",
+                "message": "Miniatura no disponible; usando zona central recomendada.",
+            }
+
+        detection = WatermarkDetector.detect_from_image_bytes(thumb_bytes)
+        return {"success": True, **detection}
+    except Exception as ex:
+        logger.warning(f"Watermark auto-detection failed: {ex}")
+        return {
+            "success": True,
+            "detected": False,
+            "confidence": 0.3,
+            "preset": "center",
+            "message": f"Detección no concluyente: {ex}. Podés seleccionar la zona manualmente.",
+        }
 
 
 @router.post("/enqueue")

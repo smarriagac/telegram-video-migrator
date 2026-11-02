@@ -7,6 +7,7 @@ import {
   AlertCircle,
   RefreshCw,
   Sparkles,
+  Scan,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -33,11 +34,14 @@ interface FormState {
   filterType: "delogo" | "blur";
   preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom";
   customBox: { x: number; y: number; w: number; h: number };
+  normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
 }
 
 interface AsyncState {
   isSubmitting: boolean;
+  isDetecting: boolean;
+  detectionInfo: { text?: string | null; confidence: number; method?: string } | null;
   feedback: { message: string; type: "success" | "error" } | null;
 }
 
@@ -57,12 +61,15 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
     filterType: "delogo",
     preset: "center",
     customBox: { x: 200, y: 300, w: 400, h: 200 },
+    normalizedBox: null,
     caption: message?.text || "",
   }));
 
-  // Hook 2: Submission and feedback state
+  // Hook 2: Submission and async detection state
   const [asyncState, setAsyncState] = useState<AsyncState>({
     isSubmitting: false,
+    isDetecting: false,
+    detectionInfo: null,
     feedback: null,
   });
 
@@ -71,16 +78,67 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
   const sourceChannel = channels.find((c) => c.id === sourceChannelId);
   const targetChannel = channels.find((c) => c.id === formState.targetId);
 
+  const handleAutoDetect = async () => {
+    setAsyncState((prev) => ({ ...prev, isDetecting: true, feedback: null }));
+    try {
+      const res = await videoProcessingApi.detectWatermark({
+        source_channel_id: sourceChannelId,
+        source_message_id: message.id,
+      });
+
+      if (res.detected && res.box) {
+        setFormState((prev) => ({
+          ...prev,
+          preset: res.preset === "custom" || res.preset === "top_left" ? "center" : res.preset,
+          customBox: res.box || prev.customBox,
+          normalizedBox: res.normalized_box || null,
+        }));
+        setAsyncState((prev) => ({
+          ...prev,
+          isDetecting: false,
+          detectionInfo: {
+            text: res.text,
+            confidence: res.confidence,
+            method: res.method,
+          },
+          feedback: {
+            message: `¡Marca detectada automáticamente con ${(res.confidence * 100).toFixed(0)}% de confianza! Ubicación ajustada.`,
+            type: "success",
+          },
+        }));
+      } else {
+        setAsyncState((prev) => ({
+          ...prev,
+          isDetecting: false,
+          feedback: {
+            message: res.message || "No se detectó texto con suficiente confianza; usando zona central.",
+            type: "success",
+          },
+        }));
+      }
+    } catch (err: any) {
+      setAsyncState((prev) => ({
+        ...prev,
+        isDetecting: false,
+        feedback: {
+          message: err.message || "Error al ejecutar detección automática.",
+          type: "error",
+        },
+      }));
+    }
+  };
+
   const handleEnqueue = async () => {
     if (!formState.targetId) {
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         feedback: { message: "Por favor seleccioná un canal destino.", type: "error" },
-      });
+      }));
       return;
     }
 
-    setAsyncState({ isSubmitting: true, feedback: null });
+    setAsyncState((prev) => ({ ...prev, isSubmitting: true, feedback: null }));
     try {
       const filterParams: Record<string, any> = { preset: formState.preset };
       if (formState.preset === "custom") {
@@ -88,6 +146,9 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
         filterParams.y = formState.customBox.y;
         filterParams.w = formState.customBox.w;
         filterParams.h = formState.customBox.h;
+      }
+      if (formState.normalizedBox) {
+        filterParams.normalized_box = formState.normalizedBox;
       }
 
       await videoProcessingApi.enqueue({
@@ -101,27 +162,29 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
         new_caption: formState.caption.trim() || undefined,
       });
 
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         feedback: {
           message: "¡Video encolado exitosamente en la cola de procesamiento FFmpeg!",
           type: "success",
         },
-      });
+      }));
 
       setTimeout(() => {
-        setAsyncState({ isSubmitting: false, feedback: null });
+        setAsyncState((prev) => ({ ...prev, isSubmitting: false, feedback: null }));
         if (onSuccess) onSuccess();
         onClose();
       }, 1500);
     } catch (err: any) {
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         feedback: {
           message: err.message || "Error al encolar el video para procesamiento.",
           type: "error",
         },
-      });
+      }));
     }
   };
 
@@ -150,9 +213,9 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto py-3 space-y-3.5 text-xs">
-          {/* Target video info banner */}
+          {/* Target video info banner with watermark detector box overlay */}
           <div className="p-2.5 rounded-lg border border-border bg-secondary/30 flex items-center gap-3">
-            <div className="w-16 h-12 bg-black rounded overflow-hidden shrink-0 border border-border relative">
+            <div className="w-20 h-16 bg-black rounded overflow-hidden shrink-0 border border-border relative">
               <img
                 src={thumbUrl}
                 alt={`Miniatura #${message.id}`}
@@ -161,17 +224,57 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                   (e.target as HTMLElement).style.display = "none";
                 }}
               />
+              {/* Highlight box if detected */}
+              {formState.normalizedBox && (
+                <div
+                  className="absolute border-2 border-dashed border-amber-400 bg-amber-400/25 rounded pointer-events-none transition-all"
+                  style={{
+                    left: `${formState.normalizedBox.x_pct * 100}%`,
+                    top: `${formState.normalizedBox.y_pct * 100}%`,
+                    width: `${formState.normalizedBox.w_pct * 100}%`,
+                    height: `${formState.normalizedBox.h_pct * 100}%`,
+                  }}
+                  title="Zona detectada automáticamente"
+                />
+              )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-foreground font-mono">Mensaje #{message.id}</span>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {message.media_type || "video"}
-                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAutoDetect}
+                  disabled={asyncState.isDetecting || asyncState.isSubmitting}
+                  className="h-6 px-2 text-[10px] gap-1 font-mono border-purple-500/40 text-purple-300 hover:bg-purple-500/10"
+                  title="Detectar automáticamente coordenadas del logo con visión por computadora"
+                >
+                  {asyncState.isDetecting ? (
+                    <>
+                      <RefreshCw className="w-2.5 h-2.5 animate-spin text-purple-400" />
+                      <span>Detectando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Scan className="w-2.5 h-2.5 text-amber-400" />
+                      <span>Auto-detectar con IA</span>
+                    </>
+                  )}
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground truncate mt-0.5">
                 {message.text ? message.text : "(Sin texto adjunto)"}
               </p>
+              {asyncState.detectionInfo && (
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-amber-400 font-mono">
+                  <Sparkles className="w-3 h-3" />
+                  <span>
+                    Detección: {(asyncState.detectionInfo.confidence * 100).toFixed(0)}%
+                    {asyncState.detectionInfo.text ? ` (${asyncState.detectionInfo.text.slice(0, 30)})` : ""}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -200,10 +303,23 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
 
           {/* Watermark position preset */}
           <div className="space-y-1.5">
-            <label className="font-semibold text-foreground">Ubicación de la Marca de Agua:</label>
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground">Ubicación de la Marca de Agua:</label>
+              {formState.normalizedBox && (
+                <span className="text-[10px] text-amber-400 font-mono">
+                  ✓ Coordenadas IA aplicadas
+                </span>
+              )}
+            </div>
             <Select
               value={formState.preset}
-              onValueChange={(val: any) => setFormState((prev) => ({ ...prev, preset: val }))}
+              onValueChange={(val: any) =>
+                setFormState((prev) => ({
+                  ...prev,
+                  preset: val,
+                  normalizedBox: val === "custom" ? prev.normalizedBox : null,
+                }))
+              }
             >
               <SelectTrigger className="h-8 text-xs bg-secondary/60 border-border">
                 <SelectValue />
@@ -213,7 +329,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                 <SelectItem value="top_right">↗️ Esquina superior derecha</SelectItem>
                 <SelectItem value="bottom_right">↘️ Esquina inferior derecha</SelectItem>
                 <SelectItem value="bottom_bar">➖ Banda inferior horizontal</SelectItem>
-                <SelectItem value="custom">⚙️ Coordenadas personalizadas</SelectItem>
+                <SelectItem value="custom">⚙️ Coordenadas personalizadas (o detectadas por IA)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -297,7 +413,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                   <Sparkles className="w-3.5 h-3.5" /> Delogo Inteligente
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Interpola y difumina bordes circundantes para remover el texto.
+                  Interpola bordes circundantes para remover el texto o logotipo.
                 </span>
               </button>
 
@@ -314,7 +430,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                   <Layers className="w-3.5 h-3.5" /> Desenfoque (BoxBlur)
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Aplica un filtro gaussiano difuso sobre la marca de agua.
+                  Aplica un filtro difuso sobre la marca de agua.
                 </span>
               </button>
             </div>

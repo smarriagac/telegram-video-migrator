@@ -409,8 +409,18 @@ class VideoProcessingService:
         self, filter_type: str, params: dict[str, Any], width: int, height: int
     ) -> list[str]:
         preset = params.get("preset", "center")
+        norm = params.get("normalized_box")
 
-        if preset == "center":
+        if norm and isinstance(norm, dict) and norm.get("w_pct", 0) > 0:
+            x = int(norm.get("x_pct", 0.2) * width)
+            y = int(norm.get("y_pct", 0.3) * height)
+            w = int(norm.get("w_pct", 0.6) * width)
+            h = int(norm.get("h_pct", 0.25) * height)
+            x = max(min(x, width - 10), 0)
+            y = max(min(y, height - 10), 0)
+            w = max(min(w, width - x), 10)
+            h = max(min(h, height - y), 10)
+        elif preset == "center":
             w = max(int(width * 0.52), 60)
             h = max(int(height * 0.22), 40)
             x = max(int((width - w) / 2), 0)

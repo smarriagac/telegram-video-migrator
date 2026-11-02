@@ -55,9 +55,24 @@ async def test_video_processing_api_lifecycle(mock_user):
             assert cancel_res.status_code == 200
             assert cancel_res.json()["success"] is True
 
-            # 4. Delete job
+            # 4. Retry job
+            retry_res = await client.post(f"/api/video-processing/jobs/{job_id}/retry")
+            assert retry_res.status_code == 200
+            assert retry_res.json()["success"] is True
+
+            # 5. Delete job
             del_res = await client.delete(f"/api/video-processing/jobs/{job_id}")
             assert del_res.status_code == 200
             assert del_res.json()["success"] is True
+
+            # 6. Test watermark detect endpoint
+            detect_res = await client.post(
+                "/api/video-processing/detect",
+                json={"source_channel_id": -100123456, "source_message_id": 42},
+            )
+            assert detect_res.status_code == 200
+            det_data = detect_res.json()
+            assert det_data["success"] is True
+            assert "preset" in det_data
     finally:
         app.dependency_overrides.pop(get_current_user, None)

@@ -39,6 +39,18 @@ export interface EnqueueVideoPayload {
   new_caption?: string | null;
 }
 
+export interface WatermarkDetectionResult {
+  success: boolean;
+  detected: boolean;
+  confidence: number;
+  preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "top_left" | "custom";
+  box?: { x: number; y: number; w: number; h: number };
+  normalized_box?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number };
+  text?: string | null;
+  method?: string;
+  message?: string;
+}
+
 const getAuthHeaders = (): HeadersInit => {
   const token =
     localStorage.getItem("telegram_hub_token") ||
@@ -99,5 +111,21 @@ export const videoProcessingApi = {
       headers: getAuthHeaders(),
     });
     return res.ok;
+  },
+
+  async detectWatermark(payload: {
+    source_channel_id: number;
+    source_message_id: number;
+    account_id?: number | null;
+  }): Promise<WatermarkDetectionResult> {
+    const res = await fetch("/api/video-processing/detect", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error("Error ejecutando auto-detección de marca de agua");
+    }
+    return await res.json();
   },
 };
