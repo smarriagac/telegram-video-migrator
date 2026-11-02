@@ -20,6 +20,7 @@ import {
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { ChannelMessageItem } from "../../domain/types";
 import { Button } from "@/shared/components/ui/button";
+import { cn } from "@/shared/lib/utils";
 
 function formatBytes(bytes: number | null): string {
   if (!bytes || bytes <= 0) return "";
@@ -442,52 +443,56 @@ export const MessageSelector: React.FC = () => {
         </div>
       )}
 
-      {/* Filter and Search Bar */}
-      <div className="shrink-0 flex flex-col xl:flex-row items-stretch xl:items-center gap-2 justify-between">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar max-w-full pb-0.5">
-          {/* Sync Status Filter Group */}
-          {selectedTargetId && (
-            <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setFilterState((prev) => ({ ...prev, sync: "all" }))}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all ${
-                  filterState.sync === "all"
-                    ? "bg-zinc-800 text-white font-semibold shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
-                }`}
-              >
-                Todos
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterState((prev) => ({ ...prev, sync: "missing" }))}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center gap-1.5 ${
-                  filterState.sync === "missing"
-                    ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold shadow-sm"
-                    : "text-amber-400/80 hover:text-amber-300"
-                }`}
-              >
-                <span>★ Novedades</span>
-                <span className="text-[10px] px-1 rounded bg-amber-500/10 font-bold">{syncCounts.missing}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilterState((prev) => ({ ...prev, sync: "cloned" }))}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center gap-1.5 ${
-                  filterState.sync === "cloned"
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold shadow-sm"
-                    : "text-emerald-400/80 hover:text-emerald-300"
-                }`}
-              >
-                <span>✓ Clonados</span>
-                <span className="text-[10px] px-1 rounded bg-emerald-500/10 font-bold">{syncCounts.cloned}</span>
-              </button>
-            </div>
-          )}
+      {/* Filter and Search Section */}
+      <div className="shrink-0 space-y-2">
+        {/* Row 1: Sync Status Filters (only shown when target channel is selected) */}
+        {selectedTargetId && (
+          <div className="grid grid-cols-3 gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 w-full">
+            <button
+              type="button"
+              onClick={() => setFilterState((prev) => ({ ...prev, sync: "all" }))}
+              className={cn(
+                "py-1.5 px-2 rounded-md text-[11px] font-mono transition-all text-center flex items-center justify-center gap-1",
+                filterState.sync === "all"
+                  ? "bg-zinc-800 text-white font-semibold shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              )}
+            >
+              <span>Todos</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterState((prev) => ({ ...prev, sync: "missing" }))}
+              className={cn(
+                "py-1.5 px-2 rounded-md text-[11px] font-mono transition-all flex items-center justify-center gap-1",
+                filterState.sync === "missing"
+                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold shadow-sm"
+                  : "text-amber-400/80 hover:text-amber-300"
+              )}
+            >
+              <span>★ Novedades</span>
+              <span className="text-[10px] px-1 rounded bg-amber-500/10 font-bold">{syncCounts.missing}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterState((prev) => ({ ...prev, sync: "cloned" }))}
+              className={cn(
+                "py-1.5 px-2 rounded-md text-[11px] font-mono transition-all flex items-center justify-center gap-1",
+                filterState.sync === "cloned"
+                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold shadow-sm"
+                  : "text-emerald-400/80 hover:text-emerald-300"
+              )}
+            >
+              <span>✓ Clonados</span>
+              <span className="text-[10px] px-1 rounded bg-emerald-500/10 font-bold">{syncCounts.cloned}</span>
+            </button>
+          </div>
+        )}
 
+        {/* Row 2: Type Filters & Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 justify-between">
           {/* Type filters */}
-          <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 shrink-0">
+          <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 overflow-x-auto no-scrollbar flex-1 min-w-0">
             {[
               { id: "all", label: "Todos", count: countsByType.all },
               { id: "video", label: "Videos", count: countsByType.video },
@@ -499,31 +504,37 @@ export const MessageSelector: React.FC = () => {
                 type="button"
                 key={item.id}
                 onClick={() => setFilterState((prev) => ({ ...prev, type: item.id }))}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center gap-1 ${
+                className={cn(
+                  "flex-1 sm:flex-initial px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center justify-center gap-1 shrink-0 whitespace-nowrap",
                   filterState.type === item.id
                     ? "bg-cyan-500 text-black font-semibold shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200"
-                }`}
+                )}
               >
                 <span>{item.label}</span>
-                <span className={`text-[10px] opacity-75 ${filterState.type === item.id ? "text-black/80 font-bold" : ""}`}>
+                <span
+                  className={cn(
+                    "text-[10px] opacity-80",
+                    filterState.type === item.id ? "text-black/80 font-bold" : ""
+                  )}
+                >
                   ({item.count})
                 </span>
               </button>
             ))}
           </div>
-        </div>
 
-        {/* Search Input */}
-        <div className="relative w-full xl:w-56 shrink-0">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Buscar por texto o #ID..."
-            value={filterState.search}
-            onChange={(e) => setFilterState((prev) => ({ ...prev, search: e.target.value }))}
-            className="w-full bg-[#0E1017] border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 h-8"
-          />
+          {/* Search Input */}
+          <div className="relative w-full sm:w-48 xl:w-56 shrink-0">
+            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar por texto o #ID..."
+              value={filterState.search}
+              onChange={(e) => setFilterState((prev) => ({ ...prev, search: e.target.value }))}
+              className="w-full bg-[#0E1017] border border-white/10 rounded-lg pl-8 pr-3 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 h-8"
+            />
+          </div>
         </div>
       </div>
 
