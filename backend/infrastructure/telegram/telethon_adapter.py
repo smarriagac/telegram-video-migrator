@@ -1045,6 +1045,12 @@ class TelethonAdapter(TelegramGatewayPort):
             )
             return True
         except Exception as e:
+            err_msg = str(e).lower()
+            if "already a participant" in err_msg or "user_already_participant" in err_msg:
+                logger.info(
+                    f"User {user_id} is already a participant of channel {channel_id}. Treating as approved."
+                )
+                return True
             logger.error(
                 f"Error {'approving' if approved else 'rejecting'} join request for user {user_id} in channel {channel_id}: {e}"
             )
