@@ -36,6 +36,8 @@ class DialogResponse(BaseModel):
     can_post: bool = True
     read_inbox_max_id: int = 0
     read_outbox_max_id: int = 0
+    username: str | None = None
+    account_id: int | None = None
 
 
 class ChatMessageResponse(BaseModel):
@@ -244,6 +246,8 @@ async def list_dialogs(
                 can_post=getattr(d, "can_post", True),
                 read_inbox_max_id=getattr(d, "read_inbox_max_id", 0),
                 read_outbox_max_id=getattr(d, "read_outbox_max_id", 0),
+                username=getattr(d, "username", None),
+                account_id=getattr(d, "account_id", None),
             )
             for d in dialogs
         ]

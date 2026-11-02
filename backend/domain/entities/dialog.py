@@ -17,3 +17,5 @@ class TelegramDialog:
     can_post: bool = True
     read_inbox_max_id: int = 0
     read_outbox_max_id: int = 0
+    username: str | None = None
+    account_id: int | None = None

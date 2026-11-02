@@ -39,6 +39,7 @@ interface ChatState {
   setEditingMessage: (editing: { id: number; text: string } | null) => void;
   setSearchFilter: (filter: string) => void;
   clearError: () => void;
+  refreshActiveMessages: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -157,6 +158,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
       } finally {
         set({ isLoadingMessages: false });
       }
+    }
+  },
+
+  refreshActiveMessages: async () => {
+    const chatId = get().activeChatId;
+    if (!chatId) return;
+    try {
+      const chatMsgs = await chatApi.fetchMessages(
+        chatId,
+        50,
+        get().selectedAccountId || undefined
+      );
+      set((state) => ({
+        messages: {
+          ...state.messages,
+          [chatId]: chatMsgs,
+        },
+      }));
+    } catch (err) {
+      console.error(`Error refrescando mensajes para chat ${chatId}:`, err);
     }
   },
 

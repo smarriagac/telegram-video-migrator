@@ -24,12 +24,31 @@ import {
   Maximize2,
   ChevronDown,
   ChevronLeft,
+  UserPlus,
+  Key,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/shared/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { Badge } from "@/shared/components/ui/badge";
+import { channelApi, ManagedChannel } from "@/features/channels/infrastructure/channelApi";
 
 interface ChatMediaThumbnailProps {
   chatId: number;
@@ -331,12 +350,33 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   );
 };
 
+interface VipModalState {
+  isOpen: boolean;
+  channelId: number;
+  durationDays: number;
+  directInvite: boolean;
+  autoSendDm: boolean;
+  feedback: { message: string; type: "success" | "error" } | null;
+}
+
+interface ExtraViewState {
+  editText: string;
+  vipModal: VipModalState | null;
+  channels: ManagedChannel[];
+  isSubmitting: boolean;
+}
+
 export const ChatsView: React.FC = () => {
-  // STRICT ARCHITECTURAL CONSTRAINT: Maximum 2 useState hooks per view.
+  // STRICT ARCHITECTURAL CONSTRAINT: Exactly 2 useState hooks per view.
   // 1: Local controlled input for typing messages / captions
-  // 2: Local controlled text for inline editing
   const [inputText, setInputText] = useState<string>("");
-  const [editText, setEditText] = useState<string>("");
+  // 2: Consolidated view state (inline edit, VIP modal, managed channels, submitting)
+  const [viewState, setViewState] = useState<ExtraViewState>({
+    editText: "",
+    vipModal: null,
+    channels: [],
+    isSubmitting: false,
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -377,6 +417,7 @@ export const ChatsView: React.FC = () => {
   const setEditingMessage = useChatStore((state) => state.setEditingMessage);
   const setSearchFilter = useChatStore((state) => state.setSearchFilter);
   const clearError = useChatStore((state) => state.clearError);
+  const refreshActiveMessages = useChatStore((state) => state.refreshActiveMessages);
 
   useEffect(() => {
     loadAccounts();
@@ -438,12 +479,99 @@ export const ChatsView: React.FC = () => {
 
   const handleStartEdit = (msg: { id: number; text: string }) => {
     setEditingMessage({ id: msg.id, text: msg.text });
-    setEditText(msg.text);
+    setViewState((s) => ({ ...s, editText: msg.text }));
   };
 
   const handleSaveEdit = async (msgId: number) => {
-    if (!editText.trim()) return;
-    await editMessage(msgId, editText);
+    if (!viewState.editText.trim()) return;
+    await editMessage(msgId, viewState.editText);
+    setViewState((s) => ({ ...s, editText: "" }));
+  };
+
+  const openVipModal = async () => {
+    let channels = viewState.channels;
+    if (channels.length === 0) {
+      const fetched = await channelApi.listManagedChannels();
+      channels = fetched.filter((c) => c.can_post);
+    }
+    setViewState((s) => ({
+      ...s,
+      channels,
+      vipModal: {
+        isOpen: true,
+        channelId: channels[0]?.id || 0,
+        durationDays: 30,
+        directInvite: false,
+        autoSendDm: true,
+        feedback: null,
+      },
+    }));
+  };
+
+  const handleConfirmVipModal = async () => {
+    if (!viewState.vipModal || !activeChat) return;
+    const { channelId, durationDays, directInvite, autoSendDm } = viewState.vipModal;
+    if (!channelId) {
+      setViewState((s) => ({
+        ...s,
+        vipModal: s.vipModal
+          ? {
+              ...s.vipModal,
+              feedback: { message: "Seleccioná un canal o grupo destino.", type: "error" },
+            }
+          : null,
+      }));
+      return;
+    }
+
+    setViewState((s) => ({ ...s, isSubmitting: true }));
+    try {
+      const targetIdentifier = activeChat.username ? `@${activeChat.username}` : String(activeChat.id);
+      const res = await channelApi.addMemberToChannel({
+        channelId,
+        userIdOrUsername: targetIdentifier,
+        durationDays,
+        directInvite,
+        autoSendDm,
+        accountId: selectedAccountId || activeChat.account_id || null,
+      });
+
+      if (autoSendDm) {
+        await refreshActiveMessages();
+      }
+
+      setViewState((s) => ({
+        ...s,
+        isSubmitting: false,
+        vipModal: s.vipModal
+          ? {
+              ...s.vipModal,
+              feedback: {
+                message: res.message || "¡Acceso concedido exitosamente!",
+                type: "success",
+              },
+            }
+          : null,
+      }));
+
+      setTimeout(() => {
+        setViewState((s) => ({ ...s, vipModal: null }));
+      }, 2500);
+    } catch (err: any) {
+      setViewState((s) => ({
+        ...s,
+        isSubmitting: false,
+        vipModal: s.vipModal
+          ? {
+              ...s.vipModal,
+              feedback: {
+                message: err.message || "Error al asignar acceso al canal.",
+                type: "error",
+              },
+            }
+          : null,
+      }));
+    }
   };
 
   const getChatIcon = (type: "user" | "group" | "channel") => {
@@ -743,6 +871,19 @@ export const ChatsView: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Action button to add user to managed channel / generate VIP pass */}
+                  {activeChat.type === "user" && (
+                    <Button
+                      onClick={openVipModal}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/10 flex items-center gap-1.5 px-2.5 rounded-md shrink-0 shadow-sm font-medium"
+                      title="Agregar usuario a un canal/grupo administrado o enviar Pase VIP"
+                    >
+                      <Key className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="hidden sm:inline">Pase VIP / Canal</span>
+                    </Button>
+                  )}
                   {activeChat.unread_count > 0 && (
                     <Button
                       onClick={() => markAsRead(activeChat.id)}
@@ -900,8 +1041,10 @@ export const ChatsView: React.FC = () => {
                             <div className="space-y-1.5 mt-0.5">
                               <input
                                 type="text"
-                                value={editText}
-                                onChange={(e) => setEditText(e.target.value)}
+                                value={viewState.editText}
+                                onChange={(e) =>
+                                  setViewState((s) => ({ ...s, editText: e.target.value }))
+                                }
                                 className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
                                 autoFocus
                                 onKeyDown={(e) => {
@@ -1095,6 +1238,200 @@ export const ChatsView: React.FC = () => {
           )}
         </section>
       </div>
+
+      {/* Shadcn UI Dialog: Agregar a Canal o Grupo / Pase VIP */}
+      <Dialog
+        open={!!viewState.vipModal?.isOpen}
+        onOpenChange={(open) => {
+          if (!open) setViewState((s) => ({ ...s, vipModal: null }));
+        }}
+      >
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-foreground">
+              <Key className="w-4 h-4 text-primary" />
+              Agregar a Canal o Grupo / Pase VIP
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1">
+              Asigná acceso a <strong>{activeChat?.title}</strong> en una de tus comunidades administradas.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* User Preview Mini-Card */}
+          {activeChat && (
+            <div className="p-2.5 rounded border border-border bg-secondary/40 text-xs flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
+                  {(activeChat.title || "U").charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="font-semibold text-foreground text-xs leading-none">
+                    {activeChat.title}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                    {activeChat.username ? `@${activeChat.username}` : `ID: ${activeChat.id}`}
+                  </div>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-[10px] bg-background">
+                Chat Activo
+              </Badge>
+            </div>
+          )}
+
+          <div className="space-y-3 py-1 text-xs">
+            {/* Channel/Group selector */}
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground block">
+                Canal o Grupo Destino (Comunidades Propias)
+              </label>
+              <Select
+                value={String(viewState.vipModal?.channelId || "")}
+                onValueChange={(val) =>
+                  setViewState((s) => ({
+                    ...s,
+                    vipModal: s.vipModal ? { ...s.vipModal, channelId: Number(val) } : null,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full h-8 text-xs bg-background">
+                  <SelectValue placeholder="Seleccionar canal o grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {viewState.channels.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.type === "supergroup" || c.type === "group" ? "[Grupo] " : "[Canal] "}
+                      {c.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Duration selector */}
+            <div className="space-y-1.5">
+              <label className="font-semibold text-foreground block">Duración del Acceso</label>
+              <Select
+                value={String(viewState.vipModal?.durationDays || 30)}
+                onValueChange={(val) =>
+                  setViewState((s) => ({
+                    ...s,
+                    vipModal: s.vipModal ? { ...s.vipModal, durationDays: Number(val) } : null,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full h-8 text-xs bg-background">
+                  <SelectValue placeholder="Seleccionar duración" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Día (Acceso 24h)</SelectItem>
+                  <SelectItem value="3">3 Días (Fin de semana)</SelectItem>
+                  <SelectItem value="7">7 Días (Acceso de Prueba)</SelectItem>
+                  <SelectItem value="15">15 Días</SelectItem>
+                  <SelectItem value="30">30 Días (Mensual)</SelectItem>
+                  <SelectItem value="60">60 Días (Bimestral)</SelectItem>
+                  <SelectItem value="90">90 Días (Trimestral)</SelectItem>
+                  <SelectItem value="180">180 Días (Semestral)</SelectItem>
+                  <SelectItem value="365">365 Días (Anual)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Entry Mode Toggle */}
+            <div className="space-y-1.5 pt-1">
+              <label className="font-semibold text-foreground block">Método de Asignación</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewState((s) => ({
+                      ...s,
+                      vipModal: s.vipModal ? { ...s.vipModal, directInvite: false } : null,
+                    }))
+                  }
+                  className={cn(
+                    "p-2 rounded border text-left transition-colors flex flex-col gap-0.5",
+                    !viewState.vipModal?.directInvite
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-card/60 text-muted-foreground hover:border-muted-foreground/40"
+                  )}
+                >
+                  <span className="font-semibold text-[11px] flex items-center gap-1">
+                    <Key className="w-3 h-3 text-primary" /> Pase VIP (Recomendado)
+                  </span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Enlace efímero con aprobación y temporizador
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewState((s) => ({
+                      ...s,
+                      vipModal: s.vipModal ? { ...s.vipModal, directInvite: true } : null,
+                    }))
+                  }
+                  className={cn(
+                    "p-2 rounded border text-left transition-colors flex flex-col gap-0.5",
+                    viewState.vipModal?.directInvite
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border bg-card/60 text-muted-foreground hover:border-muted-foreground/40"
+                  )}
+                >
+                  <span className="font-semibold text-[11px] flex items-center gap-1">
+                    <UserPlus className="w-3 h-3 text-cyan-400" /> Ingreso Directo
+                  </span>
+                  <span className="text-[10px] text-muted-foreground leading-tight">
+                    Agrega al usuario inmediatamente vía MTProto
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Feedback message */}
+            {viewState.vipModal?.feedback && (
+              <div
+                className={cn(
+                  "p-2.5 rounded text-xs border flex items-center gap-2",
+                  viewState.vipModal.feedback.type === "success"
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                    : "bg-destructive/10 border-destructive/30 text-destructive"
+                )}
+              >
+                {viewState.vipModal.feedback.type === "success" ? (
+                  <Check className="w-4 h-4 shrink-0" />
+                ) : (
+                  <ShieldAlert className="w-4 h-4 shrink-0" />
+                )}
+                <span>{viewState.vipModal.feedback.message}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewState((s) => ({ ...s, vipModal: null }))}
+              disabled={viewState.isSubmitting}
+              className="h-8 text-xs"
+            >
+              Cerrar
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleConfirmVipModal}
+              disabled={viewState.isSubmitting || !viewState.vipModal?.channelId}
+              className="h-8 text-xs gap-1.5 font-semibold"
+            >
+              {viewState.isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              {!viewState.vipModal?.directInvite ? "Generar y Enviar Enlace" : "Agregar Directamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

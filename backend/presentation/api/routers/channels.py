@@ -711,6 +711,15 @@ class KickMemberPayload(BaseModel):
     reason: str = "Incumplimiento de normas"
 
 
+class AddMemberPayload(BaseModel):
+    channel_id: int
+    user_id_or_username: str
+    duration_days: int = 30
+    direct_invite: bool = False
+    auto_send_dm: bool = True
+    account_id: int | None = None
+
+
 @router.post("/gatekeeper/invite", response_model=ChannelMembershipResponse)
 async def create_vip_invite_pass(
     req: CreateVipInviteRequest,
@@ -892,42 +901,71 @@ async def approve_join_request(
         await pg_repo.connect()
         if pg_repo.pool:
             async with pg_repo.pool.acquire() as conn:
-                updated = await conn.execute(
+                clean_username = payload.username.lstrip("@").lower() if payload.username else None
+                pending_row = await conn.fetchrow(
                     """
-                    UPDATE channel_memberships
-                    SET telegram_user_id = $1,
-                        telegram_username = COALESCE($2, telegram_username),
-                        status = 'ACTIVE',
-                        joined_at = $3,
-                        expires_at = $4,
-                        updated_at = $3
-                    WHERE tenant_id = $5::uuid
-                      AND channel_id = $6
-                      AND (telegram_user_id = $1 OR telegram_username = $2 OR status = 'INVITED')
+                    SELECT id, invite_link
+                    FROM channel_memberships
+                    WHERE tenant_id = $1::uuid
+                      AND channel_id = $2
+                      AND (
+                          telegram_user_id = $3
+                          OR (telegram_username IS NOT NULL AND LOWER(TRIM(LEADING '@' FROM telegram_username)) = $4)
+                          OR status = 'INVITED'
+                      )
+                    ORDER BY (status = 'INVITED') DESC, created_at DESC
+                    LIMIT 1
                     """,
-                    payload.user_id,
-                    payload.username,
-                    now,
-                    expires_at,
                     tenant_id,
                     payload.channel_id,
+                    payload.user_id,
+                    clean_username,
                 )
-                if updated == "UPDATE 0":
+
+                if pending_row:
+                    await conn.execute(
+                        """
+                        UPDATE channel_memberships
+                        SET telegram_user_id = $1,
+                            telegram_username = COALESCE($2, telegram_username),
+                            status = 'ACTIVE',
+                            joined_at = $3,
+                            expires_at = $4,
+                            updated_at = $3
+                        WHERE id = $5
+                        """,
+                        payload.user_id,
+                        payload.username,
+                        now,
+                        expires_at,
+                        pending_row["id"],
+                    )
+                else:
+                    last_link = await conn.fetchval(
+                        """
+                        SELECT invite_link FROM channel_memberships
+                        WHERE tenant_id = $1::uuid AND channel_id = $2 AND invite_link IS NOT NULL AND invite_link != ''
+                        ORDER BY created_at DESC LIMIT 1
+                        """,
+                        tenant_id,
+                        payload.channel_id,
+                    )
                     await conn.execute(
                         """
                         INSERT INTO channel_memberships (
                             id, tenant_id, channel_id, telegram_user_id, telegram_username,
-                            status, joined_at, expires_at, created_at, updated_at
+                            invite_link, status, joined_at, expires_at, created_at, updated_at
                         )
                         VALUES (
                             gen_random_uuid(), $1::uuid, $2, $3, $4,
-                            'ACTIVE', $5, $6, $5, $5
+                            $5, 'ACTIVE', $6, $7, $6, $6
                         )
                         """,
                         tenant_id,
                         payload.channel_id,
                         payload.user_id,
                         payload.username,
+                        last_link,
                         now,
                         expires_at,
                     )
@@ -957,6 +995,147 @@ async def reject_join_request(
         approved=False,
     )
     return {"success": success, "channel_id": payload.channel_id, "user_id": payload.user_id}
+
+
+@router.post("/gatekeeper/add_member")
+async def add_or_invite_member(
+    payload: AddMemberPayload,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> dict[str, Any]:
+    """Add a member directly to a channel/group or generate and send a VIP access pass via direct message."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    now = datetime.now(timezone.utc)
+    target = payload.user_id_or_username.strip()
+    direct_added = False
+    invite_link = None
+    dm_sent = False
+    error_detail = None
+
+    if payload.direct_invite:
+        try:
+            direct_added = await gateway.invite_user_to_channel(
+                channel_id=payload.channel_id,
+                user_id_or_username=target,
+                account_id=payload.account_id,
+            )
+        except Exception as ex:
+            error_msg = str(ex)
+            logger.info(f"Direct invite could not be completed ({error_msg}). Falling back to VIP invite link.")
+            error_detail = error_msg
+            direct_added = False
+
+    gatekeeper = MembershipGatekeeperService(gateway)
+    expires_at = now + timedelta(days=payload.duration_days)
+
+    if direct_added:
+        uid = int(target) if target.isdigit() else None
+        uname = None if target.isdigit() else target.lstrip("@")
+        try:
+            await pg_repo.connect()
+            if pg_repo.pool:
+                async with pg_repo.pool.acquire() as conn:
+                    await conn.execute(
+                        """
+                        INSERT INTO channel_memberships (
+                            id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                            status, joined_at, expires_at, created_at, updated_at
+                        )
+                        VALUES (
+                            gen_random_uuid(), $1::uuid, $2, $3, $4,
+                            'ACTIVE', $5, $6, $5, $5
+                        )
+                        """,
+                        tenant_id,
+                        payload.channel_id,
+                        uid,
+                        uname,
+                        now,
+                        expires_at,
+                    )
+        except Exception as ex:
+            logger.warning(f"Error persisting direct added membership: {ex}")
+
+        return {
+            "success": True,
+            "direct_added": True,
+            "message": f"Usuario {target} agregado directamente al canal/grupo.",
+            "channel_id": payload.channel_id,
+            "target": target,
+            "duration_days": payload.duration_days,
+            "expires_at": expires_at.isoformat(),
+        }
+
+    # Generate VIP link (either direct_invite=False or fallback because of privacy restrictions)
+    membership = await gatekeeper.generate_pass(
+        tenant_id=tenant_id,
+        channel_id=payload.channel_id,
+        duration_days=payload.duration_days,
+        account_id=payload.account_id,
+        request_needed=True,
+        title=f"VIP - {target}",
+    )
+    invite_link = membership.invite_link
+    uname = None if target.isdigit() else target.lstrip("@")
+    uid = int(target) if target.isdigit() else None
+
+    # Persist pending VIP pass
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO channel_memberships (
+                        id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                        invite_link, status, expires_at, created_at, updated_at
+                    )
+                    VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, 'INVITED', $7::timestamptz, NOW(), NOW())
+                    """,
+                    membership.id,
+                    tenant_id,
+                    membership.channel_id,
+                    uid,
+                    uname,
+                    invite_link,
+                    membership.expires_at,
+                )
+    except Exception as ex:
+        logger.warning(f"Error persisting generated VIP pass: {ex}")
+
+    if payload.auto_send_dm and invite_link:
+        dm_text = (
+            f"👋 ¡Hola! Te compartimos tu pase de acceso VIP exclusivo:\n\n"
+            f"🔗 Enlace de ingreso (válido para 1 uso):\n{invite_link}\n\n"
+            f"⏳ Validez: {payload.duration_days} días.\n"
+            f"¡Bienvenido a la comunidad!"
+        )
+        try:
+            dm_sent = await gateway.send_direct_message(
+                recipient=target,
+                text=dm_text,
+                account_id=payload.account_id,
+            )
+        except Exception as ex:
+            logger.warning(f"Could not auto-send VIP invite DM: {ex}")
+            dm_sent = False
+
+    return {
+        "success": True,
+        "direct_added": False,
+        "invite_link": invite_link,
+        "dm_sent": dm_sent,
+        "message": (
+            "Enlace VIP generado y enviado directamente al chat del usuario."
+            if dm_sent
+            else "Enlace VIP generado con éxito."
+        ),
+        "fallback_reason": error_detail,
+        "channel_id": payload.channel_id,
+        "target": target,
+        "duration_days": payload.duration_days,
+    }
 
 
 @router.post("/gatekeeper/kick")

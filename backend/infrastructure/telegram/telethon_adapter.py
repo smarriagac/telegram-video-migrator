@@ -708,6 +708,8 @@ class TelethonAdapter(TelegramGatewayPort):
                         can_post=can_post,
                         read_inbox_max_id=read_inbox_max_id,
                         read_outbox_max_id=read_outbox_max_id,
+                        username=getattr(dialog.entity, "username", None),
+                        account_id=account_id,
                     )
                 )
             return dialogs_list
@@ -1065,3 +1067,21 @@ class TelethonAdapter(TelegramGatewayPort):
                 f"Error {'approving' if approved else 'rejecting'} join request for user {user_id} in channel {channel_id}: {e}"
             )
             return False
+
+    async def invite_user_to_channel(
+        self, channel_id: int, user_id_or_username: str | int, account_id: int | None = None
+    ) -> bool:
+        """Directly invite/add a user to a channel or supergroup via MTProto."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            from telethon.tl.functions.channels import InviteToChannelRequest
+            target = user_id_or_username.strip() if isinstance(user_id_or_username, str) else user_id_or_username
+            user_entity = await client.get_input_entity(target)
+            channel_entity = await client.get_input_entity(channel_id)
+            await client(InviteToChannelRequest(channel=channel_entity, users=[user_entity]))
+            logger.info(f"Successfully invited user {target} directly to channel {channel_id}.")
+            return True
+        except Exception as e:
+            logger.warning(f"Could not directly invite {user_id_or_username} to channel {channel_id}: {e}")
+            raise

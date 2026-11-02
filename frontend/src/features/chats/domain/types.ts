@@ -30,4 +30,6 @@ export interface Chat {
   can_post?: boolean;
   read_inbox_max_id?: number;
   read_outbox_max_id?: number;
+  username?: string;
+  account_id?: number;
 }

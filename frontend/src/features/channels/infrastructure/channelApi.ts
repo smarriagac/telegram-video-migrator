@@ -192,4 +192,31 @@ export const channelApi = {
     }
     return res.json();
   },
+
+  async addMemberToChannel(payload: {
+    channelId: number;
+    userIdOrUsername: string;
+    durationDays?: number;
+    directInvite?: boolean;
+    autoSendDm?: boolean;
+    accountId?: number | null;
+  }): Promise<any> {
+    const res = await fetch("/api/channels/gatekeeper/add_member", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        channel_id: payload.channelId,
+        user_id_or_username: payload.userIdOrUsername,
+        duration_days: payload.durationDays || 30,
+        direct_invite: payload.directInvite || false,
+        auto_send_dm: payload.autoSendDm ?? true,
+        account_id: payload.accountId || null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al agregar miembro al canal.");
+    }
+    return res.json();
+  },
 };

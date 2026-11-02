@@ -154,3 +154,9 @@ class TelegramGatewayPort(ABC):
     ) -> bool:
         """Approve or reject a pending join request for a channel."""
         return False
+
+    async def invite_user_to_channel(
+        self, channel_id: int, user_id_or_username: str | int, account_id: int | None = None
+    ) -> bool:
+        """Directly invite/add a user to a channel or supergroup."""
+        return False
