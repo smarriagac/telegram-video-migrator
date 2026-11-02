@@ -110,10 +110,10 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       : 0);
 
   return (
-    <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-3 sm:p-4 shadow-sm flex flex-col justify-between space-y-4 h-full min-h-0 overflow-y-auto">
-      <div className="space-y-4">
+    <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-2.5 sm:p-3 shadow-sm flex flex-col justify-between space-y-2.5 sm:space-y-3 h-full min-h-0 overflow-y-auto">
+      <div className="space-y-2.5">
         {/* Panel Title */}
-        <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
+        <div className="border-b border-zinc-800 pb-2 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
               Migrar Canal
@@ -136,7 +136,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
         </div>
 
         {/* Form: De -> Para */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Campo "de" */}
           <div className="space-y-1">
             <label className="text-xs font-semibold text-zinc-300 flex items-center justify-between">
@@ -160,7 +160,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveModal("history")}
-                className="w-full mt-1.5 flex items-center justify-between px-2.5 h-8 bg-zinc-950/70 border-white/5 hover:border-cyan-500/30 text-left font-normal transition-all group"
+                className="w-full mt-1 flex items-center justify-between px-2.5 h-7.5 bg-zinc-950/70 border-white/5 hover:border-cyan-500/30 text-left font-normal transition-all group"
                 title="Ver historial de clonaciones y contenido copiado"
               >
                 <div className="flex items-center gap-1.5 text-[11px]">
@@ -186,9 +186,9 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
           </div>
 
           {/* Connector arrow */}
-          <div className="flex justify-center -my-1">
-            <div className="w-6 h-6 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-500 shadow-sm">
-              <ArrowDown className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="flex justify-center -my-0.5">
+            <div className="w-5.5 h-5.5 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-500 shadow-sm">
+              <ArrowDown className="w-3 h-3 text-cyan-400" />
             </div>
           </div>
 
@@ -210,13 +210,13 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
             {/* Direct Local Upload Button */}
             {selectedTargetId && (
-              <div className="space-y-1.5 mt-1.5">
+              <div className="space-y-1 mt-1">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setActiveModal("upload")}
-                  className="w-full flex items-center justify-between px-2.5 h-8 bg-zinc-950/70 border-white/5 hover:border-emerald-500/30 text-left font-normal transition-all group"
+                  className="w-full flex items-center justify-between px-2.5 h-7.5 bg-zinc-950/70 border-white/5 hover:border-emerald-500/30 text-left font-normal transition-all group"
                   title="Subir archivo local directamente a este canal"
                 >
                   <div className="flex items-center gap-1.5 text-[11px]">
@@ -229,7 +229,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 </Button>
 
                 {selectedSourceId && selectedTargetId !== selectedSourceId && (
-                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-950/70 border border-white/5 text-[11px]">
+                  <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-zinc-950/70 border border-white/5 text-[11px]">
                     <div className="flex items-center gap-1.5 truncate">
                       <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isCheckingSync ? "animate-spin text-cyan-400" : syncStatus?.is_in_sync ? "text-emerald-400" : "text-amber-400"}`} />
                       {isCheckingSync ? (
@@ -250,7 +250,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                       size="sm"
                       onClick={() => checkSyncStatus()}
                       disabled={isCheckingSync}
-                      className="h-6 px-1.5 text-[10px] font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 shrink-0 ml-1.5"
+                      className="h-5.5 px-1.5 text-[10px] font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 shrink-0 ml-1.5"
                     >
                       Auditar
                     </Button>
@@ -259,7 +259,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
                 {/* Auto-Sync en Vivo Toggle */}
                 {selectedSourceId && selectedTargetId !== selectedSourceId && (
-                  <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs transition-all">
+                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs transition-all">
                     <div className="flex items-center gap-2 min-w-0">
                       <div
                         className={`w-2 h-2 rounded-full shrink-0 ${
@@ -297,7 +297,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
           </div>
 
           {/* Advanced Pipeline Modules: Caption Rules, Drip Feed & Duplicate Guard */}
-          <div className="pt-2 border-t border-zinc-800/80 space-y-1.5">
+          <div className="pt-1.5 border-t border-zinc-800/80 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 font-semibold">
                 <Sparkles className="w-3 h-3 text-emerald-400" /> Pipeline & Módulos
@@ -317,7 +317,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setActiveModal("caption_rules")}
-                className="flex items-center justify-between px-2.5 h-8 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/60 text-xs text-zinc-300 font-normal w-full"
+                className="flex items-center justify-between px-2.5 h-7.5 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/60 text-xs text-zinc-300 font-normal w-full"
                 title="Configurar limpieza de links, reemplazo de menciones y firmas"
               >
                 <div className="flex items-center gap-1.5 truncate">
@@ -339,7 +339,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 value={String(dripDelaySeconds)}
                 onValueChange={(val) => setDripDelaySeconds(Number(val))}
               >
-                <SelectTrigger className="h-8 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 px-2.5 focus:ring-0 focus:ring-offset-0">
+                <SelectTrigger className="h-7.5 bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 text-xs text-zinc-300 px-2.5 focus:ring-0 focus:ring-offset-0">
                   <SelectValue placeholder="Pacing" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#14161F] border-zinc-800 text-xs">
@@ -438,13 +438,13 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
         )}
 
         {/* Technical Safeguard Note */}
-        <div className="p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800 text-xs text-zinc-400 space-y-1">
+        <div className="p-2 rounded-lg bg-zinc-900/50 border border-zinc-800 text-[11px] text-zinc-400 space-y-0.5">
           {isCrossAccount ? (
             <>
               <div className="flex items-center gap-1.5 text-indigo-400 font-medium font-mono text-xs">
                 🔄 Modo Puente Multi-Cuenta (Streaming)
               </div>
-              <p className="text-[10px] text-zinc-500 leading-normal">
+              <p className="text-[10px] text-zinc-500 leading-tight">
                 Clonación entre distintas cuentas de Telegram (<span className="text-zinc-300 font-medium">{sourceChannel?.account_name || "Cuenta A"}</span> → <span className="text-zinc-300 font-medium">{targetChannel?.account_name || "Cuenta B"}</span>). Streaming temporal sin almacenamiento persistente en disco.
               </p>
             </>
@@ -453,7 +453,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               <div className="flex items-center gap-1.5 text-cyan-400 font-medium">
                 <Tv className="w-3.5 h-3.5" /> ⚡ Modo Directo MTProto (Instantáneo · 0.5s)
               </div>
-              <p className="text-[10px] text-zinc-500 leading-normal">
+              <p className="text-[10px] text-zinc-500 leading-tight">
                 Misma cuenta detectada. Copia pura por referencia MTProto (sin descargar ni subir archivos) con delay de {dripDelaySeconds > 0 ? `${dripDelaySeconds}s` : "1.5–2.0s"} por elemento.
               </p>
               <div className="flex items-center gap-1.5 text-[10px] text-emerald-400/90 pt-0.5 font-mono">

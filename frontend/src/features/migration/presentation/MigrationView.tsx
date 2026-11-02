@@ -40,7 +40,7 @@ export const MigrationView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-hidden">
+    <div className="w-full h-full flex flex-col space-y-2 sm:space-y-2.5 min-h-0 overflow-hidden">
       {/* Top Header */}
       <ViewHeader
         icon={<BrandLogo size="md" />}
@@ -125,7 +125,7 @@ export const MigrationView: React.FC = () => {
       </div>
 
       {/* 2-Panel Split Layout (Fluid side-by-side on >= 768px tablet & desktop; full-view tabbed on < 768px mobile) */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-3.5 items-stretch overflow-hidden">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-2.5 md:gap-3 items-stretch overflow-hidden">
         {/* Column 1: Migration Control Panel (De -> Para + Actions + Progress) */}
         <div
           className={cn(
