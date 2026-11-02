@@ -1,8 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
   CheckSquare,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   FileText,
   Grid,
@@ -167,6 +169,59 @@ export const MessageSelector: React.FC = () => {
       return true;
     });
   }, [sourceMessages, filterState, clonedMsgIds]);
+
+  // Lightbox gallery navigation indices (derived state, 0 extra useState hooks)
+  const previewIndex = useMemo(() => {
+    if (!uiState.previewModalMsg) return -1;
+    return filteredMessages.findIndex((m) => m.id === uiState.previewModalMsg?.id);
+  }, [filteredMessages, uiState.previewModalMsg]);
+
+  const hasPrevPreview = previewIndex > 0;
+  const hasNextPreview = previewIndex >= 0 && previewIndex < filteredMessages.length - 1;
+
+  const handlePrevPreview = useCallback(() => {
+    if (previewIndex > 0) {
+      setUiState((prev) => ({
+        ...prev,
+        previewModalMsg: filteredMessages[previewIndex - 1],
+      }));
+    }
+  }, [previewIndex, filteredMessages]);
+
+  const handleNextPreview = useCallback(() => {
+    if (previewIndex >= 0 && previewIndex < filteredMessages.length - 1) {
+      setUiState((prev) => ({
+        ...prev,
+        previewModalMsg: filteredMessages[previewIndex + 1],
+      }));
+    }
+  }, [previewIndex, filteredMessages]);
+
+  useEffect(() => {
+    if (!uiState.previewModalMsg) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        handlePrevPreview();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNextPreview();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setUiState((prev) => ({ ...prev, previewModalMsg: null }));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [uiState.previewModalMsg, handlePrevPreview, handleNextPreview]);
 
   const countsByType = useMemo(() => {
     const counts = { all: sourceMessages.length, video: 0, photo: 0, document: 0, text: 0 };
@@ -811,87 +866,153 @@ export const MessageSelector: React.FC = () => {
         </div>
       )}
 
-      {/* Lightbox / Details Modal */}
+      {/* Lightbox / Details Gallery Modal */}
       {uiState.previewModalMsg &&
         createPortal(
           <div
-            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
+            className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150 select-none"
             onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
           >
             <div
-              className="bg-card border border-border rounded-md max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5 text-card-foreground"
+              className="bg-card border border-border rounded-lg max-w-2xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden text-card-foreground animate-in zoom-in-95 duration-150"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div className="flex items-center gap-2">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0 bg-muted/20">
+                <div className="flex items-center gap-2.5">
                   <span className="text-sm font-bold text-foreground font-mono">
                     Mensaje #{uiState.previewModalMsg.id}
                   </span>
                   {getTypeBadge(uiState.previewModalMsg.media_type)}
+                  {previewIndex >= 0 && (
+                    <span className="text-xs font-mono text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded border border-border">
+                      {previewIndex + 1} de {filteredMessages.length}
+                    </span>
+                  )}
                 </div>
-                <button
-                  onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
-                  className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/5"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={!hasPrevPreview}
+                    onClick={handlePrevPreview}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    title="Anterior (Flecha Izquierda ←)"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={!hasNextPreview}
+                    onClick={handleNextPreview}
+                    className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                    title="Siguiente (Flecha Derecha →)"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <div className="w-[1px] h-4 bg-border mx-1" />
+                  <button
+                    onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
+                    className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted transition-colors"
+                    title="Cerrar (Esc)"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Previously Cloned Alert */}
-              {clonedMsgIds.has(uiState.previewModalMsg.id) && (
-                <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>
-                    Este mensaje ya fue clonado previamente hacia un canal de destino registrado en el historial.
-                  </span>
-                </div>
-              )}
-
-              {/* Media Preview Box (Full uncropped contain) */}
-              <div className="relative w-full min-h-[280px] max-h-[55vh] rounded-md overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
-                {uiState.previewModalMsg.media_type === "video" ? (
-                  <video
-                    src={`/api/channels/${selectedSourceId}/messages/${uiState.previewModalMsg.id}/video`}
-                    poster={`/api/channels/${selectedSourceId}/messages/${uiState.previewModalMsg.id}/thumbnail`}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="max-h-[55vh] w-auto max-w-full object-contain rounded-lg"
-                  />
-                ) : (
-                  <MessageThumbnailImage
-                    channelId={selectedSourceId}
-                    messageId={uiState.previewModalMsg.id}
-                    mediaType={uiState.previewModalMsg.media_type}
-                    fit="contain"
-                  />
+              {/* Scrollable Body */}
+              <div className="overflow-y-auto p-4 sm:p-5 space-y-4 flex-1 min-h-0">
+                {/* Previously Cloned Alert */}
+                {clonedMsgIds.has(uiState.previewModalMsg.id) && (
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      Este mensaje ya fue clonado previamente hacia un canal de destino registrado en el historial.
+                    </span>
+                  </div>
                 )}
-              </div>
 
-              {/* Caption / Description */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
-                  Texto / Descripción:
-                </span>
-                <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
-                  {uiState.previewModalMsg.text || <span className="text-zinc-600 italic">Este mensaje no contiene texto.</span>}
-                </p>
-              </div>
+                {/* Media Preview Box with floating navigation arrows */}
+                <div className="relative w-full min-h-[300px] max-h-[55vh] rounded-lg overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center group">
+                  {/* Left Floating Arrow */}
+                  {hasPrevPreview && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePrevPreview();
+                      }}
+                      className="absolute left-3 z-30 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 transition-all hover:scale-105 shadow-xl backdrop-blur-sm"
+                      title="Elemento anterior (Flecha Izquierda ←)"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  )}
 
-              {/* Metadata Footer */}
-              <div className="grid grid-cols-2 gap-2 text-xs font-mono text-zinc-400 bg-zinc-950/40 p-2.5 rounded-lg border border-white/5">
-                <div>
-                  <span className="text-zinc-600 block text-[10px]">TAMAÑO ESTIMADO</span>
-                  <span className="text-zinc-200">{formatBytes(uiState.previewModalMsg.file_size) || "N/A"}</span>
+                  {/* Right Floating Arrow */}
+                  {hasNextPreview && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNextPreview();
+                      }}
+                      className="absolute right-3 z-30 p-2 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 transition-all hover:scale-105 shadow-xl backdrop-blur-sm"
+                      title="Siguiente elemento (Flecha Derecha →)"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  )}
+
+                  {uiState.previewModalMsg.media_type === "video" ? (
+                    <video
+                      key={uiState.previewModalMsg.id}
+                      src={`/api/channels/${selectedSourceId}/messages/${uiState.previewModalMsg.id}/video`}
+                      poster={`/api/channels/${selectedSourceId}/messages/${uiState.previewModalMsg.id}/thumbnail`}
+                      controls
+                      autoPlay
+                      playsInline
+                      className="max-h-[55vh] w-auto max-w-full object-contain rounded-md"
+                    />
+                  ) : (
+                    <MessageThumbnailImage
+                      key={uiState.previewModalMsg.id}
+                      channelId={selectedSourceId}
+                      messageId={uiState.previewModalMsg.id}
+                      mediaType={uiState.previewModalMsg.media_type}
+                      fit="contain"
+                    />
+                  )}
                 </div>
-                <div>
-                  <span className="text-zinc-600 block text-[10px]">FECHA ORIGINAL</span>
-                  <span className="text-zinc-200">{uiState.previewModalMsg.date || "N/A"}</span>
+
+                {/* Caption / Description */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                    Texto / Descripción:
+                  </span>
+                  <p className="text-xs text-foreground bg-muted/40 p-3 rounded-lg border border-border whitespace-pre-wrap max-h-32 overflow-y-auto">
+                    {uiState.previewModalMsg.text || <span className="text-muted-foreground italic">Este mensaje no contiene texto.</span>}
+                  </p>
+                </div>
+
+                {/* Metadata Footer */}
+                <div className="grid grid-cols-2 gap-2 text-xs font-mono text-muted-foreground bg-muted/20 p-2.5 rounded-lg border border-border">
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">TAMAÑO ESTIMADO</span>
+                    <span className="text-foreground">{formatBytes(uiState.previewModalMsg.file_size) || "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-500 block text-[10px]">FECHA ORIGINAL</span>
+                    <span className="text-foreground">{uiState.previewModalMsg.date || "N/A"}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Modal Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              {/* Bottom Actions Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-border bg-muted/20 shrink-0">
                 <div className="flex items-center gap-2">
                   <Button
                     variant={selectedMessageIds.includes(uiState.previewModalMsg.id) ? "destructive" : "default"}
@@ -899,13 +1020,20 @@ export const MessageSelector: React.FC = () => {
                     onClick={() => {
                       if (!uiState.previewModalMsg) return;
                       toggleSelectMessage(uiState.previewModalMsg.id);
-                      setUiState((prev) => ({ ...prev, previewModalMsg: null }));
                     }}
-                    className="h-8 text-xs px-4"
+                    className="h-8 text-xs px-3 font-mono gap-1.5"
                   >
-                    {selectedMessageIds.includes(uiState.previewModalMsg.id)
-                      ? "Desmarcar este elemento"
-                      : "Seleccionar para clonar"}
+                    {selectedMessageIds.includes(uiState.previewModalMsg.id) ? (
+                      <>
+                        <CheckSquare className="w-3.5 h-3.5" />
+                        <span>Desmarcar</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square className="w-3.5 h-3.5" />
+                        <span>Seleccionar para clonar</span>
+                      </>
+                    )}
                   </Button>
 
                   {(uiState.previewModalMsg.media_type === "video" || uiState.previewModalMsg.media_type === "photo") && (
@@ -925,14 +1053,44 @@ export const MessageSelector: React.FC = () => {
                   )}
                 </div>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
-                  className="h-8 text-xs text-zinc-400 hover:text-white"
-                >
-                  Cerrar
-                </Button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!hasPrevPreview}
+                      onClick={handlePrevPreview}
+                      className="h-8 text-xs px-2.5 gap-1 font-mono border-border text-foreground hover:bg-muted disabled:opacity-30"
+                      title="Anterior (←)"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Anterior</span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={!hasNextPreview}
+                      onClick={handleNextPreview}
+                      className="h-8 text-xs px-2.5 gap-1 font-mono border-border text-foreground hover:bg-muted disabled:opacity-30"
+                      title="Siguiente (→)"
+                    >
+                      <span className="hidden sm:inline">Siguiente</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUiState((prev) => ({ ...prev, previewModalMsg: null }))}
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Cerrar
+                  </Button>
+                </div>
               </div>
             </div>
           </div>,
