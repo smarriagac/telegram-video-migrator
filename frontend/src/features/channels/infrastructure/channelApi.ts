@@ -17,10 +17,21 @@ export interface VipMembership {
   telegram_username?: string | null;
   invite_link?: string | null;
   status: "INVITED" | "ACTIVE" | "GRACE_PERIOD" | "EXPIRED" | "KICKED" | "CANCELLED";
+  joined_at?: string | null;
   expires_at: string;
   created_at?: string | null;
   dm_sent?: boolean;
   dm_error?: string | null;
+}
+
+export interface JoinRequest {
+  channel_id: number;
+  user_id: number;
+  date?: string | null;
+  first_name: string;
+  last_name: string;
+  username?: string | null;
+  about?: string | null;
 }
 
 const getAuthHeaders = (): HeadersInit => {
@@ -97,6 +108,62 @@ export const channelApi = {
     });
     if (!res.ok) {
       throw new Error("Error al ejecutar desalojo de miembros.");
+    }
+    return res.json();
+  },
+
+  async listJoinRequests(channelId?: number): Promise<JoinRequest[]> {
+    try {
+      const url = channelId
+        ? `/api/channels/gatekeeper/requests?channel_id=${channelId}`
+        : "/api/channels/gatekeeper/requests";
+      const res = await fetch(url, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        return [];
+      }
+      return await res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async approveJoinRequest(
+    channelId: number,
+    userId: number,
+    durationDays: number = 30,
+    username?: string
+  ): Promise<any> {
+    const res = await fetch("/api/channels/gatekeeper/requests/approve", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        channel_id: channelId,
+        user_id: userId,
+        duration_days: durationDays,
+        username: username || null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al aprobar solicitud de ingreso.");
+    }
+    return res.json();
+  },
+
+  async rejectJoinRequest(channelId: number, userId: number): Promise<any> {
+    const res = await fetch("/api/channels/gatekeeper/requests/reject", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        channel_id: channelId,
+        user_id: userId,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al rechazar solicitud.");
     }
     return res.json();
   },

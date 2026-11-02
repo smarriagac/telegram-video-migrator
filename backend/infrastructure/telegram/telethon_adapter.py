@@ -935,20 +935,32 @@ class TelethonAdapter(TelegramGatewayPort):
             return False
 
     async def create_channel_invite_link(
-        self, channel_id: int, expire_date: int | None = None, member_limit: int = 1, account_id: int | None = None
+        self,
+        channel_id: int,
+        expire_date: int | None = None,
+        member_limit: int = 1,
+        request_needed: bool = False,
+        title: str | None = None,
+        account_id: int | None = None,
     ) -> str:
-        """Create a single-use or expiring invite link for a channel."""
+        """Create a single-use or approval-required invite link for a channel."""
         client = self._get_client(account_id)
         await self._ensure_connected(client)
         try:
             from telethon.tl.functions.messages import ExportChatInviteRequest
-            res = await client(
-                ExportChatInviteRequest(
-                    peer=channel_id,
-                    expire_date=expire_date,
-                    usage_limit=member_limit,
-                )
-            )
+            kwargs: dict[str, Any] = {"peer": channel_id}
+            if request_needed:
+                kwargs["request_needed"] = True
+                if title:
+                    kwargs["title"] = title
+            else:
+                kwargs["usage_limit"] = member_limit
+                if expire_date:
+                    kwargs["expire_date"] = expire_date
+                if title:
+                    kwargs["title"] = title
+
+            res = await client(ExportChatInviteRequest(**kwargs))
             return getattr(res, "link", "")
         except FloodWaitError as e:
             raise FloodWaitDomainException(seconds=e.seconds) from e
@@ -972,4 +984,68 @@ class TelethonAdapter(TelegramGatewayPort):
             raise FloodWaitDomainException(seconds=e.seconds) from e
         except Exception as e:
             logger.warning(f"Failed to send direct message to {recipient}: {e}")
+            return False
+
+    async def get_join_requests(
+        self, channel_id: int, account_id: int | None = None
+    ) -> list[dict]:
+        """Fetch pending join requests for a channel via MTProto."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            from telethon.tl.functions.messages import GetChatInviteImportersRequest
+            from telethon.tl.types import InputUserEmpty
+
+            res = await client(
+                GetChatInviteImportersRequest(
+                    peer=channel_id,
+                    offset_date=None,
+                    offset_user=InputUserEmpty(),
+                    limit=50,
+                    requested=True,
+                )
+            )
+
+            user_map = {u.id: u for u in getattr(res, "users", [])}
+            requests: list[dict] = []
+            for imp in getattr(res, "importers", []):
+                u = user_map.get(imp.user_id)
+                requests.append({
+                    "channel_id": channel_id,
+                    "user_id": imp.user_id,
+                    "date": imp.date.isoformat() if imp.date else None,
+                    "about": getattr(imp, "about", None),
+                    "first_name": getattr(u, "first_name", "") if u else "",
+                    "last_name": getattr(u, "last_name", "") if u else "",
+                    "username": getattr(u, "username", None) if u else None,
+                })
+            return requests
+        except Exception as e:
+            logger.warning(f"Error fetching join requests for channel {channel_id}: {e}")
+            return []
+
+    async def hide_join_request(
+        self, channel_id: int, user_id: int, approved: bool = True, account_id: int | None = None
+    ) -> bool:
+        """Approve or reject a pending join request via MTProto."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            from telethon.tl.functions.messages import HideChatJoinRequestRequest
+
+            await client(
+                HideChatJoinRequestRequest(
+                    peer=channel_id,
+                    user_id=user_id,
+                    approved=approved,
+                )
+            )
+            logger.info(
+                f"Join request for user {user_id} in channel {channel_id} successfully {'approved' if approved else 'rejected'}."
+            )
+            return True
+        except Exception as e:
+            logger.error(
+                f"Error {'approving' if approved else 'rejecting'} join request for user {user_id} in channel {channel_id}: {e}"
+            )
             return False

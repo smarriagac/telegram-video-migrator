@@ -129,3 +129,29 @@ async def test_gateway_send_direct_message_signature():
         recipient="@Smpyt",
         text="Tu enlace VIP: https://t.me/+AbCdEfGhIjK",
     )
+
+
+@pytest.mark.asyncio
+async def test_gateway_get_and_hide_join_request():
+    mock_gateway = MagicMock()
+    mock_gateway.get_join_requests = AsyncMock(
+        return_value=[
+            {
+                "channel_id": -1004337257363,
+                "user_id": 123456,
+                "first_name": "Test",
+                "last_name": "User",
+                "username": "testuser",
+                "date": "2026-11-02T13:00:00Z",
+            }
+        ]
+    )
+    mock_gateway.hide_join_request = AsyncMock(return_value=True)
+
+    requests = await mock_gateway.get_join_requests(-1004337257363)
+    assert len(requests) == 1
+    assert requests[0]["user_id"] == 123456
+
+    approved = await mock_gateway.hide_join_request(-1004337257363, 123456, approved=True)
+    assert approved is True
+    mock_gateway.hide_join_request.assert_awaited_once_with(-1004337257363, 123456, approved=True)

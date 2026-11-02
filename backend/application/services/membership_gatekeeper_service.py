@@ -22,8 +22,10 @@ class MembershipGatekeeperService:
         channel_id: int,
         duration_days: int = 30,
         account_id: int | None = None,
+        request_needed: bool = True,
+        title: str | None = None,
     ) -> ChannelMembership:
-        """Create a single-use expiring invite link and record pending channel membership pass."""
+        """Create a single-use expiring or approval-required invite link and record pending channel membership pass."""
         now = datetime.now(timezone.utc)
         expires_at = (now + timedelta(days=duration_days)).isoformat()
 
@@ -33,6 +35,8 @@ class MembershipGatekeeperService:
             channel_id=channel_id,
             expire_date=unix_expire,
             member_limit=1,
+            request_needed=request_needed,
+            title=title,
             account_id=account_id,
         )
 

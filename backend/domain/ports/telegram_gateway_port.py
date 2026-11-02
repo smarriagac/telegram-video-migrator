@@ -126,13 +126,31 @@ class TelegramGatewayPort(ABC):
         return False
 
     async def create_channel_invite_link(
-        self, channel_id: int, expire_date: int | None = None, member_limit: int = 1, account_id: int | None = None
+        self,
+        channel_id: int,
+        expire_date: int | None = None,
+        member_limit: int = 1,
+        request_needed: bool = False,
+        title: str | None = None,
+        account_id: int | None = None,
     ) -> str:
-        """Create a single-use or expiring invite link for a channel."""
+        """Create a single-use, expiring, or approval-required invite link for a channel."""
         return ""
 
     async def send_direct_message(
         self, recipient: str | int, text: str, account_id: int | None = None
     ) -> bool:
         """Send a direct private message to a Telegram user or username."""
+        return False
+
+    async def get_join_requests(
+        self, channel_id: int, account_id: int | None = None
+    ) -> list[dict]:
+        """Fetch pending chat join requests requiring admin approval."""
+        return []
+
+    async def hide_join_request(
+        self, channel_id: int, user_id: int, approved: bool = True, account_id: int | None = None
+    ) -> bool:
+        """Approve or reject a pending join request for a channel."""
         return False

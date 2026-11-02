@@ -15,6 +15,9 @@ import {
   Copy,
   Check,
   AlertCircle,
+  UserCheck,
+  Inbox,
+  XCircle,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { ViewHeader } from "@/shared/components/ViewHeader";
@@ -51,11 +54,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { channelApi, ManagedChannel, VipMembership } from "../infrastructure/channelApi";
+import {
+  channelApi,
+  ManagedChannel,
+  VipMembership,
+  JoinRequest,
+} from "../infrastructure/channelApi";
 
 interface ViewState {
   channels: ManagedChannel[];
   members: VipMembership[];
+  requests: JoinRequest[];
   loading: boolean;
   searchQuery: string;
   modalOpen: boolean;
@@ -73,10 +82,12 @@ interface ViewState {
 
 export const ChannelManagementView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Exactly 2 useState hooks
-  const [filterCategory, setFilterCategory] = useState<string>("ALL");
+  // Default to "ADMIN" so the user immediately sees only their owned channels
+  const [filterCategory, setFilterCategory] = useState<string>("ADMIN");
   const [state, setState] = useState<ViewState>({
     channels: [],
     members: [],
+    requests: [],
     loading: true,
     searchQuery: "",
     modalOpen: false,
@@ -97,19 +108,24 @@ export const ChannelManagementView: React.FC = () => {
   const loadData = async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const [channelsRes, membersRes] = await Promise.allSettled([
+      const [channelsRes, membersRes, requestsRes] = await Promise.allSettled([
         channelApi.listManagedChannels(),
         channelApi.listVipMembers(),
+        channelApi.listJoinRequests(),
       ]);
 
       const channelsData = channelsRes.status === "fulfilled" ? channelsRes.value : [];
       const membersData = membersRes.status === "fulfilled" ? membersRes.value : [];
+      const requestsData = requestsRes.status === "fulfilled" ? requestsRes.value : [];
+
+      const adminChannels = channelsData.filter((c) => c.can_post);
 
       setState((s) => ({
         ...s,
         channels: channelsData,
         members: membersData,
-        modalChannelId: channelsData[0]?.id || 0,
+        requests: requestsData,
+        modalChannelId: adminChannels[0]?.id || channelsData[0]?.id || 0,
         loading: false,
       }));
     } catch {
@@ -149,8 +165,45 @@ export const ChannelManagementView: React.FC = () => {
     }
   };
 
+  const handleApproveRequest = async (req: JoinRequest, durationDays: number = 30) => {
+    setState((s) => ({ ...s, isSubmitting: true }));
+    try {
+      await channelApi.approveJoinRequest(
+        req.channel_id,
+        req.user_id,
+        durationDays,
+        req.username || undefined
+      );
+      alert(
+        `¡Solicitud aprobada! ${req.first_name} ingresó al canal. El temporizador de ${durationDays} días comenzó a correr desde este instante.`
+      );
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Error al aprobar la solicitud de ingreso.");
+    } finally {
+      setState((s) => ({ ...s, isSubmitting: false }));
+    }
+  };
+
+  const handleRejectRequest = async (req: JoinRequest) => {
+    if (!window.confirm(`¿Rechazar la solicitud de ingreso de ${req.first_name}?`)) return;
+    setState((s) => ({ ...s, isSubmitting: true }));
+    try {
+      await channelApi.rejectJoinRequest(req.channel_id, req.user_id);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Error al rechazar solicitud.");
+    } finally {
+      setState((s) => ({ ...s, isSubmitting: false }));
+    }
+  };
+
   const handleEvictExpired = async () => {
-    if (!window.confirm("¿Deseas ejecutar el desalojo (Auto-Kick) de miembros VIP con membresía vencida?")) {
+    if (
+      !window.confirm(
+        "¿Deseas ejecutar el desalojo (Auto-Kick) de miembros VIP con membresía vencida?"
+      )
+    ) {
       return;
     }
     setState((s) => ({ ...s, isSubmitting: true }));
@@ -174,9 +227,11 @@ export const ChannelManagementView: React.FC = () => {
   };
 
   // KPIs
-  const totalChannels = state.channels.length;
-  const adminChannels = state.channels.filter((c) => c.can_post).length;
-  const activeVipCount = state.members.filter((m) => m.status === "ACTIVE" || m.status === "INVITED").length;
+  const adminChannels = state.channels.filter((c) => c.can_post);
+  const pendingRequestsCount = state.requests.length;
+  const activeVipCount = state.members.filter(
+    (m) => m.status === "ACTIVE" || m.status === "INVITED"
+  ).length;
   const expiredVipCount = state.members.filter((m) => m.status === "EXPIRED").length;
 
   // Filtered Channels
@@ -204,20 +259,32 @@ export const ChannelManagementView: React.FC = () => {
     );
   });
 
+  // Filtered Requests
+  const filteredRequests = state.requests.filter((r) => {
+    if (!state.searchQuery.trim()) return true;
+    const q = state.searchQuery.toLowerCase();
+    return (
+      r.first_name.toLowerCase().includes(q) ||
+      (r.username && r.username.toLowerCase().includes(q)) ||
+      r.user_id.toString().includes(q) ||
+      r.channel_id.toString().includes(q)
+    );
+  });
+
   return (
     <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* View Header with project design system */}
       <ViewHeader
         icon={<Tv className="w-4 h-4" />}
         iconBoxColor="cyan"
-        title="Administrador de Canales"
-        subtitle="Supervisión centralizada de canales de Telegram, control de permisos MTProto y automatización de membresías VIP con Gatekeeper."
+        title="Orquestador de Canales y Gatekeeper VIP"
+        subtitle="Control estricto de canales propios, aprobación manual de solicitudes de ingreso y auditoría de expiración."
         badge={
           <Badge
             variant="outline"
             className="text-[10px] font-mono bg-cyan-500/15 text-cyan-500 dark:text-cyan-400 border-cyan-500/30"
           >
-            MTProto Pool ({totalChannels} canales)
+            {adminChannels.length} Canales Propios Administrados
           </Badge>
         }
       >
@@ -228,10 +295,10 @@ export const ChannelManagementView: React.FC = () => {
             onClick={loadData}
             disabled={state.loading}
             className="h-8 border-border bg-card/60 hover:bg-muted text-foreground text-xs flex items-center gap-1.5"
-            title="Recargar datos de canales"
+            title="Recargar datos de canales y solicitudes"
           >
             <RefreshCw className={cn("w-3.5 h-3.5", state.loading && "animate-spin text-primary")} />
-            Recargar Canales
+            Recargar
           </Button>
           <Button
             variant="outline"
@@ -258,7 +325,7 @@ export const ChannelManagementView: React.FC = () => {
             }
             className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs flex items-center shadow-sm gap-1.5"
           >
-            <Key className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5" />
             Crear Pase VIP
           </Button>
         </div>
@@ -276,33 +343,55 @@ export const ChannelManagementView: React.FC = () => {
         <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
             <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
-              Total Canales MTProto
+              Canales Propios
             </CardTitle>
             <Tv className="w-3.5 h-3.5 text-primary shrink-0" />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-foreground">
-              {totalChannels}
+            <div className="text-base sm:text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+              {adminChannels.length}
             </div>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-              Detectados en sesión activa
+              Con permisos de administración
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-border bg-card shadow-sm">
+        <Card
+          className={cn(
+            "border-border bg-card shadow-sm transition-colors cursor-pointer",
+            pendingRequestsCount > 0 && "border-amber-500/40 bg-amber-500/5"
+          )}
+          onClick={() => setFilterCategory("REQUESTS")}
+        >
           <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
             <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
-              Con Permiso de Admin
+              Solicitudes por Aprobar
             </CardTitle>
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 shrink-0" />
+            <Inbox
+              className={cn(
+                "w-3.5 h-3.5 shrink-0",
+                pendingRequestsCount > 0
+                  ? "text-amber-500 animate-bounce"
+                  : "text-muted-foreground"
+              )}
+            />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-              {adminChannels}
+            <div
+              className={cn(
+                "text-base sm:text-xl font-bold font-mono",
+                pendingRequestsCount > 0
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-foreground"
+              )}
+            >
+              {pendingRequestsCount}
             </div>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-              Capacidad de publicación directa
+              {pendingRequestsCount > 0
+                ? "Click para revisar y admitir"
+                : "Sin solicitudes pendientes"}
             </p>
           </CardContent>
         </Card>
@@ -319,7 +408,7 @@ export const ChannelManagementView: React.FC = () => {
               {activeVipCount}
             </div>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-              Membresías temporales vigentes
+              Membresías vigentes
             </p>
           </CardContent>
         </Card>
@@ -329,14 +418,14 @@ export const ChannelManagementView: React.FC = () => {
             <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
               Vencidos / Auto-Kick
             </CardTitle>
-            <Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+            <Clock className="w-3.5 h-3.5 text-destructive shrink-0" />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-amber-600 dark:text-amber-400">
+            <div className="text-base sm:text-xl font-bold font-mono text-destructive">
               {expiredVipCount}
             </div>
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
-              Candidatos para expulsión
+              Listos para expulsión
             </p>
           </CardContent>
         </Card>
@@ -347,10 +436,14 @@ export const ChannelManagementView: React.FC = () => {
         {/* Category Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
           {[
-            { id: "ALL", label: `Todos (${totalChannels})` },
-            { id: "ADMIN", label: `Admin (${adminChannels})` },
-            { id: "READONLY", label: `Solo Lectura (${totalChannels - adminChannels})` },
+            { id: "ADMIN", label: `Mis Canales Propios (${adminChannels.length})` },
+            {
+              id: "REQUESTS",
+              label: `Solicitudes de Ingreso (${pendingRequestsCount})`,
+              badgeColor: pendingRequestsCount > 0 ? "bg-amber-500 text-black" : undefined,
+            },
             { id: "VIP", label: `Membresías VIP (${state.members.length})` },
+            { id: "ALL", label: `Todos en Sesión (${state.channels.length})` },
           ].map((cat) => (
             <Button
               key={cat.id}
@@ -358,13 +451,13 @@ export const ChannelManagementView: React.FC = () => {
               size="sm"
               onClick={() => setFilterCategory(cat.id)}
               className={cn(
-                "h-7 text-xs px-2.5 rounded-md transition-colors",
+                "h-7 text-xs px-2.5 rounded-md transition-colors gap-1.5",
                 filterCategory === cat.id
                   ? "bg-primary text-primary-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              {cat.label}
+              <span>{cat.label}</span>
             </Button>
           ))}
         </div>
@@ -375,9 +468,11 @@ export const ChannelManagementView: React.FC = () => {
           <Input
             type="text"
             placeholder={
-              filterCategory === "VIP"
-                ? "Buscar por username o ID de canal..."
-                : "Buscar por título, @username o ID..."
+              filterCategory === "REQUESTS"
+                ? "Buscar por nombre, @user o ID..."
+                : filterCategory === "VIP"
+                ? "Buscar por username o ID..."
+                : "Buscar por título o @username..."
             }
             value={state.searchQuery}
             onChange={(e) => setState((s) => ({ ...s, searchQuery: e.target.value }))}
@@ -391,33 +486,46 @@ export const ChannelManagementView: React.FC = () => {
         <CardHeader className="p-3 pb-2 border-b border-border flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-sm font-semibold text-foreground">
-              {filterCategory === "VIP"
-                ? "Membresías VIP y Registros Gatekeeper"
-                : "Listado de Canales y Permisos de Administración"}
+              {filterCategory === "REQUESTS"
+                ? "Solicitudes de Unión Pendientes de Aprobación"
+                : filterCategory === "VIP"
+                ? "Membresías VIP y Control de Expiración"
+                : filterCategory === "ADMIN"
+                ? "Canales Propios con Permisos de Administración"
+                : "Todos los Diálogos de Telegram"}
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              {filterCategory === "VIP"
-                ? "Gestión de accesos con expiración y expulsión programada mediante MTProto."
-                : "Canales vinculados a tu cuenta MTProto con estado de publicación y acciones rápidas."}
+              {filterCategory === "REQUESTS"
+                ? "Los usuarios que usaron el enlace VIP esperan tu aprobación para ingresar al canal y activar su período de tiempo."
+                : filterCategory === "VIP"
+                ? "Auditoría en vivo de cuándo se unió cada miembro, su fecha límite y estado de permanencia."
+                : filterCategory === "ADMIN"
+                ? "Canales donde la cuenta del sistema es administradora y puede orquestar pases VIP, invitar y expulsar."
+                : "Canales y grupos detectados en la sesión de MTProto."}
             </CardDescription>
           </div>
           <Badge variant="outline" className="text-xs font-mono">
-            {filterCategory === "VIP"
+            {filterCategory === "REQUESTS"
+              ? `${filteredRequests.length} solicitudes`
+              : filterCategory === "VIP"
               ? `${filteredMembers.length} miembros`
               : `${filteredChannels.length} canales`}
           </Badge>
         </CardHeader>
 
         <CardContent className="p-0 flex-1 overflow-auto">
-          {filterCategory === "VIP" ? (
+          {filterCategory === "REQUESTS" ? (
+            /* TAB: PENDING JOIN REQUESTS */
             <Table>
               <TableHeader className="bg-muted/40 sticky top-0 z-10">
                 <TableRow className="border-b border-border">
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal Destino</TableHead>
-                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Usuario VIP</TableHead>
-                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Enlace de Invitación Efímero</TableHead>
-                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado Gatekeeper</TableHead>
-                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Expiración</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Usuario Solicitante</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Solicitud</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Duración a Conceder</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase text-right">
+                    Decisión del Admin
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -425,13 +533,108 @@ export const ChannelManagementView: React.FC = () => {
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs font-mono">
                       <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
+                      Consultando solicitudes en Telegram MTProto...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredRequests.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">
+                      No hay solicitudes de unión pendientes en este momento. Cuando un usuario use el enlace VIP, aparecerá acá para que lo apruebes.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRequests.map((req) => {
+                    const channel = state.channels.find((c) => c.id === req.channel_id);
+                    return (
+                      <TableRow
+                        key={`${req.channel_id}-${req.user_id}`}
+                        className="hover:bg-muted/40 transition-colors border-b border-border/50"
+                      >
+                        <TableCell className="py-2.5 px-4 font-mono text-xs font-semibold text-foreground">
+                          {channel?.title || `Canal ${req.channel_id}`}
+                        </TableCell>
+                        <TableCell className="py-2.5 px-4">
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-foreground text-xs">
+                              {req.first_name} {req.last_name}
+                            </span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {req.username ? (
+                                <span className="text-primary font-mono text-[11px]">
+                                  @{req.username}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-[10px]">Sin @alias</span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                [UID: {req.user_id}]
+                              </span>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2.5 px-4 text-xs font-mono text-muted-foreground">
+                          {req.date ? new Date(req.date).toLocaleString() : "Reciente"}
+                        </TableCell>
+                        <TableCell className="py-2.5 px-4">
+                          <Badge variant="outline" className="bg-secondary text-[11px] font-mono">
+                            30 Días (Mensual)
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="py-2.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRejectRequest(req)}
+                              disabled={state.isSubmitting}
+                              className="h-7 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Rechazar
+                            </Button>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleApproveRequest(req, 30)}
+                              disabled={state.isSubmitting}
+                              className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1 font-semibold"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              Aprobar y Activar
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          ) : filterCategory === "VIP" ? (
+            /* TAB: VIP MEMBERS WITH JOINED_AT & EXPIRES_AT */
+            <Table>
+              <TableHeader className="bg-muted/40 sticky top-0 z-10">
+                <TableRow className="border-b border-border">
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal Destino</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Usuario VIP</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Enlace de Acceso</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Ingreso</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Expiración</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {state.loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs font-mono">
+                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
                       Cargando registros Gatekeeper...
                     </TableCell>
                   </TableRow>
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">
-                      No hay miembros VIP registrados aún en el Gatekeeper. Creá un enlace con el botón superior "+ Crear Pase VIP".
+                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">
+                      No hay miembros VIP registrados en el Gatekeeper. Creá un enlace con el botón "+ Crear Pase VIP".
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -458,7 +661,7 @@ export const ChannelManagementView: React.FC = () => {
                             <Input
                               readOnly
                               value={member.invite_link}
-                              className="h-7 text-[11px] font-mono select-all bg-secondary/80 w-48"
+                              className="h-7 text-[11px] font-mono select-all bg-secondary/80 w-44"
                             />
                             <Button
                               variant="outline"
@@ -488,7 +691,7 @@ export const ChannelManagementView: React.FC = () => {
                             variant="outline"
                             className="bg-primary/10 text-primary border-primary/30 text-[10px]"
                           >
-                            Invitación Emitida
+                            Invitado (Por aprobar)
                           </Badge>
                         )}
                         {member.status === "EXPIRED" && (
@@ -508,6 +711,17 @@ export const ChannelManagementView: React.FC = () => {
                           </Badge>
                         )}
                       </TableCell>
+                      <TableCell className="py-2.5 px-4 text-xs font-mono">
+                        {member.joined_at ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                            {new Date(member.joined_at).toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground italic text-[11px]">
+                            Esperando ingreso...
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="py-2.5 px-4 text-muted-foreground font-mono text-[11px]">
                         {member.expires_at ? new Date(member.expires_at).toLocaleString() : "—"}
                       </TableCell>
@@ -517,6 +731,7 @@ export const ChannelManagementView: React.FC = () => {
               </TableBody>
             </Table>
           ) : (
+            /* TAB: CHANNELS (DEFAULT: ADMIN CHANNELS ONLY) */
             <Table>
               <TableHeader className="bg-muted/40 sticky top-0 z-10">
                 <TableRow className="border-b border-border">
@@ -524,7 +739,7 @@ export const ChannelManagementView: React.FC = () => {
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Cuenta MTProto</TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Permisos de Publicación</TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado</TableHead>
-                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase text-right">Acciones Rápidas</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase text-right">Acciones Directas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -614,25 +829,27 @@ export const ChannelManagementView: React.FC = () => {
                             <ArrowRightLeft className="w-3.5 h-3.5 text-primary" />
                             <span className="hidden sm:inline">Clonar</span>
                           </Button>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() =>
-                              setState((s) => ({
-                                ...s,
-                                modalOpen: true,
-                                modalChannelId: channel.id,
-                                generatedLink: null,
-                                lastDmSent: null,
-                                lastDmError: null,
-                                modalUsername: "",
-                              }))
-                            }
-                            className="h-7 px-2 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
-                          >
-                            <Key className="w-3 h-3" />
-                            <span>Pase VIP</span>
-                          </Button>
+                          {channel.can_post && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() =>
+                                setState((s) => ({
+                                  ...s,
+                                  modalOpen: true,
+                                  modalChannelId: channel.id,
+                                  generatedLink: null,
+                                  lastDmSent: null,
+                                  lastDmError: null,
+                                  modalUsername: "",
+                                }))
+                              }
+                              className="h-7 px-2 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                            >
+                              <Key className="w-3 h-3" />
+                              <span>Pase VIP</span>
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -648,7 +865,11 @@ export const ChannelManagementView: React.FC = () => {
       <Dialog
         open={state.modalOpen}
         onOpenChange={(open) =>
-          setState((s) => ({ ...s, modalOpen: open, generatedLink: open ? s.generatedLink : null }))
+          setState((s) => ({
+            ...s,
+            modalOpen: open,
+            generatedLink: open ? s.generatedLink : null,
+          }))
         }
       >
         <DialogContent className="sm:max-w-md">
@@ -658,22 +879,24 @@ export const ChannelManagementView: React.FC = () => {
               Crear Pase de Acceso VIP
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Generá un enlace de invitación efímero con expiración automática mediante el Gatekeeper MTProto.
+              Generá un enlace que requiere solicitud de unión. Cuando el usuario lo pulse, vos aprobarás su ingreso y el tiempo comenzará a correr.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3.5 py-2 text-xs">
             <div className="space-y-1.5">
-              <label className="font-semibold text-foreground block">Canal Destino</label>
+              <label className="font-semibold text-foreground block">
+                Canal Propio Destino (Solo Administrados)
+              </label>
               <Select
                 value={String(state.modalChannelId)}
                 onValueChange={(val) => setState((s) => ({ ...s, modalChannelId: Number(val) }))}
               >
                 <SelectTrigger className="w-full h-8 text-xs">
-                  <SelectValue placeholder="Seleccionar canal" />
+                  <SelectValue placeholder="Seleccionar canal propio" />
                 </SelectTrigger>
                 <SelectContent>
-                  {state.channels.map((c) => (
+                  {adminChannels.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.title} {c.username ? `(@${c.username})` : `(${c.id})`}
                     </SelectItem>
@@ -729,7 +952,7 @@ export const ChannelManagementView: React.FC = () => {
               <div className="bg-primary/10 border border-primary/30 rounded-md p-3 space-y-2 mt-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-primary block">
-                    ¡Enlace Único Generado!
+                    ¡Enlace Único Generado con Aprobación Previa!
                   </span>
                   {state.modalAutoSendDm && state.modalUsername && (
                     state.lastDmSent ? (
@@ -773,7 +996,7 @@ export const ChannelManagementView: React.FC = () => {
                   </p>
                 ) : (
                   <p className="text-[10px] text-muted-foreground">
-                    Este enlace expira automáticamente en Telegram y admite un solo ingreso.
+                    Este enlace activa una solicitud de unión. Cuando el usuario lo use, te llegará la solicitud a la pestaña "Solicitudes de Ingreso" para aprobarlo.
                   </p>
                 )}
               </div>

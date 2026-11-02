@@ -61,11 +61,14 @@ class ChannelMessageItemResponse(BaseModel):
 async def list_channels(
     limit: int = 100,
     account_id: int | None = Query(None),
+    admin_only: bool = Query(False),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
 ) -> list[ChannelResponse]:
     """Retrieve list of managed Telegram channels across all or a specific account."""
     try:
         channels = await gateway.get_managed_channels(limit=limit, account_id=account_id)
+        if admin_only:
+            channels = [c for c in channels if c.can_post]
         return [
             ChannelResponse(
                 id=c.id,
@@ -667,10 +670,33 @@ class ChannelMembershipResponse(BaseModel):
     telegram_username: str | None = None
     invite_link: str | None = None
     status: str
+    joined_at: str | None = None
     expires_at: str
     created_at: str | None = None
     dm_sent: bool = False
     dm_error: str | None = None
+
+
+class JoinRequestResponse(BaseModel):
+    channel_id: int
+    user_id: int
+    date: str | None = None
+    first_name: str = ""
+    last_name: str = ""
+    username: str | None = None
+    about: str | None = None
+
+
+class ApproveJoinRequestPayload(BaseModel):
+    channel_id: int
+    user_id: int
+    duration_days: int = 30
+    username: str | None = None
+
+
+class RejectJoinRequestPayload(BaseModel):
+    channel_id: int
+    user_id: int
 
 
 @router.post("/gatekeeper/invite", response_model=ChannelMembershipResponse)
@@ -689,6 +715,8 @@ async def create_vip_invite_pass(
         channel_id=req.channel_id,
         duration_days=req.duration_days,
         account_id=req.account_id,
+        request_needed=True,
+        title=f"VIP - {req.telegram_username or 'Pass'}",
     )
     membership.telegram_username = req.telegram_username
 
@@ -768,7 +796,7 @@ async def list_channel_memberships(
             async with pg_repo.pool.acquire() as conn:
                 query = """
                     SELECT id, tenant_id, channel_id, telegram_user_id, telegram_username,
-                           invite_link, status, expires_at, created_at
+                           invite_link, status, joined_at, expires_at, created_at
                     FROM channel_memberships
                     WHERE tenant_id = $1::uuid
                 """
@@ -788,6 +816,7 @@ async def list_channel_memberships(
                         telegram_username=r["telegram_username"],
                         invite_link=r["invite_link"],
                         status=r["status"],
+                        joined_at=str(r["joined_at"]) if r["joined_at"] else None,
                         expires_at=str(r["expires_at"]),
                         created_at=str(r["created_at"]) if r["created_at"] else None,
                     )
@@ -797,6 +826,124 @@ async def list_channel_memberships(
         logger.warning(f"Failed to fetch memberships from postgres: {ex}")
 
     return []
+
+
+@router.get("/gatekeeper/requests", response_model=list[JoinRequestResponse])
+async def list_join_requests(
+    channel_id: int | None = None,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> list[JoinRequestResponse]:
+    """Fetch pending join requests for owned channels requiring admin approval."""
+    target_channels: list[int] = []
+    if channel_id:
+        target_channels.append(channel_id)
+    else:
+        channels = await gateway.get_managed_channels(limit=50)
+        for c in channels:
+            if c.can_post:
+                target_channels.append(c.id)
+
+    results: list[JoinRequestResponse] = []
+    for cid in target_channels:
+        reqs = await gateway.get_join_requests(cid)
+        for r in reqs:
+            results.append(JoinRequestResponse(**r))
+    return results
+
+
+@router.post("/gatekeeper/requests/approve")
+async def approve_join_request(
+    payload: ApproveJoinRequestPayload,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> dict:
+    """Approve a pending join request, activate membership, and record joined_at timestamp."""
+    success = await gateway.hide_join_request(
+        channel_id=payload.channel_id,
+        user_id=payload.user_id,
+        approved=True,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Error al aprobar la solicitud en Telegram MTProto.",
+        )
+
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=payload.duration_days)
+
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                updated = await conn.execute(
+                    """
+                    UPDATE channel_memberships
+                    SET telegram_user_id = $1,
+                        telegram_username = COALESCE($2, telegram_username),
+                        status = 'ACTIVE',
+                        joined_at = $3,
+                        expires_at = $4,
+                        updated_at = $3
+                    WHERE tenant_id = $5::uuid
+                      AND channel_id = $6
+                      AND (telegram_user_id = $1 OR telegram_username = $2 OR status = 'INVITED')
+                    """,
+                    payload.user_id,
+                    payload.username,
+                    now,
+                    expires_at,
+                    tenant_id,
+                    payload.channel_id,
+                )
+                if updated == "UPDATE 0":
+                    await conn.execute(
+                        """
+                        INSERT INTO channel_memberships (
+                            id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                            status, joined_at, expires_at, created_at, updated_at
+                        )
+                        VALUES (
+                            gen_random_uuid(), $1::uuid, $2, $3, $4,
+                            'ACTIVE', $5, $6, $5, $5
+                        )
+                        """,
+                        tenant_id,
+                        payload.channel_id,
+                        payload.user_id,
+                        payload.username,
+                        now,
+                        expires_at,
+                    )
+    except Exception as ex:
+        logger.warning(f"Error persisting approved membership: {ex}")
+
+    return {
+        "success": True,
+        "channel_id": payload.channel_id,
+        "user_id": payload.user_id,
+        "joined_at": now.isoformat(),
+        "expires_at": expires_at.isoformat(),
+        "status": "ACTIVE",
+    }
+
+
+@router.post("/gatekeeper/requests/reject")
+async def reject_join_request(
+    payload: RejectJoinRequestPayload,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict:
+    """Reject/dismiss a pending join request."""
+    success = await gateway.hide_join_request(
+        channel_id=payload.channel_id,
+        user_id=payload.user_id,
+        approved=False,
+    )
+    return {"success": success, "channel_id": payload.channel_id, "user_id": payload.user_id}
 
 
 @router.post("/gatekeeper/evict")
