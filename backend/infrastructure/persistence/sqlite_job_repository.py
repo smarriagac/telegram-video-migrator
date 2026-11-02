@@ -235,6 +235,45 @@ class SQLiteJobRepository(JobRepositoryPort):
             )
             await conn.commit()
 
+    def _map_row_to_job(self, row: Any) -> MigrationJob:
+        parsed_rules = None
+        if len(row) > 14 and row[14]:
+            try:
+                parsed_rules = json.loads(row[14]) if isinstance(row[14], str) else row[14]
+            except Exception:
+                parsed_rules = None
+
+        drip_sec = 0
+        if len(row) > 15 and row[15] is not None:
+            drip_sec = int(row[15])
+
+        parsed_filter = None
+        if len(row) > 16 and row[16]:
+            try:
+                parsed_filter = json.loads(row[16]) if isinstance(row[16], str) else row[16]
+            except Exception:
+                parsed_filter = None
+
+        return MigrationJob(
+            job_id=str(row[0]),
+            source_id=int(row[1]),
+            target_id=int(row[2]),
+            status=JobStatus(row[3]),
+            total_videos=int(row[4]),
+            processed_videos=int(row[5]),
+            last_processed_id=int(row[6]) if row[6] is not None else None,
+            created_at=str(row[7]) if row[7] is not None else None,
+            updated_at=str(row[8]) if row[8] is not None else None,
+            is_full_migration=bool(row[9]) if row[9] is not None else True,
+            source_title=str(row[10]) if row[10] is not None else None,
+            target_title=str(row[11]) if row[11] is not None else None,
+            source_account_id=int(row[12]) if row[12] is not None else None,
+            target_account_id=int(row[13]) if row[13] is not None else None,
+            caption_rules=parsed_rules,
+            drip_delay_seconds=drip_sec,
+            media_filter_rules=parsed_filter,
+        )
+
     async def get_job(self, job_id: str) -> MigrationJob | None:
         await self._ensure_initialized()
         async with self._get_connection() as conn:
@@ -252,44 +291,85 @@ class SQLiteJobRepository(JobRepositoryPort):
                 row = await cursor.fetchone()
                 if row is None:
                     return None
+                return self._map_row_to_job(row)
 
-                parsed_rules = None
-                if len(row) > 14 and row[14]:
-                    try:
-                        parsed_rules = json.loads(row[14]) if isinstance(row[14], str) else row[14]
-                    except Exception:
-                        parsed_rules = None
+    async def list_jobs(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        status: JobStatus | None = None,
+    ) -> tuple[list[MigrationJob], int]:
+        await self._ensure_initialized()
+        status_val = status.value if isinstance(status, JobStatus) else (str(status) if status else None)
+        async with self._get_connection() as conn:
+            if status_val:
+                async with conn.execute("SELECT COUNT(*) FROM migration_jobs WHERE status = ?;", (status_val,)) as cur:
+                    total_row = await cur.fetchone()
+                    total = total_row[0] if total_row else 0
+                async with conn.execute(
+                    """
+                    SELECT id, source_channel_id, target_channel_id, status,
+                           total_videos, processed_videos, last_processed_msg_id,
+                           created_at, updated_at, is_full_migration, source_title, target_title,
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                    FROM migration_jobs
+                    WHERE status = ?
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?;
+                    """,
+                    (status_val, limit, offset),
+                ) as cursor:
+                    rows = await cursor.fetchall()
+            else:
+                async with conn.execute("SELECT COUNT(*) FROM migration_jobs;") as cur:
+                    total_row = await cur.fetchone()
+                    total = total_row[0] if total_row else 0
+                async with conn.execute(
+                    """
+                    SELECT id, source_channel_id, target_channel_id, status,
+                           total_videos, processed_videos, last_processed_msg_id,
+                           created_at, updated_at, is_full_migration, source_title, target_title,
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                    FROM migration_jobs
+                    ORDER BY created_at DESC
+                    LIMIT ? OFFSET ?;
+                    """,
+                    (limit, offset),
+                ) as cursor:
+                    rows = await cursor.fetchall()
 
-                drip_sec = 0
-                if len(row) > 15 and row[15] is not None:
-                    drip_sec = int(row[15])
+            jobs = [self._map_row_to_job(r) for r in rows]
+            return jobs, int(total)
 
-                parsed_filter = None
-                if len(row) > 16 and row[16]:
-                    try:
-                        parsed_filter = json.loads(row[16]) if isinstance(row[16], str) else row[16]
-                    except Exception:
-                        parsed_filter = None
-
-                return MigrationJob(
-                    job_id=str(row[0]),
-                    source_id=int(row[1]),
-                    target_id=int(row[2]),
-                    status=JobStatus(row[3]),
-                    total_videos=int(row[4]),
-                    processed_videos=int(row[5]),
-                    last_processed_id=int(row[6]) if row[6] is not None else None,
-                    created_at=str(row[7]) if row[7] is not None else None,
-                    updated_at=str(row[8]) if row[8] is not None else None,
-                    is_full_migration=bool(row[9]) if row[9] is not None else True,
-                    source_title=str(row[10]) if row[10] is not None else None,
-                    target_title=str(row[11]) if row[11] is not None else None,
-                    source_account_id=int(row[12]) if row[12] is not None else None,
-                    target_account_id=int(row[13]) if row[13] is not None else None,
-                    caption_rules=parsed_rules,
-                    drip_delay_seconds=drip_sec,
-                    media_filter_rules=parsed_filter,
+    async def retry_failed_queue_items(self, job_id: str) -> int:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'PENDING',
+                    error_message = NULL,
+                    retry_count = retry_count + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ? AND status = 'FAILED';
+                """,
+                (job_id,),
+            )
+            count = cursor.rowcount
+            if count > 0:
+                await conn.execute(
+                    "UPDATE migration_jobs SET status = 'PENDING', updated_at = CURRENT_TIMESTAMP WHERE id = ?;",
+                    (job_id,),
                 )
+            await conn.commit()
+            return count
+
+    async def delete_job(self, job_id: str) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute("DELETE FROM migration_jobs WHERE id = ?;", (job_id,))
+            await conn.commit()
+            return True
 
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int

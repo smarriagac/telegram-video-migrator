@@ -33,6 +33,26 @@ class JobRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def list_jobs(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        status: JobStatus | None = None,
+    ) -> tuple[list[MigrationJob], int]:
+        """List migration jobs ordered by creation time descending, with total count."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def retry_failed_queue_items(self, job_id: str) -> int:
+        """Reset failed queue items for a job back to PENDING so they can be reprocessed."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def delete_job(self, job_id: str) -> bool:
+        """Delete a migration job and its associated queue items."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int
     ) -> None:

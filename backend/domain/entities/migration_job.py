@@ -9,6 +9,7 @@ class JobStatus(str, Enum):
 
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
     PAUSED_FLOOD_WAIT = "PAUSED_FLOOD_WAIT"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"

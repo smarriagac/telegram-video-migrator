@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   LogOut,
   UserCheck,
+  ListOrdered,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
@@ -38,6 +39,11 @@ const NAV_ITEMS: NavItem[] = [
     name: "Chats & Mensajes",
     path: "/chats",
     icon: MessageSquare,
+  },
+  {
+    name: "Cola de Trabajos",
+    path: "/jobs",
+    icon: ListOrdered,
   },
   {
     name: "Auditoría del Sistema",

@@ -58,6 +58,68 @@ class JobResponse(BaseModel):
     media_filter_rules: dict | None = None
 
 
+class JobListResponse(BaseModel):
+    items: list[JobResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+def _to_job_response(job: MigrationJob) -> JobResponse:
+    return JobResponse(
+        job_id=job.job_id,
+        source_id=job.source_id,
+        target_id=job.target_id,
+        status=job.status.value if isinstance(job.status, JobStatus) else str(job.status),
+        total_videos=job.total_videos,
+        processed_videos=job.processed_videos,
+        last_processed_id=job.last_processed_id,
+        created_at=job.created_at,
+        is_full_migration=job.is_full_migration,
+        source_title=job.source_title,
+        target_title=job.target_title,
+        source_account_id=job.source_account_id,
+        target_account_id=job.target_account_id,
+        caption_rules=job.caption_rules,
+        drip_delay_seconds=job.drip_delay_seconds,
+        media_filter_rules=job.media_filter_rules,
+    )
+
+
+def _dispatch_worker(
+    job_id: str,
+    use_case: CloneChannelVideosUseCase,
+    repo: JobRepositoryPort,
+    broadcaster: EventBroadcaster,
+    selected_message_ids: list[int] | None = None,
+):
+    use_case.resume_job(job_id)
+
+    async def on_progress(event: dict[str, Any]):
+        await broadcaster.publish(job_id, event)
+
+    async def run_worker():
+        try:
+            await use_case.execute(
+                job_id=job_id,
+                on_progress=on_progress,
+                selected_message_ids=selected_message_ids,
+            )
+        except Exception as e:
+            logger.error(f"Migration worker failed for job {job_id}: {e}")
+            await repo.set_job_status(job_id, JobStatus.FAILED)
+            await broadcaster.publish(
+                job_id,
+                {
+                    "job_id": job_id,
+                    "status": JobStatus.FAILED.value,
+                    "message": f"Worker error: {str(e)}",
+                },
+            )
+
+    asyncio.create_task(run_worker())
+
+
 class QueueItemResponse(BaseModel):
     job_id: str
     source_message_id: int
@@ -134,49 +196,39 @@ async def start_job(
     except Exception as e:
         logger.warning(f"Could not record audit log for migration start: {e}")
 
-    # Background task callback to broadcast events via SSE
-    async def on_progress(event: dict[str, Any]):
-        await broadcaster.publish(job_id, event)
+    _dispatch_worker(
+        job_id=job_id,
+        use_case=use_case,
+        repo=repo,
+        broadcaster=broadcaster,
+        selected_message_ids=req.selected_message_ids,
+    )
 
-    # Launch migration in background task
-    async def run_worker():
+    return _to_job_response(job)
+
+
+@router.get("", response_model=JobListResponse)
+async def list_jobs(
+    page: int = 1,
+    page_size: int = 20,
+    status_filter: str | None = None,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> JobListResponse:
+    """List migration jobs with pagination and optional status filter."""
+    limit = max(1, min(page_size, 100))
+    offset = max(0, (page - 1) * limit)
+    st = None
+    if status_filter and status_filter.upper() != "ALL":
         try:
-            await use_case.execute(
-                job_id=job_id,
-                on_progress=on_progress,
-                selected_message_ids=req.selected_message_ids,
-            )
-        except Exception as e:
-            logger.error(f"Migration worker failed for job {job_id}: {e}")
-            await repo.set_job_status(job_id, JobStatus.FAILED)
-            await broadcaster.publish(
-                job_id,
-                {
-                    "job_id": job_id,
-                    "status": JobStatus.FAILED.value,
-                    "message": f"Worker error: {str(e)}",
-                },
-            )
-
-    asyncio.create_task(run_worker())
-
-    return JobResponse(
-        job_id=job.job_id,
-        source_id=job.source_id,
-        target_id=job.target_id,
-        status=job.status.value,
-        total_videos=job.total_videos,
-        processed_videos=job.processed_videos,
-        last_processed_id=job.last_processed_id,
-        created_at=job.created_at,
-        is_full_migration=job.is_full_migration,
-        source_title=job.source_title,
-        target_title=job.target_title,
-        source_account_id=job.source_account_id,
-        target_account_id=job.target_account_id,
-        caption_rules=job.caption_rules,
-        drip_delay_seconds=job.drip_delay_seconds,
-        media_filter_rules=job.media_filter_rules,
+            st = JobStatus(status_filter.upper())
+        except ValueError:
+            st = None
+    jobs, total = await repo.list_jobs(limit=limit, offset=offset, status=st)
+    return JobListResponse(
+        items=[_to_job_response(j) for j in jobs],
+        total=total,
+        page=page,
+        page_size=limit,
     )
 
 
@@ -320,3 +372,84 @@ async def cancel_job(
     except Exception:
         pass
     return {"job_id": job_id, "status": JobStatus.CANCELLED.value}
+
+
+@router.post("/{job_id}/pause", response_model=dict[str, str])
+async def pause_job(
+    job_id: str,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+) -> dict[str, str]:
+    """Pause an active migration job."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job '{job_id}' not found.",
+        )
+    use_case.cancel_job(job_id)
+    await repo.set_job_status(job_id, JobStatus.PAUSED)
+    return {"job_id": job_id, "status": JobStatus.PAUSED.value}
+
+
+@router.post("/{job_id}/resume", response_model=JobResponse)
+async def resume_job(
+    job_id: str,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+) -> JobResponse:
+    """Resume execution of a paused or pending migration job."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job '{job_id}' not found.",
+        )
+    await repo.set_job_status(job_id, JobStatus.RUNNING)
+    _dispatch_worker(job_id, use_case, repo, broadcaster)
+    job.status = JobStatus.RUNNING
+    return _to_job_response(job)
+
+
+@router.post("/{job_id}/retry", response_model=dict[str, Any])
+async def retry_failed_items(
+    job_id: str,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+) -> dict[str, Any]:
+    """Requeue failed items for a job and resume processing."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job '{job_id}' not found.",
+        )
+    requeued = await repo.retry_failed_queue_items(job_id)
+    if requeued > 0:
+        await repo.set_job_status(job_id, JobStatus.RUNNING)
+        _dispatch_worker(job_id, use_case, repo, broadcaster)
+    return {
+        "job_id": job_id,
+        "requeued_items": requeued,
+        "status": JobStatus.RUNNING.value if requeued > 0 else job.status.value,
+    }
+
+
+@router.delete("/{job_id}", response_model=dict[str, str])
+async def delete_job(
+    job_id: str,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+) -> dict[str, str]:
+    """Cancel and delete a migration job and its associated queue records."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job '{job_id}' not found.",
+        )
+    use_case.cancel_job(job_id)
+    await repo.delete_job(job_id)
+    return {"job_id": job_id, "deleted": "true"}

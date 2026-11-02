@@ -40,6 +40,10 @@ class CloneChannelVideosUseCase:
         """Mark a job ID to abort on next iteration."""
         self._cancelled_jobs.add(job_id)
 
+    def resume_job(self, job_id: str) -> None:
+        """Remove a job ID from cancellation so it can run again."""
+        self._cancelled_jobs.discard(job_id)
+
     async def execute(
         self,
         job_id: str,

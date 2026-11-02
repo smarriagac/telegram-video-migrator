@@ -235,6 +235,53 @@ class PostgresJobRepository(JobRepositoryPort):
                 job_id,
             )
 
+    def _map_row_to_job(self, row: Any) -> MigrationJob:
+        raw_rules = row.get("caption_rules") if "caption_rules" in row else None
+        parsed_rules = None
+        if raw_rules:
+            if isinstance(raw_rules, dict):
+                parsed_rules = raw_rules
+            elif isinstance(raw_rules, str):
+                try:
+                    parsed_rules = json.loads(raw_rules)
+                except Exception:
+                    parsed_rules = None
+
+        raw_filter = row.get("media_filter_rules") if "media_filter_rules" in row else None
+        parsed_filter = None
+        if raw_filter:
+            if isinstance(raw_filter, dict):
+                parsed_filter = raw_filter
+            elif isinstance(raw_filter, str):
+                try:
+                    parsed_filter = json.loads(raw_filter)
+                except Exception:
+                    parsed_filter = None
+
+        drip_sec = 0
+        if "drip_delay_seconds" in row and row["drip_delay_seconds"] is not None:
+            drip_sec = int(row["drip_delay_seconds"])
+
+        return MigrationJob(
+            job_id=str(row["id"]),
+            source_id=int(row["source_channel_id"]),
+            target_id=int(row["target_channel_id"]),
+            status=JobStatus(row["status"]),
+            total_videos=int(row["total_videos"]),
+            processed_videos=int(row["processed_videos"]),
+            last_processed_id=int(row["last_processed_msg_id"]) if row["last_processed_msg_id"] is not None else None,
+            created_at=str(row["created_at"]) if row["created_at"] is not None else None,
+            updated_at=str(row["updated_at"]) if row["updated_at"] is not None else None,
+            is_full_migration=bool(row["is_full_migration"]) if row["is_full_migration"] is not None else True,
+            source_title=str(row["source_channel_title"]) if row["source_channel_title"] is not None else None,
+            target_title=str(row["target_channel_title"]) if row["target_channel_title"] is not None else None,
+            source_account_id=int(row["source_account_id"]) if row["source_account_id"] is not None else None,
+            target_account_id=int(row["target_account_id"]) if row["target_account_id"] is not None else None,
+            caption_rules=parsed_rules,
+            drip_delay_seconds=drip_sec,
+            media_filter_rules=parsed_filter,
+        )
+
     async def get_job(self, job_id: str) -> MigrationJob | None:
         await self._ensure_initialized()
         if self._fallback_mode or self.pool is None:
@@ -255,52 +302,98 @@ class PostgresJobRepository(JobRepositoryPort):
             )
             if not row:
                 return None
-            
-            raw_rules = row.get("caption_rules") if "caption_rules" in row else None
-            parsed_rules = None
-            if raw_rules:
-                if isinstance(raw_rules, dict):
-                    parsed_rules = raw_rules
-                elif isinstance(raw_rules, str):
-                    try:
-                        parsed_rules = json.loads(raw_rules)
-                    except Exception:
-                        parsed_rules = None
+            return self._map_row_to_job(row)
 
-            raw_filter = row.get("media_filter_rules") if "media_filter_rules" in row else None
-            parsed_filter = None
-            if raw_filter:
-                if isinstance(raw_filter, dict):
-                    parsed_filter = raw_filter
-                elif isinstance(raw_filter, str):
-                    try:
-                        parsed_filter = json.loads(raw_filter)
-                    except Exception:
-                        parsed_filter = None
+    async def list_jobs(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        status: JobStatus | None = None,
+    ) -> tuple[list[MigrationJob], int]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_jobs(limit, offset, status)
 
-            drip_sec = 0
-            if "drip_delay_seconds" in row and row["drip_delay_seconds"] is not None:
-                drip_sec = int(row["drip_delay_seconds"])
+        status_val = status.value if isinstance(status, JobStatus) else (str(status) if status else None)
+        async with self.pool.acquire() as conn:
+            if status_val:
+                total = await conn.fetchval(
+                    "SELECT COUNT(*) FROM migration_jobs WHERE status = $1;",
+                    status_val,
+                )
+                rows = await conn.fetch(
+                    """
+                    SELECT id, source_channel_id, target_channel_id, status,
+                           total_videos, processed_videos, last_processed_msg_id,
+                           created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                    FROM migration_jobs
+                    WHERE status = $1
+                    ORDER BY created_at DESC
+                    LIMIT $2 OFFSET $3;
+                    """,
+                    status_val,
+                    limit,
+                    offset,
+                )
+            else:
+                total = await conn.fetchval("SELECT COUNT(*) FROM migration_jobs;")
+                rows = await conn.fetch(
+                    """
+                    SELECT id, source_channel_id, target_channel_id, status,
+                           total_videos, processed_videos, last_processed_msg_id,
+                           created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                    FROM migration_jobs
+                    ORDER BY created_at DESC
+                    LIMIT $1 OFFSET $2;
+                    """,
+                    limit,
+                    offset,
+                )
+            jobs = [self._map_row_to_job(r) for r in rows]
+            return jobs, int(total or 0)
 
-            return MigrationJob(
-                job_id=str(row["id"]),
-                source_id=int(row["source_channel_id"]),
-                target_id=int(row["target_channel_id"]),
-                status=JobStatus(row["status"]),
-                total_videos=int(row["total_videos"]),
-                processed_videos=int(row["processed_videos"]),
-                last_processed_id=int(row["last_processed_msg_id"]) if row["last_processed_msg_id"] is not None else None,
-                created_at=str(row["created_at"]) if row["created_at"] is not None else None,
-                updated_at=str(row["updated_at"]) if row["updated_at"] is not None else None,
-                is_full_migration=bool(row["is_full_migration"]) if row["is_full_migration"] is not None else True,
-                source_title=str(row["source_channel_title"]) if row["source_channel_title"] is not None else None,
-                target_title=str(row["target_channel_title"]) if row["target_channel_title"] is not None else None,
-                source_account_id=int(row["source_account_id"]) if row["source_account_id"] is not None else None,
-                target_account_id=int(row["target_account_id"]) if row["target_account_id"] is not None else None,
-                caption_rules=parsed_rules,
-                drip_delay_seconds=drip_sec,
-                media_filter_rules=parsed_filter,
+    async def retry_failed_queue_items(self, job_id: str) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.retry_failed_queue_items(job_id)
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'PENDING',
+                    error_message = NULL,
+                    retry_count = retry_count + 1,
+                    updated_at = NOW()
+                WHERE job_id = $1 AND status = 'FAILED';
+                """,
+                job_id,
             )
+            count = 0
+            try:
+                count = int(result.split()[-1])
+            except Exception:
+                count = 0
+            if count > 0:
+                await conn.execute(
+                    "UPDATE migration_jobs SET status = 'PENDING', updated_at = NOW() WHERE id = $1;",
+                    job_id,
+                )
+            return count
+
+    async def delete_job(self, job_id: str) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.delete_job(job_id)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute("DELETE FROM migration_jobs WHERE id = $1;", job_id)
+            return True
 
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int

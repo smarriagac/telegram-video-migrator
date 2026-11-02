@@ -6,6 +6,7 @@ import { LoginView } from "../features/auth/presentation/LoginView";
 import { MigrationView } from "../features/migration/presentation/MigrationView";
 import { PipelineModulesView } from "../features/migration/presentation/PipelineModulesView";
 import { ChatsView } from "../features/chats/presentation/ChatsView";
+import { JobsView } from "../features/jobs/presentation/JobsView";
 import { SettingsView } from "../features/settings/presentation/SettingsView";
 import { AuditView } from "../features/audit/presentation/AuditView";
 import { ErrorBoundary } from "../shared/components/ErrorBoundary";
@@ -25,6 +26,7 @@ export const App: React.FC = () => {
               <Route path="/migration" element={<MigrationView />} />
               <Route path="/pipeline" element={<PipelineModulesView />} />
               <Route path="/chats" element={<ChatsView />} />
+              <Route path="/jobs" element={<JobsView />} />
               {/* Admin-only route */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="/audit" element={<AuditView />} />
