@@ -83,3 +83,54 @@ async def test_live_sync_service_lifecycle_and_processing():
 
     await service.stop()
     await repo.close()
+
+
+@pytest.mark.asyncio
+async def test_live_sync_catch_up_delta():
+    repo = SQLiteJobRepository(db_path=":memory:")
+    await repo.initialize_schema()
+
+    mock_client = AsyncMock()
+    mock_client.is_connected = MagicMock(return_value=False)
+    mock_client.connect = AsyncMock()
+    mock_client.get_input_entity = AsyncMock(return_value="entity")
+
+    msg_missed = MagicMock()
+    msg_missed.id = 888
+    msg_missed.video = None
+    msg_missed.photo = None
+    msg_missed.document = None
+    msg_missed.message = "Missed post"
+
+    mock_client.get_messages = AsyncMock(return_value=[msg_missed])
+
+    mock_pool = MagicMock()
+    mock_pool.get_client.return_value = mock_client
+    mock_pool.list_clients.return_value = [(1, "Cuenta Principal", mock_client)]
+
+    mock_use_case = MagicMock()
+    mock_use_case.execute = AsyncMock()
+
+    mock_broadcaster = MagicMock()
+    mock_broadcaster.broadcast = AsyncMock()
+
+    service = LiveSyncService(
+        job_repository=repo,
+        client_pool=mock_pool,
+        migration_use_case=mock_use_case,
+        broadcaster=mock_broadcaster,
+    )
+
+    binding = ChannelSyncBinding(
+        source_channel_id=-100111,
+        target_channel_id=-100222,
+        is_active=True,
+    )
+
+    enqueued = await service.catch_up_delta(binding)
+    assert enqueued == 1
+    assert mock_client.connect.called
+    assert service._queue.qsize() == 1
+
+    await repo.close()
+

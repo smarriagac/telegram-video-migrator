@@ -52,6 +52,67 @@ class LiveSyncService:
         # Attach MTProto event listeners to active pool clients
         self.attach_client_listeners()
 
+        # Catch up any messages missed while offline for active bindings
+        for bindings in self._bindings.values():
+            for b in bindings:
+                asyncio.create_task(self.catch_up_delta(b))
+
+    async def catch_up_delta(self, binding: ChannelSyncBinding) -> int:
+        """Scan source channel for any messages newer than last sync or missing from target and enqueue them."""
+        try:
+            cloned_ids = await self.repo.get_cloned_source_message_ids(
+                binding.source_channel_id, binding.target_channel_id
+            )
+            max_cloned = max(cloned_ids) if cloned_ids else 0
+
+            client = self.pool.get_client(binding.source_account_id)
+            if not client:
+                clients = self.pool.list_clients()
+                client = clients[0][2] if clients else None
+            if not client:
+                return 0
+
+            if not client.is_connected():
+                await client.connect()
+
+            source_entity = await client.get_input_entity(binding.source_channel_id)
+            messages = await client.get_messages(source_entity, limit=50, min_id=max_cloned)
+            enqueued = 0
+            for msg in reversed(messages):
+                if not msg or not msg.id:
+                    continue
+                if msg.id in cloned_ids:
+                    continue
+
+                media_type = "text"
+                if getattr(msg, "video", None):
+                    media_type = "video"
+                elif getattr(msg, "photo", None):
+                    media_type = "photo"
+                elif getattr(msg, "document", None):
+                    doc = msg.document
+                    is_video = getattr(doc, "mime_type", "").startswith("video/")
+                    for attr in getattr(doc, "attributes", []):
+                        if hasattr(attr, "duration"):
+                            is_video = True
+                            break
+                    media_type = "video" if is_video else "document"
+
+                caption = getattr(msg, "message", "") or ""
+                await self._queue.put((binding, msg.id, media_type, caption))
+                enqueued += 1
+
+            if enqueued > 0:
+                logger.info(
+                    f"LiveSync: Caught up and enqueued {enqueued} un-synced messages for {binding.source_channel_id} -> {binding.target_channel_id}"
+                )
+            return enqueued
+        except Exception as e:
+            logger.warning(
+                f"LiveSync: Catch-up delta failed for {binding.source_channel_id} -> {binding.target_channel_id}: {e}"
+            )
+            return 0
+
     async def stop(self) -> None:
         """Gracefully stop worker task."""
         self._is_running = False
@@ -261,7 +322,13 @@ class LiveSyncService:
 
                 # Execute migration use case for this job
                 async def _on_progress(progress: dict[str, Any]) -> None:
-                    await self.broadcaster.broadcast("migration_progress", progress)
+                    try:
+                        if hasattr(self.broadcaster, "publish"):
+                            await self.broadcaster.publish(job_id, progress)
+                        if hasattr(self.broadcaster, "broadcast"):
+                            await self.broadcaster.broadcast("migration_progress", progress)
+                    except Exception as be:
+                        logger.debug(f"LiveSync: Progress broadcast suppressed: {be}")
 
                 await self.use_case.execute(job_id, on_progress=_on_progress)
 
@@ -269,16 +336,21 @@ class LiveSyncService:
                 binding.last_synced_message_id = max(binding.last_synced_message_id, msg_id)
                 await self.repo.save_sync_binding(binding)
 
-                await self.broadcaster.broadcast(
-                    "sync_event",
-                    {
-                        "type": "message_synced",
-                        "source_channel_id": binding.source_channel_id,
-                        "target_channel_id": binding.target_channel_id,
-                        "source_message_id": msg_id,
-                        "media_type": media_type,
-                    },
-                )
+                try:
+                    if hasattr(self.broadcaster, "broadcast"):
+                        await self.broadcaster.broadcast(
+                            "sync_event",
+                            {
+                                "type": "message_synced",
+                                "source_channel_id": binding.source_channel_id,
+                                "target_channel_id": binding.target_channel_id,
+                                "source_message_id": msg_id,
+                                "media_type": media_type,
+                            },
+                        )
+                except Exception as be:
+                    logger.debug(f"LiveSync: Sync event broadcast suppressed: {be}")
+
                 logger.info(
                     f"LiveSync: Successfully synced message #{msg_id} from {binding.source_channel_id} to {binding.target_channel_id}."
                 )
@@ -332,6 +404,8 @@ class LiveSyncService:
 
         await self.reload_bindings()
         self.attach_client_listeners()
+        if is_active:
+            asyncio.create_task(self.catch_up_delta(saved))
         return saved
 
     async def delete_binding(self, source_channel_id: int, target_channel_id: int) -> bool:

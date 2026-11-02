@@ -47,5 +47,9 @@ class EventBroadcaster:
             except asyncio.QueueFull:
                 logger.warning(f"Subscriber queue full for job {job_id}, dropping event.")
 
+    async def broadcast(self, topic: str, payload: dict[str, Any]) -> None:
+        """Broadcast an event payload to all active subscribers of a topic or job_id."""
+        await self.publish(topic, payload)
+
 
 broadcaster = EventBroadcaster()
