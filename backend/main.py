@@ -11,6 +11,8 @@ from backend.presentation.api.routers.dialogs import router as dialogs_router
 from backend.presentation.api.routers.auth import router as auth_router
 from backend.presentation.api.routers.audit import router as audit_router
 from backend.presentation.api.routers.settings_credentials import router as credentials_router
+from backend.presentation.api.routers.analytics import router as analytics_router
+from backend.presentation.api.routers.sync import router as sync_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
@@ -89,6 +91,8 @@ app.include_router(credentials_router, prefix="/api")
 app.include_router(channels_router, prefix="/api")
 app.include_router(jobs_router, prefix="/api")
 app.include_router(dialogs_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api")
+app.include_router(sync_router, prefix="/api")
 
 
 @app.get("/api/health")

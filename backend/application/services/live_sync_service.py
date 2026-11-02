@@ -333,3 +333,21 @@ class LiveSyncService:
         await self.reload_bindings()
         self.attach_client_listeners()
         return saved
+
+    async def delete_binding(self, source_channel_id: int, target_channel_id: int) -> bool:
+        """Delete an auto-sync binding and refresh active listeners."""
+        success = await self.repo.delete_sync_binding(source_channel_id, target_channel_id)
+        await self.reload_bindings()
+        return success
+
+    def get_health_status(self) -> dict[str, Any]:
+        """Return diagnostic health and status metrics for the live sync daemon."""
+        total_active_bindings = sum(len(bindings) for bindings in self._bindings.values())
+        return {
+            "is_running": self._is_running,
+            "active_sources_count": len(self._bindings),
+            "active_bindings_count": total_active_bindings,
+            "attached_clients_count": len(self._attached_clients),
+            "queue_depth": self._queue.qsize(),
+        }
+

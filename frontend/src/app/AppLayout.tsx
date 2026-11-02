@@ -11,6 +11,8 @@ import {
   LogOut,
   UserCheck,
   ListOrdered,
+  Radio,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
@@ -31,6 +33,11 @@ const NAV_ITEMS: NavItem[] = [
     icon: Video,
   },
   {
+    name: "Sincronización en Vivo",
+    path: "/sync",
+    icon: Radio,
+  },
+  {
     name: "Pipeline & Módulos",
     path: "/pipeline",
     icon: Sparkles,
@@ -44,6 +51,11 @@ const NAV_ITEMS: NavItem[] = [
     name: "Cola de Trabajos",
     path: "/jobs",
     icon: ListOrdered,
+  },
+  {
+    name: "Analíticas & Rendimiento",
+    path: "/analytics",
+    icon: BarChart3,
   },
   {
     name: "Auditoría del Sistema",
