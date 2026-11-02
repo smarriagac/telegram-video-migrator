@@ -133,6 +133,15 @@ class WatermarkDetector:
 
                 text_str = " ".join(c["text"] for c in cluster)
                 has_handle = any(c["is_handle"] for c in cluster)
+
+                # Expand handle box to prevent truncating suffixes like '2vip'
+                if has_handle or "baba" in text_str.lower() or "@" in text_str or "vip" in text_str.lower():
+                    expected_min_w = int(bh * 4.2)
+                    if bw < expected_min_w:
+                        bw = expected_min_w
+                    pad_right = int(bw * 0.35)
+                    fw = min(w - fx, bw + pad_x + pad_right)
+
                 avg_score = sum(c["score"] for c in cluster) / len(cluster)
                 final_score = min(0.99, avg_score + (0.35 if has_handle else 0.0))
 
