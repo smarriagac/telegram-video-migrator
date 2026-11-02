@@ -711,6 +711,18 @@ class KickMemberPayload(BaseModel):
     reason: str = "Incumplimiento de normas"
 
 
+class KickBatchMembersItem(BaseModel):
+    membership_id: str | None = None
+    user_id: int
+    channel_id: int
+
+
+class KickBatchMembersPayload(BaseModel):
+    items: list[KickBatchMembersItem]
+    reason: str = "Expulsión en lote por administrador"
+    account_id: int | None = None
+
+
 class AddMemberPayload(BaseModel):
     channel_id: int
     user_id_or_username: str
@@ -1230,6 +1242,102 @@ async def kick_channel_member(
         "user_id": payload.user_id,
         "status": "KICKED",
         "reason": payload.reason,
+    }
+
+
+@router.post("/gatekeeper/kick-batch")
+async def kick_batch_channel_members(
+    payload: KickBatchMembersPayload,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> dict[str, Any]:
+    """Kick multiple members from one or more channels in bulk with safe MTProto throttling."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    kicked_count = 0
+    failed_count = 0
+    errors: list[str] = []
+    now = datetime.now(timezone.utc)
+
+    for item in payload.items:
+        try:
+            success = await gateway.kick_chat_member(
+                channel_id=item.channel_id,
+                user_id=item.user_id,
+                account_id=payload.account_id,
+            )
+            if success:
+                kicked_count += 1
+                try:
+                    await pg_repo.connect()
+                    if pg_repo.pool:
+                        async with pg_repo.pool.acquire() as conn:
+                            if item.membership_id:
+                                await conn.execute(
+                                    """
+                                    UPDATE channel_memberships
+                                    SET status = 'KICKED', kick_reason = $1, updated_at = $2
+                                    WHERE id = $3::uuid AND tenant_id = $4::uuid
+                                    """,
+                                    payload.reason,
+                                    now,
+                                    item.membership_id,
+                                    tenant_id,
+                                )
+                            else:
+                                await conn.execute(
+                                    """
+                                    UPDATE channel_memberships
+                                    SET status = 'KICKED', kick_reason = $1, updated_at = $2
+                                    WHERE channel_id = $3 AND telegram_user_id = $4 AND tenant_id = $5::uuid
+                                    """,
+                                    payload.reason,
+                                    now,
+                                    item.channel_id,
+                                    item.user_id,
+                                    tenant_id,
+                                )
+                except Exception as db_err:
+                    logger.warning(f"Failed to update kicked membership {item.membership_id}: {db_err}")
+            else:
+                failed_count += 1
+                errors.append(f"No se pudo expulsar al usuario #{item.user_id} del canal #{item.channel_id}")
+
+            # Safe throttle between MTProto kicks to avoid FloodWait
+            await asyncio.sleep(0.35)
+        except Exception as ex:
+            failed_count += 1
+            errors.append(f"Error expulsando usuario #{item.user_id}: {ex}")
+
+    # Audit log
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO audit_logs (tenant_id, user_email, action, resource, details)
+                    VALUES ($1::uuid, $2, 'BATCH_KICK_VIP_MEMBERS', $3, $4::jsonb)
+                    """,
+                    tenant_id,
+                    current_user.email,
+                    f"batch_kick:{len(payload.items)}_users",
+                    json.dumps({
+                        "total_requested": len(payload.items),
+                        "kicked_count": kicked_count,
+                        "failed_count": failed_count,
+                        "reason": payload.reason,
+                    }),
+                )
+    except Exception as audit_err:
+        logger.warning(f"Failed to record audit log for batch kick: {audit_err}")
+
+    return {
+        "success": True,
+        "total_requested": len(payload.items),
+        "kicked_count": kicked_count,
+        "failed_count": failed_count,
+        "errors": errors,
     }
 
 

@@ -72,10 +72,11 @@ const KICK_REASON_PRESETS = [
 ];
 
 interface ActionModalState {
-  type: "EVICT_EXPIRED" | "KICK_MEMBER" | "REJECT_REQUEST" | null;
+  type: "EVICT_EXPIRED" | "KICK_MEMBER" | "KICK_BATCH_MEMBERS" | "REJECT_REQUEST" | null;
   title: string;
   description: string;
   member?: VipMembership;
+  batchMembers?: VipMembership[];
   request?: JoinRequest;
   reason?: string;
 }
@@ -95,6 +96,7 @@ interface ViewState {
   selectedChannelFilter: number | null;
   selectedStatusFilter: string;
   channelMembersModal: ManagedChannel | null;
+  selectedMemberIds: string[];
   modalOpen: boolean;
   modalChannelId: number;
   modalDays: number;
@@ -123,6 +125,7 @@ export const ChannelManagementView: React.FC = () => {
     selectedChannelFilter: null,
     selectedStatusFilter: "ALL",
     channelMembersModal: null,
+    selectedMemberIds: [],
     modalOpen: false,
     modalChannelId: 0,
     modalDays: 30,
@@ -306,6 +309,26 @@ export const ChannelManagementView: React.FC = () => {
         setState((s) => ({ ...s, actionModal: null, isSubmitting: false }));
         showNotification("Solicitud de ingreso rechazada.");
         await loadData();
+      } else if (type === "KICK_BATCH_MEMBERS" && state.actionModal?.batchMembers) {
+        const batchItems = state.actionModal.batchMembers.map((m) => ({
+          channel_id: m.channel_id,
+          user_id: m.telegram_user_id!,
+          membership_id: m.id,
+        }));
+        const res = await channelApi.kickBatchMembers({
+          items: batchItems,
+          reason: reason || "Expulsión en lote por administrador",
+        });
+        setState((s) => ({
+          ...s,
+          actionModal: null,
+          selectedMemberIds: [],
+          isSubmitting: false,
+        }));
+        showNotification(
+          `Expulsión en lote completada: ${res.kicked_count} expulsados (${res.failed_count} fallidos).`
+        );
+        await loadData();
       }
     } catch (err: any) {
       setState((s) => ({ ...s, isSubmitting: false }));
@@ -372,6 +395,51 @@ export const ChannelManagementView: React.FC = () => {
       r.channel_id.toString().includes(q)
     );
   });
+
+  const eligibleMemberIds = filteredMembers
+    .filter((m) => m.telegram_user_id && m.status !== "KICKED")
+    .map((m) => m.id);
+
+  const handleToggleSelectMember = (memberId: string) => {
+    setState((s) => ({
+      ...s,
+      selectedMemberIds: s.selectedMemberIds.includes(memberId)
+        ? s.selectedMemberIds.filter((id) => id !== memberId)
+        : [...s.selectedMemberIds, memberId],
+    }));
+  };
+
+  const handleToggleSelectAllMembers = () => {
+    setState((s) => {
+      const allSelected =
+        eligibleMemberIds.length > 0 &&
+        eligibleMemberIds.every((id) => s.selectedMemberIds.includes(id));
+      return {
+        ...s,
+        selectedMemberIds: allSelected ? [] : eligibleMemberIds,
+      };
+    });
+  };
+
+  const openKickBatchModal = () => {
+    const selectedMembers = state.members.filter(
+      (m) => state.selectedMemberIds.includes(m.id) && m.telegram_user_id
+    );
+    if (selectedMembers.length === 0) {
+      showNotification("No hay miembros seleccionados con Telegram UID activo.", "error");
+      return;
+    }
+    setState((s) => ({
+      ...s,
+      actionModal: {
+        type: "KICK_BATCH_MEMBERS",
+        title: `Expulsar ${selectedMembers.length} Miembros en Lote`,
+        description: `Esta acción expulsará inmediatamente a los ${selectedMembers.length} miembros seleccionados de sus respectivos canales en Telegram vía MTProto.`,
+        batchMembers: selectedMembers,
+        reason: "Expulsión en lote por administrador",
+      },
+    }));
+  };
 
   return (
     <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-y-auto pr-0 sm:pr-1">
@@ -693,6 +761,34 @@ export const ChannelManagementView: React.FC = () => {
         </div>
       )}
 
+      {/* Bulk Action Bar for VIP Members */}
+      {filterCategory === "VIP" && state.selectedMemberIds.length > 0 && (
+        <div className="flex items-center justify-between p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg text-xs font-mono animate-in fade-in slide-in-from-top-1">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-foreground">
+              {state.selectedMemberIds.length} miembros seleccionados
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setState((s) => ({ ...s, selectedMemberIds: [] }))}
+              className="h-6 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Desmarcar todos
+            </Button>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={openKickBatchModal}
+            className="h-7 text-xs gap-1.5 font-semibold shadow-sm"
+          >
+            <UserX className="w-3.5 h-3.5" />
+            <span>Expulsar Seleccionados ({state.selectedMemberIds.length})</span>
+          </Button>
+        </div>
+      )}
+
       {/* Main Table Card */}
       <Card className="border border-border bg-card shadow-sm flex-1 min-h-0 overflow-hidden flex flex-col">
         <CardHeader className="p-3 pb-2 border-b border-border flex flex-row items-center justify-between">
@@ -869,6 +965,18 @@ export const ChannelManagementView: React.FC = () => {
             <Table>
               <TableHeader className="bg-muted/40 sticky top-0 z-10">
                 <TableRow className="border-b border-border">
+                  <TableHead className="py-2.5 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        eligibleMemberIds.length > 0 &&
+                        eligibleMemberIds.every((id) => state.selectedMemberIds.includes(id))
+                      }
+                      onChange={handleToggleSelectAllMembers}
+                      className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                      title="Seleccionar todos los miembros elegibles"
+                    />
+                  </TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Canal Destino</TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Usuario VIP</TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Enlace de Acceso</TableHead>
@@ -882,6 +990,9 @@ export const ChannelManagementView: React.FC = () => {
                 {state.loading ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <TableRow key={`skel-vip-${idx}`} className="border-b border-border/40">
+                      <TableCell className="py-3 px-3 w-10 text-center">
+                        <Skeleton className="h-3.5 w-3.5 mx-auto rounded" />
+                      </TableCell>
                       <TableCell className="py-3 px-4"><Skeleton className="h-4 w-32" /></TableCell>
                       <TableCell className="py-3 px-4">
                         <div className="space-y-1">
@@ -898,13 +1009,25 @@ export const ChannelManagementView: React.FC = () => {
                   ))
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
+                    <TableCell colSpan={8} className="py-12 text-center text-muted-foreground text-xs">
                       No hay miembros VIP registrados en el Gatekeeper. Creá un enlace con el botón "+ Crear Pase VIP".
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredMembers.map((member) => (
                     <TableRow key={member.id} className="hover:bg-muted/40 transition-colors border-b border-border/50">
+                      <TableCell className="py-2.5 px-3 w-10 text-center">
+                        {member.telegram_user_id && member.status !== "KICKED" ? (
+                          <input
+                            type="checkbox"
+                            checked={state.selectedMemberIds.includes(member.id)}
+                            onChange={() => handleToggleSelectMember(member.id)}
+                            className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5 cursor-pointer accent-primary"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground/30 text-xs">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="py-2.5 px-4 font-mono text-xs font-semibold text-foreground">
                         {state.channels.find((c) => c.id === member.channel_id)?.title || `Canal ${member.channel_id}`}
                       </TableCell>
@@ -1419,7 +1542,7 @@ export const ChannelManagementView: React.FC = () => {
         <DialogContent className="sm:max-w-md border-border bg-card">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-foreground">
-              {state.actionModal?.type === "KICK_MEMBER" ? (
+              {state.actionModal?.type === "KICK_MEMBER" || state.actionModal?.type === "KICK_BATCH_MEMBERS" ? (
                 <UserX className="w-5 h-5 text-destructive" />
               ) : state.actionModal?.type === "EVICT_EXPIRED" ? (
                 <Clock className="w-5 h-5 text-amber-500" />
@@ -1504,6 +1627,77 @@ export const ChannelManagementView: React.FC = () => {
             </div>
           )}
 
+          {state.actionModal?.type === "KICK_BATCH_MEMBERS" && (
+            <div className="space-y-3 py-2">
+              {state.actionModal.batchMembers && (
+                <div className="p-2.5 rounded border border-border bg-secondary/40 text-xs flex flex-col gap-2 max-h-40 overflow-y-auto">
+                  <span className="font-semibold text-foreground text-xs">
+                    Miembros a expulsar ({state.actionModal.batchMembers.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {state.actionModal.batchMembers.map((bm) => (
+                      <Badge key={bm.id} variant="secondary" className="text-[10px] font-mono gap-1">
+                        {bm.telegram_username ? `@${bm.telegram_username}` : `UID ${bm.telegram_user_id}`}
+                        <span className="text-muted-foreground text-[9px]">
+                          ({state.channels.find((c) => c.id === bm.channel_id)?.title || bm.channel_id})
+                        </span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground block">
+                  Motivo de la expulsión:
+                </label>
+                <div className="flex flex-wrap gap-1.5 pb-1">
+                  {KICK_REASON_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() =>
+                        setState((s) => ({
+                          ...s,
+                          actionModal: s.actionModal ? { ...s.actionModal, reason: preset } : null,
+                        }))
+                      }
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer",
+                        state.actionModal?.reason === preset
+                          ? "bg-destructive/20 border-destructive text-destructive font-medium"
+                          : "bg-secondary text-muted-foreground border-border hover:border-muted-foreground/50"
+                      )}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+                <Textarea
+                  value={state.actionModal.reason || ""}
+                  onChange={(e) =>
+                    setState((s) => ({
+                      ...s,
+                      actionModal: s.actionModal
+                        ? { ...s.actionModal, reason: e.target.value }
+                        : null,
+                    }))
+                  }
+                  placeholder="Escribí o seleccioná el motivo detallado de la expulsión..."
+                  className="min-h-[75px] text-xs bg-background resize-none"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-start gap-2 p-2 rounded bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Los miembros seleccionados serán expulsados secuencialmente vía MTProto con un intervalo seguro de protección anti-flood de Telegram.
+                </span>
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border">
             <Button
               variant="outline"
@@ -1524,6 +1718,8 @@ export const ChannelManagementView: React.FC = () => {
               {state.isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               {state.actionModal?.type === "KICK_MEMBER"
                 ? "Confirmar Expulsión"
+                : state.actionModal?.type === "KICK_BATCH_MEMBERS"
+                ? `Expulsar ${state.actionModal?.batchMembers?.length || 0} Miembros`
                 : state.actionModal?.type === "EVICT_EXPIRED"
                 ? "Ejecutar Desalojo"
                 : "Confirmar Rechazo"}

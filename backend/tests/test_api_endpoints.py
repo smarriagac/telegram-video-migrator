@@ -112,3 +112,53 @@ async def test_auto_sync_api_endpoints():
         assert toggle_off_res.status_code == 200
         assert toggle_off_res.json()["is_active"] is False
 
+
+@pytest.mark.asyncio
+async def test_kick_batch_channel_members_endpoint():
+    from unittest.mock import AsyncMock, MagicMock
+    from backend.presentation.dependencies import get_current_user, get_telegram_gateway, get_postgres_repository
+    from backend.domain.entities.user import User, Role
+
+    mock_user = User(
+        id="u-admin",
+        email="admin@test.com",
+        password_hash="hash",
+        role=Role.ADMIN,
+        tenant_id="00000000-0000-0000-0000-000000000001",
+    )
+
+    mock_gateway = MagicMock()
+    mock_gateway.kick_chat_member = AsyncMock(return_value=True)
+
+    mock_pg = MagicMock()
+    mock_pg.connect = AsyncMock()
+    mock_pg.pool = None  # No-op DB pool in unit test
+
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    app.dependency_overrides[get_telegram_gateway] = lambda: mock_gateway
+    app.dependency_overrides[get_postgres_repository] = lambda: mock_pg
+
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload = {
+                "items": [
+                    {"channel_id": -100111, "user_id": 501, "membership_id": "00000000-0000-0000-0000-000000000011"},
+                    {"channel_id": -100111, "user_id": 502, "membership_id": "00000000-0000-0000-0000-000000000012"},
+                ],
+                "reason": "Batch expulsion test",
+            }
+            res = await client.post("/api/channels/gatekeeper/kick-batch", json=payload)
+            assert res.status_code == 200
+            data = res.json()
+            assert data["success"] is True
+            assert data["total_requested"] == 2
+            assert data["kicked_count"] == 2
+            assert data["failed_count"] == 0
+            assert mock_gateway.kick_chat_member.await_count == 2
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_telegram_gateway, None)
+        app.dependency_overrides.pop(get_postgres_repository, None)
+
+

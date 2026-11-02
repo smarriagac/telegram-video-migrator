@@ -209,6 +209,27 @@ export const channelApi = {
     return res.json();
   },
 
+  async kickBatchMembers(payload: {
+    items: Array<{ channel_id: number; user_id: number; membership_id?: string | null }>;
+    reason?: string;
+    accountId?: number | null;
+  }): Promise<{ success: boolean; total_requested: number; kicked_count: number; failed_count: number; errors: string[] }> {
+    const res = await fetch("/api/channels/gatekeeper/kick-batch", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        items: payload.items,
+        reason: payload.reason || "Expulsión en lote por administrador",
+        account_id: payload.accountId || null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al expulsar a los miembros en lote.");
+    }
+    return res.json();
+  },
+
   async addMemberToChannel(payload: {
     channelId: number;
     userIdOrUsername: string;
