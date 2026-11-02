@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { Role } from "@/features/auth/domain/types";
 import { cn } from "@/shared/lib/utils";
@@ -172,16 +173,12 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-3.5 min-h-0 overflow-y-auto pr-1 pb-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 shrink-0">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            <Settings className="w-5 h-5 text-cyan-400" />
-            Configuración del Sistema
-          </h1>
-          <p className="text-[11px] text-zinc-400 mt-0.5">
-            Gestión de seguridad RBAC, credenciales de Telegram y telemetría de microservicios.
-          </p>
-        </div>
+      <ViewHeader
+        icon={<Settings className="w-4 h-4" />}
+        iconBoxColor="cyan"
+        title="Configuración del Sistema"
+        subtitle="Gestión de seguridad RBAC, credenciales de Telegram y telemetría de microservicios."
+      >
 
         {/* Tab Switcher for Admins */}
         {user?.role === "ADMIN" && (
@@ -212,7 +209,7 @@ export const SettingsView: React.FC = () => {
             </button>
           </div>
         )}
-      </div>
+      </ViewHeader>
 
       {/* Global Feedback Banner */}
       {feedback && (

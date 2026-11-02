@@ -6,6 +6,7 @@ import { MigrationControlPanel } from "./components/MigrationControlPanel";
 import { MessageSelector } from "./components/MessageSelector";
 import { ConfirmModal } from "./components/ConfirmModal";
 import { BrandLogo } from "@/shared/components/BrandLogo";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 
 export const MigrationView: React.FC = () => {
@@ -41,19 +42,12 @@ export const MigrationView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-hidden">
       {/* Top Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 flex-shrink-0">
-        <div>
-          <div className="flex items-center space-x-2.5">
-            <BrandLogo size="md" />
-            <h1 className="text-base sm:text-lg font-bold tracking-tight text-white">
-              Telegram Video Migrator
-            </h1>
-          </div>
-          <p className="text-[11px] text-zinc-400 mt-0.5">
-            Clonación masiva directa por referencia (MTProto) · Sin descarga a disco · Copia limpia
-          </p>
-        </div>
-
+      <ViewHeader
+        icon={<BrandLogo size="md" />}
+        iconBoxColor="none"
+        title="Telegram Video Migrator"
+        subtitle="Clonación masiva directa por referencia (MTProto) · Sin descarga a disco · Copia limpia"
+      >
         {/* Search Input using local state hook #2 */}
         <div className="flex items-center space-x-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial">
@@ -76,7 +70,7 @@ export const MigrationView: React.FC = () => {
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
-      </header>
+      </ViewHeader>
 
       {/* Error Banner */}
       {error && (

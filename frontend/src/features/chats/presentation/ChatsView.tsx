@@ -28,6 +28,7 @@ import {
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 
 interface ChatMediaThumbnailProps {
@@ -459,16 +460,12 @@ export const ChatsView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-3 min-h-0 overflow-hidden">
       {/* Header (shrink-0) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-2.5 shrink-0">
-        <div>
-          <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-cyan-400" />
-            Chats & Conversaciones
-          </h1>
-          <p className="text-[11px] text-zinc-400 mt-0.5">
-            Diálogos reales de Telegram con scroll fluido, filtros por categoría y carga continua.
-          </p>
-        </div>
+      <ViewHeader
+        icon={<MessageSquare className="w-4 h-4" />}
+        iconBoxColor="cyan"
+        title="Chats & Conversaciones"
+        subtitle="Diálogos reales de Telegram con scroll fluido, filtros por categoría y carga continua."
+      >
 
         <div className="flex items-center gap-2">
           {accounts.length > 1 && (
@@ -506,7 +503,7 @@ export const ChatsView: React.FC = () => {
             Sincronizar
           </Button>
         </div>
-      </div>
+      </ViewHeader>
 
       {/* Main Chat Interface: Bound height with flex/grid */}
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-md overflow-hidden shadow-2xl">

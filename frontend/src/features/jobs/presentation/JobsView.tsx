@@ -40,6 +40,7 @@ import {
   TableCell,
 } from "@/shared/components/ui/table";
 import { JobQueueModal } from "./components/JobQueueModal";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 
 export const JobsView: React.FC = () => {
@@ -202,37 +203,28 @@ export const JobsView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-800 pb-3 shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
-            <ListOrdered className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
-              Cola de Trabajos & Tareas
-              <Badge variant="outline" className="text-[10px] font-mono bg-indigo-500/15 text-indigo-400 border-indigo-500/30">
-                Scheduler Queue
-              </Badge>
-            </h1>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Supervisión de procesos en segundo plano, control de ritmo (Drip Feed) y recuperación de fallos.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchJobs()}
-            disabled={isLoading}
-            className="text-xs text-zinc-300 flex items-center gap-1.5 h-8"
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
-            Actualizar
-          </Button>
-        </div>
-      </header>
+      <ViewHeader
+        icon={<ListOrdered className="w-4 h-4" />}
+        iconBoxColor="indigo"
+        title="Cola de Trabajos & Tareas"
+        subtitle="Supervisión de procesos en segundo plano, control de ritmo (Drip Feed) y recuperación de fallos."
+        badge={
+          <Badge variant="outline" className="text-[10px] font-mono bg-indigo-500/15 text-indigo-400 border-indigo-500/30">
+            Scheduler Queue
+          </Badge>
+        }
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchJobs()}
+          disabled={isLoading}
+          className="text-xs text-zinc-300 flex items-center gap-1.5 h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
+          Actualizar
+        </Button>
+      </ViewHeader>
 
       {/* Feedback Banner */}
       {feedback && (

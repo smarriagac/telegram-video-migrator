@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { useAnalyticsStore } from "../application/useAnalyticsStore";
 
 export const AnalyticsView: React.FC = () => {
@@ -48,31 +49,25 @@ export const AnalyticsView: React.FC = () => {
     : 1;
 
   return (
-    <div className="space-y-6">
+    <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* View Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Activity className="h-6 w-6 text-emerald-400" />
-            Analíticas & Rendimiento MTProto
-          </h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            Métricas operacionales de ahorro de ancho de banda, bypass de descargas locales y salud del pipeline.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchOverview()}
-            disabled={isLoading}
-            className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
-            Actualizar Métricas
-          </Button>
-        </div>
-      </div>
+      <ViewHeader
+        icon={<Activity className="w-4 h-4" />}
+        iconBoxColor="emerald"
+        title="Analíticas & Rendimiento MTProto"
+        subtitle="Métricas operacionales de ahorro de ancho de banda, bypass de descargas locales y salud del pipeline."
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchOverview()}
+          disabled={isLoading}
+          className="h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200 text-xs flex items-center gap-1.5"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
+          Actualizar Métricas
+        </Button>
+      </ViewHeader>
 
       {error && (
         <div className="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 flex items-center gap-2">

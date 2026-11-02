@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 
 export const PipelineModulesView: React.FC = () => {
@@ -75,18 +76,12 @@ export const PipelineModulesView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* Header */}
-      <header className="border-b border-zinc-800 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sliders className="w-5 h-5 text-emerald-400" />
-            <h1 className="text-base font-bold text-zinc-100 font-mono">
-              Pipeline & Módulos de Procesamiento
-            </h1>
-          </div>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Configuración global de los motores del pipeline: Sanitización de texto, Goteo programado, Duplicate Guard y Filtros de Calidad.
-          </p>
-        </div>
+      <ViewHeader
+        icon={<Sliders className="w-4 h-4" />}
+        iconBoxColor="emerald"
+        title="Pipeline & Módulos de Procesamiento"
+        subtitle="Configuración global de los motores del pipeline: Sanitización de texto, Goteo programado, Duplicate Guard y Filtros de Calidad."
+      >
 
         {/* Tab Switcher: 2x2 grid on mobile (< 640px), inline row on >= 640px */}
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 p-1 rounded-lg bg-zinc-900 border border-zinc-800 w-full sm:w-auto shrink-0">
@@ -145,7 +140,7 @@ export const PipelineModulesView: React.FC = () => {
             <span className="xs:hidden">Calidad</span>
           </button>
         </div>
-      </header>
+      </ViewHeader>
 
       {/* Module 1: Caption Transformation Pipeline */}
       {activeTab === "captions" && (

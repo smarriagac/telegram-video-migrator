@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/components/ui/table";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 import { useSyncStore } from "../application/useSyncStore";
 import { CreateSyncBindingModal } from "./components/CreateSyncBindingModal";
 import { SyncRulesModal } from "./components/SyncRulesModal";
@@ -85,39 +86,33 @@ export const LiveSyncHubView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* View Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Radio className="h-6 w-6 text-emerald-400" />
-            Matriz de Sincronización en Vivo
-          </h1>
-          <p className="text-sm text-zinc-400 mt-1">
-            Replicación instantánea de mensajes y multimedia entre canales vía listeners push de MTProto.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reloadDaemon()}
-            disabled={isReloading}
-            className="border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isReloading ? "animate-spin text-emerald-400" : ""}`} />
-            Recargar Listeners
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setCreateModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white"
-          >
-            <Plus className="h-4 w-4 mr-1.5" />
-            Vincular Canales
-          </Button>
-        </div>
-      </div>
+      <ViewHeader
+        icon={<Radio className="w-4 h-4" />}
+        iconBoxColor="emerald"
+        title="Matriz de Sincronización en Vivo"
+        subtitle="Replicación instantánea de mensajes y multimedia entre canales vía listeners push de MTProto."
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => reloadDaemon()}
+          disabled={isReloading}
+          className="h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200 text-xs flex items-center gap-1.5"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? "animate-spin text-emerald-400" : ""}`} />
+          Recargar Listeners
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => setCreateModalOpen(true)}
+          className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white text-xs flex items-center"
+        >
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Vincular Canales
+        </Button>
+      </ViewHeader>
 
       {error && (
         <div className="rounded-md border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400 flex items-center gap-2">

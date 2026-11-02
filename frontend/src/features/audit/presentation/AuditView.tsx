@@ -38,6 +38,7 @@ import {
 } from "@/shared/components/ui/table";
 import { cn } from "@/shared/lib/utils";
 import { AuditLogDetailModal } from "./components/AuditLogDetailModal";
+import { ViewHeader } from "@/shared/components/ViewHeader";
 
 export const AuditView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
@@ -164,37 +165,28 @@ export const AuditView: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
       {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-800 pb-3 shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
-            <ShieldCheck className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
-              Auditoría del Sistema
-              <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
-                PostgreSQL Logbook
-              </Badge>
-            </h1>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Registro inmutable de accesos de usuarios, clonaciones de canales y cambios de configuración.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-start md:self-auto">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchLogs()}
-            disabled={isLoading}
-            className="text-xs text-zinc-300 flex items-center gap-1.5 h-8"
-          >
-            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
-            Actualizar
-          </Button>
-        </div>
-      </header>
+      <ViewHeader
+        icon={<ShieldCheck className="w-4 h-4" />}
+        iconBoxColor="cyan"
+        title="Auditoría del Sistema"
+        subtitle="Registro inmutable de accesos de usuarios, clonaciones de canales y cambios de configuración."
+        badge={
+          <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+            PostgreSQL Logbook
+          </Badge>
+        }
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchLogs()}
+          disabled={isLoading}
+          className="text-xs text-zinc-300 flex items-center gap-1.5 h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+        >
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
+          Actualizar
+        </Button>
+      </ViewHeader>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
