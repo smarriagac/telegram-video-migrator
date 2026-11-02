@@ -227,14 +227,14 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
               variant="outline"
               size="sm"
               onClick={onClose}
-              className="text-xs border-zinc-800 text-zinc-300 hover:bg-zinc-800"
+              className="text-xs border-border bg-secondary text-secondary-foreground hover:bg-muted"
             >
               Cancelar
             </Button>
             <Button
               size="sm"
               onClick={handleSave}
-              className="text-xs bg-cyan-500 hover:bg-cyan-400 text-black font-semibold flex items-center gap-1.5 shadow-sm"
+              className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5 shadow-sm"
             >
               <Check className="w-3.5 h-3.5" /> Guardar Reglas
             </Button>

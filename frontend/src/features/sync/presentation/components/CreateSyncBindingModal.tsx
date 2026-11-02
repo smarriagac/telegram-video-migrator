@@ -99,13 +99,13 @@ export const CreateSyncBindingModal: React.FC = () => {
 
   return (
     <Dialog open={isCreateModalOpen} onOpenChange={setCreateModalOpen}>
-      <DialogContent className="sm:max-w-[720px] md:max-w-[760px] bg-zinc-950 border-zinc-800 text-zinc-100 rounded-md">
+      <DialogContent className="sm:max-w-[720px] md:max-w-[760px] bg-card border-border text-foreground rounded-md">
         <DialogHeader>
-          <DialogTitle className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-cyan-400" />
+          <DialogTitle className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
             Vincular Nuevo Par de Sincronización en Vivo
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             Establece un enlace continuo entre un canal origen y uno destino mediante eventos MTProto push en tiempo real.
           </DialogDescription>
         </DialogHeader>
@@ -297,7 +297,7 @@ export const CreateSyncBindingModal: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => setCreateModalOpen(false)}
-              className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              className="border-border bg-secondary text-secondary-foreground hover:bg-muted"
             >
               Cancelar
             </Button>
@@ -305,7 +305,7 @@ export const CreateSyncBindingModal: React.FC = () => {
               type="submit"
               size="sm"
               disabled={isSubmitDisabled}
-              className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
             >
               {isLoading ? "Creando enlace..." : "Vincular y Activar Daemon"}
               <ArrowRight className="h-4 w-4 ml-1.5" />

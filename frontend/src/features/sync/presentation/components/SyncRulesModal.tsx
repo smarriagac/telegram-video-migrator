@@ -178,7 +178,7 @@ export const SyncRulesModal: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => setRulesModalOpen(false)}
-              className="border-zinc-800 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+              className="border-border bg-secondary text-secondary-foreground hover:bg-muted"
             >
               Cancelar
             </Button>
@@ -186,7 +186,7 @@ export const SyncRulesModal: React.FC = () => {
               type="submit"
               size="sm"
               disabled={isLoading}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
             >
               <Save className="h-4 w-4 mr-1.5" />
               {isLoading ? "Guardando..." : "Guardar Reglas"}

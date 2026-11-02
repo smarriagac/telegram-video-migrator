@@ -14,9 +14,12 @@ import {
   Radio,
   BarChart3,
   ChevronDown,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
+import { useThemeStore } from "@/shared/lib/useThemeStore";
 import { BrandLogo } from "@/shared/components/BrandLogo";
 import {
   Popover,
@@ -84,6 +87,7 @@ export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const { theme, toggleTheme } = useThemeStore();
 
   const handleLogout = () => {
     logout();
@@ -93,69 +97,69 @@ export const AppLayout: React.FC = () => {
   const getRoleBadgeColor = (role?: string) => {
     switch (role) {
       case "ADMIN":
-        return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+        return "bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border-emerald-500/30";
       case "OPERATOR":
-        return "bg-cyan-500/15 text-cyan-400 border-cyan-500/30";
+        return "bg-primary/15 text-primary border-primary/30";
       default:
-        return "bg-zinc-800 text-zinc-300 border-zinc-700";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   const userInitials = (user?.email?.slice(0, 2) || "AD").toUpperCase();
 
   return (
-    <div className="h-screen h-dvh bg-[#090a0e] text-zinc-200 flex flex-col lg:flex-row overflow-hidden">
+    <div className="h-screen h-dvh bg-background text-foreground flex flex-col lg:flex-row overflow-hidden transition-colors duration-200">
       {/* Mobile & Tablet Top Bar (< 1024px) */}
-      <div className="lg:hidden flex items-center justify-between p-3 px-3.5 bg-[#0e1015] border-b border-zinc-800 z-40 flex-shrink-0">
+      <div className="lg:hidden flex items-center justify-between p-3 px-3.5 bg-card/95 backdrop-blur border-b border-border z-40 flex-shrink-0">
         {/* Left: Drawer Toggle Button alongside Brand Logo & Title */}
         <div className="flex items-center space-x-2.5">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-1.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-colors"
+            className="p-1.5 rounded-md bg-muted border border-border text-muted-foreground hover:text-foreground hover:border-border transition-colors"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
           </button>
           <BrandLogo size="md" />
-          <span className="font-semibold text-sm text-zinc-100">Telegram Hub</span>
+          <span className="font-semibold text-sm text-foreground">Telegram Hub</span>
         </div>
 
-        {/* Right: User Avatar with Logout Dropdown Popover */}
+        {/* Right: User Avatar with Theme Toggle & Logout Dropdown Popover */}
         <Popover>
           <PopoverTrigger asChild>
             <button
-              className="flex items-center gap-1.5 p-1 pl-1.5 pr-2 rounded-full bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 text-zinc-200 hover:text-white transition-all select-none focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              className="flex items-center gap-1.5 p-1 pl-1.5 pr-2 rounded-full bg-muted/80 border border-border hover:border-primary/50 text-foreground transition-all select-none focus:outline-none focus:ring-1 focus:ring-primary"
               aria-label="Menú de usuario"
             >
-              <div className="w-6 h-6 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-mono text-[10px] font-bold">
+              <div className="w-6 h-6 rounded-full bg-primary/15 border border-primary/30 text-primary flex items-center justify-center font-mono text-[10px] font-bold">
                 {userInitials}
               </div>
-              <ChevronDown className="w-3 h-3 text-zinc-400" />
+              <ChevronDown className="w-3 h-3 text-muted-foreground" />
             </button>
           </PopoverTrigger>
           <PopoverContent
             align="end"
             sideOffset={8}
-            className="w-64 p-3 bg-zinc-950 border border-zinc-800 shadow-2xl rounded-lg"
+            className="w-64 p-3 bg-popover border border-border shadow-2xl rounded-lg text-popover-foreground"
           >
             {/* User Identity Header */}
-            <div className="flex items-center gap-2.5 pb-2.5 border-b border-zinc-800">
-              <div className="w-8 h-8 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-mono text-xs font-bold shrink-0">
+            <div className="flex items-center gap-2.5 pb-2.5 border-b border-border">
+              <div className="w-8 h-8 rounded-full bg-primary/15 border border-primary/30 text-primary flex items-center justify-center font-mono text-xs font-bold shrink-0">
                 {userInitials}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-zinc-100 truncate">
+                <p className="text-xs font-semibold text-foreground truncate">
                   {user?.email ? user.email.split("@")[0] : "Admin"}
                 </p>
-                <p className="text-[10px] text-zinc-400 font-mono truncate">
+                <p className="text-[10px] text-muted-foreground font-mono truncate">
                   {user?.email || "admin@telegramhub.local"}
                 </p>
               </div>
             </div>
 
             {/* Role Badge */}
-            <div className="flex items-center justify-between py-2 border-b border-zinc-800/60 text-[11px]">
-              <span className="text-zinc-500 font-mono">Rol Activo:</span>
+            <div className="flex items-center justify-between py-2 border-b border-border/60 text-[11px]">
+              <span className="text-muted-foreground font-mono">Rol Activo:</span>
               <span
                 className={cn(
                   "text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold",
@@ -166,11 +170,32 @@ export const AppLayout: React.FC = () => {
               </span>
             </div>
 
+            {/* Theme Toggle Button */}
+            <div className="py-2 border-b border-border/60">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="w-full flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  {theme === "dark" ? (
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  ) : (
+                    <Moon className="w-3.5 h-3.5 text-primary" />
+                  )}
+                  <span>{theme === "dark" ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono uppercase">
+                  {theme}
+                </span>
+              </button>
+            </div>
+
             {/* Logout Action */}
             <div className="pt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium text-rose-500 hover:bg-rose-500/10 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Cerrar Sesión</span>
@@ -183,7 +208,7 @@ export const AppLayout: React.FC = () => {
       {/* Mobile & Tablet Backdrop Overlay (< 1024px) */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/70 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -191,18 +216,18 @@ export const AppLayout: React.FC = () => {
       {/* Sidebar Navigation: Drawer on < lg, Pinned on >= lg */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-[#0e1015] border-r border-zinc-800 flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 lg:h-full lg:flex-shrink-0",
+          "fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 lg:h-full lg:flex-shrink-0",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Brand Header */}
-        <div className="p-3.5 px-4 border-b border-zinc-800 flex items-center space-x-2.5 flex-shrink-0">
+        <div className="p-3.5 px-4 border-b border-border flex items-center space-x-2.5 flex-shrink-0">
           <BrandLogo size="md" />
           <div>
-            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 leading-none">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground leading-none">
               Telegram Hub
             </h2>
-            <span className="text-[10px] text-zinc-500 font-mono tracking-wider uppercase mt-1 block">
+            <span className="text-[10px] text-muted-foreground font-mono tracking-wider uppercase mt-1 block">
               Multi-Module Admin
             </span>
           </div>
@@ -210,7 +235,7 @@ export const AppLayout: React.FC = () => {
 
         {/* Navigation Items */}
         <nav aria-label="Navegación principal" className="flex-1 min-h-0 p-2.5 px-3 space-y-1 overflow-y-auto">
-          <div className="px-2.5 py-1.5 text-[10px] uppercase font-mono tracking-wider text-zinc-500 font-semibold">
+          <div className="px-2.5 py-1.5 text-[10px] uppercase font-mono tracking-wider text-muted-foreground font-semibold">
             Módulos del Sistema
           </div>
           {NAV_ITEMS.map((item) => {
@@ -229,23 +254,23 @@ export const AppLayout: React.FC = () => {
                   cn(
                     "flex items-center justify-between px-2.5 py-2 rounded-md text-xs font-medium transition-colors group",
                     isActive
-                      ? "bg-zinc-800/80 text-white border border-zinc-700/80"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40"
+                      ? "bg-primary/10 text-primary border border-primary/25 font-semibold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
                     <div className="flex items-center space-x-2.5">
-                      <Icon className={cn("w-4 h-4 transition-colors", isActive ? "text-cyan-400" : "text-zinc-400 group-hover:text-zinc-300")} />
+                      <Icon className={cn("w-4 h-4 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
                       <span>{item.name}</span>
                     </div>
                     {item.badge ? (
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
                         {item.badge}
                       </span>
                     ) : isActive ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                     ) : null}
                   </>
                 )}
@@ -254,31 +279,46 @@ export const AppLayout: React.FC = () => {
           })}
         </nav>
 
-        {/* User Identity & RBAC Pill */}
-        <div className="p-2.5 mx-2.5 mb-2 rounded-lg bg-[#13151d] border border-zinc-800 space-y-1.5 flex-shrink-0">
+        {/* User Identity & Theme Toggle & RBAC Pill */}
+        <div className="p-2.5 mx-2.5 mb-2 rounded-lg bg-muted/40 border border-border space-y-1.5 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 overflow-hidden">
-              <span className="p-1 rounded-md bg-zinc-900 border border-zinc-800 text-cyan-400">
+              <span className="p-1 rounded-md bg-card border border-border text-primary">
                 <UserCheck className="w-3.5 h-3.5" />
               </span>
               <div className="truncate">
-                <span className="text-xs font-medium text-zinc-200 block truncate">
+                <span className="text-xs font-medium text-foreground block truncate">
                   {user?.email || "admin@telegramhub.local"}
                 </span>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="p-1 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-zinc-500 transition-colors"
-              title="Cerrar sesión"
-              aria-label="Cerrar sesión"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title={theme === "dark" ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+                aria-label="Toggle theme"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                ) : (
+                  <Moon className="w-3.5 h-3.5 text-primary" />
+                )}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="p-1 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-muted-foreground transition-colors"
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
-            <span className="text-[10px] text-zinc-500 font-mono">Rol Activo:</span>
+          <div className="flex items-center justify-between pt-1 border-t border-border/60">
+            <span className="text-[10px] text-muted-foreground font-mono">Rol Activo:</span>
             <span
               className={cn(
                 "text-[10px] font-mono px-1.5 py-0.5 rounded border font-semibold",
@@ -292,7 +332,7 @@ export const AppLayout: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col">
+      <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col bg-background">
         <Outlet />
       </main>
     </div>

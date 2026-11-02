@@ -99,15 +99,15 @@ export const LiveSyncHubView: React.FC = () => {
           size="sm"
           onClick={() => reloadDaemon()}
           disabled={isReloading}
-          className="h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-200 text-xs flex items-center gap-1.5"
+          className="h-8 border-border bg-card/60 hover:bg-muted text-foreground text-xs flex items-center gap-1.5"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? "animate-spin text-cyan-400" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isReloading ? "animate-spin text-primary" : ""}`} />
           Recargar Listeners
         </Button>
         <Button
           size="sm"
           onClick={() => setCreateModalOpen(true)}
-          className="h-8 bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs flex items-center shadow-sm"
+          className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs flex items-center shadow-sm"
         >
           <Plus className="h-3.5 w-3.5 mr-1" />
           Vincular Canales

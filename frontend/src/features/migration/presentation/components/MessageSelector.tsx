@@ -297,13 +297,13 @@ export const MessageSelector: React.FC = () => {
 
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap">
           {/* View mode toggle */}
-          <div className="flex items-center bg-zinc-900 border border-white/10 rounded-lg p-0.5">
+          <div className="flex items-center bg-muted/80 border border-border rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-md text-xs flex items-center gap-1 transition-colors ${
                 viewMode === "grid"
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               title="Vista Cuadrícula Visual"
             >
@@ -314,8 +314,8 @@ export const MessageSelector: React.FC = () => {
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-md text-xs flex items-center gap-1 transition-colors ${
                 viewMode === "list"
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               title="Vista Lista Compacta"
             >
@@ -412,7 +412,7 @@ export const MessageSelector: React.FC = () => {
                   size="sm"
                   onClick={startDeltaSync}
                   disabled={isSyncingDelta}
-                  className="h-7.5 text-xs bg-cyan-500 hover:bg-cyan-400 text-black font-semibold shadow-md shadow-cyan-950/40 font-mono w-full sm:w-auto"
+                  className="h-7.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-md font-mono w-full sm:w-auto"
                 >
                   {isSyncingDelta ? (
                     <>
@@ -507,8 +507,8 @@ export const MessageSelector: React.FC = () => {
                 className={cn(
                   "py-1 px-0.5 sm:px-1.5 rounded-md text-[10px] sm:text-[11px] font-mono transition-all flex items-center justify-center gap-0.5 sm:gap-1 min-w-0 text-center h-7",
                   filterState.type === item.id
-                    ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                    : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
                 title={`${item.label} (${item.count})`}
               >
@@ -517,7 +517,7 @@ export const MessageSelector: React.FC = () => {
                 <span
                   className={cn(
                     "text-[9px] sm:text-[10px] opacity-80 shrink-0",
-                    filterState.type === item.id ? "text-black/80 font-bold" : ""
+                    filterState.type === item.id ? "text-primary-foreground/90 font-bold" : ""
                   )}
                 >
                   ({item.count})
@@ -584,7 +584,7 @@ export const MessageSelector: React.FC = () => {
                   <div
                     className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
                       isSelected
-                        ? "bg-cyan-500 text-black shadow-md scale-105"
+                        ? "bg-primary text-primary-foreground shadow-md scale-105"
                         : "bg-black/60 border border-white/30 text-transparent group-hover:border-white"
                     }`}
                   >
@@ -652,13 +652,13 @@ export const MessageSelector: React.FC = () => {
                 onClick={() => toggleSelectMessage(msg.id)}
                 className={`flex items-center gap-3 p-2.5 px-3 text-xs cursor-pointer select-none transition-colors ${
                   isSelected
-                    ? "bg-cyan-950/20 hover:bg-cyan-950/30 text-white"
-                    : "hover:bg-white/[0.02] text-zinc-400"
+                    ? "bg-primary/10 hover:bg-primary/15 text-foreground"
+                    : "hover:bg-muted/50 text-muted-foreground"
                 }`}
               >
                 <div
                   className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
-                    isSelected ? "bg-cyan-500 text-black" : "border border-zinc-700 bg-zinc-900"
+                    isSelected ? "bg-primary text-primary-foreground" : "border border-border bg-card"
                   }`}
                 >
                   <Check className={`w-3 h-3 stroke-[3] ${isSelected ? "opacity-100" : "opacity-0"}`} />
