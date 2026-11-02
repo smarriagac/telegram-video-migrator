@@ -46,7 +46,7 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full h-8 px-2.5 rounded-md bg-card border border-input text-left text-xs flex items-center justify-between transition-all select-none hover:border-border focus:outline-none focus:border-primary",
+            "w-full h-8 px-2.5 rounded-md bg-card border border-border text-left text-xs flex items-center justify-between transition-all select-none hover:border-border/80 focus:outline-none focus:border-primary",
             disabled && "opacity-50 cursor-not-allowed",
             open && "border-primary ring-1 ring-primary/20"
           )}
@@ -117,14 +117,14 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
                       )}
                       <span className="truncate text-foreground font-medium">{c.title}</span>
                       {c.username ? (
-                        <span className="text-[10px] text-zinc-500 shrink-0">@{c.username}</span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">@{c.username}</span>
                       ) : (
-                        <span className="text-[10px] text-zinc-600 font-mono shrink-0">
+                        <span className="text-[10px] text-muted-foreground font-mono shrink-0">
                           [{c.id}]
                         </span>
                       )}
                     </div>
-                    {isSelected && <Check className="h-3.5 w-3.5 text-cyan-400 shrink-0" />}
+                    {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
                   </CommandItem>
                 );
               })}

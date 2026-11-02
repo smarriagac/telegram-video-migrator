@@ -99,29 +99,29 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
               onClick={() => setShowModal(false)}
             >
               <div
-                className="bg-[#14161F] border border-white/10 rounded-md max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+                className="bg-card border border-border rounded-md max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5 text-card-foreground"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                <div className="flex items-center justify-between border-b border-border pb-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white font-mono">
+                    <span className="text-sm font-bold text-foreground font-mono">
                       Mensaje #{messageId}
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-primary/10 text-primary border border-primary/20 font-semibold">
                       Video
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="text-zinc-400 hover:text-white p-1 rounded-sm hover:bg-white/5 transition-colors"
+                    className="text-muted-foreground hover:text-foreground p-1 rounded-sm hover:bg-muted transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
                 {/* Video Player in Modal */}
-                <div className="relative w-full min-h-[320px] max-h-[65vh] rounded-md overflow-hidden bg-black border border-white/10 flex items-center justify-center">
+                <div className="relative w-full min-h-[320px] max-h-[65vh] rounded-md overflow-hidden bg-black border border-border flex items-center justify-center">
                   <video
                     src={videoUrl}
                     poster={thumbUrl}
@@ -134,10 +134,10 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
 
                 {text && (
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                       Texto / Descripción:
                     </span>
-                    <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                    <p className="text-xs text-foreground bg-secondary/60 p-3 rounded-lg border border-border whitespace-pre-wrap max-h-36 overflow-y-auto">
                       {text}
                     </p>
                   </div>
@@ -148,7 +148,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowModal(false)}
-                    className="h-8 text-xs px-4 bg-zinc-900 border-white/10 hover:bg-white/5"
+                    className="h-8 text-xs px-4 border-border bg-secondary text-secondary-foreground hover:bg-muted"
                   >
                     Cerrar
                   </Button>
@@ -164,24 +164,24 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   return (
     <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
       {!loaded && !hasError && (
-        <div className="w-full h-36 bg-zinc-900/60 animate-pulse flex items-center justify-center text-zinc-600">
-          <Loader2 className="w-5 h-5 text-cyan-400/60 animate-spin" />
+        <div className="w-full h-36 bg-secondary/60 animate-pulse flex items-center justify-center text-muted-foreground">
+          <Loader2 className="w-5 h-5 text-primary/60 animate-spin" />
         </div>
       )}
 
       {hasError ? (
-        <div className="w-full h-36 bg-zinc-900 border border-zinc-800 flex flex-col items-center justify-center gap-1.5 text-zinc-400 p-4 text-center">
+        <div className="w-full h-36 bg-secondary/80 border border-border flex flex-col items-center justify-center gap-1.5 text-muted-foreground p-4 text-center">
           {mediaType === "video" ? (
-            <div className="w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center mb-1">
-              <Play className="w-5 h-5 text-cyan-400 fill-cyan-400 ml-0.5" />
+            <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center mb-1">
+              <Play className="w-5 h-5 text-primary fill-primary ml-0.5" />
             </div>
           ) : (
-            <ImageIcon className="w-8 h-8 text-emerald-400/50 mb-1" />
+            <ImageIcon className="w-8 h-8 text-emerald-500/50 mb-1" />
           )}
-          <span className="text-[11px] font-medium text-zinc-300">
+          <span className="text-[11px] font-medium text-foreground">
             {mediaType === "video" ? "Video de Telegram" : "Foto de Telegram"}
           </span>
-          <span className="text-[9px] font-mono text-zinc-500">
+          <span className="text-[9px] font-mono text-muted-foreground">
             Miniatura no provista por el remitente
           </span>
         </div>
@@ -246,9 +246,9 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
               setIsPlayingInline(true);
             }}
             title="Reproducir video inline"
-            className="w-12 h-12 rounded-full bg-cyan-500/90 hover:bg-cyan-400 text-black shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
+            className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
           >
-            <Play className="w-5 h-5 fill-black ml-0.5" />
+            <Play className="w-5 h-5 fill-primary-foreground ml-0.5" />
           </button>
         </div>
       )}
@@ -261,29 +261,29 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
             onClick={() => setShowModal(false)}
           >
             <div
-              className="bg-[#14161F] border border-white/10 rounded-md max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5"
+              className="bg-card border border-border rounded-md max-w-3xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-5 text-card-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white font-mono">
+                  <span className="text-sm font-bold text-foreground font-mono">
                     Mensaje #{messageId}
                   </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-semibold">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-primary/10 text-primary border border-primary/20 font-semibold">
                     {mediaType}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="text-zinc-400 hover:text-white p-1 rounded-sm hover:bg-white/5 transition-colors"
+                  className="text-muted-foreground hover:text-foreground p-1 rounded-sm hover:bg-muted transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Full Media Contain: Video Player or Image */}
-              <div className="relative w-full min-h-[300px] max-h-[65vh] rounded-md overflow-hidden bg-black/95 border border-white/10 flex items-center justify-center">
+              <div className="relative w-full min-h-[300px] max-h-[65vh] rounded-md overflow-hidden bg-black/95 border border-border flex items-center justify-center">
                 {mediaType === "video" ? (
                   <video
                     src={videoUrl}
@@ -304,10 +304,10 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
 
               {text && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
                     Texto / Descripción:
                   </span>
-                  <p className="text-xs text-zinc-200 bg-zinc-950/60 p-3 rounded-lg border border-white/5 whitespace-pre-wrap max-h-36 overflow-y-auto">
+                  <p className="text-xs text-foreground bg-secondary/60 p-3 rounded-lg border border-border whitespace-pre-wrap max-h-36 overflow-y-auto">
                     {text}
                   </p>
                 </div>
@@ -318,7 +318,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={() => setShowModal(false)}
-                  className="h-8 text-xs px-4 bg-zinc-900 border-white/10 hover:bg-white/5"
+                  className="h-8 text-xs px-4 border-border bg-secondary text-secondary-foreground hover:bg-muted"
                 >
                   Cerrar
                 </Button>
@@ -506,39 +506,39 @@ export const ChatsView: React.FC = () => {
       </ViewHeader>
 
       {/* Main Chat Interface: Bound height with flex/grid */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-[#14161F] border border-white/5 rounded-md overflow-hidden shadow-2xl">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-card border border-border rounded-md overflow-hidden shadow-sm">
         {/* Left Column: Chat List (4 cols on lg, 3 cols on xl) */}
         <aside
           className={cn(
-            "md:col-span-5 lg:col-span-4 xl:col-span-3 border-r border-white/5 flex flex-col bg-[#10121A]/50 h-full min-h-0 overflow-hidden",
+            "md:col-span-5 lg:col-span-4 xl:col-span-3 border-r border-border flex flex-col bg-card h-full min-h-0 overflow-hidden",
             activeChatId ? "hidden md:flex" : "flex"
           )}
         >
           {/* Search Bar (shrink-0) */}
-          <div className="p-2.5 border-b border-white/5 shrink-0">
+          <div className="p-2.5 border-b border-border shrink-0">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 placeholder="Buscar chats o canales..."
-                className="w-full bg-zinc-950/80 border border-white/10 rounded-md pl-8 pr-2.5 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                className="w-full bg-secondary/60 border border-border rounded-md pl-8 pr-2.5 py-1.5 h-8 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                 aria-label="Buscar chats"
               />
             </div>
           </div>
 
           {/* Category Filter Pills (shrink-0) */}
-          <div className="flex items-center gap-1 p-2 px-2.5 border-b border-white/5 shrink-0 bg-black/20 overflow-x-auto text-[11px] no-scrollbar">
+          <div className="flex items-center gap-1 p-2 px-2.5 border-b border-border shrink-0 bg-secondary/30 overflow-x-auto text-[11px] no-scrollbar">
             <button
               type="button"
               onClick={() => setCategoryFilter("all")}
               className={cn(
                 "px-2 py-0.5 rounded font-medium transition-colors shrink-0",
                 categoryFilter === "all"
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-white bg-white/5"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground bg-secondary/60"
               )}
             >
               Todos ({chats.length})
@@ -549,8 +549,8 @@ export const ChatsView: React.FC = () => {
               className={cn(
                 "px-2 py-0.5 rounded font-medium transition-colors shrink-0 flex items-center gap-1",
                 categoryFilter === "channel"
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-white bg-white/5"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground bg-secondary/60"
               )}
             >
               <Radio className="w-3 h-3" />
@@ -562,8 +562,8 @@ export const ChatsView: React.FC = () => {
               className={cn(
                 "px-2 py-0.5 rounded font-medium transition-colors shrink-0 flex items-center gap-1",
                 categoryFilter === "group"
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-white bg-white/5"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground bg-secondary/60"
               )}
             >
               <Users className="w-3 h-3" />
@@ -575,8 +575,8 @@ export const ChatsView: React.FC = () => {
               className={cn(
                 "px-2 py-0.5 rounded font-medium transition-colors shrink-0 flex items-center gap-1",
                 categoryFilter === "user"
-                  ? "bg-cyan-500 text-black font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-white bg-white/5"
+                  ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground bg-secondary/60"
               )}
             >
               <UserIcon className="w-3 h-3" />
@@ -585,14 +585,14 @@ export const ChatsView: React.FC = () => {
           </div>
 
           {/* List of Chats (flex-1 min-h-0 overflow-y-auto for flawless scrolling) */}
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-white/[0.03]">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/40">
             {isLoadingDialogs && chats.length === 0 ? (
-              <div className="p-6 flex flex-col items-center justify-center text-center text-xs text-zinc-500 gap-2">
-                <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+              <div className="p-6 flex flex-col items-center justify-center text-center text-xs text-muted-foreground gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 <span>Cargando conversaciones desde MTProto...</span>
               </div>
             ) : filteredChats.length === 0 ? (
-              <div className="p-6 text-center text-xs text-zinc-500">
+              <div className="p-6 text-center text-xs text-muted-foreground">
                 No se encontraron conversaciones
               </div>
             ) : (
@@ -604,44 +604,44 @@ export const ChatsView: React.FC = () => {
                       key={chat.id}
                       onClick={() => selectChat(chat.id)}
                       className={cn(
-                        "w-full text-left p-2.5 px-3 transition-all flex items-start gap-2.5 hover:bg-white/[0.03]",
-                        isActive && "bg-cyan-500/10 border-l-2 border-cyan-400"
+                        "w-full text-left p-2.5 px-3 transition-all flex items-start gap-2.5 hover:bg-muted/50",
+                        isActive && "bg-primary/10 border-l-2 border-primary"
                       )}
                     >
                       <div
                         className={cn(
                           "w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
-                          chat.avatar_color || "bg-cyan-600"
+                          chat.avatar_color || "bg-primary"
                         )}
                       >
                         {(chat.title || "C").charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-zinc-200 truncate">
+                          <span className="text-xs font-semibold text-foreground truncate">
                             {chat.title || "Sin título"}
                           </span>
-                          <span className="text-[9px] text-zinc-500 font-mono shrink-0 ml-1">
+                          <span className="text-[9px] text-muted-foreground font-mono shrink-0 ml-1">
                             {chat.last_message_date}
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-0.5">
-                          <p className="text-[11px] text-zinc-400 truncate max-w-[170px]">
+                          <p className="text-[11px] text-muted-foreground truncate max-w-[170px]">
                             {chat.last_message || "Sin mensajes"}
                           </p>
                           {chat.unread_count > 0 && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-500 text-black font-bold shrink-0 ml-1">
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary text-primary-foreground font-bold shrink-0 ml-1">
                               {chat.unread_count}
                             </span>
                           )}
                         </div>
                         <div className="mt-0.5 flex items-center justify-between">
-                          <div className="flex items-center gap-1 text-[9px] text-zinc-500 font-mono uppercase">
+                          <div className="flex items-center gap-1 text-[9px] text-muted-foreground font-mono uppercase">
                             {getChatIcon(chat.type)}
                             <span>{chat.type}</span>
                           </div>
                           {chat.can_post === false && (
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-medium bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-medium bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
                               Solo Lectura
                             </span>
                           )}
@@ -653,13 +653,13 @@ export const ChatsView: React.FC = () => {
 
                 {/* Load More Button inside scroll container */}
                 {hasMoreDialogs && (
-                  <div className="p-2.5 text-center bg-black/10 border-t border-white/5">
+                  <div className="p-2.5 text-center bg-secondary/30 border-t border-border">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={loadMoreDialogs}
                       disabled={isLoadingMoreDialogs}
-                      className="w-full text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 h-7"
+                      className="w-full text-xs text-primary hover:text-primary hover:bg-primary/10 h-7"
                     >
                       {isLoadingMoreDialogs ? (
                         <>
@@ -677,14 +677,14 @@ export const ChatsView: React.FC = () => {
           </div>
 
           {/* Aside Footer info (shrink-0) */}
-          <div className="p-2 px-3 border-t border-white/5 text-[10px] text-zinc-500 font-mono flex items-center justify-between shrink-0 bg-[#0d0e15]">
+          <div className="p-2 px-3 border-t border-border text-[10px] text-muted-foreground font-mono flex items-center justify-between shrink-0 bg-secondary/30">
             <span>{filteredChats.length} conversaciones</span>
             <button
               type="button"
               onClick={() => loadDialogs(true)}
-              className="hover:text-cyan-400 flex items-center gap-1 transition-colors"
+              className="hover:text-primary flex items-center gap-1 transition-colors"
             >
-              <RefreshCw className={cn("w-3 h-3", isLoadingDialogs && "animate-spin text-cyan-400")} />
+              <RefreshCw className={cn("w-3 h-3", isLoadingDialogs && "animate-spin text-primary")} />
               Recargar
             </button>
           </div>
@@ -693,19 +693,19 @@ export const ChatsView: React.FC = () => {
         {/* Right Column: Active Conversation (7-8 cols on lg, 9 cols on xl) */}
         <section
           className={cn(
-            "md:col-span-7 lg:col-span-8 xl:col-span-9 flex flex-col bg-[#14161F] h-full min-h-0 overflow-hidden",
+            "md:col-span-7 lg:col-span-8 xl:col-span-9 flex flex-col bg-background h-full min-h-0 overflow-hidden",
             activeChatId ? "flex" : "hidden md:flex"
           )}
         >
           {activeChat ? (
             <>
               {/* Conversation Header (shrink-0) */}
-              <div className="p-2.5 px-3 border-b border-white/5 flex items-center justify-between bg-[#12141C] shrink-0">
+              <div className="p-2.5 px-3 border-b border-border flex items-center justify-between bg-card shrink-0">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => selectChat(0)}
-                    className="md:hidden p-1.5 -ml-1 text-zinc-400 hover:text-white rounded-md hover:bg-white/5 transition-colors"
+                    className="md:hidden p-1.5 -ml-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
                     title="Volver a la lista de chats"
                     aria-label="Volver a la lista de chats"
                   >
@@ -714,7 +714,7 @@ export const ChatsView: React.FC = () => {
                   <div
                     className={cn(
                       "w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] text-white shrink-0",
-                      activeChat.avatar_color || "bg-cyan-600"
+                      activeChat.avatar_color || "bg-primary"
                     )}
                   >
                     {(activeChat.title || "C").charAt(0).toUpperCase()}
@@ -840,15 +840,15 @@ export const ChatsView: React.FC = () => {
 
                         <div
                           className={cn(
-                            "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-md transition-colors",
+                            "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-sm transition-colors",
                             msg.is_outgoing
-                              ? "self-end bg-cyan-600/20 border border-cyan-500/30 text-cyan-50"
-                              : "self-start bg-[#1C1F2B] border border-white/5 text-zinc-200"
+                              ? "self-end bg-primary/15 border border-primary/30 text-foreground"
+                              : "self-start bg-card border border-border text-foreground"
                           )}
                         >
                           {/* Sender & Timestamp */}
-                          <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14">
-                            <span className="font-semibold">{msg.sender_name}</span>
+                          <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14 text-muted-foreground">
+                            <span className="font-semibold text-foreground/80">{msg.sender_name}</span>
                             <span>{msg.date}</span>
                           </div>
 
@@ -859,7 +859,7 @@ export const ChatsView: React.FC = () => {
                                 type="button"
                                 onClick={() => handleStartEdit(msg)}
                                 title="Editar mensaje"
-                                className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-cyan-300 transition-colors"
+                                className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-primary transition-colors border border-border/40"
                               >
                                 <Pencil className="w-3 h-3" />
                               </button>
@@ -871,7 +871,7 @@ export const ChatsView: React.FC = () => {
                                   }
                                 }}
                                 title="Eliminar mensaje"
-                                className="p-1 rounded bg-black/50 hover:bg-black/80 text-zinc-300 hover:text-red-400 transition-colors"
+                                className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-rose-500 transition-colors border border-border/40"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -889,8 +889,8 @@ export const ChatsView: React.FC = () => {
                             />
                           )}
                           {msg.media_type === "document" && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-black/30 border border-white/10 text-amber-300 text-[10px] font-mono w-fit">
-                              <FileText className="w-3.5 h-3.5 text-amber-400" />
+                            <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[10px] font-mono w-fit">
+                              <FileText className="w-3.5 h-3.5 text-amber-500" />
                               <span>Documento / Archivo</span>
                             </div>
                           )}
@@ -902,7 +902,7 @@ export const ChatsView: React.FC = () => {
                                 type="text"
                                 value={editText}
                                 onChange={(e) => setEditText(e.target.value)}
-                                className="w-full bg-black/50 border border-cyan-500/50 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
@@ -916,7 +916,7 @@ export const ChatsView: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => setEditingMessage(null)}
-                                  className="p-1 px-2 rounded text-[10px] text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 flex items-center gap-1"
+                                  className="p-1 px-2 rounded text-[10px] text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border"
                                 >
                                   <X className="w-3 h-3" />
                                   Cancelar
@@ -924,7 +924,7 @@ export const ChatsView: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleSaveEdit(msg.id)}
-                                  className="p-1 px-2 rounded text-[10px] text-black bg-cyan-400 hover:bg-cyan-300 font-semibold flex items-center gap-1"
+                                  className="p-1 px-2 rounded text-[10px] text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1"
                                 >
                                   <Check className="w-3 h-3" />
                                   Guardar
@@ -938,11 +938,11 @@ export const ChatsView: React.FC = () => {
                           {msg.is_outgoing && !isEditingThis && (
                             <div className="self-end mt-0.5 flex items-center gap-0.5">
                               {isOutgoingRead ? (
-                                <span title="Leído por el destinatario" className="text-cyan-400 flex items-center">
+                                <span title="Leído por el destinatario" className="text-primary flex items-center">
                                   <CheckCheck className="w-3.5 h-3.5" />
                                 </span>
                               ) : (
-                                <span title="Entregado al servidor (no leído aún)" className="text-zinc-400 flex items-center">
+                                <span title="Entregado al servidor (no leído aún)" className="text-muted-foreground flex items-center">
                                   <Check className="w-3.5 h-3.5" />
                                 </span>
                               )}
@@ -966,12 +966,12 @@ export const ChatsView: React.FC = () => {
                       }
                       setIsScrolledUp(false);
                     }}
-                    className="sticky bottom-2 self-end mr-2 z-20 p-2 rounded-full bg-zinc-900/95 border border-cyan-500/40 text-cyan-400 shadow-2xl hover:bg-zinc-800 transition-all flex items-center gap-1.5 backdrop-blur-md group"
+                    className="sticky bottom-2 self-end mr-2 z-20 p-2 rounded-full bg-card border border-primary/40 text-primary shadow-2xl hover:bg-muted transition-all flex items-center gap-1.5 backdrop-blur-md group"
                     title="Ir a los mensajes más recientes"
                   >
                     <ChevronDown className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
                     {activeChat.unread_count > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-cyan-500 text-black">
+                      <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-primary text-primary-foreground">
                         {activeChat.unread_count}
                       </span>
                     )}
@@ -981,28 +981,28 @@ export const ChatsView: React.FC = () => {
 
               {/* File Attachment Banner (shrink-0) */}
               {selectedFile && (
-                <div className="p-2 px-3 bg-[#0d0e15] border-t border-white/5 flex items-center justify-between gap-3 shrink-0">
+                <div className="p-2 px-3 bg-secondary/50 border-t border-border flex items-center justify-between gap-3 shrink-0">
                   <div className="flex items-center gap-2.5 min-w-0">
                     {filePreviewUrl ? (
                       selectedFile.type.startsWith("image/") ? (
                         <img
                           src={filePreviewUrl}
                           alt="Preview"
-                          className="w-9 h-9 object-cover rounded border border-white/10 shrink-0"
+                          className="w-9 h-9 object-cover rounded border border-border shrink-0"
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
-                          <FileVideo className="w-4 h-4 text-cyan-400" />
+                        <div className="w-9 h-9 rounded bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+                          <FileVideo className="w-4 h-4 text-primary" />
                         </div>
                       )
                     ) : (
-                      <div className="w-9 h-9 rounded bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-zinc-400" />
+                      <div className="w-9 h-9 rounded bg-secondary border border-border flex items-center justify-center shrink-0">
+                        <FileText className="w-4 h-4 text-muted-foreground" />
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-zinc-200 truncate">{selectedFile.name}</p>
-                      <p className="text-[10px] text-zinc-500 font-mono">
+                      <p className="text-xs font-medium text-foreground truncate">{selectedFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">
                         {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {selectedFile.type || "Archivo local"}
                       </p>
                     </div>
@@ -1010,7 +1010,7 @@ export const ChatsView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedFile(null)}
-                    className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/10"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
                     title="Quitar archivo adjunto"
                   >
                     <X className="w-4 h-4" />
@@ -1020,14 +1020,14 @@ export const ChatsView: React.FC = () => {
 
               {/* Message Input Footer or Read-Only Notice (shrink-0) */}
               {activeChat.can_post === false ? (
-                <div className="p-3 border-t border-white/5 bg-[#10121A] flex items-center justify-center gap-2 text-zinc-400 text-xs shrink-0 font-medium">
-                  <Lock className="w-4 h-4 text-amber-400 shrink-0" />
+                <div className="p-3 border-t border-border bg-secondary/40 flex items-center justify-center gap-2 text-muted-foreground text-xs shrink-0 font-medium">
+                  <Lock className="w-4 h-4 text-amber-500 shrink-0" />
                   <span>Este canal o grupo es de solo lectura. No tenés permisos para publicar mensajes aquí.</span>
                 </div>
               ) : (
                 <form
                   onSubmit={handleSend}
-                  className="p-2.5 border-t border-white/5 bg-[#12141C] flex items-center gap-2 shrink-0"
+                  className="p-2.5 border-t border-border bg-card flex items-center gap-2 shrink-0"
                 >
                   <input
                     type="file"
@@ -1048,7 +1048,7 @@ export const ChatsView: React.FC = () => {
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="h-8 px-2 text-zinc-400 hover:text-cyan-400 hover:bg-white/5 shrink-0"
+                    className="h-8 px-2 text-muted-foreground hover:text-primary hover:bg-muted shrink-0"
                     title="Adjuntar video, foto o archivo local"
                   >
                     <Paperclip className="w-4 h-4" />
@@ -1063,14 +1063,14 @@ export const ChatsView: React.FC = () => {
                         : "Escribí un mensaje..."
                     }
                     disabled={isUploading}
-                    className="flex-1 bg-zinc-950/80 border border-white/10 rounded-md px-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                    className="flex-1 bg-secondary/60 border border-border rounded-md px-3 py-1.5 h-8 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                     aria-label="Mensaje a enviar"
                   />
                   <Button
                     type="submit"
                     size="sm"
                     disabled={isUploading || (!inputText.trim() && !selectedFile)}
-                    className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5 shrink-0"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5 shrink-0 shadow-sm"
                   >
                     {isUploading ? (
                       <>

@@ -157,12 +157,12 @@ export const PipelineModulesView: React.FC = () => {
 
               {/* Toggles */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors gap-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary/70 transition-colors gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <Link2 className="w-4 h-4 text-sky-400 shrink-0" />
+                    <Link2 className="w-4 h-4 text-primary shrink-0" />
                     <div className="min-w-0">
-                      <div className="font-medium text-xs text-zinc-200">Limpiar enlaces externos (URLs)</div>
-                      <div className="text-[11px] text-zinc-400 truncate sm:whitespace-normal">Elimina enlaces web (http, https y t.me/...)</div>
+                      <div className="font-medium text-xs text-foreground">Limpiar enlaces externos (URLs)</div>
+                      <div className="text-[11px] text-muted-foreground truncate sm:whitespace-normal">Elimina enlaces web (http, https y t.me/...)</div>
                     </div>
                   </div>
                   <Switch
@@ -173,12 +173,12 @@ export const PipelineModulesView: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors gap-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary/70 transition-colors gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <AtSign className="w-4 h-4 text-amber-400 shrink-0" />
+                    <AtSign className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
                     <div className="min-w-0">
-                      <div className="font-medium text-xs text-zinc-200">Eliminar todas las menciones</div>
-                      <div className="text-[11px] text-zinc-400 truncate sm:whitespace-normal">Quita cualquier username de spam (@usuario)</div>
+                      <div className="font-medium text-xs text-foreground">Eliminar todas las menciones</div>
+                      <div className="text-[11px] text-muted-foreground truncate sm:whitespace-normal">Quita cualquier username de spam (@usuario)</div>
                     </div>
                   </div>
                   <Switch
@@ -191,9 +191,9 @@ export const PipelineModulesView: React.FC = () => {
               </div>
 
               {/* Reemplazo de mención */}
-              <div className="p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 space-y-2">
-                <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                  <AtSign className="w-3.5 h-3.5 text-zinc-400" /> Reemplazo automático de mención
+              <div className="p-3 rounded-lg border border-border bg-secondary/50 space-y-2">
+                <div className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <AtSign className="w-3.5 h-3.5 text-muted-foreground" /> Reemplazo automático de mención
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
@@ -207,7 +207,7 @@ export const PipelineModulesView: React.FC = () => {
                         replace_mentions: val && currentDest ? { [val]: currentDest } : {},
                       });
                     }}
-                    className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                    className="bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
                   <input
                     type="text"
@@ -220,15 +220,15 @@ export const PipelineModulesView: React.FC = () => {
                         replace_mentions: currentSrc && val ? { [currentSrc]: val } : {},
                       });
                     }}
-                    className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                    className="bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
               {/* Blacklist de palabras */}
-              <div className="p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 space-y-1.5">
-                <div className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400" /> Palabras prohibidas (separadas por comas)
+              <div className="p-3 rounded-lg border border-border bg-secondary/50 space-y-1.5">
+                <div className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" /> Palabras prohibidas (separadas por comas)
                 </div>
                 <input
                   type="text"
@@ -238,31 +238,31 @@ export const PipelineModulesView: React.FC = () => {
                     const words = e.target.value.split(",").map((w) => w.trim()).filter(Boolean);
                     setCaptionRules({ remove_words: words });
                   }}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                  className="w-full bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                 />
               </div>
 
               {/* Encabezado y Firma */}
               <div className="space-y-2">
                 <div>
-                  <div className="text-xs font-medium text-zinc-200 mb-1">Encabezado superior (Header)</div>
+                  <div className="text-xs font-medium text-foreground mb-1">Encabezado superior (Header)</div>
                   <input
                     type="text"
                     placeholder="Ej: 🎬 ¡Nuevo contenido subido!"
                     value={captionRules.prepend_header || ""}
                     onChange={(e) => setCaptionRules({ prepend_header: e.target.value || null })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                    className="w-full bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium text-zinc-200 mb-1">Firma al pie (Signature / Branding)</div>
+                  <div className="text-xs font-medium text-foreground mb-1">Firma al pie (Signature / Branding)</div>
                   <textarea
                     rows={2}
                     placeholder="Ej: 👉 Canal oficial: https://t.me/mi_canal"
                     value={captionRules.append_signature || ""}
                     onChange={(e) => setCaptionRules({ append_signature: e.target.value || null })}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 resize-none"
+                    className="w-full bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary resize-none"
                   />
                 </div>
               </div>

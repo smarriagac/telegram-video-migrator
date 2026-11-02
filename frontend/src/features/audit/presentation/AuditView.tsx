@@ -112,7 +112,7 @@ export const AuditView: React.FC = () => {
         );
       case "MIGRATION_START":
         return (
-          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-primary/10 text-primary border-primary/20">
             <PlayCircle className="w-3 h-3" /> MIGRACIÓN
           </Badge>
         );
@@ -124,7 +124,7 @@ export const AuditView: React.FC = () => {
         );
       case "AUTO_SYNC_TOGGLE":
         return (
-          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20">
             <Radio className="w-3 h-3" /> AUTO-SYNC
           </Badge>
         );
@@ -132,7 +132,7 @@ export const AuditView: React.FC = () => {
       case "USER_UPDATE":
       case "USER_DELETE":
         return (
-          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/20">
+          <Badge variant="outline" className="gap-1 font-mono text-[10px] bg-purple-500/10 text-purple-500 dark:text-purple-400 border-purple-500/20">
             <UserPlus className="w-3 h-3" /> {action}
           </Badge>
         );
@@ -171,7 +171,7 @@ export const AuditView: React.FC = () => {
         title="Auditoría del Sistema"
         subtitle="Registro inmutable de accesos de usuarios, clonaciones de canales y cambios de configuración."
         badge={
-          <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+          <Badge variant="outline" className="text-[10px] font-mono bg-emerald-500/15 text-emerald-500 dark:text-emerald-400 border-emerald-500/30">
             PostgreSQL Logbook
           </Badge>
         }
@@ -181,9 +181,9 @@ export const AuditView: React.FC = () => {
           size="sm"
           onClick={() => fetchLogs()}
           disabled={isLoading}
-          className="text-xs text-zinc-300 flex items-center gap-1.5 h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+          className="text-xs text-foreground flex items-center gap-1.5 h-8 border-border bg-secondary/80 hover:bg-secondary"
         >
-          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-primary")} />
           Actualizar
         </Button>
       </ViewHeader>
@@ -250,8 +250,8 @@ export const AuditView: React.FC = () => {
               className={cn(
                 "h-8 px-3 text-xs whitespace-nowrap",
                 filterCategory === cat.id
-                  ? "bg-zinc-800 text-white border border-zinc-700/80 shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary/10 text-primary border border-primary/30 font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {cat.label}
@@ -261,13 +261,13 @@ export const AuditView: React.FC = () => {
 
         {/* Search */}
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
+          <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
           <Input
             type="text"
             placeholder="Buscar por usuario, acción o detalle..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-8 text-xs bg-zinc-900 border-zinc-800 w-full sm:w-64"
+            className="pl-8 h-8 text-xs bg-secondary/60 border-border text-foreground placeholder:text-muted-foreground w-full sm:w-64"
           />
         </div>
       </div>
@@ -311,33 +311,33 @@ export const AuditView: React.FC = () => {
                   <TableRow
                     key={log.id}
                     onClick={() => setSelectedLog(log)}
-                    className="hover:bg-zinc-800/30 cursor-pointer transition-colors group"
+                    className="hover:bg-muted/40 cursor-pointer transition-colors group"
                   >
-                    <TableCell className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
+                    <TableCell className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
                       <div className="flex items-center gap-1.5">
-                        <Clock className="w-3 h-3 text-zinc-500 shrink-0" />
+                        <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
                         <span>{formatDate(log.created_at)}</span>
                       </div>
                     </TableCell>
                     <TableCell className="py-2.5 px-3 whitespace-nowrap">{getActionBadge(log.action)}</TableCell>
-                    <TableCell className="py-2.5 px-3 text-zinc-200 font-sans font-medium">
-                      {log.user_email || <span className="text-zinc-500 italic font-mono text-[10px]">Sistema / Bot</span>}
+                    <TableCell className="py-2.5 px-3 text-foreground font-sans font-medium">
+                      {log.user_email || <span className="text-muted-foreground italic font-mono text-[10px]">Sistema / Bot</span>}
                     </TableCell>
-                    <TableCell className="py-2.5 px-3 text-cyan-300 font-mono max-w-xs truncate" title={log.resource || ""}>
+                    <TableCell className="py-2.5 px-3 text-primary font-mono max-w-xs truncate" title={log.resource || ""}>
                       {log.resource || "-"}
                     </TableCell>
-                    <TableCell className="py-2.5 px-3 font-sans text-xs text-zinc-400 max-w-sm truncate" title={JSON.stringify(log.details || {})}>
+                    <TableCell className="py-2.5 px-3 font-sans text-xs text-muted-foreground max-w-sm truncate" title={JSON.stringify(log.details || {})}>
                       {log.details ? (
-                        <span className="font-mono text-[10px] text-zinc-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800 hover:border-cyan-500/30 transition-colors">
+                        <span className="font-mono text-[10px] text-foreground bg-secondary px-1.5 py-0.5 rounded border border-border hover:border-primary/40 transition-colors">
                           {JSON.stringify(log.details)}
                         </span>
                       ) : (
                         "-"
                       )}
                     </TableCell>
-                    <TableCell className="py-2.5 px-3 whitespace-nowrap text-zinc-500">
+                    <TableCell className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
                       <div className="flex items-center gap-1">
-                        <Globe className="w-3 h-3 text-zinc-600 shrink-0" />
+                        <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
                         <span>{log.ip_address || "127.0.0.1"}</span>
                       </div>
                     </TableCell>
@@ -384,16 +384,16 @@ export const AuditView: React.FC = () => {
               </SelectContent>
             </Select>
             <span>por página</span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-zinc-400">
-              Total: <strong className="font-mono text-zinc-200">{total}</strong> eventos
+            <span className="text-border">|</span>
+            <span className="text-muted-foreground">
+              Total: <strong className="font-mono text-foreground">{total}</strong> eventos
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-zinc-400">
-              Página <strong className="text-cyan-400">{page}</strong> de{" "}
-              <strong className="text-zinc-300">{totalPages}</strong>
+            <span className="font-mono text-xs text-muted-foreground">
+              Página <strong className="text-primary">{page}</strong> de{" "}
+              <strong className="text-foreground">{totalPages}</strong>
             </span>
             <div className="flex items-center gap-1">
               <Button

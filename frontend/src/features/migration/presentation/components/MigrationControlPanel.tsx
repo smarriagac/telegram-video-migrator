@@ -233,15 +233,15 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                     <div className="flex items-center gap-1.5 truncate">
                       <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isCheckingSync ? "animate-spin text-primary" : syncStatus?.is_in_sync ? "text-emerald-500" : "text-amber-500"}`} />
                       {isCheckingSync ? (
-                        <span className="text-zinc-400 truncate">Comprobando delta...</span>
+                        <span className="text-muted-foreground truncate">Comprobando delta...</span>
                       ) : syncStatus?.is_in_sync ? (
                         <Badge variant="admin" size="sm" className="font-medium">✓ 100% sincronizado</Badge>
                       ) : syncStatus ? (
-                        <Badge variant="secondary" size="sm" className="font-medium font-mono text-amber-300 bg-amber-500/15 border-amber-500/25">
+                        <Badge variant="secondary" size="sm" className="font-medium font-mono text-amber-500 dark:text-amber-300 bg-amber-500/15 border-amber-500/25">
                           {syncStatus.missing_count} novedades
                         </Badge>
                       ) : (
-                        <span className="text-zinc-400 truncate">Sin verificar</span>
+                        <span className="text-muted-foreground truncate">Sin verificar</span>
                       )}
                     </div>
                     <Button
@@ -250,7 +250,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                       size="sm"
                       onClick={() => checkSyncStatus()}
                       disabled={isCheckingSync}
-                      className="h-5.5 px-1.5 text-[10px] font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 shrink-0 ml-1.5"
+                      className="h-5.5 px-1.5 text-[10px] font-mono text-primary hover:text-primary hover:bg-primary/10 shrink-0 ml-1.5"
                     >
                       Auditar
                     </Button>
@@ -399,38 +399,38 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
         {/* Progress & Queue Section (shown when active job or running) */}
         {(activeJob || isRunning) && (
-          <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 space-y-2.5">
+          <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2.5">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-cyan-400" /> Progreso de Cola
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-primary" /> Progreso de Cola
               </span>
-              <span className="font-mono text-cyan-400 font-semibold">{percentage}%</span>
+              <span className="font-mono text-primary font-semibold">{percentage}%</span>
             </div>
 
             <Progress value={percentage} aria-label="Progreso de clonación" />
 
             {/* Quick Metrics */}
-            <div className="grid grid-cols-4 gap-1 text-center font-mono text-[10px] pt-1 border-t border-zinc-800">
-              <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-500 block">Total</span>
-                <span className="text-zinc-200 font-semibold">{stats.total}</span>
+            <div className="grid grid-cols-4 gap-1 text-center font-mono text-[10px] pt-1 border-t border-border">
+              <div className="p-1 rounded bg-card border border-border">
+                <span className="text-muted-foreground block">Total</span>
+                <span className="text-foreground font-semibold">{stats.total}</span>
               </div>
-              <div className="p-1 rounded bg-zinc-950 border border-zinc-800">
-                <span className="text-zinc-400 block">Pend.</span>
-                <span className="text-zinc-300 font-semibold">{stats.pending}</span>
+              <div className="p-1 rounded bg-card border border-border">
+                <span className="text-muted-foreground block">Pend.</span>
+                <span className="text-foreground font-semibold">{stats.pending}</span>
               </div>
               <div className="p-1 rounded bg-emerald-500/10 border border-emerald-500/20">
-                <span className="text-emerald-400 block">Éxito</span>
-                <span className="text-emerald-300 font-semibold">{stats.completed}</span>
+                <span className="text-emerald-500 dark:text-emerald-400 block">Éxito</span>
+                <span className="text-emerald-600 dark:text-emerald-300 font-semibold">{stats.completed}</span>
               </div>
               <div className="p-1 rounded bg-rose-500/10 border border-rose-500/20">
-                <span className="text-rose-400 block">Fallo</span>
-                <span className="text-rose-300 font-semibold">{stats.failed}</span>
+                <span className="text-rose-500 dark:text-rose-400 block">Fallo</span>
+                <span className="text-rose-600 dark:text-rose-300 font-semibold">{stats.failed}</span>
               </div>
             </div>
 
             {progress?.message && (
-              <p className="text-[10px] text-zinc-400 font-mono truncate pt-0.5">
+              <p className="text-[10px] text-muted-foreground font-mono truncate pt-0.5">
                 {progress.message}
               </p>
             )}
@@ -465,16 +465,16 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       </div>
 
       {/* Terminal Log Toggle */}
-      <div className="border-t border-zinc-800 pt-2">
+      <div className="border-t border-border pt-2">
         <button
           onClick={() => setShowLogs(!showLogs)}
-          className="w-full flex items-center justify-between text-xs font-mono text-zinc-400 hover:text-zinc-200 p-1.5 rounded-lg hover:bg-zinc-800/40 transition-colors"
+          className="w-full flex items-center justify-between text-xs font-mono text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40 transition-colors"
         >
           <span className="flex items-center gap-1.5">
-            <Terminal className="w-3.5 h-3.5 text-zinc-500" />
+            <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
             Consola en vivo ({logs.length})
           </span>
-          <span className="text-[10px] text-zinc-600 font-mono">
+          <span className="text-[10px] text-muted-foreground font-mono">
             {showLogs ? "Ocultar" : "Mostrar"}
           </span>
         </button>
@@ -486,7 +486,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
             ) : (
               logs.slice(0, 20).map((l) => (
                 <div key={l.id} className="truncate">
-                  <span className="text-zinc-600">[{l.timestamp}]</span>{" "}
+                  <span className="text-muted-foreground">[{l.timestamp}]</span>{" "}
                   <span
                     className={
                       l.level === "error"
@@ -495,7 +495,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                         ? "text-amber-400"
                         : l.level === "success"
                         ? "text-emerald-400"
-                        : "text-zinc-300"
+                        : "text-foreground"
                     }
                   >
                     {l.text}

@@ -224,11 +224,11 @@ export const LiveSyncHubView: React.FC = () => {
             {/* Mobile View: High-Density Card List (< 640px) */}
             <div className="sm:hidden divide-y divide-border">
               {isLoading ? (
-                <div className="p-4 text-center text-xs text-zinc-500 font-mono">
+                <div className="p-4 text-center text-xs text-muted-foreground font-mono">
                   Cargando matriz de sincronización...
                 </div>
               ) : filteredBindings.length === 0 ? (
-                <div className="p-4 text-center text-xs text-zinc-500 font-mono">
+                <div className="p-4 text-center text-xs text-muted-foreground font-mono">
                   No hay canales vinculados para sincronización en vivo. Haz clic en "+ Vincular Canales" para iniciar.
                 </div>
               ) : (
@@ -241,23 +241,23 @@ export const LiveSyncHubView: React.FC = () => {
                   return (
                     <div
                       key={`mobile-${binding.source_channel_id}-${binding.target_channel_id}`}
-                      className="p-3 space-y-2.5 hover:bg-zinc-800/20 transition-colors"
+                      className="p-3 space-y-2.5 hover:bg-muted/40 transition-colors"
                     >
                       {/* Header: Origin -> Target and Switch */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0 space-y-1">
                           {/* Source */}
-                          <div className="flex items-center gap-1.5 text-xs text-white font-medium">
-                            <span className="text-[10px] text-zinc-500 font-mono shrink-0">DE:</span>
+                          <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
+                            <span className="text-[10px] text-muted-foreground font-mono shrink-0">DE:</span>
                             <span className="truncate">{binding.source_channel_title || "Canal Origen"}</span>
-                            <span className="text-[9px] font-mono text-zinc-600 shrink-0">[{binding.source_channel_id}]</span>
+                            <span className="text-[9px] font-mono text-muted-foreground shrink-0">[{binding.source_channel_id}]</span>
                           </div>
                           {/* Arrow & Target */}
-                          <div className="flex items-center gap-1.5 text-xs text-cyan-300 font-medium">
-                            <ArrowRight className="h-3 w-3 text-cyan-400 shrink-0" />
-                            <span className="text-[10px] text-zinc-500 font-mono shrink-0">A:</span>
+                          <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                            <ArrowRight className="h-3 w-3 text-primary shrink-0" />
+                            <span className="text-[10px] text-muted-foreground font-mono shrink-0">A:</span>
                             <span className="truncate">{binding.target_channel_title || "Canal Destino"}</span>
-                            <span className="text-[9px] font-mono text-zinc-600 shrink-0">[{binding.target_channel_id}]</span>
+                            <span className="text-[9px] font-mono text-muted-foreground shrink-0">[{binding.target_channel_id}]</span>
                           </div>
                         </div>
 
@@ -269,7 +269,7 @@ export const LiveSyncHubView: React.FC = () => {
                           />
                           <span
                             className={`text-[9px] font-semibold uppercase font-mono ${
-                              binding.is_active ? "text-emerald-400" : "text-zinc-500"
+                              binding.is_active ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"
                             }`}
                           >
                             {binding.is_active ? "ACTIVO" : "PAUSA"}
@@ -278,32 +278,32 @@ export const LiveSyncHubView: React.FC = () => {
                       </div>
 
                       {/* Rules Badges + Last Synced + Actions */}
-                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-800/60">
+                      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border">
                         <div className="flex flex-wrap items-center gap-1 min-w-0">
                           {allowVideo && (
-                            <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-cyan-400 text-[9px] px-1.5 py-0.5">
+                            <Badge variant="outline" className="gap-1 border-primary/25 bg-primary/10 text-primary text-[9px] px-1.5 py-0.5">
                               <FileVideo className="h-2.5 w-2.5 shrink-0" />
                               <span>Video</span>
                             </Badge>
                           )}
                           {allowPhoto && (
-                            <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-amber-400 text-[9px] px-1.5 py-0.5">
+                            <Badge variant="outline" className="gap-1 border-amber-500/25 bg-amber-500/10 text-amber-500 dark:text-amber-400 text-[9px] px-1.5 py-0.5">
                               <Image className="h-2.5 w-2.5 shrink-0" />
                               <span>Foto</span>
                             </Badge>
                           )}
                           {allowDoc && (
-                            <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-purple-400 text-[9px] px-1.5 py-0.5">
+                            <Badge variant="outline" className="gap-1 border-purple-500/25 bg-purple-500/10 text-purple-500 dark:text-purple-400 text-[9px] px-1.5 py-0.5">
                               <File className="h-2.5 w-2.5 shrink-0" />
                               <span>Doc</span>
                             </Badge>
                           )}
                           {stripLinks && (
-                            <Badge variant="outline" className="border-emerald-500/30 bg-zinc-950/40 text-emerald-400 text-[9px] px-1.5 py-0.5">
+                            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-[9px] px-1.5 py-0.5">
                               <span>Anti-Spam</span>
                             </Badge>
                           )}
-                          <Badge variant="outline" className="border-zinc-800 bg-zinc-950/60 font-mono text-[9px] text-zinc-400 px-1.5 py-0.5">
+                          <Badge variant="outline" className="border-border bg-secondary font-mono text-[9px] text-muted-foreground px-1.5 py-0.5">
                             <span>Msg #{binding.last_synced_message_id}</span>
                           </Badge>
                         </div>
@@ -313,7 +313,7 @@ export const LiveSyncHubView: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleOpenRules(binding)}
-                            className="h-7 w-7 p-0 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                             title="Configurar filtros y reglas"
                           >
                             <Sliders className="h-3.5 w-3.5" />
@@ -322,7 +322,7 @@ export const LiveSyncHubView: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(binding)}
-                            className="h-7 w-7 p-0 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10"
                             title="Eliminar vinculación"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -407,25 +407,25 @@ export const LiveSyncHubView: React.FC = () => {
                           <TableCell className="py-2 px-3">
                             <div className="flex flex-wrap items-center gap-1">
                               {allowVideo && (
-                                <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-cyan-400 text-[10px]">
+                                <Badge variant="outline" className="gap-1 border-primary/25 bg-primary/10 text-primary text-[10px]">
                                   <FileVideo className="h-3 w-3 shrink-0" />
                                   <span>Video</span>
                                 </Badge>
                               )}
                               {allowPhoto && (
-                                <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-amber-400 text-[10px]">
+                                <Badge variant="outline" className="gap-1 border-amber-500/25 bg-amber-500/10 text-amber-500 dark:text-amber-400 text-[10px]">
                                   <Image className="h-3 w-3 shrink-0" />
                                   <span>Foto</span>
                                 </Badge>
                               )}
                               {allowDoc && (
-                                <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-purple-400 text-[10px]">
+                                <Badge variant="outline" className="gap-1 border-purple-500/25 bg-purple-500/10 text-purple-500 dark:text-purple-400 text-[10px]">
                                   <File className="h-3 w-3 shrink-0" />
                                   <span>Doc</span>
                                 </Badge>
                               )}
                               {stripLinks && (
-                                <Badge variant="outline" className="border-emerald-500/30 bg-zinc-950/40 text-emerald-400 text-[10px]">
+                                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 text-[10px]">
                                   <span>Anti-Spam</span>
                                 </Badge>
                               )}
@@ -434,7 +434,7 @@ export const LiveSyncHubView: React.FC = () => {
 
                           {/* Last Synced Message ID */}
                           <TableCell className="py-2 px-3 whitespace-nowrap">
-                            <Badge variant="outline" className="border-zinc-800 bg-zinc-950/60 font-mono text-[10px] text-zinc-300">
+                            <Badge variant="outline" className="border-border bg-secondary font-mono text-[10px] text-muted-foreground">
                               <span>Msg #{binding.last_synced_message_id}</span>
                             </Badge>
                           </TableCell>
@@ -448,7 +448,7 @@ export const LiveSyncHubView: React.FC = () => {
                               />
                               <span
                                 className={`text-[9px] font-semibold uppercase font-mono ${
-                                  binding.is_active ? "text-emerald-400" : "text-zinc-500"
+                                  binding.is_active ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"
                                 }`}
                               >
                                 {binding.is_active ? "ACTIVO" : "PAUSA"}
@@ -463,7 +463,7 @@ export const LiveSyncHubView: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleOpenRules(binding)}
-                                className="h-7 px-2 text-zinc-400 hover:text-white hover:bg-zinc-800 text-xs"
+                                className="h-7 px-2 text-muted-foreground hover:text-foreground hover:bg-muted text-xs"
                                 title="Configurar filtros y reglas de este canal"
                               >
                                 <Sliders className="h-3.5 w-3.5" />
@@ -472,7 +472,7 @@ export const LiveSyncHubView: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(binding)}
-                                className="h-7 px-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 text-xs"
+                                className="h-7 px-2 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 text-xs"
                                 title="Eliminar vinculación"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />

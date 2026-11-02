@@ -146,13 +146,13 @@ export const JobsView: React.FC = () => {
     switch (status) {
       case "RUNNING":
         return (
-          <Badge variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/10 text-[10px] animate-pulse">
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1.5" /> En ejecución
+          <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 text-[10px] animate-pulse">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary mr-1.5" /> En ejecución
           </Badge>
         );
       case "COMPLETED":
         return (
-          <Badge variant="outline" className="text-emerald-400 border-emerald-500/25 bg-emerald-500/10 text-[10px]">
+          <Badge variant="outline" className="text-emerald-500 dark:text-emerald-400 border-emerald-500/25 bg-emerald-500/10 text-[10px]">
             <CheckCircle2 className="w-3 h-3 mr-1" /> Completado
           </Badge>
         );
@@ -165,19 +165,19 @@ export const JobsView: React.FC = () => {
       case "PAUSED":
       case "PAUSED_FLOOD_WAIT":
         return (
-          <Badge variant="outline" className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px]">
+          <Badge variant="outline" className="text-amber-500 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px]">
             <Pause className="w-3 h-3 mr-1" /> Pausado
           </Badge>
         );
       case "CANCELLED":
         return (
-          <Badge variant="secondary" className="text-zinc-500 text-[10px]">
+          <Badge variant="secondary" className="text-muted-foreground text-[10px]">
             <XCircle className="w-3 h-3 mr-1" /> Cancelado
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="text-zinc-400 border-zinc-700 bg-zinc-900 text-[10px]">
+          <Badge variant="outline" className="text-muted-foreground border-border bg-secondary text-[10px]">
             <Clock className="w-3 h-3 mr-1" /> Pendiente
           </Badge>
         );
@@ -209,7 +209,7 @@ export const JobsView: React.FC = () => {
         title="Cola de Trabajos & Tareas"
         subtitle="Supervisión de procesos en segundo plano, control de ritmo (Drip Feed) y recuperación de fallos."
         badge={
-          <Badge variant="outline" className="text-[10px] font-mono bg-cyan-500/15 text-cyan-400 border-cyan-500/30">
+          <Badge variant="outline" className="text-[10px] font-mono bg-primary/15 text-primary border-primary/30">
             Scheduler Queue
           </Badge>
         }
@@ -219,9 +219,9 @@ export const JobsView: React.FC = () => {
           size="sm"
           onClick={() => fetchJobs()}
           disabled={isLoading}
-          className="text-xs text-zinc-300 flex items-center gap-1.5 h-8 border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800"
+          className="text-xs text-foreground flex items-center gap-1.5 h-8 border-border bg-secondary/80 hover:bg-secondary"
         >
-          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-cyan-400")} />
+          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-primary")} />
           Actualizar
         </Button>
       </ViewHeader>
@@ -304,8 +304,8 @@ export const JobsView: React.FC = () => {
               className={cn(
                 "h-8 px-3 text-xs whitespace-nowrap",
                 statusFilter === cat.id
-                  ? "bg-zinc-800 text-white border border-zinc-700/80 shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-primary/10 text-primary border border-primary/30 font-semibold shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {cat.label}
@@ -315,13 +315,13 @@ export const JobsView: React.FC = () => {
 
         {/* Search */}
         <div className="relative">
-          <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
+          <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
           <Input
             type="text"
             placeholder="Buscar por canal o ID de tarea..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-8 text-xs bg-zinc-900 border-zinc-800 w-full sm:w-64"
+            className="pl-8 h-8 text-xs bg-secondary/60 border-border text-foreground placeholder:text-muted-foreground w-full sm:w-64"
           />
         </div>
       </div>
@@ -367,13 +367,13 @@ export const JobsView: React.FC = () => {
                       : 0;
 
                   return (
-                    <TableRow key={job.job_id} className="hover:bg-zinc-800/30 transition-colors">
+                    <TableRow key={job.job_id} className="hover:bg-muted/40 transition-colors">
                       {/* ID / Fecha */}
-                      <TableCell className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
-                        <div className="font-semibold text-zinc-200">
+                      <TableCell className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
+                        <div className="font-semibold text-foreground">
                           #{job.job_id.slice(0, 8)}
                         </div>
-                        <div className="text-[10px] text-zinc-500 flex items-center gap-1 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock className="w-2.5 h-2.5" />
                           {formatDate(job.created_at)}
                         </div>
@@ -381,39 +381,39 @@ export const JobsView: React.FC = () => {
 
                       {/* Canales */}
                       <TableCell className="py-2.5 px-3 max-w-xs">
-                        <div className="flex items-center gap-1.5 font-sans font-medium text-xs text-zinc-200 truncate">
-                          <span className="text-cyan-300 truncate" title={job.source_title || String(job.source_id)}>
+                        <div className="flex items-center gap-1.5 font-sans font-medium text-xs text-foreground truncate">
+                          <span className="text-primary truncate font-medium" title={job.source_title || String(job.source_id)}>
                             {job.source_title || `Canal ${job.source_id}`}
                           </span>
-                          <ArrowRight className="w-3 h-3 text-zinc-600 shrink-0" />
-                          <span className="text-emerald-300 truncate" title={job.target_title || String(job.target_id)}>
+                          <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                          <span className="text-emerald-500 dark:text-emerald-400 truncate font-medium" title={job.target_title || String(job.target_id)}>
                             {job.target_title || `Canal ${job.target_id}`}
                           </span>
                         </div>
-                        <div className="text-[10px] text-zinc-500 mt-0.5">
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
                           {job.is_full_migration ? "Clonación completa" : "Selección granular"}
                         </div>
                       </TableCell>
 
                       {/* Progreso */}
                       <TableCell className="py-2.5 px-3 w-48">
-                        <div className="flex justify-between text-[10px] text-zinc-400 mb-1">
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                           <span>{job.processed_videos} / {job.total_videos}</span>
-                          <span className="text-cyan-400 font-bold">{pct}%</span>
+                          <span className="text-primary font-bold">{pct}%</span>
                         </div>
-                        <Progress value={pct} className="h-1.5 bg-zinc-900" />
+                        <Progress value={pct} className="h-1.5 bg-secondary" />
                       </TableCell>
 
                       {/* Pacing */}
-                      <TableCell className="py-2.5 px-3 whitespace-nowrap text-zinc-400">
+                      <TableCell className="py-2.5 px-3 whitespace-nowrap text-muted-foreground">
                         {job.drip_delay_seconds > 0 ? (
-                          <Badge variant="outline" className="text-sky-300 border-sky-500/20 bg-sky-500/10 text-[10px]">
+                          <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[10px]">
                             {job.drip_delay_seconds >= 60
                               ? `${Math.round(job.drip_delay_seconds / 60)} min delay`
                               : `${job.drip_delay_seconds}s delay`}
                           </Badge>
                         ) : (
-                          <span className="text-zinc-600 text-[11px]">Directo (2s)</span>
+                          <span className="text-muted-foreground text-[11px]">Directo (2s)</span>
                         )}
                       </TableCell>
 
@@ -453,7 +453,7 @@ export const JobsView: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleResume(job.job_id)}
-                              className="h-7 px-2 text-xs border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10"
+                              className="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
                               title="Reanudar trabajo"
                             >
                               <Play className="w-3 h-3" />
@@ -479,7 +479,7 @@ export const JobsView: React.FC = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => handleCancel(job.job_id)}
-                              className="h-7 px-2 text-xs text-zinc-400 hover:text-rose-400 hover:border-rose-500/30"
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-400 hover:border-rose-500/30"
                               title="Cancelar trabajo"
                             >
                               <XCircle className="w-3 h-3" />
@@ -495,7 +495,7 @@ export const JobsView: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleDelete(job.job_id)}
-                              className="h-7 px-1.5 text-zinc-500 hover:text-rose-400"
+                              className="h-7 px-1.5 text-muted-foreground hover:text-rose-400"
                               title="Eliminar historial"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -530,16 +530,16 @@ export const JobsView: React.FC = () => {
               </SelectContent>
             </Select>
             <span>por página</span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-zinc-400">
-              Total: <strong className="font-mono text-zinc-200">{total}</strong> tareas
+            <span className="text-border">|</span>
+            <span className="text-muted-foreground">
+              Total: <strong className="font-mono text-foreground">{total}</strong> tareas
             </span>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-zinc-400">
-              Página <strong className="text-cyan-400">{page}</strong> de{" "}
-              <strong className="text-zinc-300">{totalPages}</strong>
+            <span className="font-mono text-xs text-muted-foreground">
+              Página <strong className="text-primary">{page}</strong> de{" "}
+              <strong className="text-foreground">{totalPages}</strong>
             </span>
             <div className="flex items-center gap-1">
               <Button

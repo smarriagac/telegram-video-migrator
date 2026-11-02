@@ -66,7 +66,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
     switch (status) {
       case "COMPLETED":
         return (
-          <Badge variant="outline" className="text-emerald-400 border-emerald-500/20 bg-emerald-500/10 text-[10px]">
+          <Badge variant="outline" className="text-emerald-500 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10 text-[10px]">
             <CheckCircle2 className="w-3 h-3 mr-1" /> Completado
           </Badge>
         );
@@ -78,19 +78,19 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
         );
       case "IN_PROGRESS":
         return (
-          <Badge variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/10 text-[10px] animate-pulse">
+          <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 text-[10px] animate-pulse">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" /> En curso
           </Badge>
         );
       case "SKIPPED":
         return (
-          <Badge variant="secondary" className="text-zinc-400 text-[10px]">
+          <Badge variant="secondary" className="text-muted-foreground text-[10px]">
             Omitido (Dedup)
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="text-zinc-400 border-zinc-700 bg-zinc-900 text-[10px]">
+          <Badge variant="outline" className="text-muted-foreground border-border bg-secondary text-[10px]">
             <Clock className="w-3 h-3 mr-1" /> Pendiente
           </Badge>
         );
@@ -122,65 +122,65 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-zinc-300">
-            <span className="font-semibold text-cyan-300 truncate max-w-[160px] sm:max-w-xs">
+          <div className="flex items-center gap-2 text-xs text-foreground">
+            <span className="font-semibold text-primary truncate max-w-[160px] sm:max-w-xs">
               {job.source_title || `Canal ${job.source_id}`}
             </span>
-            <ArrowRight className="w-3.5 h-3.5 text-zinc-600 shrink-0" />
-            <span className="font-semibold text-emerald-300 truncate max-w-[160px] sm:max-w-xs">
+            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="font-semibold text-emerald-500 dark:text-emerald-400 truncate max-w-[160px] sm:max-w-xs">
               {job.target_title || `Canal ${job.target_id}`}
             </span>
           </div>
 
           {/* Progress bar */}
           <div className="space-y-1 pt-1">
-            <div className="flex justify-between text-[11px] font-mono text-zinc-400">
+            <div className="flex justify-between text-[11px] font-mono text-muted-foreground">
               <span>Progreso: {job.processed_videos} de {job.total_videos} items</span>
-              <span className="text-cyan-400">{progressPct}%</span>
+              <span className="text-primary font-bold">{progressPct}%</span>
             </div>
-            <Progress value={progressPct} className="h-1.5 bg-zinc-800" />
+            <Progress value={progressPct} className="h-1.5 bg-secondary" />
           </div>
 
           {/* Stats Bar */}
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-2 text-center text-xs font-mono">
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block">Total</span>
-              <span className="font-bold text-zinc-200">{stats.total || items.length}</span>
+            <div className="p-1.5 rounded bg-secondary/50 border border-border">
+              <span className="text-[10px] text-muted-foreground block">Total</span>
+              <span className="font-bold text-foreground">{stats.total || items.length}</span>
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block">Pendientes</span>
-              <span className="font-bold text-zinc-400">{stats.pending || 0}</span>
+            <div className="p-1.5 rounded bg-secondary/50 border border-border">
+              <span className="text-[10px] text-muted-foreground block">Pendientes</span>
+              <span className="font-bold text-muted-foreground">{stats.pending || 0}</span>
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block">En curso</span>
-              <span className="font-bold text-cyan-400">{stats.in_progress || 0}</span>
+            <div className="p-1.5 rounded bg-secondary/50 border border-border">
+              <span className="text-[10px] text-muted-foreground block">En curso</span>
+              <span className="font-bold text-primary">{stats.in_progress || 0}</span>
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block">Completos</span>
-              <span className="font-bold text-emerald-400">{stats.completed || 0}</span>
+            <div className="p-1.5 rounded bg-secondary/50 border border-border">
+              <span className="text-[10px] text-muted-foreground block">Completos</span>
+              <span className="font-bold text-emerald-500 dark:text-emerald-400">{stats.completed || 0}</span>
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block">Fallidos</span>
-              <span className={cn("font-bold", failedCount > 0 ? "text-rose-400" : "text-zinc-500")}>
+            <div className="p-1.5 rounded bg-secondary/50 border border-border">
+              <span className="text-[10px] text-muted-foreground block">Fallidos</span>
+              <span className={cn("font-bold", failedCount > 0 ? "text-rose-500 dark:text-rose-400" : "text-muted-foreground")}>
                 {failedCount}
               </span>
             </div>
-            <div className="p-1.5 rounded bg-zinc-900 border border-zinc-800">
-              <span className="text-[10px] text-zinc-500 block">Omitidos</span>
-              <span className="font-bold text-amber-400">{stats.skipped || 0}</span>
+            <div className="p-1.5 rounded bg-secondary/50 border border-border">
+              <span className="text-[10px] text-muted-foreground block">Omitidos</span>
+              <span className="font-bold text-amber-500 dark:text-amber-400">{stats.skipped || 0}</span>
             </div>
           </div>
         </DialogHeader>
 
         {/* Queue Items Table */}
-        <div className="flex-1 overflow-y-auto min-h-0 border border-zinc-800 rounded-lg mt-2">
+        <div className="flex-1 overflow-y-auto min-h-0 border border-border rounded-lg mt-2">
           {isLoading ? (
-            <div className="flex items-center justify-center p-8 text-zinc-500 text-xs gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+            <div className="flex items-center justify-center p-8 text-muted-foreground text-xs gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
               Cargando elementos de cola...
             </div>
           ) : items.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500 text-xs">
+            <div className="p-8 text-center text-muted-foreground text-xs">
               No hay elementos registrados en la cola de este trabajo.
             </div>
           ) : (
@@ -197,34 +197,34 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
               </TableHeader>
               <TableBody className="divide-y divide-border font-mono text-xs">
                 {items.map((item) => (
-                  <TableRow key={item.source_message_id} className="hover:bg-zinc-800/20">
-                    <TableCell className="py-2 px-3 text-zinc-300">
+                  <TableRow key={item.source_message_id} className="hover:bg-muted/40">
+                    <TableCell className="py-2 px-3 text-foreground">
                       #{item.source_message_id}
                     </TableCell>
-                    <TableCell className="py-2 px-3 uppercase text-[11px] text-zinc-400">
+                    <TableCell className="py-2 px-3 uppercase text-[11px] text-muted-foreground">
                       {item.media_type}
                     </TableCell>
                     <TableCell className="py-2 px-3">
                       {getItemBadge(item.status)}
                     </TableCell>
-                    <TableCell className="py-2 px-3 text-emerald-400 font-mono">
+                    <TableCell className="py-2 px-3 text-emerald-500 dark:text-emerald-400 font-mono">
                       {item.target_message_id ? `#${item.target_message_id}` : "-"}
                     </TableCell>
-                    <TableCell className="py-2 px-3 text-zinc-400">
+                    <TableCell className="py-2 px-3 text-muted-foreground">
                       {item.retry_count}
                     </TableCell>
                     <TableCell className="py-2 px-3 text-xs max-w-xs truncate">
                       {item.error_message ? (
-                        <span className="text-rose-400 flex items-center gap-1" title={item.error_message}>
+                        <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1" title={item.error_message}>
                           <ShieldAlert className="w-3 h-3 shrink-0" />
                           <span className="truncate">{item.error_message}</span>
                         </span>
                       ) : item.caption ? (
-                        <span className="text-zinc-500 font-sans truncate block" title={item.caption}>
+                        <span className="text-muted-foreground font-sans truncate block" title={item.caption}>
                           {item.caption}
                         </span>
                       ) : (
-                        <span className="text-zinc-600">-</span>
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                   </TableRow>

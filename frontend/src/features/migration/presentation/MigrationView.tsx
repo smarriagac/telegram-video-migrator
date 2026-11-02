@@ -51,19 +51,19 @@ export const MigrationView: React.FC = () => {
         {/* Search Input using local state hook #2 */}
         <div className="flex items-center space-x-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-initial">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true" />
             <input
               type="text"
               aria-label="Buscar canal por nombre o usuario"
               placeholder="Buscar canal..."
               value={viewState.searchFilter}
               onChange={(e) => setViewState((prev) => ({ ...prev, searchFilter: e.target.value }))}
-              className="bg-[#14161F] border border-white/10 rounded-md pl-8 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 w-full sm:w-44 transition-all"
+              className="bg-secondary/60 border border-border rounded-md pl-8 pr-3 py-1.5 h-8 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary w-full sm:w-44 transition-all"
             />
           </div>
           <button
             onClick={() => fetchChannels()}
-            className="p-2 rounded-md bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200 transition-colors h-8 w-8 flex items-center justify-center shrink-0"
+            className="p-2 rounded-md bg-secondary/80 border border-border text-muted-foreground hover:text-foreground transition-colors h-8 w-8 flex items-center justify-center shrink-0"
             title="Recargar canales"
             aria-label="Recargar lista de canales"
           >
@@ -83,15 +83,15 @@ export const MigrationView: React.FC = () => {
       )}
 
       {/* Mobile Tab Switcher (< 768px): clean full-screen toggle between Control Panel and Media Gallery */}
-      <div className="md:hidden flex items-center p-1 bg-zinc-900/90 border border-zinc-800 rounded-lg shrink-0">
+      <div className="md:hidden flex items-center p-1 bg-secondary/60 border border-border rounded-lg shrink-0">
         <button
           type="button"
           onClick={() => setViewState((prev) => ({ ...prev, mobileTab: "panel" }))}
           className={cn(
             "flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5",
             viewState.mobileTab === "panel"
-              ? "bg-cyan-500 text-black shadow-sm"
-              : "text-zinc-400 hover:text-white"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Sliders className="w-3.5 h-3.5" />
@@ -103,8 +103,8 @@ export const MigrationView: React.FC = () => {
           className={cn(
             "flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5",
             viewState.mobileTab === "messages"
-              ? "bg-cyan-500 text-black shadow-sm"
-              : "text-zinc-400 hover:text-white"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
           <Film className="w-3.5 h-3.5" />
@@ -114,8 +114,8 @@ export const MigrationView: React.FC = () => {
               className={cn(
                 "px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold",
                 viewState.mobileTab === "messages"
-                  ? "bg-black text-cyan-400"
-                  : "bg-cyan-500/20 text-cyan-300"
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-primary/20 text-primary"
               )}
             >
               {selectedMessageIds.length}

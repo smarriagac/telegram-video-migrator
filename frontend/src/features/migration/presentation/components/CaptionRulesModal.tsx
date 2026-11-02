@@ -89,27 +89,27 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col p-0 bg-[#12141a] border-zinc-800">
+      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground">
         {/* Header */}
-        <DialogHeader className="p-4 border-b border-zinc-800 shrink-0">
+        <DialogHeader className="p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-400" />
-            <DialogTitle className="text-sm font-semibold text-zinc-100">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <DialogTitle className="text-sm font-semibold text-foreground">
               Reglas de Caption y Sanitización
             </DialogTitle>
           </div>
         </DialogHeader>
 
         {/* Form Body */}
-        <div className="p-4 overflow-y-auto space-y-4 text-xs text-zinc-300">
+        <div className="p-4 overflow-y-auto space-y-4 text-xs text-foreground">
           {/* Toggles */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary/70 transition-colors">
               <div className="flex items-center gap-2.5">
-                <Link2 className="w-4 h-4 text-sky-400" />
+                <Link2 className="w-4 h-4 text-primary" />
                 <div>
-                  <div className="font-medium text-zinc-200">Limpiar enlaces externos</div>
-                  <div className="text-[11px] text-zinc-400">Elimina URLs (http, https, t.me)</div>
+                  <div className="font-medium text-foreground">Limpiar enlaces externos</div>
+                  <div className="text-[11px] text-muted-foreground">Elimina URLs (http, https, t.me)</div>
                 </div>
               </div>
               <Switch
@@ -121,12 +121,12 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
               />
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-secondary/50 hover:bg-secondary/70 transition-colors">
               <div className="flex items-center gap-2.5">
-                <AtSign className="w-4 h-4 text-amber-400" />
+                <AtSign className="w-4 h-4 text-amber-500 dark:text-amber-400" />
                 <div>
-                  <div className="font-medium text-zinc-200">Eliminar todas las menciones</div>
-                  <div className="text-[11px] text-zinc-400">Quita usernames de terceros (@canal)</div>
+                  <div className="font-medium text-foreground">Eliminar todas las menciones</div>
+                  <div className="text-[11px] text-muted-foreground">Quita usernames de terceros (@canal)</div>
                 </div>
               </div>
               <Switch
@@ -140,9 +140,9 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
           </div>
 
           {/* Replace mention */}
-          <div className="p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 space-y-2">
-            <div className="font-medium text-zinc-200 flex items-center gap-1.5">
-              <AtSign className="w-3.5 h-3.5 text-zinc-400" /> Reemplazar mención específica
+          <div className="p-3 rounded-lg border border-border bg-secondary/50 space-y-2">
+            <div className="font-medium text-foreground flex items-center gap-1.5">
+              <AtSign className="w-3.5 h-3.5 text-muted-foreground" /> Reemplazar mención específica
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <input
@@ -152,7 +152,7 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
                 onChange={(e) =>
                   setFormState((prev) => ({ ...prev, oldMention: e.target.value }))
                 }
-                className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                className="bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
               />
               <input
                 type="text"
@@ -161,15 +161,15 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
                 onChange={(e) =>
                   setFormState((prev) => ({ ...prev, newMention: e.target.value }))
                 }
-                className="bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                className="bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
               />
             </div>
           </div>
 
           {/* Remove words blacklist */}
-          <div className="p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 space-y-1.5">
-            <div className="font-medium text-zinc-200 flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-400" /> Palabras prohibidas / Blacklist
+          <div className="p-3 rounded-lg border border-border bg-secondary/50 space-y-1.5">
+            <div className="font-medium text-foreground flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" /> Palabras prohibidas / Blacklist
             </div>
             <input
               type="text"
@@ -178,14 +178,14 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
               onChange={(e) =>
                 setFormState((prev) => ({ ...prev, removeWords: e.target.value }))
               }
-              className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+              className="w-full bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
             />
           </div>
 
           {/* Header & Signature */}
           <div className="space-y-2">
             <div>
-              <div className="font-medium text-zinc-200 mb-1">Encabezado (arriba de cada post)</div>
+              <div className="font-medium text-foreground mb-1">Encabezado (arriba de cada post)</div>
               <input
                 type="text"
                 placeholder="Ej: 🎬 ¡Estreno exclusivo!"
@@ -193,12 +193,12 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
                 onChange={(e) =>
                   setFormState((prev) => ({ ...prev, prependHeader: e.target.value }))
                 }
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50"
+                className="w-full bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
               />
             </div>
 
             <div>
-              <div className="font-medium text-zinc-200 mb-1">Firma / Footer (al final de cada post)</div>
+              <div className="font-medium text-foreground mb-1">Firma / Footer (al final de cada post)</div>
               <textarea
                 rows={2}
                 placeholder="Ej: Únete a nuestro canal oficial: @mi_canal"
@@ -206,19 +206,19 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
                 onChange={(e) =>
                   setFormState((prev) => ({ ...prev, appendSignature: e.target.value }))
                 }
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-emerald-500/50 resize-none"
+                className="w-full bg-card border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary resize-none"
               />
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-3 border-t border-zinc-800 flex flex-row items-center justify-between bg-zinc-950/40 sm:justify-between shrink-0">
+        <DialogFooter className="p-3 border-t border-border flex flex-row items-center justify-between bg-muted/30 sm:justify-between shrink-0">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleReset}
-            className="text-xs text-zinc-400 hover:text-zinc-200"
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
             Restablecer
           </Button>

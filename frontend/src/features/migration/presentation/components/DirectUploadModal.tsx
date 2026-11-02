@@ -125,7 +125,7 @@ export const DirectUploadModal: React.FC<Props> = ({
 
   const getFileIcon = (mime: string) => {
     if (mime.startsWith("video/")) return <FileVideo className="w-8 h-8 text-purple-400" />;
-    if (mime.startsWith("image/")) return <FileImage className="w-8 h-8 text-cyan-400" />;
+    if (mime.startsWith("image/")) return <FileImage className="w-8 h-8 text-primary" />;
     return <FileText className="w-8 h-8 text-amber-400" />;
   };
 

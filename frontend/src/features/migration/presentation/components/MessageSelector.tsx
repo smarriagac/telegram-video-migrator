@@ -52,7 +52,7 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
   if (!isVisualMedia || error) {
     return (
       <div
-        className={`w-full h-full bg-[#12141a] border border-zinc-800/60 flex flex-col items-center justify-center text-zinc-600 ${className}`}
+        className={`w-full h-full bg-secondary/50 border border-border flex flex-col items-center justify-center text-muted-foreground ${className}`}
       >
         {mediaType === "video" ? (
           <Video className="w-5 h-5 text-purple-400/40 mb-0.5" />
@@ -329,10 +329,10 @@ export const MessageSelector: React.FC = () => {
             size="sm"
             onClick={() => fetchSourceMessages(selectedSourceId)}
             disabled={isLoadingMessages}
-            className="h-7.5 px-2 text-xs text-zinc-400 hover:text-zinc-200 border border-white/5"
+            className="h-7.5 px-2 text-xs text-muted-foreground hover:text-foreground border border-border"
             title="Recargar mensajes"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMessages ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMessages ? "animate-spin text-primary" : ""}`} />
           </Button>
 
           <Button
@@ -340,16 +340,16 @@ export const MessageSelector: React.FC = () => {
             size="sm"
             onClick={handleToggleSelectAll}
             disabled={filteredMessages.length === 0}
-            className="h-7.5 px-2.5 text-xs border-white/10 text-zinc-200 hover:bg-white/5"
+            className="h-7.5 px-2.5 text-xs border-border text-foreground hover:bg-muted"
           >
             {allFilteredSelected ? (
               <>
-                <Square className="w-3.5 h-3.5 mr-1 text-zinc-400" />
+                <Square className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
                 <span>Desmarcar ({filteredMessages.length})</span>
               </>
             ) : (
               <>
-                <CheckSquare className="w-3.5 h-3.5 mr-1 text-cyan-400" />
+                <CheckSquare className="w-3.5 h-3.5 mr-1 text-primary" />
                 <span>Marcar ({filteredMessages.length})</span>
               </>
             )}
@@ -359,10 +359,10 @@ export const MessageSelector: React.FC = () => {
 
       {/* Delta Sync Banner (incremental sync between source and target) */}
       {selectedTargetId && selectedSourceId && selectedTargetId !== selectedSourceId && (
-        <div className="shrink-0 rounded-lg border border-zinc-800 bg-zinc-900/60 p-2 sm:p-2.5 shadow-sm">
+        <div className="shrink-0 rounded-lg border border-border bg-secondary/50 p-2 sm:p-2.5 shadow-sm">
           {isCheckingSync ? (
-            <div className="flex items-center gap-2 text-xs text-zinc-400 font-mono py-0.5">
-              <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono py-0.5">
+              <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
               <span>Comprobando novedades en canal origen contra destino...</span>
             </div>
           ) : syncStatus?.is_in_sync ? (
@@ -447,15 +447,15 @@ export const MessageSelector: React.FC = () => {
       <div className="shrink-0 space-y-1.5">
         {/* Row 1: Sync Status Filters (only shown when target channel is selected) */}
         {selectedTargetId && (
-          <div className="grid grid-cols-3 gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 w-full">
+          <div className="grid grid-cols-3 gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border w-full">
             <button
               type="button"
               onClick={() => setFilterState((prev) => ({ ...prev, sync: "all" }))}
               className={cn(
                 "py-1 px-1.5 rounded-md text-[11px] font-mono transition-all text-center flex items-center justify-center gap-1",
                 filterState.sync === "all"
-                  ? "bg-zinc-800 text-white font-semibold shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200"
+                  ? "bg-card text-foreground font-semibold shadow-sm border border-border/60"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <span>Todos</span>
@@ -466,8 +466,8 @@ export const MessageSelector: React.FC = () => {
               className={cn(
                 "py-1 px-1.5 rounded-md text-[11px] font-mono transition-all flex items-center justify-center gap-1",
                 filterState.sync === "missing"
-                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold shadow-sm"
-                  : "text-amber-400/80 hover:text-amber-300"
+                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 font-semibold shadow-sm"
+                  : "text-amber-600/80 dark:text-amber-400/80 hover:text-amber-600 dark:hover:text-amber-300"
               )}
             >
               <span>★ Novedades</span>
@@ -479,8 +479,8 @@ export const MessageSelector: React.FC = () => {
               className={cn(
                 "py-1 px-1.5 rounded-md text-[11px] font-mono transition-all flex items-center justify-center gap-1",
                 filterState.sync === "cloned"
-                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold shadow-sm"
-                  : "text-emerald-400/80 hover:text-emerald-300"
+                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 font-semibold shadow-sm"
+                  : "text-emerald-600/80 dark:text-emerald-400/80 hover:text-emerald-600 dark:hover:text-emerald-300"
               )}
             >
               <span>✓ Clonados</span>
@@ -492,7 +492,7 @@ export const MessageSelector: React.FC = () => {
         {/* Row 2: Type Filters & Search */}
         <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 justify-between">
           {/* 5-Column Type filters (fills 100% width evenly on mobile & tablet without clipping) */}
-          <div className="grid grid-cols-5 gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 w-full xl:flex-1">
+          <div className="grid grid-cols-5 gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border w-full xl:flex-1">
             {[
               { id: "all", label: "Todos", shortLabel: "Todos", count: countsByType.all },
               { id: "video", label: "Videos", shortLabel: "Videos", count: countsByType.video },
@@ -528,7 +528,7 @@ export const MessageSelector: React.FC = () => {
 
           {/* Search Input */}
           <div className="relative w-full xl:w-56 shrink-0">
-            <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar por texto o #ID..."
@@ -564,8 +564,8 @@ export const MessageSelector: React.FC = () => {
                   onClick={() => toggleSelectMessage(msg.id)}
                   className={`group relative rounded-md border overflow-hidden cursor-pointer select-none transition-all duration-200 w-full aspect-[16/10] min-h-[96px] sm:min-h-[105px] flex flex-col justify-between ${
                     isSelected
-                      ? "border-cyan-400 ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-950/30 scale-[0.99]"
-                      : "border-white/5 hover:border-white/20 bg-zinc-950 hover:shadow-md"
+                      ? "border-primary ring-2 ring-primary/40 shadow-lg shadow-primary/20 scale-[0.99]"
+                      : "border-border hover:border-primary/40 bg-card hover:shadow-md"
                   }`}
                 >
                 {/* Media Image / Thumbnail */}
@@ -613,7 +613,7 @@ export const MessageSelector: React.FC = () => {
                       e.stopPropagation();
                       setPreviewModalMsg(msg);
                     }}
-                    className="p-1 rounded-full bg-black/70 border border-white/20 text-white hover:bg-cyan-500 hover:text-black transition-colors"
+                    className="p-1 rounded-full bg-black/70 border border-white/20 text-white hover:bg-primary hover:text-primary-foreground transition-colors"
                     title="Previsualizar mensaje completo"
                   >
                     <Maximize2 className="w-3 h-3" />
@@ -623,15 +623,15 @@ export const MessageSelector: React.FC = () => {
                 {/* Bottom overlay: Message info & Size */}
                 <div className="relative z-10 p-1.5 space-y-0.5 text-left">
                   <div className="flex items-center justify-between text-[10px] font-mono text-zinc-300">
-                    <span className="font-semibold text-zinc-200">#{msg.id}</span>
+                    <span className="font-semibold text-zinc-100">#{msg.id}</span>
                     {sizeStr && (
-                      <span className="bg-black/70 px-1.5 py-0.2 rounded text-[10px] text-cyan-300 border border-white/10">
+                      <span className="bg-background/80 px-1.5 py-0.2 rounded text-[10px] text-primary border border-border">
                         {sizeStr}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-zinc-300 truncate leading-tight">
-                    {msg.text || <span className="text-zinc-500 italic">[Multimedia sin texto]</span>}
+                  <p className="text-[11px] text-zinc-200 truncate leading-tight">
+                    {msg.text || <span className="text-zinc-400 italic">[Multimedia sin texto]</span>}
                   </p>
                 </div>
               </div>
@@ -665,7 +665,7 @@ export const MessageSelector: React.FC = () => {
                 </div>
 
                 {/* Mini thumb thumbnail preview in list mode */}
-                <div className="w-9 h-9 rounded-md overflow-hidden bg-zinc-900 shrink-0 border border-white/10 relative">
+                <div className="w-9 h-9 rounded-md overflow-hidden bg-secondary shrink-0 border border-border relative">
                   <MessageThumbnailImage
                     channelId={selectedSourceId}
                     messageId={msg.id}
@@ -673,7 +673,7 @@ export const MessageSelector: React.FC = () => {
                   />
                 </div>
 
-                <span className="font-mono text-[11px] text-zinc-500 w-12 shrink-0">
+                <span className="font-mono text-[11px] text-muted-foreground w-12 shrink-0">
                   #{msg.id}
                 </span>
 
@@ -692,19 +692,19 @@ export const MessageSelector: React.FC = () => {
 
                 <div className="flex-1 truncate text-xs min-w-0">
                   {msg.text ? (
-                    <span className="text-zinc-200">{msg.text}</span>
+                    <span className="text-foreground">{msg.text}</span>
                   ) : (
-                    <span className="text-zinc-600 italic">[Sin descripción]</span>
+                    <span className="text-muted-foreground italic">[Sin descripción]</span>
                   )}
                 </div>
 
                 {sizeStr && (
-                  <span className="text-[10px] font-mono text-cyan-400/90 shrink-0 bg-cyan-950/30 px-1.5 py-0.5 rounded border border-cyan-500/20 hidden xs:inline">
+                  <span className="text-[10px] font-mono text-primary shrink-0 bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20 hidden xs:inline">
                     {sizeStr}
                   </span>
                 )}
 
-                <span className="text-[10px] font-mono text-zinc-500 shrink-0 hidden md:inline">
+                <span className="text-[10px] font-mono text-muted-foreground shrink-0 hidden md:inline">
                   {msg.date}
                 </span>
 
@@ -714,7 +714,7 @@ export const MessageSelector: React.FC = () => {
                     e.stopPropagation();
                     setPreviewModalMsg(msg);
                   }}
-                  className="p-1 rounded text-zinc-500 hover:text-white transition-colors"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
                   title="Ver detalles"
                 >
                   <Eye className="w-3.5 h-3.5" />
@@ -727,8 +727,8 @@ export const MessageSelector: React.FC = () => {
 
       {/* Pagination Footer */}
       {hasMoreMessages && (
-        <div className="shrink-0 pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-white/5">
-          <span className="text-[11px] font-mono text-zinc-500">
+        <div className="shrink-0 pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-border">
+          <span className="text-[11px] font-mono text-muted-foreground">
             Mostrando {filteredMessages.length} mensajes (cargados {sourceMessages.length} de este canal)
           </span>
           <Button
@@ -737,16 +737,16 @@ export const MessageSelector: React.FC = () => {
             size="sm"
             disabled={isLoadingMoreMessages}
             onClick={() => loadMoreSourceMessages()}
-            className="flex items-center gap-1.5 h-8 px-4 text-xs font-semibold bg-zinc-900 border border-white/10 hover:border-cyan-500/40 hover:text-cyan-400 transition-all"
+            className="flex items-center gap-1.5 h-8 px-4 text-xs font-semibold bg-secondary border border-border hover:bg-secondary/80 hover:border-primary/40 text-foreground hover:text-primary transition-all"
           >
             {isLoadingMoreMessages ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                 Cargando más mensajes...
               </>
             ) : (
               <>
-                <RefreshCw className="w-3 h-3 text-cyan-400" />
+                <RefreshCw className="w-3 h-3 text-primary" />
                 Cargar más mensajes (+100)
               </>
             )}
@@ -762,12 +762,12 @@ export const MessageSelector: React.FC = () => {
             onClick={() => setPreviewModalMsg(null)}
           >
             <div
-              className="bg-[#14161F] border border-white/10 rounded-md max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5"
+              className="bg-card border border-border rounded-md max-w-xl w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 p-4 sm:p-5 text-card-foreground"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center justify-between border-b border-border pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white font-mono">
+                  <span className="text-sm font-bold text-foreground font-mono">
                     Mensaje #{previewModalMsg.id}
                   </span>
                   {getTypeBadge(previewModalMsg.media_type)}

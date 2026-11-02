@@ -188,51 +188,51 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
                 return (
                   <div
                     key={job.job_id}
-                    className="p-3.5 rounded-md bg-zinc-950/60 border border-white/5 hover:border-white/15 transition-all space-y-2"
+                    className="p-3.5 rounded-md bg-secondary/50 border border-border hover:border-border/80 transition-all space-y-2"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs text-zinc-400 font-semibold">
+                        <span className="font-mono text-xs text-muted-foreground font-semibold">
                           #{history.jobs.length - idx}
                         </span>
                         {job.is_full_migration ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
-                            <Sparkles className="w-3 h-3 text-emerald-400" /> Clonación Completa
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/15 text-emerald-500 dark:text-emerald-300 border border-emerald-500/25">
+                            <Sparkles className="w-3 h-3 text-emerald-500 dark:text-emerald-400" /> Clonación Completa
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-primary/15 text-primary border border-primary/25">
                             🎯 Selección Parcial
                           </span>
                         )}
                         <span
                           className={`text-[10px] font-mono px-2 py-0.5 rounded border font-semibold ${
                             isSuccess
-                              ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/20"
+                              ? "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20"
                               : job.status === "RUNNING"
-                              ? "bg-cyan-950/40 text-cyan-400 border-cyan-500/20 animate-pulse"
-                              : "bg-rose-950/40 text-rose-400 border-rose-500/20"
+                              ? "bg-primary/10 text-primary border-primary/30 animate-pulse"
+                              : "bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/20"
                           }`}
                         >
                           {job.status}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] font-mono">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-[11px] font-mono">
                         <Clock className="w-3 h-3" />
                         <span>{job.created_at ? new Date(job.created_at).toLocaleString() : "Reciente"}</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5">
-                      <div className="flex items-center gap-2 text-zinc-400">
-                        <span className="text-zinc-500">Destino:</span>
-                        <span className="text-zinc-200 font-medium font-mono">
+                    <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span>Destino:</span>
+                        <span className="text-foreground font-medium font-mono">
                           {job.target_title || `Canal ${job.target_id}`}
                         </span>
                       </div>
 
-                      <div className="font-mono text-[11px] text-zinc-300">
-                        <span className="text-cyan-400 font-semibold">{job.processed_videos}</span> / {job.total_videos} elementos
+                      <div className="font-mono text-[11px] text-foreground">
+                        <span className="text-primary font-semibold">{job.processed_videos}</span> / {job.total_videos} elementos
                       </div>
                     </div>
                   </div>
@@ -246,41 +246,41 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
         {activeTab === "content" && (
           <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-1 max-h-[360px]">
             {filteredContent.length === 0 ? (
-              <div className="text-center py-12 text-zinc-500 text-xs border border-dashed border-white/10 rounded-md bg-black/20">
-                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40 text-zinc-500" />
+              <div className="text-center py-12 text-muted-foreground text-xs border border-dashed border-border rounded-md bg-secondary/30">
+                <FileText className="w-8 h-8 mx-auto mb-2 opacity-40 text-muted-foreground" />
                 No se encontraron elementos clonados para los criterios de búsqueda.
               </div>
             ) : (
               filteredContent.map((item) => (
                 <div
                   key={`${item.job_id}-${item.source_message_id}`}
-                  className="p-2.5 px-3 rounded-lg bg-zinc-950/60 border border-white/5 flex items-center justify-between gap-3 text-xs"
+                  className="p-2.5 px-3 rounded-lg bg-secondary/50 border border-border flex items-center justify-between gap-3 text-xs"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="p-1.5 rounded-md bg-zinc-900 border border-white/5 shrink-0">
+                    <div className="p-1.5 rounded-md bg-card border border-border shrink-0">
                       {getTypeIcon(item.media_type)}
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 text-[11px] font-mono">
-                        <span className="text-zinc-400 font-semibold">#{item.source_message_id}</span>
-                        <ArrowRight className="w-3 h-3 text-zinc-600" />
-                        <span className="text-emerald-400 font-semibold">#{item.target_message_id || "OK"}</span>
+                        <span className="text-muted-foreground font-semibold">#{item.source_message_id}</span>
+                        <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-emerald-500 dark:text-emerald-400 font-semibold">#{item.target_message_id || "OK"}</span>
                         {item.target_channel_title && (
-                          <span className="text-zinc-500 text-[10px]">({item.target_channel_title})</span>
+                          <span className="text-muted-foreground text-[10px]">({item.target_channel_title})</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-zinc-300 truncate mt-0.5">
-                        {item.caption || <span className="text-zinc-600 italic">[Multimedia sin texto]</span>}
+                      <p className="text-[11px] text-foreground truncate mt-0.5">
+                        {item.caption || <span className="text-muted-foreground italic">[Multimedia sin texto]</span>}
                       </p>
                     </div>
                   </div>
 
                   <div className="shrink-0 text-right">
-                    <span className="text-[10px] font-mono text-zinc-500 block">
+                    <span className="text-[10px] font-mono text-muted-foreground block">
                       {item.migrated_at ? new Date(item.migrated_at).toLocaleDateString() : ""}
                     </span>
-                    <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20">
                       Clonado
                     </span>
                   </div>

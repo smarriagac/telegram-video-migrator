@@ -153,7 +153,7 @@ export const AnalyticsView: React.FC = () => {
             <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
               Canales en Auto-Sync
             </CardTitle>
-            <Radio className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
+            <Radio className="h-3.5 w-3.5 text-primary" />
           </CardHeader>
           <CardContent className="p-2.5 pt-0">
             <div className="text-xl font-bold font-mono text-foreground tracking-tight">
@@ -163,7 +163,7 @@ export const AnalyticsView: React.FC = () => {
               Rutas activas escuchando eventos push
             </p>
             <div className="mt-1.5">
-              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] py-0.2 px-1.5">
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[9px] py-0.2 px-1.5">
                 Live Push Daemon
               </Badge>
             </div>
@@ -223,7 +223,7 @@ export const AnalyticsView: React.FC = () => {
                         </div>
                         <div className="h-2 w-full bg-secondary rounded-sm overflow-hidden p-0.5 border border-border">
                           <div
-                            className="h-full bg-gradient-to-r from-emerald-500 to-primary rounded-sm transition-all duration-500"
+                            className="h-full bg-primary rounded-sm transition-all duration-500"
                             style={{ width: `${percentage}%` }}
                           />
                         </div>

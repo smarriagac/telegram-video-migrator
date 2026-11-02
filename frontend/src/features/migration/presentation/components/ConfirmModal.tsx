@@ -45,21 +45,21 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
         </DialogHeader>
 
         {/* Source -> Target Channel Preview */}
-        <div className="p-3 rounded-lg bg-zinc-950/80 border border-white/5 space-y-2">
+        <div className="p-3 rounded-lg bg-secondary/60 border border-border space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500 font-mono text-[11px]">ORIGEN:</span>
-            <span className="text-cyan-400 font-semibold">{sourceChannel?.title || selectedSourceId}</span>
+            <span className="text-muted-foreground font-mono text-[11px]">ORIGEN:</span>
+            <span className="text-primary font-semibold">{sourceChannel?.title || selectedSourceId}</span>
           </div>
-          <div className="flex justify-center text-zinc-600">
+          <div className="flex justify-center text-muted-foreground">
             <ArrowRight className="w-3.5 h-3.5 rotate-90 md:rotate-0" />
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500 font-mono text-[11px]">DESTINO:</span>
-            <span className="text-emerald-400 font-semibold">{targetChannel?.title || selectedTargetId}</span>
+            <span className="text-muted-foreground font-mono text-[11px]">DESTINO:</span>
+            <span className="text-emerald-500 dark:text-emerald-400 font-semibold">{targetChannel?.title || selectedTargetId}</span>
           </div>
-          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-white/5">
-            <span className="text-zinc-500 font-mono text-[11px]">ALCANCE:</span>
-            <span className="text-cyan-300 font-mono text-[11px]">
+          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border">
+            <span className="text-muted-foreground font-mono text-[11px]">ALCANCE:</span>
+            <span className="text-primary font-mono text-[11px]">
               {selectedMessageIds.length > 0
                 ? `${selectedMessageIds.length} elementos seleccionados`
                 : "Todos los mensajes del canal"}
@@ -68,7 +68,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
         </div>
 
         {/* Technical Safeguards */}
-        <div className="space-y-1.5 text-[11px] text-zinc-400 py-0.5">
+        <div className="space-y-1.5 text-[11px] text-muted-foreground py-0.5">
           <div className="flex items-start space-x-2">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
             <span>Los mensajes y archivos se clonan directamente por referencia interna o fallback resiliente.</span>
