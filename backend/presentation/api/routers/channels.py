@@ -980,6 +980,18 @@ async def approve_join_request(
                         tenant_id,
                         payload.channel_id,
                     )
+                    if not last_link:
+                        try:
+                            last_link = await gateway.create_channel_invite_link(
+                                channel_id=payload.channel_id,
+                                request_needed=True,
+                                title=f"VIP - {payload.username or payload.user_id}",
+                                account_id=payload.account_id,
+                            )
+                        except Exception as link_err:
+                            logger.warning(
+                                f"Could not auto-generate fallback invite link for channel {payload.channel_id}: {link_err}"
+                            )
                     await conn.execute(
                         """
                         INSERT INTO channel_memberships (
@@ -1062,6 +1074,17 @@ async def add_or_invite_member(
     if direct_added:
         uid = int(target) if target.isdigit() else None
         uname = None if target.isdigit() else target.lstrip("@")
+        direct_link = None
+        try:
+            direct_link = await gateway.create_channel_invite_link(
+                channel_id=payload.channel_id,
+                request_needed=True,
+                title=f"VIP - {target}",
+                account_id=payload.account_id,
+            )
+        except Exception as link_err:
+            logger.warning(f"Could not auto-generate invite link on direct add: {link_err}")
+
         try:
             await pg_repo.connect()
             if pg_repo.pool:
@@ -1070,17 +1093,18 @@ async def add_or_invite_member(
                         """
                         INSERT INTO channel_memberships (
                             id, tenant_id, channel_id, telegram_user_id, telegram_username,
-                            status, joined_at, expires_at, created_at, updated_at
+                            invite_link, status, joined_at, expires_at, created_at, updated_at
                         )
                         VALUES (
                             gen_random_uuid(), $1::uuid, $2, $3, $4,
-                            'ACTIVE', $5, $6, $5, $5
+                            $5, 'ACTIVE', $6, $7, $6, $6
                         )
                         """,
                         tenant_id,
                         payload.channel_id,
                         uid,
                         uname,
+                        direct_link,
                         now,
                         expires_at,
                     )
