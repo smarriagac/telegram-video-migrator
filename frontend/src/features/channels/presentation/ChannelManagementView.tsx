@@ -21,8 +21,6 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { ViewHeader } from "@/shared/components/ViewHeader";
@@ -35,7 +33,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/shared/components/ui/card";
@@ -422,9 +419,6 @@ export const ChannelManagementView: React.FC = () => {
   const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
   const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
   const paginatedChannels = filteredChannels.slice(startIndex, endIndex);
-
-  const startItem = currentTabItemsCount > 0 ? startIndex + 1 : 0;
-  const endItem = Math.min(endIndex, currentTabItemsCount);
 
   const currentPageEligibleIds = paginatedMembers
     .filter((m) => m.telegram_user_id && m.status !== "KICKED")
@@ -1412,86 +1406,73 @@ export const ChannelManagementView: React.FC = () => {
         </CardContent>
 
         {/* Pagination Controls */}
-        <CardFooter className="py-2.5 px-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2.5 bg-muted/15 text-xs">
-          <div className="flex items-center gap-2 text-muted-foreground font-mono text-[11px]">
-            <span>
-              Mostrando <strong className="text-foreground">{startItem}</strong> - <strong className="text-foreground">{endItem}</strong> de <strong className="text-foreground">{currentTabItemsCount}</strong>
+        <div className="p-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground bg-secondary/40 shrink-0">
+          <div className="flex items-center gap-2">
+            <span>Mostrar</span>
+            <Select
+              value={String(state.pageSize)}
+              onValueChange={(val) =>
+                setState((s) => ({
+                  ...s,
+                  pageSize: Number(val),
+                  currentPage: 1,
+                }))
+              }
+              disabled={state.loading}
+            >
+              <SelectTrigger className="w-16 h-7 bg-card border-border text-xs text-foreground font-mono">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border text-popover-foreground font-mono">
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+            <span>por página</span>
+            <span className="text-border">|</span>
+            <span className="text-muted-foreground">
+              Total: <strong className="font-mono text-foreground">{currentTabItemsCount}</strong>{" "}
+              {filterCategory === "REQUESTS"
+                ? "solicitudes"
+                : filterCategory === "VIP"
+                ? "miembros"
+                : filterCategory === "ADMIN"
+                ? "canales administrados"
+                : "canales en sesión"}
             </span>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4 flex-wrap justify-center sm:justify-end">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground font-mono">Por página:</span>
-              <Select
-                value={String(state.pageSize)}
-                onValueChange={(val) =>
-                  setState((s) => ({
-                    ...s,
-                    pageSize: Number(val),
-                    currentPage: 1,
-                  }))
-                }
-              >
-                <SelectTrigger className="h-7 w-16 text-xs bg-secondary/80 border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="25">25</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center gap-1 font-mono text-[11px]">
-              <span className="text-muted-foreground mr-1">
-                Pág. <strong className="text-foreground">{currentPage}</strong> de <strong className="text-foreground">{totalPages}</strong>
-              </span>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setState((s) => ({ ...s, currentPage: 1 }))}
-                disabled={currentPage <= 1}
-                className="h-7 w-7 p-0"
-                title="Primera página"
-              >
-                <ChevronsLeft className="w-3.5 h-3.5" />
-              </Button>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs text-muted-foreground">
+              Página <strong className="text-primary">{currentPage}</strong> de{" "}
+              <strong className="text-foreground">{totalPages}</strong>
+            </span>
+            <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setState((s) => ({ ...s, currentPage: Math.max(1, s.currentPage - 1) }))}
-                disabled={currentPage <= 1}
-                className="h-7 w-7 p-0"
-                title="Página anterior"
+                disabled={currentPage <= 1 || state.loading}
+                className="h-7 px-2 text-xs flex items-center gap-1"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
+                Anterior
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setState((s) => ({ ...s, currentPage: Math.min(totalPages, s.currentPage + 1) }))}
-                disabled={currentPage >= totalPages}
-                className="h-7 w-7 p-0"
-                title="Página siguiente"
+                disabled={currentPage >= totalPages || state.loading}
+                className="h-7 px-2 text-xs flex items-center gap-1"
               >
+                Siguiente
                 <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setState((s) => ({ ...s, currentPage: totalPages }))}
-                disabled={currentPage >= totalPages}
-                className="h-7 w-7 p-0"
-                title="Última página"
-              >
-                <ChevronsRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </div>
-        </CardFooter>
+        </div>
       </Card>
 
       {/* Shadcn Dialog: Create VIP Pass Modal */}
