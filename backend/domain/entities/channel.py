@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Channel:
-    """Represents a Telegram channel entity."""
+    """Represents a Telegram channel or group entity."""
 
     id: int
     title: str
@@ -13,3 +13,4 @@ class Channel:
     can_post: bool = False
     account_id: int | None = None
     account_name: str | None = None
+    type: str = "channel"

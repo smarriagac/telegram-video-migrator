@@ -18,6 +18,7 @@ import {
   UserCheck,
   Inbox,
   XCircle,
+  Users,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { ViewHeader } from "@/shared/components/ViewHeader";
@@ -452,7 +453,7 @@ export const ChannelManagementView: React.FC = () => {
         <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2.5 sm:p-3 pb-1">
             <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
-              Canales Propios
+              Canales y Grupos Propios
             </CardTitle>
             <Tv className="w-3.5 h-3.5 text-primary shrink-0" />
           </CardHeader>
@@ -545,7 +546,7 @@ export const ChannelManagementView: React.FC = () => {
         {/* Category Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
           {[
-            { id: "ADMIN", label: `Mis Canales Propios (${adminChannels.length})` },
+            { id: "ADMIN", label: `Mis Canales y Grupos (${adminChannels.length})` },
             {
               id: "REQUESTS",
               label: `Solicitudes de Ingreso (${pendingRequestsCount})`,
@@ -599,16 +600,16 @@ export const ChannelManagementView: React.FC = () => {
                 : filterCategory === "VIP"
                 ? "Membresías VIP y Control de Expiración"
                 : filterCategory === "ADMIN"
-                ? "Canales Propios con Permisos de Administración"
+                ? "Canales y Grupos Propios con Permisos de Administración"
                 : "Todos los Diálogos de Telegram"}
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
               {filterCategory === "REQUESTS"
-                ? "Los usuarios que usaron el enlace VIP esperan tu aprobación para ingresar al canal y activar su período de tiempo."
+                ? "Los usuarios que usaron el enlace VIP esperan tu aprobación para ingresar al canal o grupo y activar su período de tiempo."
                 : filterCategory === "VIP"
                 ? "Auditoría en vivo de cuándo se unió cada miembro, su fecha límite y estado de permanencia."
                 : filterCategory === "ADMIN"
-                ? "Canales donde la cuenta del sistema es administradora y puede orquestar pases VIP, invitar y expulsar."
+                ? "Canales y grupos donde la cuenta del sistema es administradora y puede orquestar pases VIP, invitar y expulsar."
                 : "Canales y grupos detectados en la sesión de MTProto."}
             </CardDescription>
           </div>
@@ -936,16 +937,36 @@ export const ChannelManagementView: React.FC = () => {
                     >
                       <TableCell className="py-2.5 px-4">
                         <div className="flex flex-col">
-                          <span className="font-semibold text-foreground text-xs sm:text-sm">
-                            {channel.title}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {channel.type === "supergroup" || channel.type === "group" ? (
+                              <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                            ) : (
+                              <Tv className="w-3.5 h-3.5 text-primary shrink-0" />
+                            )}
+                            <span className="font-semibold text-foreground text-xs sm:text-sm">
+                              {channel.title}
+                            </span>
+                            {channel.type === "supergroup" || channel.type === "group" ? (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-purple-500/10 text-purple-400 border-purple-500/30">
+                                Grupo
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                                Canal
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             {channel.username ? (
                               <span className="text-primary font-mono text-[11px]">
                                 @{channel.username}
                               </span>
                             ) : (
-                              <span className="text-muted-foreground text-[11px] italic">Canal Privado</span>
+                              <span className="text-muted-foreground text-[11px] italic">
+                                {channel.type === "supergroup" || channel.type === "group"
+                                  ? "Grupo Privado"
+                                  : "Canal Privado"}
+                              </span>
                             )}
                             <span className="text-[10px] text-muted-foreground font-mono">
                               [ID: {channel.id}]
@@ -1058,18 +1079,19 @@ export const ChannelManagementView: React.FC = () => {
           <div className="space-y-3.5 py-2 text-xs">
             <div className="space-y-1.5">
               <label className="font-semibold text-foreground block">
-                Canal Propio Destino (Solo Administrados)
+                Canal o Grupo Destino (Solo Administrados)
               </label>
               <Select
                 value={String(state.modalChannelId)}
                 onValueChange={(val) => setState((s) => ({ ...s, modalChannelId: Number(val) }))}
               >
                 <SelectTrigger className="w-full h-8 text-xs">
-                  <SelectValue placeholder="Seleccionar canal propio" />
+                  <SelectValue placeholder="Seleccionar canal o grupo propio" />
                 </SelectTrigger>
                 <SelectContent>
                   {adminChannels.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
+                      {c.type === "supergroup" || c.type === "group" ? "[Grupo] " : "[Canal] "}
                       {c.title} {c.username ? `(@${c.username})` : `(${c.id})`}
                     </SelectItem>
                   ))}

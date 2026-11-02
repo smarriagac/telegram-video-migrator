@@ -46,6 +46,7 @@ class ChannelResponse(BaseModel):
     can_post: bool = False
     account_id: int | None = None
     account_name: str | None = None
+    type: str = "channel"
 
 
 class ChannelMessageItemResponse(BaseModel):
@@ -79,14 +80,15 @@ async def list_channels(
                 can_post=c.can_post,
                 account_id=c.account_id,
                 account_name=c.account_name,
+                type=getattr(c, "type", "channel"),
             )
             for c in channels
         ]
     except Exception as e:
         logger.warning(f"Could not retrieve Telegram channels ({e}). Returning demo/preview channels.")
         return [
-            ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True, account_id=1, account_name="Cuenta Principal"),
-            ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True, account_id=1, account_name="Cuenta Principal"),
+            ChannelResponse(id=-1001234567001, title="Canal Origen (Videos)", username="canal_origen", can_post=True, account_id=1, account_name="Cuenta Principal", type="channel"),
+            ChannelResponse(id=-1001234567002, title="Canal Destino (Backup)", username="canal_destino", can_post=True, account_id=1, account_name="Cuenta Principal", type="channel"),
         ]
 
 

@@ -66,15 +66,24 @@ class TelethonAdapter(TelegramGatewayPort):
             scan_limit = max(limit * 2, 250)
             dialogs = await client.get_dialogs(limit=scan_limit)
             for dialog in dialogs:
-                if not dialog.is_channel:
+                if not dialog.is_channel and not dialog.is_group:
                     continue
 
                 entity = dialog.entity
+                is_broadcast = getattr(entity, "broadcast", False)
+                is_megagroup = getattr(entity, "megagroup", False)
+                is_creator = getattr(entity, "creator", False)
+                admin_rights = getattr(entity, "admin_rights", None)
+
                 can_post = False
-                if getattr(entity, "creator", False):
+                if is_creator:
                     can_post = True
-                elif getattr(entity, "admin_rights", None) and getattr(entity.admin_rights, "post_messages", False):
+                elif is_broadcast and admin_rights and getattr(admin_rights, "post_messages", False):
                     can_post = True
+                elif (is_megagroup or dialog.is_group) and admin_rights:
+                    can_post = True
+
+                chat_type = "supergroup" if is_megagroup else ("channel" if is_broadcast else "group")
 
                 channels.append(
                     Channel(
@@ -84,6 +93,7 @@ class TelethonAdapter(TelegramGatewayPort):
                         can_post=can_post,
                         account_id=account_id,
                         account_name=account_name,
+                        type=chat_type,
                     )
                 )
 

@@ -7,6 +7,7 @@ export interface ManagedChannel {
   can_post: boolean;
   account_id?: number | null;
   account_name?: string | null;
+  type?: "channel" | "supergroup" | "group";
 }
 
 export interface VipMembership {
