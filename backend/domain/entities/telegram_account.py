@@ -11,5 +11,6 @@ class TelegramAccount:
     api_id_encrypted: str
     api_hash_encrypted: str
     session_string_encrypted: str | None = None
+    tenant_id: str | None = None
     is_active: bool = True
     created_at: str | None = None

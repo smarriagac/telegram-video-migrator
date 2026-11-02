@@ -17,4 +17,5 @@ class User:
     password_hash: str
     role: Role
     is_active: bool = True
+    tenant_id: str | None = None
     created_at: str | None = None

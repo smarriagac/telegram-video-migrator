@@ -9,6 +9,8 @@ from backend.domain.entities.telegram_account import TelegramAccount
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.caption_rules import CaptionRules
 from backend.domain.entities.media_filter_rules import MediaFilterRules
+from backend.domain.entities.tenant import Tenant, PlanTier, TenantStatus
+from backend.domain.entities.subscription import Subscription, SubscriptionStatus, PaymentProvider
 
 __all__ = [
     "Channel",
@@ -25,4 +27,10 @@ __all__ = [
     "TelegramAccount",
     "CaptionRules",
     "MediaFilterRules",
+    "Tenant",
+    "PlanTier",
+    "TenantStatus",
+    "Subscription",
+    "SubscriptionStatus",
+    "PaymentProvider",
 ]
