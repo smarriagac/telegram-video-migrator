@@ -100,3 +100,20 @@ async def delete_video_processing_job(
             detail="Registro no encontrado.",
         )
     return {"success": True, "message": "Registro eliminado."}
+
+
+@router.post("/jobs/{job_id}/retry")
+async def retry_video_processing_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    service: Any = Depends(get_video_processing_service),
+) -> dict[str, Any]:
+    """Retry a failed or cancelled FFmpeg job."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    ok = await service.retry_job(tenant_id=tenant_id, job_id=job_id)
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Trabajo no encontrado o no reintentable.",
+        )
+    return {"success": True, "message": "Trabajo reencolado para procesamiento."}

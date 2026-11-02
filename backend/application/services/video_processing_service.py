@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import logging
 import os
@@ -168,6 +169,21 @@ class VideoProcessingService:
             )
             return "DELETE 1" in res
 
+    async def retry_job(self, tenant_id: str, job_id: str) -> bool:
+        """Retry a failed or cancelled job."""
+        await self.pg_repo.connect()
+        async with self.pg_repo.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE video_processing_jobs
+                SET status = 'PENDING', progress = 0.0, error_message = NULL, updated_at = NOW()
+                WHERE id = $1::uuid AND tenant_id = $2::uuid AND status IN ('FAILED', 'CANCELLED')
+                """,
+                job_id,
+                tenant_id,
+            )
+            return "UPDATE 1" in res
+
     async def _consumer_loop(self) -> None:
         """Background FIFO consumer loop."""
         while self._running:
@@ -262,12 +278,27 @@ class VideoProcessingService:
             await self._update_job_status(job_id, "DOWNLOADING", 10.0)
 
             # 1. Fetch Telegram Gateway client
-            gateway = self.gateway_provider()
-            client = await gateway._get_client(account_id)
+            tenant_id = job.get("tenant_id")
+            if inspect.iscoroutinefunction(self.gateway_provider):
+                gateway = await self.gateway_provider(tenant_id)
+            else:
+                gw_res = self.gateway_provider(tenant_id)
+                if inspect.isawaitable(gw_res):
+                    gateway = await gw_res
+                else:
+                    gateway = gw_res
+
+            client = gateway._get_client(account_id)
             if not client:
                 raise RuntimeError("Telegram client not available for download.")
 
-            src_entity = await client.get_input_entity(source_channel_id)
+            await gateway._ensure_connected(client)
+
+            try:
+                src_entity = await client.get_input_entity(source_channel_id)
+            except Exception:
+                src_entity = await client.get_entity(source_channel_id)
+
             source_msg = await client.get_messages(src_entity, ids=source_message_id)
             if not source_msg or not source_msg.media:
                 raise RuntimeError(f"Message #{source_message_id} has no media in channel {source_channel_id}")
@@ -320,7 +351,11 @@ class VideoProcessingService:
 
             # 6. Upload processed video to target channel
             logger.info(f"VideoProcessing: Uploading cleaned video to channel {target_channel_id}...")
-            target_entity = await client.get_input_entity(target_channel_id)
+            try:
+                target_entity = await client.get_input_entity(target_channel_id)
+            except Exception:
+                target_entity = await client.get_entity(target_channel_id)
+
             sent_msg = await client.send_file(
                 target_entity,
                 file=output_path,
@@ -330,6 +365,7 @@ class VideoProcessingService:
             sent_msg_id = getattr(sent_msg, "id", None)
 
             await self._update_job_status(job_id, "COMPLETED", 100.0, target_message_id=sent_msg_id)
+            logger.info(f"VideoProcessing: Job {job_id} COMPLETED successfully! Sent msg #{sent_msg_id}")
             logger.info(f"VideoProcessing: Job {job_id} COMPLETED successfully! Sent msg #{sent_msg_id}")
 
         except Exception as ex:

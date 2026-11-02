@@ -92,4 +92,12 @@ export const videoProcessingApi = {
     });
     return res.ok;
   },
+
+  async retryJob(jobId: string): Promise<boolean> {
+    const res = await fetch(`/api/video-processing/jobs/${jobId}/retry`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    return res.ok;
+  },
 };

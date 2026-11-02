@@ -173,6 +173,16 @@ export const JobsView: React.FC = () => {
     }
   };
 
+  const handleRetryFfmpeg = async (jobId: string) => {
+    const ok = await videoProcessingApi.retryJob(jobId);
+    if (ok) {
+      showFeedback("Tarea FFmpeg reencolada para procesamiento.");
+      fetchFfmpegJobs();
+    } else {
+      showFeedback("Error al reintentar la tarea.", true);
+    }
+  };
+
   // Filter visible MTProto jobs
   const filteredJobs = jobs.filter((job) => {
     if (!uiState.searchQuery.trim()) return true;
@@ -971,6 +981,19 @@ export const JobsView: React.FC = () => {
                               >
                                 <XCircle className="w-3.5 h-3.5 mr-1" />
                                 Cancelar
+                              </Button>
+                            )}
+
+                            {["FAILED", "CANCELLED"].includes(fjob.status) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRetryFfmpeg(fjob.id)}
+                                className="h-7 px-2 text-xs border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+                                title="Reintentar procesamiento"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                                Reintentar
                               </Button>
                             )}
 
