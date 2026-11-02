@@ -36,6 +36,7 @@ class CreateJobRequest(BaseModel):
     target_account_id: int | None = None
     caption_rules: dict | None = None
     drip_delay_seconds: int = 0
+    media_filter_rules: dict | None = None
 
 
 class JobResponse(BaseModel):
@@ -54,6 +55,7 @@ class JobResponse(BaseModel):
     target_account_id: int | None = None
     caption_rules: dict | None = None
     drip_delay_seconds: int = 0
+    media_filter_rules: dict | None = None
 
 
 class QueueItemResponse(BaseModel):
@@ -104,6 +106,7 @@ async def start_job(
         target_account_id=req.target_account_id,
         caption_rules=req.caption_rules,
         drip_delay_seconds=req.drip_delay_seconds,
+        media_filter_rules=req.media_filter_rules,
     )
     await repo.create_job(job)
 
@@ -124,6 +127,7 @@ async def start_job(
                     "selected_items_count": len(req.selected_message_ids) if req.selected_message_ids else "all",
                     "caption_rules": req.caption_rules,
                     "drip_delay_seconds": req.drip_delay_seconds,
+                    "media_filter_rules": req.media_filter_rules,
                 },
             )
         )
@@ -172,6 +176,7 @@ async def start_job(
         target_account_id=job.target_account_id,
         caption_rules=job.caption_rules,
         drip_delay_seconds=job.drip_delay_seconds,
+        media_filter_rules=job.media_filter_rules,
     )
 
 
@@ -204,6 +209,7 @@ async def get_job(
         target_account_id=job.target_account_id,
         caption_rules=job.caption_rules,
         drip_delay_seconds=job.drip_delay_seconds,
+        media_filter_rules=job.media_filter_rules,
     )
 
 

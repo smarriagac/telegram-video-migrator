@@ -18,3 +18,4 @@ class ChannelSyncBinding:
     created_at: str | None = None
     updated_at: str | None = None
     caption_rules: dict | None = None
+    media_filter_rules: dict | None = None

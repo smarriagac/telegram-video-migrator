@@ -115,18 +115,69 @@ class LiveSyncService:
                 return
 
             media_type = "text"
+            duration = 0
+            width = 0
+            height = 0
+            file_size = 0
+
             if getattr(msg, "video", None):
                 media_type = "video"
+                v = msg.video
+                duration = getattr(v, "duration", 0) or 0
+                width = getattr(v, "w", 0) or 0
+                height = getattr(v, "h", 0) or 0
+                file_size = getattr(v, "size", 0) or 0
             elif getattr(msg, "photo", None):
                 media_type = "photo"
+                p = msg.photo
+                if getattr(p, "sizes", None):
+                    largest = p.sizes[-1]
+                    width = getattr(largest, "w", 0) or 0
+                    height = getattr(largest, "h", 0) or 0
+                    file_size = getattr(largest, "size", 0) or 0
             elif getattr(msg, "document", None):
-                media_type = "document"
+                doc = msg.document
+                file_size = getattr(doc, "size", 0) or 0
+                is_video = False
+                if getattr(doc, "mime_type", "").startswith("video/"):
+                    is_video = True
+                for attr in getattr(doc, "attributes", []):
+                    if hasattr(attr, "duration"):
+                        duration = getattr(attr, "duration", 0) or 0
+                        width = getattr(attr, "w", 0) or 0
+                        height = getattr(attr, "h", 0) or 0
+                        is_video = True
+                        break
+                media_type = "video" if is_video else "document"
 
             caption = getattr(msg, "message", "") or ""
 
             for binding in bindings:
                 if not binding.is_active:
                     continue
+
+                # Filter gate check
+                if binding.media_filter_rules:
+                    try:
+                        from backend.application.services.media_filter_service import MediaFilterService
+                        from backend.domain.entities.video_message import VideoMessage
+                        vm = VideoMessage(
+                            message_id=msg_id,
+                            caption=caption,
+                            media_type=media_type,
+                            duration=int(duration),
+                            width=int(width),
+                            height=int(height),
+                            file_size=int(file_size),
+                        )
+                        passes, reject_reason = MediaFilterService().evaluate(vm, binding.media_filter_rules)
+                        if not passes:
+                            logger.info(
+                                f"LiveSync: Skipped message #{msg_id} for target {binding.target_channel_id} by quality gate: {reject_reason}"
+                            )
+                            continue
+                    except Exception as ex:
+                        logger.warning(f"LiveSync: Error evaluating filter rules for #{msg_id}: {ex}")
 
                 # Idempotency check: verify not already cloned
                 cloned_ids = await self.repo.get_cloned_source_message_ids(
@@ -195,6 +246,7 @@ class LiveSyncService:
                         source_account_id=binding.source_account_id,
                         target_account_id=binding.target_account_id,
                         caption_rules=binding.caption_rules,
+                        media_filter_rules=binding.media_filter_rules,
                     )
                     await self.repo.create_job(job)
 
@@ -245,6 +297,7 @@ class LiveSyncService:
         source_account_id: int | None = None,
         target_account_id: int | None = None,
         caption_rules: dict | None = None,
+        media_filter_rules: dict | None = None,
     ) -> ChannelSyncBinding:
         """Create or update a channel auto-sync binding."""
         existing = await self.repo.get_sync_binding(source_channel_id, target_channel_id)
@@ -260,6 +313,8 @@ class LiveSyncService:
                 existing.target_account_id = target_account_id
             if caption_rules is not None:
                 existing.caption_rules = caption_rules
+            if media_filter_rules is not None:
+                existing.media_filter_rules = media_filter_rules
             saved = await self.repo.save_sync_binding(existing)
         else:
             new_binding = ChannelSyncBinding(
@@ -271,6 +326,7 @@ class LiveSyncService:
                 target_account_id=target_account_id,
                 is_active=is_active,
                 caption_rules=caption_rules,
+                media_filter_rules=media_filter_rules,
             )
             saved = await self.repo.save_sync_binding(new_binding)
 

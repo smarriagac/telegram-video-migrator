@@ -9,6 +9,7 @@ import {
   ClonedContentItem,
   JobQueueStatus,
   LogEntry,
+  MediaFilterRules,
   MigrationJob,
   ProgressEventPayload,
 } from "../domain/types";
@@ -40,6 +41,7 @@ interface MigrationStore {
   error: string | null;
   captionRules: CaptionRules;
   dripDelaySeconds: number;
+  mediaFilterRules: MediaFilterRules;
 
   // Actions
   fetchChannels: () => Promise<void>;
@@ -47,6 +49,7 @@ interface MigrationStore {
   selectTarget: (id: number | null) => void;
   setCaptionRules: (rules: Partial<CaptionRules>) => void;
   setDripDelaySeconds: (seconds: number) => void;
+  setMediaFilterRules: (rules: Partial<MediaFilterRules>) => void;
   checkSyncStatus: () => Promise<void>;
   fetchAutoSyncStatus: () => Promise<void>;
   toggleAutoSync: (enabled: boolean) => Promise<void>;
@@ -102,6 +105,15 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     append_signature: null,
   },
   dripDelaySeconds: 0,
+  mediaFilterRules: {
+    min_duration_seconds: null,
+    max_duration_seconds: null,
+    min_height: null,
+    min_width: null,
+    min_file_size_bytes: null,
+    max_file_size_bytes: null,
+    allowed_media_types: ["video", "photo", "document", "text"],
+  },
 
   setCaptionRules: (rules) => {
     set((state) => ({
@@ -111,6 +123,12 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
 
   setDripDelaySeconds: (seconds) => {
     set({ dripDelaySeconds: seconds });
+  },
+
+  setMediaFilterRules: (rules) => {
+    set((state) => ({
+      mediaFilterRules: { ...state.mediaFilterRules, ...rules },
+    }));
   },
 
   fetchChannels: async () => {
@@ -208,7 +226,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   toggleAutoSync: async (enabled: boolean) => {
-    const { selectedSourceId, selectedTargetId, channels, captionRules } = get();
+    const { selectedSourceId, selectedTargetId, channels, captionRules, mediaFilterRules } = get();
     if (!selectedSourceId || !selectedTargetId) return;
     set({ isLoadingAutoSync: true });
     try {
@@ -223,6 +241,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         source_account_id: sourceChan?.account_id,
         target_account_id: targetChan?.account_id,
         caption_rules: captionRules,
+        media_filter_rules: mediaFilterRules,
       });
       set({
         autoSyncStatus: { is_active: res.is_active, binding: res },
@@ -411,7 +430,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   startMigration: async () => {
-    const { selectedSourceId, selectedTargetId, selectedMessageIds, captionRules, dripDelaySeconds } = get();
+    const { selectedSourceId, selectedTargetId, selectedMessageIds, captionRules, dripDelaySeconds, mediaFilterRules } = get();
     if (!selectedSourceId || !selectedTargetId) {
       set({ error: "Please select both source and destination channels." });
       return null;
@@ -434,7 +453,8 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         sourceChan?.account_id,
         targetChan?.account_id,
         captionRules,
-        dripDelaySeconds
+        dripDelaySeconds,
+        mediaFilterRules
       );
       set({
         activeJob: job,

@@ -9,12 +9,16 @@ import {
   Check,
   Eye,
   Sliders,
+  Filter,
+  Film,
+  FileText,
+  Image,
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 
 export const PipelineModulesView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
-  const [activeTab, setActiveTab] = useState<"captions" | "drip" | "dedup">("captions");
+  const [activeTab, setActiveTab] = useState<"captions" | "drip" | "dedup" | "quality">("captions");
   const [testText, setTestText] = useState<string>(
     "¡Nuevo estreno en https://t.me/canal_spam! Sigan a @canal_spam para ganar bono gratis VIP."
   );
@@ -23,6 +27,8 @@ export const PipelineModulesView: React.FC = () => {
   const setCaptionRules = useMigrationStore((state) => state.setCaptionRules);
   const dripDelaySeconds = useMigrationStore((state) => state.dripDelaySeconds);
   const setDripDelaySeconds = useMigrationStore((state) => state.setDripDelaySeconds);
+  const mediaFilterRules = useMigrationStore((state) => state.mediaFilterRules);
+  const setMediaFilterRules = useMigrationStore((state) => state.setMediaFilterRules);
 
   // Client-side preview of caption sanitization
   const computePreview = (raw: string): string => {
@@ -69,7 +75,7 @@ export const PipelineModulesView: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Configuración global de los 3 motores de migración: Sanitización de texto, Goteo programado y Deduplicador inteligente.
+            Configuración global de los motores del pipeline: Sanitización de texto, Goteo programado, Duplicate Guard y Filtros de Calidad.
           </p>
         </div>
 
@@ -110,6 +116,18 @@ export const PipelineModulesView: React.FC = () => {
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             Duplicate Guard
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("quality")}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              activeTab === "quality"
+                ? "bg-zinc-800 text-amber-400 shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            Filtros Calidad
           </button>
         </div>
       </header>
@@ -371,6 +389,215 @@ export const PipelineModulesView: React.FC = () => {
                 <span className="text-emerald-400 font-semibold">Omitir Idénticos (Zero-Duplicate)</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Module 4: Quality & Duration Gates */}
+      {activeTab === "quality" && (
+        <div className="bg-[#0e1015] border border-zinc-800 rounded-xl p-5 space-y-5 max-w-3xl">
+          <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
+            <Filter className="w-4 h-4 text-amber-400" />
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-100 font-mono">
+                Filtros de Calidad y Duración (Quality Gates)
+              </h2>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Descarta clips cortos, reels de baja resolución o archivos pesados antes de copiar, sin consumo de CPU ni descargas.
+              </p>
+            </div>
+          </div>
+
+          {/* Presets Rápidos */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-300 font-mono">
+              Presets Rápidos Recomendados:
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setMediaFilterRules({
+                    min_duration_seconds: null,
+                    max_duration_seconds: null,
+                    min_height: null,
+                    min_file_size_bytes: null,
+                    max_file_size_bytes: null,
+                    allowed_media_types: ["video", "photo", "document", "text"],
+                  })
+                }
+                className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 text-left transition-colors cursor-pointer"
+              >
+                <div className="text-xs font-semibold text-zinc-200">Todo el Canal</div>
+                <div className="text-[10px] text-zinc-500">Sin restricciones</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMediaFilterRules({
+                    min_duration_seconds: 15,
+                    min_height: 720,
+                    allowed_media_types: ["video"],
+                  })
+                }
+                className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 hover:border-amber-500/50 text-left transition-colors cursor-pointer"
+              >
+                <div className="text-xs font-semibold text-amber-300">Solo Videos HD</div>
+                <div className="text-[10px] text-zinc-400">&gt; 15s · &ge; 720p</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMediaFilterRules({
+                    min_duration_seconds: 30,
+                  })
+                }
+                className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 text-left transition-colors cursor-pointer"
+              >
+                <div className="text-xs font-semibold text-zinc-200">Anti-Shorts</div>
+                <div className="text-[10px] text-zinc-500">Omitir &lt; 30s</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setMediaFilterRules({
+                    max_file_size_bytes: 250 * 1024 * 1024,
+                  })
+                }
+                className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 hover:border-zinc-700 text-left transition-colors cursor-pointer"
+              >
+                <div className="text-xs font-semibold text-zinc-200">Ligero</div>
+                <div className="text-[10px] text-zinc-500">Máx 250 MB</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Tipos de Contenido Permitidos */}
+          <div className="p-4 rounded-lg bg-zinc-950 border border-zinc-800 space-y-2">
+            <span className="text-xs font-medium text-zinc-300 font-mono block">
+              Tipos de Medios Permitidos:
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { type: "video", label: "Videos", icon: Film },
+                { type: "photo", label: "Fotos", icon: Image },
+                { type: "document", label: "Documentos", icon: FileText },
+                { type: "text", label: "Solo Texto", icon: FileText },
+              ].map(({ type, label, icon: Icon }) => {
+                const currentTypes = mediaFilterRules.allowed_media_types || ["video", "photo", "document", "text"];
+                const isSelected = currentTypes.includes(type);
+                return (
+                  <label
+                    key={type}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-amber-500/10 border-amber-500/40 text-amber-300"
+                        : "bg-zinc-900/30 border-zinc-800 text-zinc-400 hover:border-zinc-700"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                          ? [...currentTypes, type]
+                          : currentTypes.filter((t) => t !== type);
+                        setMediaFilterRules({ allowed_media_types: next });
+                      }}
+                      className="w-4 h-4 rounded border-zinc-700 text-amber-500 focus:ring-0 cursor-pointer"
+                    />
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium">{label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Reglas Cuantitativas (Duración, Resolución, Peso) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {/* Duración Mínima */}
+            <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
+              <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
+                <span>Duración Mínima:</span>
+                <span className="text-[10px] text-zinc-500 font-mono">segundos</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="Ej: 15 (0 = desactivado)"
+                value={mediaFilterRules.min_duration_seconds ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value ? parseInt(e.target.value, 10) : null;
+                  setMediaFilterRules({ min_duration_seconds: val });
+                }}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
+              />
+              <span className="text-[10px] text-zinc-500 block">
+                Descarta reels o clips ultracortos.
+              </span>
+            </div>
+
+            {/* Resolución Mínima */}
+            <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
+              <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
+                <span>Resolución Mínima:</span>
+                <span className="text-[10px] text-zinc-500 font-mono">altura (p)</span>
+              </label>
+              <select
+                value={mediaFilterRules.min_height ?? 0}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setMediaFilterRules({ min_height: val > 0 ? val : null });
+                }}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono cursor-pointer"
+              >
+                <option value={0}>Cualquiera (Sin filtro)</option>
+                <option value={480}>&ge; 480p (SD)</option>
+                <option value={720}>&ge; 720p (HD)</option>
+                <option value={1080}>&ge; 1080p (Full HD)</option>
+              </select>
+              <span className="text-[10px] text-zinc-500 block">
+                Filtra videos con baja definición.
+              </span>
+            </div>
+
+            {/* Tamaño Máximo */}
+            <div className="p-3.5 rounded-lg bg-zinc-950 border border-zinc-800 space-y-1.5">
+              <label className="text-xs font-medium text-zinc-300 flex items-center justify-between">
+                <span>Tamaño Máximo:</span>
+                <span className="text-[10px] text-zinc-500 font-mono">MB</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                placeholder="Ej: 500 (vacío = ilimitado)"
+                value={
+                  mediaFilterRules.max_file_size_bytes
+                    ? Math.round(mediaFilterRules.max_file_size_bytes / (1024 * 1024))
+                    : ""
+                }
+                onChange={(e) => {
+                  const mb = e.target.value ? parseInt(e.target.value, 10) : null;
+                  setMediaFilterRules({
+                    max_file_size_bytes: mb ? mb * 1024 * 1024 : null,
+                  });
+                }}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-zinc-200 focus:outline-none focus:border-amber-500/50 font-mono"
+              />
+              <span className="text-[10px] text-zinc-500 block">
+                Evita saturar almacenamiento.
+              </span>
+            </div>
+          </div>
+
+          {/* Architecture Guarantee Footer */}
+          <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-400 space-y-1 font-mono">
+            <span className="text-zinc-300 font-medium">⚡ Eficiencia Zero-Download:</span>{" "}
+            Los metadatos se validan directamente vía MTProto (<code className="text-zinc-300">DocumentAttributeVideo</code>) antes de encolar o transferir, manteniendo la velocidad de 0.5s por post.
           </div>
         </div>
       )}

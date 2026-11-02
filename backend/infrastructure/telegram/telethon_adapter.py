@@ -343,6 +343,14 @@ class TelethonAdapter(TelegramGatewayPort):
                     doc = message.media.document
 
                 if photo and isinstance(photo, types.Photo):
+                    p_w = 0
+                    p_h = 0
+                    p_size = 0
+                    if getattr(photo, "sizes", None):
+                        largest = photo.sizes[-1]
+                        p_w = getattr(largest, "w", 0) or 0
+                        p_h = getattr(largest, "h", 0) or 0
+                        p_size = getattr(largest, "size", 0) or 0
                     messages_to_migrate.append(
                         VideoMessage(
                             message_id=message.id,
@@ -353,6 +361,9 @@ class TelethonAdapter(TelegramGatewayPort):
                             entities=entities_data,
                             source_channel_id=channel_id,
                             media_type="photo",
+                            width=int(p_w),
+                            height=int(p_h),
+                            file_size=int(p_size),
                         )
                     )
                 elif doc and isinstance(doc, types.Document):
@@ -361,6 +372,17 @@ class TelethonAdapter(TelegramGatewayPort):
                         is_video = True
                     elif any(isinstance(attr, types.DocumentAttributeVideo) for attr in getattr(doc, "attributes", [])):
                         is_video = True
+
+                    duration = 0
+                    width = 0
+                    height = 0
+                    for attr in getattr(doc, "attributes", []):
+                        if isinstance(attr, types.DocumentAttributeVideo):
+                            duration = getattr(attr, "duration", 0) or 0
+                            width = getattr(attr, "w", 0) or 0
+                            height = getattr(attr, "h", 0) or 0
+                            break
+                    file_size = getattr(doc, "size", 0) or 0
 
                     media_type = "video" if is_video else "document"
                     messages_to_migrate.append(
@@ -373,6 +395,10 @@ class TelethonAdapter(TelegramGatewayPort):
                             entities=entities_data,
                             source_channel_id=channel_id,
                             media_type=media_type,
+                            duration=int(duration),
+                            width=int(width),
+                            height=int(height),
+                            file_size=int(file_size),
                         )
                     )
                 elif caption_text.strip():

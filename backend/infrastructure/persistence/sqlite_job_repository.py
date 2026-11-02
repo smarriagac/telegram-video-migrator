@@ -86,6 +86,10 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE migration_jobs ADD COLUMN drip_delay_seconds INTEGER DEFAULT 0;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN media_filter_rules TEXT;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id TEXT NOT NULL,
@@ -135,6 +139,10 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN caption_rules TEXT;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN media_filter_rules TEXT;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -163,14 +171,15 @@ class SQLiteJobRepository(JobRepositoryPort):
         async with self._get_connection() as conn:
             status_val = job.status.value if isinstance(job.status, JobStatus) else str(job.status)
             rules_json = json.dumps(job.caption_rules) if job.caption_rules else None
+            filter_json = json.dumps(job.media_filter_rules) if job.media_filter_rules else None
             await conn.execute(
                 """
                 INSERT OR REPLACE INTO migration_jobs (
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_title, target_title,
-                    source_account_id, target_account_id, caption_rules, drip_delay_seconds
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?);
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     job.job_id,
@@ -189,6 +198,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     job.target_account_id,
                     rules_json,
                     job.drip_delay_seconds,
+                    filter_json,
                 ),
             )
             await conn.commit()
@@ -233,7 +243,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_title, target_title,
-                       source_account_id, target_account_id, caption_rules, drip_delay_seconds
+                       source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
                 FROM migration_jobs
                 WHERE id = ?;
                 """,
@@ -254,6 +264,13 @@ class SQLiteJobRepository(JobRepositoryPort):
                 if len(row) > 15 and row[15] is not None:
                     drip_sec = int(row[15])
 
+                parsed_filter = None
+                if len(row) > 16 and row[16]:
+                    try:
+                        parsed_filter = json.loads(row[16]) if isinstance(row[16], str) else row[16]
+                    except Exception:
+                        parsed_filter = None
+
                 return MigrationJob(
                     job_id=str(row[0]),
                     source_id=int(row[1]),
@@ -271,6 +288,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     target_account_id=int(row[13]) if row[13] is not None else None,
                     caption_rules=parsed_rules,
                     drip_delay_seconds=drip_sec,
+                    media_filter_rules=parsed_filter,
                 )
 
     async def record_migrated_item(
@@ -588,6 +606,7 @@ class SQLiteJobRepository(JobRepositoryPort):
     async def save_sync_binding(self, binding: ChannelSyncBinding) -> ChannelSyncBinding:
         await self._ensure_initialized()
         rules_json = json.dumps(binding.caption_rules) if binding.caption_rules else None
+        filter_json = json.dumps(binding.media_filter_rules) if binding.media_filter_rules else None
         async with self._get_connection() as conn:
             await conn.execute(
                 """
@@ -595,8 +614,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     source_channel_id, target_channel_id,
                     source_channel_title, target_channel_title,
                     source_account_id, target_account_id,
-                    is_active, last_synced_message_id, caption_rules, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    is_active, last_synced_message_id, caption_rules, media_filter_rules, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
                     source_channel_title = excluded.source_channel_title,
                     target_channel_title = excluded.target_channel_title,
@@ -605,6 +624,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     is_active = excluded.is_active,
                     last_synced_message_id = excluded.last_synced_message_id,
                     caption_rules = excluded.caption_rules,
+                    media_filter_rules = excluded.media_filter_rules,
                     updated_at = CURRENT_TIMESTAMP;
                 """,
                 (
@@ -617,6 +637,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     1 if binding.is_active else 0,
                     binding.last_synced_message_id,
                     rules_json,
+                    filter_json,
                 ),
             )
             await conn.commit()
@@ -633,7 +654,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules
+                       caption_rules, media_filter_rules
                 FROM channel_sync_bindings
                 WHERE source_channel_id = ? AND target_channel_id = ?
                 LIMIT 1;
@@ -651,6 +672,13 @@ class SQLiteJobRepository(JobRepositoryPort):
                     except Exception:
                         parsed_rules = None
 
+                parsed_filter = None
+                if len(row) > 11 and row[11]:
+                    try:
+                        parsed_filter = json.loads(row[11]) if isinstance(row[11], str) else row[11]
+                    except Exception:
+                        parsed_filter = None
+
                 return ChannelSyncBinding(
                     source_channel_id=int(row[0]),
                     target_channel_id=int(row[1]),
@@ -663,6 +691,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     created_at=str(row[8]) if row[8] else None,
                     updated_at=str(row[9]) if row[9] else None,
                     caption_rules=parsed_rules,
+                    media_filter_rules=parsed_filter,
                 )
 
     async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
@@ -674,7 +703,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules
+                       caption_rules, media_filter_rules
                 FROM channel_sync_bindings
                 WHERE is_active = 1
                 ORDER BY updated_at DESC;
@@ -689,6 +718,12 @@ class SQLiteJobRepository(JobRepositoryPort):
                             parsed_rules = json.loads(r[10]) if isinstance(r[10], str) else r[10]
                         except Exception:
                             parsed_rules = None
+                    parsed_filter = None
+                    if len(r) > 11 and r[11]:
+                        try:
+                            parsed_filter = json.loads(r[11]) if isinstance(r[11], str) else r[11]
+                        except Exception:
+                            parsed_filter = None
                     result.append(
                         ChannelSyncBinding(
                             source_channel_id=int(r[0]),
@@ -702,6 +737,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                             created_at=str(r[8]) if r[8] else None,
                             updated_at=str(r[9]) if r[9] else None,
                             caption_rules=parsed_rules,
+                            media_filter_rules=parsed_filter,
                         )
                     )
                 return result
@@ -715,7 +751,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules
+                       caption_rules, media_filter_rules
                 FROM channel_sync_bindings
                 ORDER BY updated_at DESC;
                 """
@@ -729,6 +765,12 @@ class SQLiteJobRepository(JobRepositoryPort):
                             parsed_rules = json.loads(r[10]) if isinstance(r[10], str) else r[10]
                         except Exception:
                             parsed_rules = None
+                    parsed_filter = None
+                    if len(r) > 11 and r[11]:
+                        try:
+                            parsed_filter = json.loads(r[11]) if isinstance(r[11], str) else r[11]
+                        except Exception:
+                            parsed_filter = None
                     result.append(
                         ChannelSyncBinding(
                             source_channel_id=int(r[0]),
@@ -742,6 +784,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                             created_at=str(r[8]) if r[8] else None,
                             updated_at=str(r[9]) if r[9] else None,
                             caption_rules=parsed_rules,
+                            media_filter_rules=parsed_filter,
                         )
                     )
                 return result

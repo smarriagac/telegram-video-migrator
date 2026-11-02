@@ -8,6 +8,7 @@ from backend.domain.entities.user import User, Role
 from backend.domain.entities.telegram_account import TelegramAccount
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.caption_rules import CaptionRules
+from backend.domain.entities.media_filter_rules import MediaFilterRules
 
 __all__ = [
     "Channel",
@@ -23,4 +24,5 @@ __all__ = [
     "Role",
     "TelegramAccount",
     "CaptionRules",
+    "MediaFilterRules",
 ]

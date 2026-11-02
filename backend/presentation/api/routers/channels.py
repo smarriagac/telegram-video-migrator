@@ -515,6 +515,7 @@ class AutoSyncToggleRequest(BaseModel):
     source_account_id: int | None = None
     target_account_id: int | None = None
     caption_rules: dict | None = None
+    media_filter_rules: dict | None = None
 
 
 class AutoSyncBindingResponse(BaseModel):
@@ -529,6 +530,7 @@ class AutoSyncBindingResponse(BaseModel):
     created_at: str | None = None
     updated_at: str | None = None
     caption_rules: dict | None = None
+    media_filter_rules: dict | None = None
 
 
 class AutoSyncStatusResponse(BaseModel):
@@ -552,6 +554,7 @@ async def toggle_auto_sync(
         source_account_id=req.source_account_id,
         target_account_id=req.target_account_id,
         caption_rules=req.caption_rules,
+        media_filter_rules=req.media_filter_rules,
     )
     try:
         await audit_repo.record_audit_log(
@@ -566,6 +569,7 @@ async def toggle_auto_sync(
                     "source_title": req.source_title,
                     "target_title": req.target_title,
                     "caption_rules": req.caption_rules,
+                    "media_filter_rules": req.media_filter_rules,
                 },
             )
         )
@@ -584,6 +588,7 @@ async def toggle_auto_sync(
         created_at=binding.created_at,
         updated_at=binding.updated_at,
         caption_rules=binding.caption_rules,
+        media_filter_rules=binding.media_filter_rules,
     )
 
 
@@ -606,6 +611,7 @@ async def list_auto_sync_bindings(
             created_at=b.created_at,
             updated_at=b.updated_at,
             caption_rules=b.caption_rules,
+            media_filter_rules=b.media_filter_rules,
         )
         for b in bindings
     ]
@@ -635,6 +641,7 @@ async def get_auto_sync_status(
             created_at=binding.created_at,
             updated_at=binding.updated_at,
             caption_rules=binding.caption_rules,
+            media_filter_rules=binding.media_filter_rules,
         ),
     )
 

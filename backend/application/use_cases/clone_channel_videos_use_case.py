@@ -174,6 +174,41 @@ class CloneChannelVideosUseCase:
                 except Exception as ex:
                     logger.warning(f"Failed to transform caption for item #{item.source_message_id}: {ex}")
 
+            # Quality & Metadata Filter Gates
+            if getattr(job, "media_filter_rules", None):
+                try:
+                    from backend.application.services.media_filter_service import MediaFilterService
+                    from backend.domain.entities.media_filter_rules import MediaFilterRules
+                    filter_rules = (
+                        MediaFilterRules(**job.media_filter_rules)
+                        if isinstance(job.media_filter_rules, dict)
+                        else job.media_filter_rules
+                    )
+                    passes, reject_reason = MediaFilterService().evaluate(video, filter_rules)
+                    if not passes:
+                        logger.info(
+                            f"Quality Filter: Saltado mensaje #{item.source_message_id} ({reject_reason})"
+                        )
+                        await self.repo.update_queue_item_status(
+                            job_id, item.source_message_id, QueueItemStatus.SKIPPED, error_message=reject_reason
+                        )
+                        stats = await self.repo.get_queue_stats(job_id)
+                        processed_count = stats["completed"] + stats["failed"] + stats["skipped"]
+                        await self.repo.update_job_progress(job_id, processed_count, item.source_message_id)
+                        if on_progress:
+                            await on_progress({
+                                "job_id": job_id,
+                                "status": JobStatus.RUNNING.value,
+                                "message": f"Filtro Calidad: Saltado #{item.source_message_id} ({reject_reason})",
+                                "processed_videos": processed_count,
+                                "total_videos": total_items,
+                                "percentage": round((processed_count / total_items) * 100, 1) if total_items > 0 else 100.0,
+                                "queue_stats": stats,
+                            })
+                        continue
+                except Exception as ex:
+                    logger.warning(f"Error evaluating media filter rules for #{item.source_message_id}: {ex}")
+
             # Perceptual / structural duplicate guard
             from backend.application.services.fingerprint_service import FingerprintService
             fp_svc = FingerprintService()

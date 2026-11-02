@@ -8,6 +8,7 @@ import {
   ChannelSyncStatus,
   ClonedContentItem,
   JobQueueStatus,
+  MediaFilterRules,
   MigrationJob,
 } from "../domain/types";
 
@@ -91,7 +92,8 @@ export const migrationApi = {
     sourceAccountId?: number,
     targetAccountId?: number,
     captionRules?: CaptionRules | null,
-    dripDelaySeconds?: number
+    dripDelaySeconds?: number,
+    mediaFilterRules?: MediaFilterRules | null
   ): Promise<MigrationJob> {
     const payload: {
       source_channel_id: number;
@@ -103,6 +105,7 @@ export const migrationApi = {
       target_account_id?: number;
       caption_rules?: CaptionRules | null;
       drip_delay_seconds?: number;
+      media_filter_rules?: MediaFilterRules | null;
     } = {
       source_channel_id: sourceChannelId,
       target_channel_id: targetChannelId,
@@ -127,6 +130,9 @@ export const migrationApi = {
     }
     if (dripDelaySeconds && dripDelaySeconds > 0) {
       payload.drip_delay_seconds = dripDelaySeconds;
+    }
+    if (mediaFilterRules) {
+      payload.media_filter_rules = mediaFilterRules;
     }
 
     const res = await fetch(`${API_BASE_URL}/jobs`, {
@@ -253,6 +259,7 @@ export const migrationApi = {
     source_account_id?: number;
     target_account_id?: number;
     caption_rules?: CaptionRules | null;
+    media_filter_rules?: MediaFilterRules | null;
   }): Promise<AutoSyncBinding> {
     const res = await fetch(`${API_BASE_URL}/channels/auto-sync`, {
       method: "POST",

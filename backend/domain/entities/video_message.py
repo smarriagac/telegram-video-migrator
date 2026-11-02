@@ -13,3 +13,7 @@ class VideoMessage:
     entities: list[dict] = field(default_factory=list)
     source_channel_id: int | None = None
     media_type: str = "video"  # "video", "photo", "document", "text"
+    duration: int = 0
+    width: int = 0
+    height: int = 0
+    file_size: int = 0

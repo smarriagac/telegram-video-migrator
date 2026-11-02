@@ -24,6 +24,16 @@ export interface CaptionRules {
   append_signature?: string | null;
 }
 
+export interface MediaFilterRules {
+  min_duration_seconds?: number | null;
+  max_duration_seconds?: number | null;
+  min_height?: number | null;
+  min_width?: number | null;
+  min_file_size_bytes?: number | null;
+  max_file_size_bytes?: number | null;
+  allowed_media_types?: string[];
+}
+
 export interface MigrationJob {
   job_id: string;
   source_id: number;
@@ -37,6 +47,7 @@ export interface MigrationJob {
   target_account_id?: number;
   caption_rules?: CaptionRules | null;
   drip_delay_seconds?: number;
+  media_filter_rules?: MediaFilterRules | null;
 }
 
 export interface ProgressEventPayload {
@@ -156,6 +167,7 @@ export interface AutoSyncBinding {
   created_at?: string;
   updated_at?: string;
   caption_rules?: CaptionRules | null;
+  media_filter_rules?: MediaFilterRules | null;
 }
 
 export interface AutoSyncStatus {
