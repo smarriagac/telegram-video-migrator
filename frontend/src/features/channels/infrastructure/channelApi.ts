@@ -167,4 +167,27 @@ export const channelApi = {
     }
     return res.json();
   },
+
+  async kickMember(
+    channelId: number,
+    userId: number,
+    membershipId?: string,
+    reason: string = "Incumplimiento de normas"
+  ): Promise<any> {
+    const res = await fetch("/api/channels/gatekeeper/kick", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        channel_id: channelId,
+        user_id: userId,
+        membership_id: membershipId || null,
+        reason: reason,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al expulsar al miembro del canal.");
+    }
+    return res.json();
+  },
 };

@@ -200,6 +200,31 @@ export const ChannelManagementView: React.FC = () => {
     }
   };
 
+  const handleKickMember = async (member: VipMembership) => {
+    if (!member.telegram_user_id) {
+      alert("El miembro aún no cuenta con Telegram UID activo.");
+      return;
+    }
+    const userLabel = member.telegram_username ? `@${member.telegram_username}` : `UID ${member.telegram_user_id}`;
+    const channel = state.channels.find((c) => c.id === member.channel_id);
+    const reason = window.prompt(
+      `¿Expulsar inmediatamente a ${userLabel} de ${channel?.title || 'este canal'}?\n\nMotivo de la expulsión:`,
+      "Incumplimiento de normas de la comunidad"
+    );
+    if (!reason) return;
+
+    setState((s) => ({ ...s, isSubmitting: true }));
+    try {
+      await channelApi.kickMember(member.channel_id, member.telegram_user_id, member.id, reason);
+      alert(`Miembro ${userLabel} expulsado exitosamente del canal.`);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || "Error al expulsar al miembro.");
+    } finally {
+      setState((s) => ({ ...s, isSubmitting: false }));
+    }
+  };
+
   const handleEvictExpired = async () => {
     if (
       !window.confirm(
@@ -652,19 +677,20 @@ export const ChannelManagementView: React.FC = () => {
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Estado</TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Ingreso</TableHead>
                   <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase">Fecha de Expiración</TableHead>
+                  <TableHead className="py-2.5 px-4 font-mono text-[10px] uppercase text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {state.loading ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs font-mono">
+                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground text-xs font-mono">
                       <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
                       Cargando registros Gatekeeper...
                     </TableCell>
                   </TableRow>
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-12 text-center text-muted-foreground text-xs">
+                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
                       No hay miembros VIP registrados en el Gatekeeper. Creá un enlace con el botón "+ Crear Pase VIP".
                     </TableCell>
                   </TableRow>
@@ -755,6 +781,30 @@ export const ChannelManagementView: React.FC = () => {
                       </TableCell>
                       <TableCell className="py-2.5 px-4 text-muted-foreground font-mono text-[11px]">
                         {member.expires_at ? new Date(member.expires_at).toLocaleString() : "—"}
+                      </TableCell>
+                      <TableCell className="py-2.5 px-4 text-right">
+                        {member.status === "ACTIVE" && member.telegram_user_id ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleKickMember(member)}
+                            disabled={state.isSubmitting}
+                            className="h-7 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1 font-medium"
+                            title="Expulsar de inmediato por incumplimiento de normas"
+                          >
+                            <UserX className="w-3.5 h-3.5" />
+                            Expulsar
+                          </Button>
+                        ) : member.status === "KICKED" ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-destructive border-destructive/20 bg-destructive/5 font-mono"
+                          >
+                            Expulsado
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs font-mono">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

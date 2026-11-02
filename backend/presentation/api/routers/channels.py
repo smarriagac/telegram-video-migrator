@@ -700,6 +700,13 @@ class RejectJoinRequestPayload(BaseModel):
     user_id: int
 
 
+class KickMemberPayload(BaseModel):
+    channel_id: int
+    user_id: int
+    membership_id: str | None = None
+    reason: str = "Incumplimiento de normas"
+
+
 @router.post("/gatekeeper/invite", response_model=ChannelMembershipResponse)
 async def create_vip_invite_pass(
     req: CreateVipInviteRequest,
@@ -945,6 +952,65 @@ async def reject_join_request(
         approved=False,
     )
     return {"success": success, "channel_id": payload.channel_id, "user_id": payload.user_id}
+
+
+@router.post("/gatekeeper/kick")
+async def kick_channel_member(
+    payload: KickMemberPayload,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> dict[str, Any]:
+    """Manually kick a member from a channel for disciplinary or rule violation reasons."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    success = await gateway.kick_chat_member(
+        channel_id=payload.channel_id,
+        user_id=payload.user_id,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se pudo expulsar al miembro en Telegram MTProto. Verifique permisos de administrador.",
+        )
+
+    now = datetime.now(timezone.utc)
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                if payload.membership_id:
+                    await conn.execute(
+                        """
+                        UPDATE channel_memberships
+                        SET status = 'KICKED', updated_at = $1
+                        WHERE id = $2::uuid AND tenant_id = $3::uuid
+                        """,
+                        now,
+                        payload.membership_id,
+                        tenant_id,
+                    )
+                else:
+                    await conn.execute(
+                        """
+                        UPDATE channel_memberships
+                        SET status = 'KICKED', updated_at = $1
+                        WHERE channel_id = $2 AND telegram_user_id = $3 AND tenant_id = $4::uuid
+                        """,
+                        now,
+                        payload.channel_id,
+                        payload.user_id,
+                        tenant_id,
+                    )
+    except Exception as ex:
+        logger.warning(f"Error updating membership status to KICKED in postgres: {ex}")
+
+    return {
+        "success": True,
+        "channel_id": payload.channel_id,
+        "user_id": payload.user_id,
+        "status": "KICKED",
+        "reason": payload.reason,
+    }
 
 
 @router.post("/gatekeeper/evict")

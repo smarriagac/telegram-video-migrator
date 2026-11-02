@@ -155,3 +155,19 @@ async def test_gateway_get_and_hide_join_request():
     approved = await mock_gateway.hide_join_request(-1004337257363, 123456, approved=True)
     assert approved is True
     mock_gateway.hide_join_request.assert_awaited_once_with(-1004337257363, 123456, approved=True)
+
+
+@pytest.mark.asyncio
+async def test_manual_kick_member_via_gateway():
+    mock_gateway = MagicMock()
+    mock_gateway.kick_chat_member = AsyncMock(return_value=True)
+
+    kicked = await mock_gateway.kick_chat_member(
+        channel_id=-1004337257363,
+        user_id=809438653,
+    )
+    assert kicked is True
+    mock_gateway.kick_chat_member.assert_awaited_once_with(
+        channel_id=-1004337257363,
+        user_id=809438653,
+    )
