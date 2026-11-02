@@ -806,10 +806,13 @@ async def create_vip_invite_pass(
 @router.get("/gatekeeper/members", response_model=list[ChannelMembershipResponse])
 async def list_channel_memberships(
     channel_id: int | None = None,
+    user_id: int | None = None,
+    username: str | None = None,
+    status: str | None = None,
     current_user: User = Depends(get_current_user),
     pg_repo: Any = Depends(get_postgres_repository),
 ) -> list[ChannelMembershipResponse]:
-    """List tracked VIP channel memberships for the active tenant."""
+    """List tracked VIP channel memberships for the active tenant, optionally filtered by channel, user or status."""
     tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
     try:
         await pg_repo.connect()
@@ -822,10 +825,25 @@ async def list_channel_memberships(
                     WHERE tenant_id = $1::uuid
                 """
                 params: list[Any] = [tenant_id]
+                idx = 2
                 if channel_id is not None:
-                    query += " AND channel_id = $2"
+                    query += f" AND channel_id = ${idx}"
                     params.append(channel_id)
-                query += " ORDER BY created_at DESC LIMIT 100"
+                    idx += 1
+                if user_id is not None:
+                    query += f" AND telegram_user_id = ${idx}"
+                    params.append(user_id)
+                    idx += 1
+                if username is not None:
+                    clean_u = username.lstrip("@").lower()
+                    query += f" AND (telegram_username IS NOT NULL AND LOWER(TRIM(LEADING '@' FROM telegram_username)) = ${idx})"
+                    params.append(clean_u)
+                    idx += 1
+                if status is not None:
+                    query += f" AND status = ${idx}"
+                    params.append(status)
+                    idx += 1
+                query += " ORDER BY created_at DESC LIMIT 300"
 
                 rows = await conn.fetch(query, *params)
                 return [

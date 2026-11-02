@@ -63,11 +63,27 @@ export const channelApi = {
     }
   },
 
-  async listVipMembers(channelId?: number): Promise<VipMembership[]> {
+  async listVipMembers(filter?: {
+    channelId?: number;
+    userId?: number;
+    username?: string;
+    status?: string;
+  } | number): Promise<VipMembership[]> {
     try {
-      const url = channelId
-        ? `/api/channels/gatekeeper/members?channel_id=${channelId}`
-        : "/api/channels/gatekeeper/members";
+      let url = "/api/channels/gatekeeper/members";
+      const queryParams = new URLSearchParams();
+      if (typeof filter === "number") {
+        queryParams.append("channel_id", String(filter));
+      } else if (filter) {
+        if (filter.channelId !== undefined) queryParams.append("channel_id", String(filter.channelId));
+        if (filter.userId !== undefined) queryParams.append("user_id", String(filter.userId));
+        if (filter.username) queryParams.append("username", filter.username);
+        if (filter.status) queryParams.append("status", filter.status);
+      }
+      const qs = queryParams.toString();
+      if (qs) {
+        url += `?${qs}`;
+      }
       const res = await fetch(url, {
         headers: getAuthHeaders(),
       });

@@ -48,7 +48,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
-import { channelApi, ManagedChannel } from "@/features/channels/infrastructure/channelApi";
+import { channelApi, ManagedChannel, VipMembership } from "@/features/channels/infrastructure/channelApi";
 import { ChatListSkeleton, ChatMessagesSkeleton } from "@/shared/components/ui/skeleton";
 
 interface ChatMediaThumbnailProps {
@@ -365,6 +365,8 @@ interface ExtraViewState {
   vipModal: VipModalState | null;
   channels: ManagedChannel[];
   isSubmitting: boolean;
+  userMemberships: VipMembership[];
+  showUserVipPopover: boolean;
 }
 
 export const ChatsView: React.FC = () => {
@@ -377,6 +379,8 @@ export const ChatsView: React.FC = () => {
     vipModal: null,
     channels: [],
     isSubmitting: false,
+    userMemberships: [],
+    showUserVipPopover: false,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -451,6 +455,39 @@ export const ChatsView: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [activeChatId, activeMessages.length > 0]);
+
+  // Fetch VIP memberships associated with the active user chat
+  useEffect(() => {
+    if (!activeChat || activeChat.type !== "user") {
+      setViewState((s) => ({ ...s, userMemberships: [], showUserVipPopover: false }));
+      return;
+    }
+    let isCancelled = false;
+    channelApi
+      .listVipMembers({
+        userId: activeChat.id,
+        username: activeChat.username || undefined,
+      })
+      .then((mList) => {
+        if (!isCancelled) {
+          setViewState((s) => ({ ...s, userMemberships: mList }));
+        }
+      })
+      .catch(() => {});
+
+    // Preload channels for title resolution
+    if (viewState.channels.length === 0) {
+      channelApi.listManagedChannels().then((chs) => {
+        if (!isCancelled) {
+          setViewState((s) => ({ ...s, channels: chs }));
+        }
+      });
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeChatId, activeChat?.username]);
 
   // Filter dialogs by search query AND category
   const filteredChats = chats.filter((c) => {
@@ -864,6 +901,24 @@ export const ChatsView: React.FC = () => {
                           <Check className="w-2.5 h-2.5" />
                           Envío Habilitado
                         </span>
+                      )}
+                      {viewState.userMemberships.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setViewState((s) => ({
+                              ...s,
+                              showUserVipPopover: !s.showUserVipPopover,
+                            }))
+                          }
+                          className="text-[9px] text-primary font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors font-semibold cursor-pointer"
+                          title="Click para ver los canales/grupos VIP asociados a este usuario"
+                        >
+                          <Key className="w-2.5 h-2.5 text-primary" />
+                          <span>
+                            {viewState.userMemberships.length} Canal{viewState.userMemberships.length > 1 ? "es" : ""} VIP
+                          </span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1423,6 +1478,75 @@ export const ChatsView: React.FC = () => {
             >
               {viewState.isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
               {!viewState.vipModal?.directInvite ? "Generar y Enviar Enlace" : "Agregar Directamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* User VIP Memberships Dialog */}
+      <Dialog
+        open={viewState.showUserVipPopover}
+        onOpenChange={(open) => setViewState((s) => ({ ...s, showUserVipPopover: open }))}
+      >
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-foreground">
+              <Key className="w-4 h-4 text-cyan-400" />
+              <span>Canales VIP de {activeChat?.title || "Usuario"}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Canales y grupos a los que este usuario tiene pase o invitación VIP asociada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2 max-h-64 overflow-y-auto">
+            {viewState.userMemberships.map((m) => {
+              const ch = viewState.channels.find((c) => c.id === m.channel_id);
+              return (
+                <div
+                  key={m.id}
+                  className="p-2.5 rounded-md border border-border bg-secondary/30 space-y-1.5 text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">
+                      {ch?.title || `Canal ${m.channel_id}`}
+                    </span>
+                    {m.status === "ACTIVE" ? (
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">
+                        Activo
+                      </Badge>
+                    ) : m.status === "INVITED" ? (
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">
+                        Invitación Enviada
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px]">
+                        {m.status}
+                      </Badge>
+                    )}
+                  </div>
+                  {m.invite_link && (
+                    <div className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
+                      <span className="truncate flex-1 select-all">{m.invite_link}</span>
+                    </div>
+                  )}
+                  <div className="text-[10px] text-muted-foreground font-mono flex justify-between">
+                    <span>Vence: {new Date(m.expires_at).toLocaleDateString()}</span>
+                    {m.joined_at && <span>Unido: {new Date(m.joined_at).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewState((s) => ({ ...s, showUserVipPopover: false }))}
+              className="text-xs"
+            >
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>

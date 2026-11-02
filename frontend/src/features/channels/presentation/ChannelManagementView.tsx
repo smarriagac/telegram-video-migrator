@@ -92,6 +92,9 @@ interface ViewState {
   requestDurations: Record<number, number>;
   loading: boolean;
   searchQuery: string;
+  selectedChannelFilter: number | null;
+  selectedStatusFilter: string;
+  channelMembersModal: ManagedChannel | null;
   modalOpen: boolean;
   modalChannelId: number;
   modalDays: number;
@@ -117,6 +120,9 @@ export const ChannelManagementView: React.FC = () => {
     requestDurations: {},
     loading: true,
     searchQuery: "",
+    selectedChannelFilter: null,
+    selectedStatusFilter: "ALL",
+    channelMembersModal: null,
     modalOpen: false,
     modalChannelId: 0,
     modalDays: 30,
@@ -339,12 +345,19 @@ export const ChannelManagementView: React.FC = () => {
 
   // Filtered Members
   const filteredMembers = state.members.filter((m) => {
+    if (state.selectedChannelFilter !== null && m.channel_id !== state.selectedChannelFilter) {
+      return false;
+    }
+    if (state.selectedStatusFilter !== "ALL" && m.status !== state.selectedStatusFilter) {
+      return false;
+    }
     if (!state.searchQuery.trim()) return true;
     const q = state.searchQuery.toLowerCase();
     return (
       (m.telegram_username && m.telegram_username.toLowerCase().includes(q)) ||
       m.channel_id.toString().includes(q) ||
-      (m.telegram_user_id && m.telegram_user_id.toString().includes(q))
+      (m.telegram_user_id && m.telegram_user_id.toString().includes(q)) ||
+      (m.invite_link && m.invite_link.toLowerCase().includes(q))
     );
   });
 
@@ -597,7 +610,7 @@ export const ChannelManagementView: React.FC = () => {
               filterCategory === "REQUESTS"
                 ? "Buscar por nombre, @user o ID..."
                 : filterCategory === "VIP"
-                ? "Buscar por username o ID..."
+                ? "Buscar por username, ID o enlace..."
                 : "Buscar por título o @username..."
             }
             value={state.searchQuery}
@@ -606,6 +619,79 @@ export const ChannelManagementView: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* VIP Specific Filters (Channel dropdown + Status dropdown) */}
+      {filterCategory === "VIP" && (
+        <div className="flex flex-wrap items-center gap-2.5 bg-card border border-border p-2.5 rounded-lg text-xs shrink-0 shadow-xs">
+          <div className="flex items-center gap-1.5 min-w-[220px]">
+            <span className="text-[11px] text-muted-foreground font-mono font-semibold">Canal o Grupo:</span>
+            <Select
+              value={state.selectedChannelFilter !== null ? String(state.selectedChannelFilter) : "ALL"}
+              onValueChange={(val) =>
+                setState((s) => ({
+                  ...s,
+                  selectedChannelFilter: val === "ALL" ? null : Number(val),
+                }))
+              }
+            >
+              <SelectTrigger className="h-7 text-xs bg-secondary/60 border-border flex-1">
+                <SelectValue placeholder="Todos los canales" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los Canales ({state.members.length} miembros)</SelectItem>
+                {adminChannels.map((c) => {
+                  const count = state.members.filter((m) => m.channel_id === c.id).length;
+                  return (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.title} ({count} asociados)
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-1.5 min-w-[190px]">
+            <span className="text-[11px] text-muted-foreground font-mono font-semibold">Estado:</span>
+            <Select
+              value={state.selectedStatusFilter}
+              onValueChange={(val) => setState((s) => ({ ...s, selectedStatusFilter: val }))}
+            >
+              <SelectTrigger className="h-7 text-xs bg-secondary/60 border-border flex-1">
+                <SelectValue placeholder="Todos los estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los Estados</SelectItem>
+                <SelectItem value="INVITED">Invitación Enviada (Pendiente)</SelectItem>
+                <SelectItem value="ACTIVE">Miembros Activos</SelectItem>
+                <SelectItem value="EXPIRED">Vencidos</SelectItem>
+                <SelectItem value="KICKED">Expulsados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(state.selectedChannelFilter !== null || state.selectedStatusFilter !== "ALL") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setState((s) => ({
+                  ...s,
+                  selectedChannelFilter: null,
+                  selectedStatusFilter: "ALL",
+                }))
+              }
+              className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Restablecer filtros
+            </Button>
+          )}
+
+          <div className="ml-auto text-[11px] text-muted-foreground font-mono">
+            Mostrando <strong className="text-foreground">{filteredMembers.length}</strong> usuarios
+          </div>
+        </div>
+      )}
 
       {/* Main Table Card */}
       <Card className="border border-border bg-card shadow-sm flex-1 min-h-0 overflow-hidden flex flex-col">
@@ -1025,6 +1111,33 @@ export const ChannelManagementView: React.FC = () => {
                               [ID: {channel.id}]
                             </span>
                           </div>
+                          {channel.can_post && (() => {
+                            const cMembers = state.members.filter((m) => m.channel_id === channel.id);
+                            const activeC = cMembers.filter((m) => m.status === "ACTIVE").length;
+                            const invitedC = cMembers.filter((m) => m.status === "INVITED").length;
+                            return (
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setState((s) => ({
+                                      ...s,
+                                      channelMembersModal: channel,
+                                    }))
+                                  }
+                                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all font-medium"
+                                  title="Ver los usuarios que tienen pase o invitación VIP a este canal/grupo"
+                                >
+                                  <Users className="w-3 h-3 text-cyan-400" />
+                                  <span>
+                                    {cMembers.length === 0
+                                      ? "0 Usuarios VIP asociados"
+                                      : `${cMembers.length} Usuarios VIP (${activeC} activos, ${invitedC} invitados)`}
+                                  </span>
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="py-2.5 px-4">
@@ -1055,6 +1168,23 @@ export const ChannelManagementView: React.FC = () => {
                       </TableCell>
                       <TableCell className="py-2.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {channel.can_post && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setState((s) => ({
+                                  ...s,
+                                  channelMembersModal: channel,
+                                }))
+                              }
+                              className="h-7 px-2 text-xs gap-1 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 hover:text-cyan-300 font-medium"
+                              title="Ver usuarios asociados e invitaciones VIP de este canal/grupo"
+                            >
+                              <Users className="w-3.5 h-3.5 text-cyan-400" />
+                              <span className="hidden sm:inline">Ver Usuarios</span>
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -1397,6 +1527,178 @@ export const ChannelManagementView: React.FC = () => {
                 : state.actionModal?.type === "EVICT_EXPIRED"
                 ? "Ejecutar Desalojo"
                 : "Confirmar Rechazo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal 3: Channel Members & VIP Invites Modal */}
+      <Dialog
+        open={state.channelMembersModal !== null}
+        onOpenChange={(open) => {
+          if (!open) setState((s) => ({ ...s, channelMembersModal: null }));
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl border-border bg-card max-h-[85vh] flex flex-col p-4 sm:p-5">
+          <DialogHeader className="pb-3 border-b border-border">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-sm sm:text-base font-bold text-foreground">
+                    Usuarios VIP — {state.channelMembersModal?.title}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground mt-0.5 font-mono">
+                    ID: {state.channelMembersModal?.id} · {state.channelMembersModal?.type === "supergroup" || state.channelMembersModal?.type === "group" ? "Grupo Administrado" : "Canal Administrado"}
+                  </DialogDescription>
+                </div>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Body: list of members associated with this channel */}
+          <div className="flex-1 overflow-y-auto py-3 space-y-3 min-h-[220px]">
+            {(() => {
+              if (!state.channelMembersModal) return null;
+              const chMembers = state.members.filter(
+                (m) => m.channel_id === state.channelMembersModal!.id
+              );
+              if (chMembers.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground space-y-2">
+                    <Users className="w-8 h-8 text-muted-foreground/40 stroke-1" />
+                    <p className="text-xs font-medium">Aún no hay usuarios con pase o invitación VIP en este canal/grupo.</p>
+                    <p className="text-[11px] text-muted-foreground">Podés generar un enlace de invitación con el botón de abajo.</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="rounded-md border border-border overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow className="border-b border-border text-[10px] font-mono uppercase">
+                        <TableHead className="py-2 px-3">Usuario</TableHead>
+                        <TableHead className="py-2 px-3">Estado</TableHead>
+                        <TableHead className="py-2 px-3">Enlace VIP</TableHead>
+                        <TableHead className="py-2 px-3">Expiración</TableHead>
+                        <TableHead className="py-2 px-3 text-right">Acción</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="text-xs">
+                      {chMembers.map((m) => (
+                        <TableRow key={m.id} className="border-b border-border/50 hover:bg-muted/30">
+                          <TableCell className="py-2 px-3">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-foreground">
+                                {m.telegram_username ? `@${m.telegram_username}` : "Usuario por ingresar"}
+                              </span>
+                              {m.telegram_user_id && (
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  UID: {m.telegram_user_id}
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2 px-3">
+                            {m.status === "ACTIVE" ? (
+                              <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px]">
+                                Activo
+                              </Badge>
+                            ) : m.status === "INVITED" ? (
+                              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">
+                                Invitación Enviada
+                              </Badge>
+                            ) : m.status === "EXPIRED" ? (
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30 text-[10px]">
+                                Vencido
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-[10px]">
+                                Expulsado
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2 px-3">
+                            {m.invite_link ? (
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  readOnly
+                                  value={m.invite_link}
+                                  className="h-6 text-[10px] font-mono select-all bg-secondary/80 w-36 px-1.5"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyToClipboard(m.invite_link!)}
+                                  className="h-6 w-6 p-0"
+                                  title="Copiar enlace"
+                                >
+                                  <Copy className="w-3 h-3 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-[11px]">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="py-2 px-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                            {m.expires_at ? new Date(m.expires_at).toLocaleDateString() : "—"}
+                          </TableCell>
+                          <TableCell className="py-2 px-3 text-right">
+                            {m.status === "ACTIVE" && m.telegram_user_id ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setState((s) => ({ ...s, channelMembersModal: null }));
+                                  openKickMemberModal(m);
+                                }}
+                                className="h-6 px-2 text-[10px] text-destructive hover:bg-destructive/10 border-destructive/30"
+                              >
+                                Expulsar
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-[10px] font-mono">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })()}
+          </div>
+
+          <DialogFooter className="pt-3 border-t border-border flex sm:justify-between items-center w-full">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const ch = state.channelMembersModal;
+                setState((s) => ({
+                  ...s,
+                  channelMembersModal: null,
+                  modalOpen: true,
+                  modalChannelId: ch?.id || s.modalChannelId,
+                  generatedLink: null,
+                  modalUsername: "",
+                }));
+              }}
+              className="h-8 text-xs gap-1.5 text-primary border-primary/30 hover:bg-primary/10"
+            >
+              <Key className="w-3.5 h-3.5" />
+              <span>+ Crear Nuevo Pase VIP</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setState((s) => ({ ...s, channelMembersModal: null }))}
+              className="h-8 text-xs"
+            >
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>
