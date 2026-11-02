@@ -24,6 +24,7 @@ import { Button } from "@/shared/components/ui/button";
 import { MediaGallerySkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import { VideoSanitizerModal } from "./VideoSanitizerModal";
+import { BatchSanitizerModal } from "./BatchSanitizerModal";
 
 function formatBytes(bytes: number | null): string {
   if (!bytes || bytes <= 0) return "";
@@ -135,10 +136,12 @@ export const MessageSelector: React.FC = () => {
     viewMode: "grid" | "list";
     previewModalMsg: ChannelMessageItem | null;
     sanitizerMsg: ChannelMessageItem | null;
+    batchSanitizerOpen: boolean;
   }>({
     viewMode: "grid",
     previewModalMsg: null,
     sanitizerMsg: null,
+    batchSanitizerOpen: false,
   });
 
   const clonedMsgIds = useMemo(() => new Set(clonedItems.map((c) => c.source_message_id)), [clonedItems]);
@@ -369,6 +372,19 @@ export const MessageSelector: React.FC = () => {
               </>
             )}
           </Button>
+
+          {selectedMessageIds.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setUiState((prev) => ({ ...prev, batchSanitizerOpen: true }))}
+              className="h-7.5 px-2.5 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10 font-mono gap-1.5 shadow-sm"
+              title="Quitar marcas de agua en lote con FFmpeg e IA para todos los elementos seleccionados"
+            >
+              <Wand2 className="w-3.5 h-3.5 text-purple-400" />
+              <span>Quitar Marcas ({selectedMessageIds.length})</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -630,7 +646,7 @@ export const MessageSelector: React.FC = () => {
                   >
                     <Maximize2 className="w-3 h-3" />
                   </button>
-                  {msg.media_type === "video" && (
+                  {(msg.media_type === "video" || msg.media_type === "photo") && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -638,7 +654,7 @@ export const MessageSelector: React.FC = () => {
                         setUiState((prev) => ({ ...prev, sanitizerMsg: msg }));
                       }}
                       className="p-1.5 rounded-full bg-purple-900/80 border border-purple-400/40 text-purple-200 hover:bg-purple-600 hover:text-white transition-colors"
-                      title="Quitar marca de agua con FFmpeg"
+                      title="Quitar marca de agua con FFmpeg e IA"
                     >
                       <Wand2 className="w-3 h-3" />
                     </button>
@@ -734,7 +750,7 @@ export const MessageSelector: React.FC = () => {
                 </span>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  {msg.media_type === "video" && (
+                  {(msg.media_type === "video" || msg.media_type === "photo") && (
                     <button
                       type="button"
                       onClick={(e) => {
@@ -742,7 +758,7 @@ export const MessageSelector: React.FC = () => {
                         setUiState((prev) => ({ ...prev, sanitizerMsg: msg }));
                       }}
                       className="p-1 rounded text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 transition-colors"
-                      title="Quitar marca de agua con FFmpeg"
+                      title="Quitar marca de agua con FFmpeg e IA"
                     >
                       <Wand2 className="w-3.5 h-3.5" />
                     </button>
@@ -892,7 +908,7 @@ export const MessageSelector: React.FC = () => {
                       : "Seleccionar para clonar"}
                   </Button>
 
-                  {uiState.previewModalMsg.media_type === "video" && (
+                  {(uiState.previewModalMsg.media_type === "video" || uiState.previewModalMsg.media_type === "photo") && (
                     <Button
                       type="button"
                       variant="outline"
@@ -923,12 +939,24 @@ export const MessageSelector: React.FC = () => {
           document.body
         )}
 
-      {/* Video Sanitizer Modal */}
+      {/* Video / Photo Sanitizer Modal */}
       {selectedSourceId && uiState.sanitizerMsg && (
         <VideoSanitizerModal
           isOpen={Boolean(uiState.sanitizerMsg)}
           onClose={() => setUiState((prev) => ({ ...prev, sanitizerMsg: null }))}
           message={uiState.sanitizerMsg}
+          sourceChannelId={selectedSourceId}
+          channels={channels}
+          selectedTargetId={selectedTargetId}
+        />
+      )}
+
+      {/* Batch Watermark Sanitizer Modal */}
+      {selectedSourceId && uiState.batchSanitizerOpen && (
+        <BatchSanitizerModal
+          isOpen={uiState.batchSanitizerOpen}
+          onClose={() => setUiState((prev) => ({ ...prev, batchSanitizerOpen: false }))}
+          selectedMessageIds={selectedMessageIds}
           sourceChannelId={selectedSourceId}
           channels={channels}
           selectedTargetId={selectedTargetId}

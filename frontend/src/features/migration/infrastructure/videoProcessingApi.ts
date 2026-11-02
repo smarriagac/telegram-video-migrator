@@ -39,6 +39,17 @@ export interface EnqueueVideoPayload {
   new_caption?: string | null;
 }
 
+export interface EnqueueBatchPayload {
+  source_channel_id: number;
+  source_message_ids: number[];
+  target_channel_id: number;
+  filter_type?: "delogo" | "blur";
+  filter_params?: Record<string, any>;
+  source_channel_title?: string;
+  target_channel_title?: string;
+  account_id?: number | null;
+}
+
 export interface WatermarkDetectionResult {
   success: boolean;
   detected: boolean;
@@ -73,6 +84,19 @@ export const videoProcessingApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: "Error encolando video" }));
       throw new Error(err.detail || "Error encolando video");
+    }
+    return await res.json();
+  },
+
+  async enqueueBatch(payload: EnqueueBatchPayload): Promise<{ success: boolean; enqueued_count: number; jobs: any[] }> {
+    const res = await fetch("/api/video-processing/enqueue-batch", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Error encolando lote de sanitización" }));
+      throw new Error(err.detail || "Error encolando lote de sanitización");
     }
     return await res.json();
   },

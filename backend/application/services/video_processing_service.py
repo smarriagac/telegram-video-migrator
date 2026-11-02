@@ -270,8 +270,6 @@ class VideoProcessingService:
 
         tmp_dir = f"/tmp/sanitizer_{job_id}"
         os.makedirs(tmp_dir, exist_ok=True)
-        input_path = os.path.join(tmp_dir, "input.mp4")
-        output_path = os.path.join(tmp_dir, "output.mp4")
 
         try:
             logger.info(f"VideoProcessing: Starting job {job_id}...")
@@ -305,34 +303,59 @@ class VideoProcessingService:
 
             caption = new_caption if new_caption is not None else (source_msg.text or "")
 
-            # 2. Download media
-            logger.info(f"VideoProcessing: Downloading msg #{source_message_id} to {input_path}...")
-            downloaded = await client.download_media(source_msg, file=input_path)
+            # 2. Download media (supports both photos and videos)
+            logger.info(f"VideoProcessing: Downloading msg #{source_message_id} to {tmp_dir}...")
+            downloaded = await client.download_media(source_msg, file=tmp_dir)
             if not downloaded or not os.path.exists(downloaded):
                 raise RuntimeError(f"Failed to download media for msg #{source_message_id}")
 
+            ext = os.path.splitext(downloaded)[1].lower()
+            is_image = ext in (".jpg", ".jpeg", ".png", ".webp")
+            output_ext = ext if ext else (".jpg" if is_image else ".mp4")
+            output_path = os.path.join(tmp_dir, f"sanitized_output{output_ext}")
+
             await self._update_job_status(job_id, "PROCESSING", 35.0)
 
-            # 3. Probe video width and height using ffprobe
-            width, height = await self._probe_video_dimensions(input_path)
-            logger.info(f"VideoProcessing: Probed video dimensions: {width}x{height}")
+            # 3. Dynamic Auto-Detection pass if requested
+            if filter_params.get("preset") == "auto" or filter_params.get("auto_detect", False):
+                try:
+                    from backend.application.services.watermark_detector import WatermarkDetector
+                    detection = WatermarkDetector.detect_from_file(downloaded)
+                    if detection.get("detected") and detection.get("normalized_box"):
+                        filter_params = {**filter_params, "normalized_box": detection["normalized_box"]}
+                        logger.info(f"VideoProcessing: Auto-detected watermark box: {detection['normalized_box']}")
+                except Exception as det_err:
+                    logger.warning(f"Auto-detection during job execution failed: {det_err}")
 
-            # 4. Compute filter coordinates
+            # 4. Probe video/image width and height
+            width, height = await self._probe_video_dimensions(downloaded)
+            logger.info(f"VideoProcessing: Probed media dimensions: {width}x{height} (is_image={is_image})")
+
+            # 5. Compute filter coordinates
             delogo_filter = self._build_delogo_filter(filter_type, filter_params, width, height)
             logger.info(f"VideoProcessing: Applying filter: {delogo_filter}")
 
-            # 5. Run FFmpeg
-            ffmpeg_cmd = [
-                "ffmpeg",
-                "-y",
-                "-i", input_path,
-                *delogo_filter,
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-crf", "23",
-                "-c:a", "copy",
-                output_path,
-            ]
+            # 6. Run FFmpeg
+            if is_image:
+                ffmpeg_cmd = [
+                    "ffmpeg",
+                    "-y",
+                    "-i", downloaded,
+                    *delogo_filter,
+                    output_path,
+                ]
+            else:
+                ffmpeg_cmd = [
+                    "ffmpeg",
+                    "-y",
+                    "-i", downloaded,
+                    *delogo_filter,
+                    "-c:v", "libx264",
+                    "-preset", "fast",
+                    "-crf", "23",
+                    "-c:a", "copy",
+                    output_path,
+                ]
 
             proc = await asyncio.create_subprocess_exec(
                 *ffmpeg_cmd,
@@ -349,8 +372,8 @@ class VideoProcessingService:
 
             await self._update_job_status(job_id, "UPLOADING", 80.0)
 
-            # 6. Upload processed video to target channel
-            logger.info(f"VideoProcessing: Uploading cleaned video to channel {target_channel_id}...")
+            # 7. Upload processed media to target channel
+            logger.info(f"VideoProcessing: Uploading cleaned media to channel {target_channel_id}...")
             try:
                 target_entity = await client.get_input_entity(target_channel_id)
             except Exception:
@@ -360,7 +383,7 @@ class VideoProcessingService:
                 target_entity,
                 file=output_path,
                 caption=caption,
-                supports_streaming=True,
+                supports_streaming=not is_image,
             )
             sent_msg_id = getattr(sent_msg, "id", None)
 

@@ -30,6 +30,17 @@ class EnqueueVideoJobRequest(BaseModel):
     new_caption: str | None = None
 
 
+class EnqueueBatchJobRequest(BaseModel):
+    source_channel_id: int
+    source_message_ids: list[int]
+    target_channel_id: int
+    filter_type: str = "delogo"
+    filter_params: dict[str, Any] = {"preset": "center"}
+    source_channel_title: str | None = None
+    target_channel_title: str | None = None
+    account_id: int | None = None
+
+
 class DetectWatermarkRequest(BaseModel):
     source_channel_id: int
     source_message_id: int
@@ -101,6 +112,40 @@ async def enqueue_video_processing(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al encolar trabajo de procesamiento FFmpeg: {ex}",
         )
+
+
+@router.post("/enqueue-batch")
+async def enqueue_batch_video_processing(
+    payload: EnqueueBatchJobRequest,
+    current_user: User = Depends(get_current_user),
+    service: Any = Depends(get_video_processing_service),
+) -> dict[str, Any]:
+    """Enqueue multiple messages (videos/photos) in bulk for FFmpeg watermark removal."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    enqueued_jobs = []
+    for msg_id in payload.source_message_ids:
+        try:
+            res = await service.enqueue_job(
+                tenant_id=tenant_id,
+                source_channel_id=payload.source_channel_id,
+                source_message_id=msg_id,
+                target_channel_id=payload.target_channel_id,
+                filter_type=payload.filter_type,
+                filter_params=payload.filter_params,
+                source_channel_title=payload.source_channel_title,
+                target_channel_title=payload.target_channel_title,
+                account_id=payload.account_id,
+            )
+            enqueued_jobs.append(res)
+        except Exception as ex:
+            logger.warning(f"Batch sanitize: Failed to enqueue msg #{msg_id}: {ex}")
+
+    return {
+        "success": True,
+        "enqueued_count": len(enqueued_jobs),
+        "total_requested": len(payload.source_message_ids),
+        "jobs": enqueued_jobs,
+    }
 
 
 @router.get("/jobs")
