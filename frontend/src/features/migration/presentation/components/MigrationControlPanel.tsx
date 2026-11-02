@@ -21,6 +21,7 @@ import { DirectUploadModal } from "./DirectUploadModal";
 import { CaptionRulesModal } from "./CaptionRulesModal";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
+import { Switch } from "@/shared/components/ui/switch";
 
 interface MigrationControlPanelProps {
   onOpenConfirm: () => void;
@@ -269,25 +270,12 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                         </span>
                       </div>
                     </div>
-                    <button
-                      type="button"
+                    <Switch
+                      checked={Boolean(autoSyncStatus?.is_active)}
+                      onCheckedChange={(checked) => toggleAutoSync(checked)}
                       disabled={isLoadingAutoSync}
-                      onClick={() => toggleAutoSync(!autoSyncStatus?.is_active)}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        autoSyncStatus?.is_active ? "bg-emerald-500" : "bg-zinc-700"
-                      } ${isLoadingAutoSync ? "opacity-50 cursor-not-allowed" : ""}`}
-                      title={
-                        autoSyncStatus?.is_active
-                          ? "Desactivar auto-sincronización"
-                          : "Activar auto-sincronización"
-                      }
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          autoSyncStatus?.is_active ? "translate-x-4" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
+                      aria-label="Activar o desactivar auto-sincronización en vivo"
+                    />
                   </div>
                 )}
               </div>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link2, AtSign, ShieldAlert, Sparkles, X, Check } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { Button } from "@/shared/components/ui/button";
+import { Switch } from "@/shared/components/ui/switch";
 
 interface CaptionRulesModalProps {
   isOpen: boolean;
@@ -102,7 +103,7 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
         <div className="p-4 overflow-y-auto space-y-4 text-xs text-zinc-300">
           {/* Toggles */}
           <div className="space-y-2">
-            <label className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 cursor-pointer hover:border-zinc-700 transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
               <div className="flex items-center gap-2.5">
                 <Link2 className="w-4 h-4 text-sky-400" />
                 <div>
@@ -110,17 +111,16 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
                   <div className="text-[11px] text-zinc-400">Elimina URLs (http, https, t.me)</div>
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <Switch
                 checked={formState.strip_links}
-                onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, strip_links: e.target.checked }))
+                onCheckedChange={(checked) =>
+                  setFormState((prev) => ({ ...prev, strip_links: checked }))
                 }
-                className="w-4 h-4 rounded border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                aria-label="Limpiar enlaces externos"
               />
-            </label>
+            </div>
 
-            <label className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 cursor-pointer hover:border-zinc-700 transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
               <div className="flex items-center gap-2.5">
                 <AtSign className="w-4 h-4 text-amber-400" />
                 <div>
@@ -128,15 +128,14 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
                   <div className="text-[11px] text-zinc-400">Quita usernames de terceros (@canal)</div>
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <Switch
                 checked={formState.strip_all_mentions}
-                onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, strip_all_mentions: e.target.checked }))
+                onCheckedChange={(checked) =>
+                  setFormState((prev) => ({ ...prev, strip_all_mentions: checked }))
                 }
-                className="w-4 h-4 rounded border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                aria-label="Eliminar todas las menciones"
               />
-            </label>
+            </div>
           </div>
 
           {/* Replace mention */}

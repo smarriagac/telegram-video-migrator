@@ -15,6 +15,7 @@ import {
   Image,
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
+import { Switch } from "@/shared/components/ui/switch";
 
 export const PipelineModulesView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
@@ -147,7 +148,7 @@ export const PipelineModulesView: React.FC = () => {
 
               {/* Toggles */}
               <div className="space-y-2">
-                <label className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 cursor-pointer hover:border-zinc-700 transition-colors">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
                   <div className="flex items-center gap-2.5">
                     <Link2 className="w-4 h-4 text-sky-400" />
                     <div>
@@ -155,15 +156,14 @@ export const PipelineModulesView: React.FC = () => {
                       <div className="text-[11px] text-zinc-400">Elimina enlaces web (http, https y t.me/...)</div>
                     </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={captionRules.strip_links ?? false}
-                    onChange={(e) => setCaptionRules({ strip_links: e.target.checked })}
-                    className="w-4 h-4 rounded border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                  <Switch
+                    checked={Boolean(captionRules.strip_links)}
+                    onCheckedChange={(checked) => setCaptionRules({ strip_links: checked })}
+                    aria-label="Limpiar enlaces externos"
                   />
-                </label>
+                </div>
 
-                <label className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 cursor-pointer hover:border-zinc-700 transition-colors">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-800/80 bg-zinc-900/40 hover:border-zinc-700 transition-colors">
                   <div className="flex items-center gap-2.5">
                     <AtSign className="w-4 h-4 text-amber-400" />
                     <div>
@@ -171,13 +171,12 @@ export const PipelineModulesView: React.FC = () => {
                       <div className="text-[11px] text-zinc-400">Quita cualquier username de spam (@usuario)</div>
                     </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={captionRules.strip_all_mentions ?? false}
-                    onChange={(e) => setCaptionRules({ strip_all_mentions: e.target.checked })}
-                    className="w-4 h-4 rounded border-zinc-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                  <Switch
+                    checked={Boolean(captionRules.strip_all_mentions)}
+                    onCheckedChange={(checked) => setCaptionRules({ strip_all_mentions: checked })}
+                    aria-label="Eliminar todas las menciones"
                   />
-                </label>
+                </div>
               </div>
 
               {/* Reemplazo de mención */}
