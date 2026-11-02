@@ -61,6 +61,20 @@ import {
   JoinRequest,
 } from "../infrastructure/channelApi";
 
+interface ActionModalState {
+  type: "EVICT_EXPIRED" | "KICK_MEMBER" | "REJECT_REQUEST" | null;
+  title: string;
+  description: string;
+  member?: VipMembership;
+  request?: JoinRequest;
+  reason?: string;
+}
+
+interface NotificationState {
+  message: string;
+  type: "success" | "error";
+}
+
 interface ViewState {
   channels: ManagedChannel[];
   members: VipMembership[];
@@ -78,7 +92,8 @@ interface ViewState {
   generatedLink: string | null;
   copied: boolean;
   isSubmitting: boolean;
-  error: string | null;
+  actionModal: ActionModalState | null;
+  notification: NotificationState | null;
 }
 
 export const ChannelManagementView: React.FC = () => {
@@ -102,13 +117,21 @@ export const ChannelManagementView: React.FC = () => {
     generatedLink: null,
     copied: false,
     isSubmitting: false,
-    error: null,
+    actionModal: null,
+    notification: null,
   });
 
   const navigate = useNavigate();
 
+  const showNotification = (message: string, type: "success" | "error" = "success") => {
+    setState((s) => ({ ...s, notification: { message, type } }));
+    setTimeout(() => {
+      setState((s) => (s.notification?.message === message ? { ...s, notification: null } : s));
+    }, 5000);
+  };
+
   const loadData = async () => {
-    setState((s) => ({ ...s, loading: true, error: null }));
+    setState((s) => ({ ...s, loading: true }));
     try {
       const [channelsRes, membersRes, requestsRes] = await Promise.allSettled([
         channelApi.listManagedChannels(),
@@ -134,8 +157,8 @@ export const ChannelManagementView: React.FC = () => {
       setState((s) => ({
         ...s,
         loading: false,
-        error: "Error al sincronizar datos del servidor.",
       }));
+      showNotification("Error al sincronizar datos del servidor.", "error");
     }
   };
 
@@ -161,9 +184,10 @@ export const ChannelManagementView: React.FC = () => {
         members: [pass, ...s.members],
         isSubmitting: false,
       }));
+      showNotification("¡Pase de acceso VIP generado con éxito!");
     } catch (err: any) {
-      alert(err.message || "Error al crear enlace VIP.");
       setState((s) => ({ ...s, isSubmitting: false }));
+      showNotification(err.message || "Error al crear enlace VIP.", "error");
     }
   };
 
@@ -176,72 +200,100 @@ export const ChannelManagementView: React.FC = () => {
         durationDays,
         req.username || undefined
       );
-      alert(
-        `¡Solicitud aprobada! ${req.first_name} ingresó al canal. El temporizador de ${durationDays} días comenzó a correr desde este instante.`
+      showNotification(
+        `¡Solicitud aprobada! ${req.first_name} ingresó al canal. Período: ${durationDays} días.`
       );
       await loadData();
     } catch (err: any) {
-      alert(err.message || "Error al aprobar la solicitud de ingreso.");
+      showNotification(err.message || "Error al aprobar la solicitud de ingreso.", "error");
     } finally {
       setState((s) => ({ ...s, isSubmitting: false }));
     }
   };
 
-  const handleRejectRequest = async (req: JoinRequest) => {
-    if (!window.confirm(`¿Rechazar la solicitud de ingreso de ${req.first_name}?`)) return;
-    setState((s) => ({ ...s, isSubmitting: true }));
-    try {
-      await channelApi.rejectJoinRequest(req.channel_id, req.user_id);
-      await loadData();
-    } catch (err: any) {
-      alert(err.message || "Error al rechazar solicitud.");
-    } finally {
-      setState((s) => ({ ...s, isSubmitting: false }));
-    }
+  const openRejectRequestModal = (req: JoinRequest) => {
+    setState((s) => ({
+      ...s,
+      actionModal: {
+        type: "REJECT_REQUEST",
+        title: "Rechazar Solicitud de Ingreso",
+        description: `¿Estás seguro de que deseas rechazar la solicitud de ingreso de ${req.first_name} (@${
+          req.username || req.user_id
+        })?`,
+        request: req,
+      },
+    }));
   };
 
-  const handleKickMember = async (member: VipMembership) => {
+  const openKickMemberModal = (member: VipMembership) => {
     if (!member.telegram_user_id) {
-      alert("El miembro aún no cuenta con Telegram UID activo.");
+      showNotification("El miembro aún no cuenta con Telegram UID activo.", "error");
       return;
     }
-    const userLabel = member.telegram_username ? `@${member.telegram_username}` : `UID ${member.telegram_user_id}`;
+    const userLabel = member.telegram_username
+      ? `@${member.telegram_username}`
+      : `UID ${member.telegram_user_id}`;
     const channel = state.channels.find((c) => c.id === member.channel_id);
-    const reason = window.prompt(
-      `¿Expulsar inmediatamente a ${userLabel} de ${channel?.title || 'este canal'}?\n\nMotivo de la expulsión:`,
-      "Incumplimiento de normas de la comunidad"
-    );
-    if (!reason) return;
 
-    setState((s) => ({ ...s, isSubmitting: true }));
-    try {
-      await channelApi.kickMember(member.channel_id, member.telegram_user_id, member.id, reason);
-      alert(`Miembro ${userLabel} expulsado exitosamente del canal.`);
-      await loadData();
-    } catch (err: any) {
-      alert(err.message || "Error al expulsar al miembro.");
-    } finally {
-      setState((s) => ({ ...s, isSubmitting: false }));
-    }
+    setState((s) => ({
+      ...s,
+      actionModal: {
+        type: "KICK_MEMBER",
+        title: `Expulsar Miembro: ${userLabel}`,
+        description: `Esta acción expulsará inmediatamente a ${userLabel} del canal ${
+          channel?.title || "seleccionado"
+        } en Telegram.`,
+        member: member,
+        reason: "Incumplimiento de normas de la comunidad",
+      },
+    }));
   };
 
-  const handleEvictExpired = async () => {
-    if (
-      !window.confirm(
-        "¿Deseas ejecutar el desalojo (Auto-Kick) de miembros VIP con membresía vencida?"
-      )
-    ) {
-      return;
-    }
+  const openEvictExpiredModal = () => {
+    setState((s) => ({
+      ...s,
+      actionModal: {
+        type: "EVICT_EXPIRED",
+        title: "Confirmar Desalojo de Vencidos (Auto-Kick)",
+        description:
+          "¿Deseas ejecutar el desalojo inmediato de todos los miembros VIP cuya membresía haya expirado? Serán removidos en tiempo real vía MTProto.",
+      },
+    }));
+  };
+
+  const handleConfirmActionModal = async () => {
+    if (!state.actionModal) return;
+    const { type, member, request, reason } = state.actionModal;
     setState((s) => ({ ...s, isSubmitting: true }));
+
     try {
-      const res = await channelApi.evictExpiredMembers();
-      alert(`Desalojo completado. Miembros expulsados: ${res.evicted_count}`);
-      await loadData();
+      if (type === "EVICT_EXPIRED") {
+        const res = await channelApi.evictExpiredMembers();
+        setState((s) => ({ ...s, actionModal: null, isSubmitting: false }));
+        showNotification(`Desalojo completado. Miembros expulsados: ${res.evicted_count}`);
+        await loadData();
+      } else if (type === "KICK_MEMBER" && member && member.telegram_user_id) {
+        await channelApi.kickMember(
+          member.channel_id,
+          member.telegram_user_id,
+          member.id,
+          reason || "Incumplimiento de normas de la comunidad"
+        );
+        const userLabel = member.telegram_username
+          ? `@${member.telegram_username}`
+          : `UID ${member.telegram_user_id}`;
+        setState((s) => ({ ...s, actionModal: null, isSubmitting: false }));
+        showNotification(`Miembro ${userLabel} expulsado exitosamente del canal.`);
+        await loadData();
+      } else if (type === "REJECT_REQUEST" && request) {
+        await channelApi.rejectJoinRequest(request.channel_id, request.user_id);
+        setState((s) => ({ ...s, actionModal: null, isSubmitting: false }));
+        showNotification("Solicitud de ingreso rechazada.");
+        await loadData();
+      }
     } catch (err: any) {
-      alert(err.message || "Error al ejecutar desalojo de miembros.");
-    } finally {
       setState((s) => ({ ...s, isSubmitting: false }));
+      showNotification(err.message || "Error al procesar la acción.", "error");
     }
   };
 
@@ -330,7 +382,7 @@ export const ChannelManagementView: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleEvictExpired}
+            onClick={openEvictExpiredModal}
             disabled={state.isSubmitting}
             className="h-8 text-xs gap-1.5 border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
             title="Expulsar miembros con membresía vencida"
@@ -358,10 +410,32 @@ export const ChannelManagementView: React.FC = () => {
         </div>
       </ViewHeader>
 
-      {state.error && (
-        <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{state.error}</span>
+      {/* Non-intrusive notification feedback banner */}
+      {state.notification && (
+        <div
+          className={cn(
+            "rounded-md border p-3 text-xs flex items-center justify-between gap-2 shadow-xs transition-all",
+            state.notification.type === "success"
+              ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-400"
+              : "border-destructive/25 bg-destructive/10 text-destructive"
+          )}
+        >
+          <div className="flex items-center gap-2">
+            {state.notification.type === "success" ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+            ) : (
+              <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+            )}
+            <span className="font-medium">{state.notification.message}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setState((s) => ({ ...s, notification: null }))}
+            className="h-5 w-5 p-0 hover:bg-transparent text-muted-foreground hover:text-foreground"
+          >
+            <XCircle className="h-3.5 w-3.5" />
+          </Button>
         </div>
       )}
 
@@ -467,7 +541,6 @@ export const ChannelManagementView: React.FC = () => {
             {
               id: "REQUESTS",
               label: `Solicitudes de Ingreso (${pendingRequestsCount})`,
-              badgeColor: pendingRequestsCount > 0 ? "bg-amber-500 text-black" : undefined,
             },
             { id: "VIP", label: `Membresías VIP (${state.members.length})` },
             { id: "ALL", label: `Todos en Sesión (${state.channels.length})` },
@@ -638,7 +711,7 @@ export const ChannelManagementView: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleRejectRequest(req)}
+                              onClick={() => openRejectRequestModal(req)}
                               disabled={state.isSubmitting}
                               className="h-7 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1"
                             >
@@ -653,7 +726,7 @@ export const ChannelManagementView: React.FC = () => {
                                 handleApproveRequest(req, days);
                               }}
                               disabled={state.isSubmitting}
-                              className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1 font-semibold"
+                              className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white gap-1 font-semibold shadow-xs"
                             >
                               <UserCheck className="w-3.5 h-3.5" />
                               Aprobar ({state.requestDurations[req.user_id] ?? 30}d)
@@ -667,7 +740,7 @@ export const ChannelManagementView: React.FC = () => {
               </TableBody>
             </Table>
           ) : filterCategory === "VIP" ? (
-            /* TAB: VIP MEMBERS WITH JOINED_AT & EXPIRES_AT */
+            /* TAB: VIP MEMBERS WITH JOINED_AT, EXPIRES_AT AND DIRECT KICK */
             <Table>
               <TableHeader className="bg-muted/40 sticky top-0 z-10">
                 <TableRow className="border-b border-border">
@@ -787,10 +860,10 @@ export const ChannelManagementView: React.FC = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleKickMember(member)}
+                            onClick={() => openKickMemberModal(member)}
                             disabled={state.isSubmitting}
                             className="h-7 px-2.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1 font-medium"
-                            title="Expulsar de inmediato por incumplimiento de normas"
+                            title="Expulsar inmediatamente por incumplimiento de normas"
                           >
                             <UserX className="w-3.5 h-3.5" />
                             Expulsar
@@ -996,10 +1069,14 @@ export const ChannelManagementView: React.FC = () => {
                   <SelectValue placeholder="Seleccionar duración" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="1">1 Día (Acceso 24h)</SelectItem>
+                  <SelectItem value="3">3 Días (Fin de semana)</SelectItem>
                   <SelectItem value="7">7 Días (Acceso de Prueba)</SelectItem>
                   <SelectItem value="15">15 Días</SelectItem>
                   <SelectItem value="30">30 Días (Mensual)</SelectItem>
+                  <SelectItem value="60">60 Días (Bimestral)</SelectItem>
                   <SelectItem value="90">90 Días (Trimestral)</SelectItem>
+                  <SelectItem value="180">180 Días (Semestral)</SelectItem>
                   <SelectItem value="365">365 Días (Anual)</SelectItem>
                 </SelectContent>
               </Select>
@@ -1105,6 +1182,82 @@ export const ChannelManagementView: React.FC = () => {
                 Generar Enlace
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shadcn Dialog: Action Confirmation Modal (Replaces browser alerts/confirms/prompts) */}
+      <Dialog
+        open={!!state.actionModal}
+        onOpenChange={(open) => {
+          if (!open) setState((s) => ({ ...s, actionModal: null }));
+        }}
+      >
+        <DialogContent className="sm:max-w-md border-border bg-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-foreground">
+              {state.actionModal?.type === "KICK_MEMBER" ? (
+                <UserX className="w-5 h-5 text-destructive" />
+              ) : state.actionModal?.type === "EVICT_EXPIRED" ? (
+                <Clock className="w-5 h-5 text-amber-500" />
+              ) : (
+                <XCircle className="w-5 h-5 text-destructive" />
+              )}
+              {state.actionModal?.title}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1">
+              {state.actionModal?.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          {state.actionModal?.type === "KICK_MEMBER" && (
+            <div className="space-y-2 py-2">
+              <label className="text-xs font-semibold text-foreground block">
+                Motivo de la expulsión:
+              </label>
+              <Input
+                value={state.actionModal.reason || ""}
+                onChange={(e) =>
+                  setState((s) => ({
+                    ...s,
+                    actionModal: s.actionModal
+                      ? { ...s.actionModal, reason: e.target.value }
+                      : null,
+                  }))
+                }
+                placeholder="Ej: Incumplimiento de normas o conducta inadecuada"
+                className="h-8 text-xs bg-background"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                El usuario será expulsado de Telegram en tiempo real vía MTProto.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setState((s) => ({ ...s, actionModal: null }))}
+              disabled={state.isSubmitting}
+              className="h-8 text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant={state.actionModal?.type === "EVICT_EXPIRED" ? "default" : "destructive"}
+              size="sm"
+              onClick={handleConfirmActionModal}
+              disabled={state.isSubmitting}
+              className="h-8 text-xs gap-1.5 font-semibold"
+            >
+              {state.isSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              {state.actionModal?.type === "KICK_MEMBER"
+                ? "Confirmar Expulsión"
+                : state.actionModal?.type === "EVICT_EXPIRED"
+                ? "Ejecutar Desalojo"
+                : "Confirmar Rechazo"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
