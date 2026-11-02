@@ -150,12 +150,7 @@ export const MessageSelector: React.FC = () => {
 
   const filteredMessages = useMemo(() => {
     return sourceMessages.filter((msg) => {
-      // By default ('all'), omit pure text messages to focus on actual visual media
-      if (filterState.type === "all") {
-        if (!msg.media_type || msg.media_type === "text") {
-          return false;
-        }
-      } else if (msg.media_type !== filterState.type) {
+      if (filterState.type !== "all" && msg.media_type !== filterState.type) {
         return false;
       }
       const isCloned = msg.is_migrated || clonedMsgIds.has(msg.id);
@@ -175,32 +170,37 @@ export const MessageSelector: React.FC = () => {
     });
   }, [sourceMessages, filterState, clonedMsgIds]);
 
+  // Only multimedia messages (video, photo, document) are traversed in the cinema preview
+  const previewableMessages = useMemo(() => {
+    return filteredMessages.filter((msg) => msg.media_type && msg.media_type !== "text");
+  }, [filteredMessages]);
+
   // Lightbox gallery navigation indices (derived state, 0 extra useState hooks)
   const previewIndex = useMemo(() => {
     if (!uiState.previewModalMsg) return -1;
-    return filteredMessages.findIndex((m) => m.id === uiState.previewModalMsg?.id);
-  }, [filteredMessages, uiState.previewModalMsg]);
+    return previewableMessages.findIndex((m) => m.id === uiState.previewModalMsg?.id);
+  }, [previewableMessages, uiState.previewModalMsg]);
 
   const hasPrevPreview = previewIndex > 0;
-  const hasNextPreview = previewIndex >= 0 && previewIndex < filteredMessages.length - 1;
+  const hasNextPreview = previewIndex >= 0 && previewIndex < previewableMessages.length - 1;
 
   const handlePrevPreview = useCallback(() => {
     if (previewIndex > 0) {
       setUiState((prev) => ({
         ...prev,
-        previewModalMsg: filteredMessages[previewIndex - 1],
+        previewModalMsg: previewableMessages[previewIndex - 1],
       }));
     }
-  }, [previewIndex, filteredMessages]);
+  }, [previewIndex, previewableMessages]);
 
   const handleNextPreview = useCallback(() => {
-    if (previewIndex >= 0 && previewIndex < filteredMessages.length - 1) {
+    if (previewIndex >= 0 && previewIndex < previewableMessages.length - 1) {
       setUiState((prev) => ({
         ...prev,
-        previewModalMsg: filteredMessages[previewIndex + 1],
+        previewModalMsg: previewableMessages[previewIndex + 1],
       }));
     }
-  }, [previewIndex, filteredMessages]);
+  }, [previewIndex, previewableMessages]);
 
   useEffect(() => {
     if (!uiState.previewModalMsg) return;
@@ -229,20 +229,12 @@ export const MessageSelector: React.FC = () => {
   }, [uiState.previewModalMsg, handlePrevPreview, handleNextPreview]);
 
   const countsByType = useMemo(() => {
-    const counts = { all: 0, video: 0, photo: 0, document: 0, text: 0 };
+    const counts = { all: sourceMessages.length, video: 0, photo: 0, document: 0, text: 0 };
     for (const m of sourceMessages) {
-      if (m.media_type === "video") {
-        counts.video++;
-        counts.all++;
-      } else if (m.media_type === "photo") {
-        counts.photo++;
-        counts.all++;
-      } else if (m.media_type === "document") {
-        counts.document++;
-        counts.all++;
-      } else {
-        counts.text++;
-      }
+      if (m.media_type === "video") counts.video++;
+      else if (m.media_type === "photo") counts.photo++;
+      else if (m.media_type === "document") counts.document++;
+      else counts.text++;
     }
     return counts;
   }, [sourceMessages]);
@@ -593,11 +585,11 @@ export const MessageSelector: React.FC = () => {
           {/* 5-Column Type filters (fills 100% width evenly on mobile & tablet without clipping) */}
           <div className="grid grid-cols-5 gap-1 bg-secondary/60 p-0.5 rounded-lg border border-border w-full xl:flex-1">
             {[
-              { id: "all", label: "Multimedia", shortLabel: "Media", count: countsByType.all },
+              { id: "all", label: "Todos", shortLabel: "Todos", count: countsByType.all },
               { id: "video", label: "Videos", shortLabel: "Videos", count: countsByType.video },
               { id: "photo", label: "Fotos", shortLabel: "Fotos", count: countsByType.photo },
               { id: "document", label: "Archivos", shortLabel: "Docs", count: countsByType.document },
-              { id: "text", label: "Solo Texto", shortLabel: "Texto", count: countsByType.text },
+              { id: "text", label: "Texto", shortLabel: "Texto", count: countsByType.text },
             ].map((item) => (
               <button
                 type="button"
@@ -898,7 +890,7 @@ export const MessageSelector: React.FC = () => {
                 {getTypeBadge(uiState.previewModalMsg.media_type)}
                 {previewIndex >= 0 && (
                   <span className="text-xs font-mono text-zinc-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
-                    {previewIndex + 1} de {filteredMessages.length}
+                    {previewIndex + 1} de {previewableMessages.length}
                   </span>
                 )}
                 {clonedMsgIds.has(uiState.previewModalMsg.id) && (
