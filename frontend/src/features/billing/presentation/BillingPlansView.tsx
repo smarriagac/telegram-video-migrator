@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Check,
   Zap,
@@ -12,6 +12,7 @@ import {
   Lock,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { billingApi } from "../infrastructure/billingApi";
 
 interface PlanFeature {
   text: string;
@@ -131,6 +132,30 @@ export const BillingPlansView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (only 2 used)
   const [isAnnual, setIsAnnual] = useState(false);
   const [selectedTier, setSelectedTier] = useState<string>("FREE_TRIAL");
+
+  useEffect(() => {
+    billingApi
+      .getSubscription()
+      .then((data) => {
+        if (data.plan_tier) {
+          setSelectedTier(data.plan_tier);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSelectPlan = async (tier: string) => {
+    try {
+      const res = await billingApi.createCheckoutSession(tier, isAnnual);
+      if (res.checkout_url && res.checkout_url.startsWith("http")) {
+        window.location.href = res.checkout_url;
+      } else {
+        setSelectedTier(tier);
+      }
+    } catch (err: any) {
+      alert(err.message || "Error al conectar con la pasarela Stripe.");
+    }
+  };
 
   return (
     <div className="flex-1 p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full">
@@ -293,7 +318,7 @@ export const BillingPlansView: React.FC = () => {
               <div className="mt-6 pt-4 border-t border-border">
                 <button
                   type="button"
-                  onClick={() => setSelectedTier(plan.tier)}
+                  onClick={() => handleSelectPlan(plan.tier)}
                   disabled={isCurrent}
                   className={cn(
                     "w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all",

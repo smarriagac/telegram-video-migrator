@@ -13,6 +13,7 @@ from backend.presentation.api.routers.audit import router as audit_router
 from backend.presentation.api.routers.settings_credentials import router as credentials_router
 from backend.presentation.api.routers.analytics import router as analytics_router
 from backend.presentation.api.routers.sync import router as sync_router
+from backend.presentation.api.routers.billing import router as billing_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
@@ -93,6 +94,7 @@ app.include_router(jobs_router, prefix="/api")
 app.include_router(dialogs_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
+app.include_router(billing_router)
 
 
 @app.get("/api/health")
