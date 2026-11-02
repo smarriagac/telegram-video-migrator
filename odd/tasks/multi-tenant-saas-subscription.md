@@ -25,6 +25,10 @@ Delivery strategy: single-pr
   - `POST /api/billing/checkout`: creates Stripe Checkout session or sandbox fallback.
   - `POST /api/billing/webhook`: processes `checkout.session.completed`, `customer.subscription.updated`, and `customer.subscription.deleted`.
   - `GET /api/billing/subscription`: returns tenant subscription state and quotas.
+- S8: Dedicated Channel Management & VIP Gatekeeper View (`/channels`):
+  - Table of managed channels with MTProto account badges, admin permissions, and direct actions (Abrir Chat, Clonar Canal, Crear Pase VIP).
+  - VIP Gatekeeper tab: tracking members, invite links with 1-click clipboard copy, expiration dates, and on-demand Auto-Kick eviction purge button.
+  - Backend endpoints: `POST /api/channels/gatekeeper/invite`, `GET /api/channels/gatekeeper/members`, `POST /api/channels/gatekeeper/evict`.
 
 ## Tasks
 - [x] T1 (S1): Create `backend/domain/entities/tenant.py` with `Tenant`, `PlanTier`, `TenantStatus`, and quota validation [inline]
@@ -47,6 +51,9 @@ Delivery strategy: single-pr
 - [x] T18 (S7): Implement `backend/presentation/api/routers/billing.py` with checkout, webhook, and subscription endpoints [inline]
 - [x] T19 (S7): Wire `billingApi.ts` in frontend to trigger checkout from plan cards [inline]
 - [x] T20 (S7): Verify full test suite (86 tests passing in backend container) and commit [inline]
+- [x] T21 (S8): Add Gatekeeper endpoints in `channels.py` (`/gatekeeper/invite`, `/gatekeeper/members`, `/gatekeeper/evict`) [inline]
+- [x] T22 (S8): Build `ChannelManagementView.tsx` with managed channels table, VIP members paywall, and pass generator modal [inline]
+- [x] T23 (S8): Register `/channels` route and sidebar item with `Tv` icon, build Vite bundle in 2.46s, deploy to Nginx [inline]
 
 ## Log
 - L1: User requested architecture and data model definition to sell Telegram Hub as a subscription-based multi-tenant SaaS.
@@ -58,3 +65,4 @@ Delivery strategy: single-pr
 - L7: Implemented `ChannelMembership` entity, `MembershipGatekeeperService`, and MTProto eviction methods (83 tests passing).
 - L8: Created `BillingPlansView.tsx` and wired `/billing` into dashboard and sidebar. Built with Vite in 3.48s and deployed to Nginx.
 - L9: Implemented Stripe billing router, webhook listener, and frontend billing client (86 tests passing).
+- L10: Built dedicated `ChannelManagementView.tsx` at `/channels` with dual-tab support for managed channels and VIP gatekeeper paywall.
