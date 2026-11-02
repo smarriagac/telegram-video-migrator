@@ -31,6 +31,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { Role } from "@/features/auth/domain/types";
+import { TableSkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
 export const SettingsView: React.FC = () => {
@@ -337,7 +338,11 @@ export const SettingsView: React.FC = () => {
               </span>
             </div>
 
-            {accounts.length > 0 ? (
+            {isLoading && accounts.length === 0 ? (
+              <div className="rounded-lg bg-card border border-border p-2">
+                <TableSkeleton rows={3} columns={4} />
+              </div>
+            ) : accounts.length > 0 ? (
               <div className="rounded-lg bg-card border border-border overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-secondary/40">
@@ -466,7 +471,12 @@ export const SettingsView: React.FC = () => {
               </span>
             </div>
 
-            <div className="rounded-lg bg-card border border-border overflow-x-auto">
+            {isLoading && usersList.length === 0 ? (
+              <div className="rounded-lg bg-card border border-border p-2">
+                <TableSkeleton rows={4} columns={4} />
+              </div>
+            ) : (
+              <div className="rounded-lg bg-card border border-border overflow-x-auto">
               <Table>
                 <TableHeader className="bg-secondary/40">
                   <TableRow className="border-b border-border hover:bg-transparent">
@@ -575,6 +585,7 @@ export const SettingsView: React.FC = () => {
                 </TableBody>
               </Table>
             </div>
+            )}
           </div>
         </div>
       )}

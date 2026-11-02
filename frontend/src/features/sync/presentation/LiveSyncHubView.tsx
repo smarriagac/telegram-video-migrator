@@ -25,6 +25,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Switch } from "@/shared/components/ui/switch";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -224,8 +225,20 @@ export const LiveSyncHubView: React.FC = () => {
             {/* Mobile View: High-Density Card List (< 640px) */}
             <div className="sm:hidden divide-y divide-border">
               {isLoading ? (
-                <div className="p-4 text-center text-xs text-muted-foreground font-mono">
-                  Cargando matriz de sincronización...
+                <div className="p-3 space-y-3">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <div key={`skel-mob-sync-${idx}`} className="p-3 space-y-2 rounded border border-border/50 bg-secondary/20">
+                      <div className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-5 w-10 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-44" />
+                      <div className="flex gap-1.5 pt-1">
+                        <Skeleton className="h-4 w-12 rounded" />
+                        <Skeleton className="h-4 w-12 rounded" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : filteredBindings.length === 0 ? (
                 <div className="p-4 text-center text-xs text-muted-foreground font-mono">
@@ -351,11 +364,27 @@ export const LiveSyncHubView: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-xs text-muted-foreground font-mono">
-                        Cargando matriz de sincronización...
-                      </TableCell>
-                    </TableRow>
+                    Array.from({ length: 4 }).map((_, idx) => (
+                      <TableRow key={`skel-sync-row-${idx}`} className="border-border/60">
+                        <TableCell className="py-3 px-3"><Skeleton className="h-4 w-4" /></TableCell>
+                        <TableCell className="py-3 px-3">
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-2.5 w-20" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3 px-3">
+                          <div className="space-y-1">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-2.5 w-20" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-3 px-3"><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell className="py-3 px-3"><Skeleton className="h-4 w-20" /></TableCell>
+                        <TableCell className="py-3 px-3 text-center"><Skeleton className="h-5 w-12 mx-auto rounded-full" /></TableCell>
+                        <TableCell className="py-3 px-3 text-right"><Skeleton className="h-7 w-8 ml-auto" /></TableCell>
+                      </TableRow>
+                    ))
                   ) : filteredBindings.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center text-xs text-muted-foreground font-mono">

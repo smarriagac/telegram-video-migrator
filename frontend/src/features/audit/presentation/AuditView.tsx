@@ -37,6 +37,7 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { cn } from "@/shared/lib/utils";
+import { Skeleton, TableSkeleton } from "@/shared/components/ui/skeleton";
 import { AuditLogDetailModal } from "./components/AuditLogDetailModal";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 
@@ -196,7 +197,11 @@ export const AuditView: React.FC = () => {
               <span>Total Eventos</span>
               <Layers className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-xl font-semibold font-mono text-foreground">{totalEvents}</p>
+            {isLoading ? (
+              <Skeleton className="h-6 w-14 rounded" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-foreground">{totalEvents}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -206,7 +211,11 @@ export const AuditView: React.FC = () => {
               <span>Inicios de Sesión</span>
               <LogIn className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">{loginEvents}</p>
+            {isLoading ? (
+              <Skeleton className="h-6 w-14 rounded" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">{loginEvents}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -216,7 +225,11 @@ export const AuditView: React.FC = () => {
               <span>Clonaciones Canales</span>
               <PlayCircle className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-xl font-semibold font-mono text-primary">{migrationEvents}</p>
+            {isLoading ? (
+              <Skeleton className="h-6 w-14 rounded" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-primary">{migrationEvents}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -226,7 +239,11 @@ export const AuditView: React.FC = () => {
               <span>Vínculos Auto-Sync</span>
               <Radio className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             </div>
-            <p className="text-xl font-semibold font-mono text-amber-600 dark:text-amber-400">{syncEvents}</p>
+            {isLoading ? (
+              <Skeleton className="h-6 w-14 rounded" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-amber-600 dark:text-amber-400">{syncEvents}</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -288,7 +305,9 @@ export const AuditView: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-auto">
-          {filteredLogs.length === 0 ? (
+          {isLoading ? (
+            <TableSkeleton rows={8} columns={7} />
+          ) : filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-center text-muted-foreground text-xs space-y-2">
               <Database className="w-8 h-8 text-muted-foreground/60" />
               <p>No se encontraron registros de auditoría para el criterio seleccionado.</p>

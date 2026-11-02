@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowRight, CheckCircle2, Tv } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { SearchableChannelSelect } from "./SearchableChannelSelect";
+import { ChannelCardsSkeleton } from "@/shared/components/ui/skeleton";
 
 interface ChannelSelectorProps {
   filterQuery?: string;
@@ -24,12 +25,7 @@ export const ChannelSelector: React.FC<ChannelSelectorProps> = ({ filterQuery = 
   );
 
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
-        <div className="h-44 bg-secondary/60 rounded-md border border-border" />
-        <div className="h-44 bg-secondary/60 rounded-md border border-border" />
-      </div>
-    );
+    return <ChannelCardsSkeleton />;
   }
 
   return (

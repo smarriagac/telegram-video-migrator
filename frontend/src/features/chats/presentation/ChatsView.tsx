@@ -49,6 +49,7 @@ import {
 } from "@/shared/components/ui/select";
 import { Badge } from "@/shared/components/ui/badge";
 import { channelApi, ManagedChannel } from "@/features/channels/infrastructure/channelApi";
+import { ChatListSkeleton, ChatMessagesSkeleton } from "@/shared/components/ui/skeleton";
 
 interface ChatMediaThumbnailProps {
   chatId: number;
@@ -715,10 +716,7 @@ export const ChatsView: React.FC = () => {
           {/* List of Chats (flex-1 min-h-0 overflow-y-auto for flawless scrolling) */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border/40">
             {isLoadingDialogs && chats.length === 0 ? (
-              <div className="p-6 flex flex-col items-center justify-center text-center text-xs text-muted-foreground gap-2">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                <span>Cargando conversaciones desde MTProto...</span>
-              </div>
+              <ChatListSkeleton count={8} />
             ) : filteredChats.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">
                 No se encontraron conversaciones
@@ -945,10 +943,7 @@ export const ChatsView: React.FC = () => {
                 </div>
 
                 {isLoadingMessages ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500 gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                    <span className="text-xs">Cargando mensajes del chat...</span>
-                  </div>
+                  <ChatMessagesSkeleton count={6} />
                 ) : activeMessages.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500">
                     <p className="text-xs">No hay mensajes recientes en esta conversación.</p>

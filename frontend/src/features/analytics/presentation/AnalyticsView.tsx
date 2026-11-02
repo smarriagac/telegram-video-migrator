@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { ViewHeader } from "@/shared/components/ViewHeader";
+import { Skeleton, StatGridSkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import { useAnalyticsStore } from "../application/useAnalyticsStore";
 
@@ -77,101 +78,151 @@ export const AnalyticsView: React.FC = () => {
       )}
 
       {/* Top KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
-        {/* Bandwidth Savings */}
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
-            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
-              Ancho de Banda Ahorrado
-            </CardTitle>
-            <HardDrive className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
-          </CardHeader>
-          <CardContent className="p-2.5 pt-0">
-            <div className="text-xl font-bold font-mono text-foreground tracking-tight">
-              {data ? `${data.total_bandwidth_saved_gb.toFixed(1)} GB` : "0 GB"}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Tráfico local evitado vía cloning MTProto
-            </p>
-            <div className="mt-1.5">
-              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] py-0.2 px-1.5">
-                Zero Descarga Local
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+      {isLoading && !data ? (
+        <StatGridSkeleton count={4} />
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
+          {/* Bandwidth Savings */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+              <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                Ancho de Banda Ahorrado
+              </CardTitle>
+              <HardDrive className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
+            </CardHeader>
+            <CardContent className="p-2.5 pt-0">
+              <div className="text-xl font-bold font-mono text-foreground tracking-tight">
+                {data ? `${data.total_bandwidth_saved_gb.toFixed(1)} GB` : "0 GB"}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Tráfico local evitado vía cloning MTProto
+              </p>
+              <div className="mt-1.5">
+                <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] py-0.2 px-1.5">
+                  Zero Descarga Local
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Total Migrated Items */}
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
-            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
-              Archivos Migrados
-            </CardTitle>
-            <FileVideo className="h-3.5 w-3.5 text-primary" />
-          </CardHeader>
-          <CardContent className="p-2.5 pt-0">
-            <div className="text-xl font-bold font-mono text-foreground tracking-tight">
-              {data ? data.total_items_migrated.toLocaleString() : "0"}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {data ? `${data.total_jobs} trabajos ejecutados` : "Cargando..."}
-            </p>
-            <div className="mt-1.5">
-              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[9px] py-0.2 px-1.5">
-                {data ? `${data.efficiency_percent}% Eficiencia Nube` : "99.8% Eficiencia"}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Total Migrated Items */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+              <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                Archivos Migrados
+              </CardTitle>
+              <FileVideo className="h-3.5 w-3.5 text-primary" />
+            </CardHeader>
+            <CardContent className="p-2.5 pt-0">
+              <div className="text-xl font-bold font-mono text-foreground tracking-tight">
+                {data ? data.total_items_migrated.toLocaleString() : "0"}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {data ? `${data.total_jobs} trabajos ejecutados` : "Cargando..."}
+              </p>
+              <div className="mt-1.5">
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[9px] py-0.2 px-1.5">
+                  {data ? `${data.efficiency_percent}% Eficiencia Nube` : "99.8% Eficiencia"}
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Prevented Duplicates */}
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
-            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
-              Duplicados Filtrados
-            </CardTitle>
-            <ShieldCheck className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-          </CardHeader>
-          <CardContent className="p-2.5 pt-0">
-            <div className="text-xl font-bold font-mono text-foreground tracking-tight">
-              {data ? data.duplicates_prevented.toLocaleString() : "0"}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Fingerprints SHA256 & Perceptuales
-            </p>
-            <div className="mt-1.5">
-              <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] py-0.2 px-1.5">
-                Deduplicación Automática
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Prevented Duplicates */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+              <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                Duplicados Filtrados
+              </CardTitle>
+              <ShieldCheck className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+            </CardHeader>
+            <CardContent className="p-2.5 pt-0">
+              <div className="text-xl font-bold font-mono text-foreground tracking-tight">
+                {data ? data.duplicates_prevented.toLocaleString() : "0"}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Fingerprints SHA256 & Perceptuales
+              </p>
+              <div className="mt-1.5">
+                <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] py-0.2 px-1.5">
+                  Deduplicación Automática
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Live Sync Channels */}
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
-            <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
-              Canales en Auto-Sync
-            </CardTitle>
-            <Radio className="h-3.5 w-3.5 text-primary" />
-          </CardHeader>
-          <CardContent className="p-2.5 pt-0">
-            <div className="text-xl font-bold font-mono text-foreground tracking-tight">
-              {data ? data.active_sync_bindings : "0"}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Rutas activas escuchando eventos push
-            </p>
-            <div className="mt-1.5">
-              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[9px] py-0.2 px-1.5">
-                Live Push Daemon
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Live Sync Channels */}
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between p-2.5 pb-1">
+              <CardTitle className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+                Canales en Auto-Sync
+              </CardTitle>
+              <Radio className="h-3.5 w-3.5 text-primary" />
+            </CardHeader>
+            <CardContent className="p-2.5 pt-0">
+              <div className="text-xl font-bold font-mono text-foreground tracking-tight">
+                {data ? data.active_sync_bindings : "0"}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Rutas activas escuchando eventos push
+              </p>
+              <div className="mt-1.5">
+                <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary text-[9px] py-0.2 px-1.5">
+                  Live Push Daemon
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Main Charts & Visualizations */}
+      {isLoading && !data ? (
+        <div className="grid gap-2.5 lg:grid-cols-3">
+          <Card className="border-border bg-card shadow-sm lg:col-span-2 p-4 space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-44 rounded" />
+              <Skeleton className="h-3 w-72 rounded" />
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 pb-2.5 border-b border-border">
+              <div className="p-2 bg-secondary/50 rounded border border-border space-y-1.5">
+                <Skeleton className="h-2.5 w-28 rounded" />
+                <Skeleton className="h-5 w-20 rounded" />
+              </div>
+              <div className="p-2 bg-secondary/50 rounded border border-border space-y-1.5">
+                <Skeleton className="h-2.5 w-36 rounded" />
+                <Skeleton className="h-5 w-20 rounded" />
+              </div>
+            </div>
+            <div className="space-y-3 pt-1">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-3 w-20 rounded shrink-0" />
+                  <Skeleton className="h-2.5 flex-1 rounded-full" />
+                  <Skeleton className="h-3 w-28 rounded shrink-0" />
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="border-border bg-card shadow-sm p-4 space-y-4">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-36 rounded" />
+              <Skeleton className="h-3 w-48 rounded" />
+            </div>
+            <div className="space-y-3.5 pt-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <Skeleton className="h-3 w-24 rounded" />
+                    <Skeleton className="h-3 w-10 rounded" />
+                  </div>
+                  <Skeleton className="h-2 w-full rounded-full" />
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      ) : (
       <div className="grid gap-2.5 lg:grid-cols-3">
         {/* Daily Volume Bar Chart */}
         <Card className="border-border bg-card shadow-sm lg:col-span-2">
@@ -346,6 +397,7 @@ export const AnalyticsView: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 };

@@ -26,6 +26,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
+import { Skeleton } from "@/shared/components/ui/skeleton";
 import {
   Card,
   CardContent,
@@ -458,9 +459,13 @@ export const ChannelManagementView: React.FC = () => {
             <Tv className="w-3.5 h-3.5 text-primary shrink-0" />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-              {adminChannels.length}
-            </div>
+            {state.loading ? (
+              <Skeleton className="h-6 w-14 my-0.5 rounded" />
+            ) : (
+              <div className="text-base sm:text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                {adminChannels.length}
+              </div>
+            )}
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               Con permisos de administración
             </p>
@@ -488,16 +493,20 @@ export const ChannelManagementView: React.FC = () => {
             />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div
-              className={cn(
-                "text-base sm:text-xl font-bold font-mono",
-                pendingRequestsCount > 0
-                  ? "text-amber-600 dark:text-amber-400"
-                  : "text-foreground"
-              )}
-            >
-              {pendingRequestsCount}
-            </div>
+            {state.loading ? (
+              <Skeleton className="h-6 w-14 my-0.5 rounded" />
+            ) : (
+              <div
+                className={cn(
+                  "text-base sm:text-xl font-bold font-mono",
+                  pendingRequestsCount > 0
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-foreground"
+                )}
+              >
+                {pendingRequestsCount}
+              </div>
+            )}
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               {pendingRequestsCount > 0
                 ? "Click para revisar y admitir"
@@ -514,9 +523,13 @@ export const ChannelManagementView: React.FC = () => {
             <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-primary">
-              {activeVipCount}
-            </div>
+            {state.loading ? (
+              <Skeleton className="h-6 w-14 my-0.5 rounded" />
+            ) : (
+              <div className="text-base sm:text-xl font-bold font-mono text-primary">
+                {activeVipCount}
+              </div>
+            )}
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               Membresías vigentes
             </p>
@@ -531,9 +544,13 @@ export const ChannelManagementView: React.FC = () => {
             <Clock className="w-3.5 h-3.5 text-destructive shrink-0" />
           </CardHeader>
           <CardContent className="p-2.5 sm:p-3 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-destructive">
-              {expiredVipCount}
-            </div>
+            {state.loading ? (
+              <Skeleton className="h-6 w-14 my-0.5 rounded" />
+            ) : (
+              <div className="text-base sm:text-xl font-bold font-mono text-destructive">
+                {expiredVipCount}
+              </div>
+            )}
             <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               Listos para expulsión
             </p>
@@ -639,12 +656,25 @@ export const ChannelManagementView: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {state.loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs font-mono">
-                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
-                      Consultando solicitudes en Telegram MTProto...
-                    </TableCell>
-                  </TableRow>
+                  Array.from({ length: 3 }).map((_, idx) => (
+                    <TableRow key={`skel-req-${idx}`} className="border-b border-border/40">
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell className="py-3 px-4">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-28" />
+                          <Skeleton className="h-2.5 w-20" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-7 w-28" /></TableCell>
+                      <TableCell className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Skeleton className="h-7 w-16" />
+                          <Skeleton className="h-7 w-24" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : filteredRequests.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">
@@ -764,12 +794,22 @@ export const ChannelManagementView: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {state.loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-12 text-center text-muted-foreground text-xs font-mono">
-                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
-                      Cargando registros Gatekeeper...
-                    </TableCell>
-                  </TableRow>
+                  Array.from({ length: 3 }).map((_, idx) => (
+                    <TableRow key={`skel-vip-${idx}`} className="border-b border-border/40">
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell className="py-3 px-4">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-2.5 w-16" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-7 w-40" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-28" /></TableCell>
+                      <TableCell className="py-3 px-4 text-right"><Skeleton className="h-7 w-20 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
                 ) : filteredMembers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-12 text-center text-muted-foreground text-xs">
@@ -917,12 +957,25 @@ export const ChannelManagementView: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {state.loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs font-mono">
-                      <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-primary" />
-                      Cargando canales desde el motor MTProto...
-                    </TableCell>
-                  </TableRow>
+                  Array.from({ length: 4 }).map((_, idx) => (
+                    <TableRow key={`skel-ch-${idx}`} className="border-b border-border/40">
+                      <TableCell className="py-3 px-4">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-2.5 w-24" />
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-5 w-32" /></TableCell>
+                      <TableCell className="py-3 px-4"><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Skeleton className="h-7 w-20" />
+                          <Skeleton className="h-7 w-20" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 ) : filteredChannels.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="py-12 text-center text-muted-foreground text-xs">

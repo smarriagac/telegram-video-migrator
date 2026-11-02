@@ -24,6 +24,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Progress } from "@/shared/components/ui/progress";
+import { Skeleton, TableSkeleton } from "@/shared/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -248,7 +249,11 @@ export const JobsView: React.FC = () => {
               <span>Total Trabajos</span>
               <Layers className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-xl font-semibold font-mono text-foreground">{total}</p>
+            {isLoading && jobs.length === 0 ? (
+              <Skeleton className="h-6 w-12 rounded mt-1" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-foreground">{total}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -258,7 +263,11 @@ export const JobsView: React.FC = () => {
               <span>En Ejecución</span>
               <Play className="w-4 h-4 text-primary animate-pulse" />
             </div>
-            <p className="text-xl font-semibold font-mono text-primary">{runningCount}</p>
+            {isLoading && jobs.length === 0 ? (
+              <Skeleton className="h-6 w-12 rounded mt-1" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-primary">{runningCount}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -268,7 +277,11 @@ export const JobsView: React.FC = () => {
               <span>Completados</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">{completedCount}</p>
+            {isLoading && jobs.length === 0 ? (
+              <Skeleton className="h-6 w-12 rounded mt-1" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">{completedCount}</p>
+            )}
           </CardContent>
         </Card>
 
@@ -278,9 +291,13 @@ export const JobsView: React.FC = () => {
               <span>Fallidos / Pausados</span>
               <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             </div>
-            <p className="text-xl font-semibold font-mono text-amber-600 dark:text-amber-400">
-              {failedCount + pausedCount}
-            </p>
+            {isLoading && jobs.length === 0 ? (
+              <Skeleton className="h-6 w-12 rounded mt-1" />
+            ) : (
+              <p className="text-xl font-semibold font-mono text-amber-600 dark:text-amber-400">
+                {failedCount + pausedCount}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -342,7 +359,9 @@ export const JobsView: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-auto">
-          {filteredJobs.length === 0 ? (
+          {isLoading && jobs.length === 0 ? (
+            <TableSkeleton rows={5} columns={6} />
+          ) : filteredJobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-center text-muted-foreground text-xs space-y-2">
               <Layers className="w-8 h-8 text-muted-foreground/60" />
               <p>No se encontraron trabajos para el criterio seleccionado.</p>

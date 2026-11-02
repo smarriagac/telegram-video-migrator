@@ -20,6 +20,7 @@ import {
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { ChannelMessageItem } from "../../domain/types";
 import { Button } from "@/shared/components/ui/button";
+import { MediaGallerySkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 
 function formatBytes(bytes: number | null): string {
@@ -542,10 +543,7 @@ export const MessageSelector: React.FC = () => {
 
       {/* Main Content: Gallery Grid or List */}
       {isLoadingMessages ? (
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 py-14 text-center text-muted-foreground text-xs">
-          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          <span className="font-mono text-muted-foreground">Escaneando multimedia y generando miniaturas...</span>
-        </div>
+        <MediaGallerySkeleton count={12} />
       ) : filteredMessages.length === 0 ? (
         <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-muted-foreground text-xs bg-secondary/40 rounded-md border border-border font-mono">
           No se encontraron mensajes con los filtros seleccionados.
