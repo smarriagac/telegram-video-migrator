@@ -169,11 +169,11 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                     Clonado {history?.total_clones ?? 0} {(history?.total_clones ?? 0) === 1 ? "vez" : "veces"}
                   </span>
                   {history?.has_full_clone ? (
-                    <Badge variant="admin" className="text-[10px] px-1.5 py-0">
+                    <Badge variant="admin" size="sm">
                       ✓ Completo
                     </Badge>
                   ) : (history?.total_clones ?? 0) > 0 ? (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                    <Badge variant="secondary" size="sm" className="bg-amber-500/15 text-amber-300 border border-amber-500/25">
                       Parcial
                     </Badge>
                   ) : null}
@@ -235,9 +235,9 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                       {isCheckingSync ? (
                         <span className="text-zinc-400 truncate">Comprobando delta...</span>
                       ) : syncStatus?.is_in_sync ? (
-                        <Badge variant="admin" className="text-[10px] px-1.5 py-0 font-medium">✓ 100% sincronizado</Badge>
+                        <Badge variant="admin" size="sm" className="font-medium">✓ 100% sincronizado</Badge>
                       ) : syncStatus ? (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium font-mono text-amber-300 bg-amber-500/15 border-amber-500/25">
+                        <Badge variant="secondary" size="sm" className="font-medium font-mono text-amber-300 bg-amber-500/15 border-amber-500/25">
                           {syncStatus.missing_count} novedades
                         </Badge>
                       ) : (
@@ -325,11 +325,11 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                   <span className="truncate">Captions</span>
                 </div>
                 {activeRulesCount > 0 ? (
-                  <Badge variant="admin" className="px-1.5 py-0 text-[10px] font-mono font-medium">
+                  <Badge variant="admin" size="sm" className="font-mono font-medium">
                     {activeRulesCount} act.
                   </Badge>
                 ) : (
-                  <Badge variant="viewer" className="px-1.5 py-0 text-[10px] font-mono text-zinc-500">
+                  <Badge variant="viewer" size="sm" className="font-mono text-zinc-500">
                     Off
                   </Badge>
                 )}

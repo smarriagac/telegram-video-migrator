@@ -491,7 +491,7 @@ export const SettingsView: React.FC = () => {
                             <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-white text-xs truncate">{u.email}</span>
                               {u.id === user?.id && (
-                                <Badge variant="outline" className="text-[8px] text-cyan-400 bg-cyan-500/10 border-cyan-500/30 px-1 py-0">
+                                <Badge variant="outline" size="sm" className="text-[9px] text-cyan-400 bg-cyan-500/10 border-cyan-500/30">
                                   Tú
                                 </Badge>
                               )}

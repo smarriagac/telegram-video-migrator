@@ -296,23 +296,26 @@ export const LiveSyncHubView: React.FC = () => {
                         <TableCell>
                           <div className="flex flex-wrap items-center gap-1.5">
                             {allowVideo && (
-                              <Badge variant="outline" className="text-[10px] bg-zinc-950/40 border-zinc-700/80 text-cyan-400 gap-1 py-0">
-                                <FileVideo className="h-2.5 w-2.5" /> Video
+                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-cyan-400">
+                                <FileVideo className="h-3 w-3 shrink-0" />
+                                <span>Video</span>
                               </Badge>
                             )}
                             {allowPhoto && (
-                              <Badge variant="outline" className="text-[10px] bg-zinc-950/40 border-zinc-700/80 text-amber-400 gap-1 py-0">
-                                <Image className="h-2.5 w-2.5" /> Foto
+                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-amber-400">
+                                <Image className="h-3 w-3 shrink-0" />
+                                <span>Foto</span>
                               </Badge>
                             )}
                             {allowDoc && (
-                              <Badge variant="outline" className="text-[10px] bg-zinc-950/40 border-zinc-700/80 text-purple-400 gap-1 py-0">
-                                <File className="h-2.5 w-2.5" /> Doc
+                              <Badge variant="outline" className="gap-1 border-zinc-700/80 bg-zinc-950/40 text-purple-400">
+                                <File className="h-3 w-3 shrink-0" />
+                                <span>Doc</span>
                               </Badge>
                             )}
                             {stripLinks && (
-                              <Badge variant="outline" className="text-[10px] bg-zinc-950/40 border-emerald-500/30 text-emerald-400 py-0">
-                                Anti-Spam
+                              <Badge variant="outline" className="border-emerald-500/30 bg-zinc-950/40 text-emerald-400">
+                                <span>Anti-Spam</span>
                               </Badge>
                             )}
                           </div>
@@ -320,8 +323,8 @@ export const LiveSyncHubView: React.FC = () => {
 
                         {/* Last Synced Message ID */}
                         <TableCell>
-                          <Badge variant="outline" className="font-mono text-[11px] bg-zinc-950/60 border-zinc-800 text-zinc-300">
-                            Msg #{binding.last_synced_message_id}
+                          <Badge variant="outline" className="border-zinc-800 bg-zinc-950/60 font-mono text-[11px] text-zinc-300">
+                            <span>Msg #{binding.last_synced_message_id}</span>
                           </Badge>
                         </TableCell>
 
