@@ -23,8 +23,8 @@ import {
 } from "@/shared/components/ui/card";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import { Progress } from "@/shared/components/ui/progress";
 import { ViewHeader } from "@/shared/components/ViewHeader";
+import { cn } from "@/shared/lib/utils";
 import { useAnalyticsStore } from "../application/useAnalyticsStore";
 
 export const AnalyticsView: React.FC = () => {
@@ -256,73 +256,67 @@ export const AnalyticsView: React.FC = () => {
               Desglose de contenidos procesados en cola.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-2.5">
-            {/* Photos */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-foreground text-[11px]">
-                  <Image className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-                  Imágenes & Álbumes
-                </span>
-                <span className="font-medium text-muted-foreground text-[11px] font-mono">
-                  {data?.media_type_distribution?.photo?.toLocaleString() || 0} ({getMediaPercentage(data?.media_type_distribution?.photo || 0)}%)
-                </span>
-              </div>
-              <Progress
-                value={getMediaPercentage(data?.media_type_distribution?.photo || 0)}
-                className="h-1.5 bg-secondary"
-              />
-            </div>
-
-            {/* Videos */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-foreground text-[11px]">
-                  <FileVideo className="h-3.5 w-3.5 text-primary" />
-                  Videos & Animaciones
-                </span>
-                <span className="font-medium text-muted-foreground text-[11px] font-mono">
-                  {data?.media_type_distribution?.video?.toLocaleString() || 0} ({getMediaPercentage(data?.media_type_distribution?.video || 0)}%)
-                </span>
-              </div>
-              <Progress
-                value={getMediaPercentage(data?.media_type_distribution?.video || 0)}
-                className="h-1.5 bg-secondary"
-              />
-            </div>
-
-            {/* Documents */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-foreground text-[11px]">
-                  <File className="h-3.5 w-3.5 text-purple-500 dark:text-purple-400" />
-                  Documentos & Archivos
-                </span>
-                <span className="font-medium text-muted-foreground text-[11px] font-mono">
-                  {data?.media_type_distribution?.document?.toLocaleString() || 0} ({getMediaPercentage(data?.media_type_distribution?.document || 0)}%)
-                </span>
-              </div>
-              <Progress
-                value={getMediaPercentage(data?.media_type_distribution?.document || 0)}
-                className="h-1.5 bg-secondary"
-              />
-            </div>
-
-            {/* Text Messages */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-foreground text-[11px]">
-                  <FileText className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
-                  Mensajes de Texto
-                </span>
-                <span className="font-medium text-muted-foreground text-[11px] font-mono">
-                  {data?.media_type_distribution?.text?.toLocaleString() || 0} ({getMediaPercentage(data?.media_type_distribution?.text || 0)}%)
-                </span>
-              </div>
-              <Progress
-                value={getMediaPercentage(data?.media_type_distribution?.text || 0)}
-                className="h-1.5 bg-secondary"
-              />
+          <CardContent className="p-3 pt-0 space-y-3">
+            {/* Media Distribution Horizontal Symmetrical Bars */}
+            <div className="space-y-2.5 pt-1">
+              {[
+                {
+                  id: "photo",
+                  label: "Imágenes & Álbumes",
+                  icon: Image,
+                  iconColor: "text-amber-500 dark:text-amber-400",
+                  barColor: "bg-amber-500 dark:bg-amber-400",
+                  count: data?.media_type_distribution?.photo || 0,
+                  pct: getMediaPercentage(data?.media_type_distribution?.photo || 0),
+                },
+                {
+                  id: "video",
+                  label: "Videos & Animaciones",
+                  icon: FileVideo,
+                  iconColor: "text-primary",
+                  barColor: "bg-primary",
+                  count: data?.media_type_distribution?.video || 0,
+                  pct: getMediaPercentage(data?.media_type_distribution?.video || 0),
+                },
+                {
+                  id: "document",
+                  label: "Documentos & Archivos",
+                  icon: File,
+                  iconColor: "text-purple-500 dark:text-purple-400",
+                  barColor: "bg-purple-500 dark:bg-purple-400",
+                  count: data?.media_type_distribution?.document || 0,
+                  pct: getMediaPercentage(data?.media_type_distribution?.document || 0),
+                },
+                {
+                  id: "text",
+                  label: "Mensajes de Texto",
+                  icon: FileText,
+                  iconColor: "text-emerald-500 dark:text-emerald-400",
+                  barColor: "bg-emerald-500 dark:bg-emerald-400",
+                  count: data?.media_type_distribution?.text || 0,
+                  pct: getMediaPercentage(data?.media_type_distribution?.text || 0),
+                },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.id} className="flex items-center gap-2.5 text-xs">
+                    <div className="flex items-center gap-1.5 w-36 sm:w-40 shrink-0 text-[11px] text-foreground font-medium">
+                      <Icon className={cn("h-3.5 w-3.5 shrink-0", item.iconColor)} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden border border-border/40">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-500", item.barColor)}
+                        style={{ width: `${Math.max(item.pct, item.count > 0 ? 1 : 0)}%` }}
+                      />
+                    </div>
+                    <div className="w-24 text-right shrink-0 font-mono text-[11px] text-muted-foreground tabular-nums">
+                      <span className="text-foreground font-semibold">{item.count.toLocaleString()}</span>{" "}
+                      <span className="text-[10px] text-muted-foreground">({item.pct}%)</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Job Status Snapshot */}
