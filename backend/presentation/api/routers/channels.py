@@ -26,7 +26,12 @@ from backend.presentation.dependencies import (
     get_live_sync_service,
     get_migration_use_case,
     get_telegram_gateway,
+    get_postgres_repository,
+    get_current_user,
 )
+from backend.domain.entities.user import User
+from backend.domain.entities.channel_membership import ChannelMembership, MembershipStatus
+from backend.application.services.membership_gatekeeper_service import MembershipGatekeeperService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/channels", tags=["Channels"])
@@ -644,4 +649,174 @@ async def get_auto_sync_status(
             media_filter_rules=binding.media_filter_rules,
         ),
     )
+
+
+class CreateVipInviteRequest(BaseModel):
+    channel_id: int
+    duration_days: int = 30
+    account_id: int | None = None
+    telegram_username: str | None = None
+
+
+class ChannelMembershipResponse(BaseModel):
+    id: str
+    tenant_id: str
+    channel_id: int
+    telegram_user_id: int | None = None
+    telegram_username: str | None = None
+    invite_link: str | None = None
+    status: str
+    expires_at: str
+    created_at: str | None = None
+
+
+@router.post("/gatekeeper/invite", response_model=ChannelMembershipResponse)
+async def create_vip_invite_pass(
+    req: CreateVipInviteRequest,
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> ChannelMembershipResponse:
+    """Generate a single-use time-bounded VIP invite link for a channel."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    gatekeeper = MembershipGatekeeperService(gateway)
+
+    membership = await gatekeeper.generate_pass(
+        tenant_id=tenant_id,
+        channel_id=req.channel_id,
+        duration_days=req.duration_days,
+        account_id=req.account_id,
+    )
+    membership.telegram_username = req.telegram_username
+
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO channel_memberships (
+                        id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                        invite_link, status, expires_at, created_at, updated_at
+                    )
+                    VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8::timestamptz, NOW(), NOW())
+                    """,
+                    membership.id,
+                    tenant_id,
+                    membership.channel_id,
+                    membership.telegram_user_id,
+                    membership.telegram_username,
+                    membership.invite_link,
+                    membership.status.value,
+                    membership.expires_at,
+                )
+    except Exception as ex:
+        logger.warning(f"Failed to persist membership in postgres: {ex}")
+
+    return ChannelMembershipResponse(
+        id=membership.id,
+        tenant_id=membership.tenant_id,
+        channel_id=membership.channel_id,
+        telegram_user_id=membership.telegram_user_id,
+        telegram_username=membership.telegram_username,
+        invite_link=membership.invite_link,
+        status=membership.status.value,
+        expires_at=membership.expires_at,
+        created_at=membership.created_at,
+    )
+
+
+@router.get("/gatekeeper/members", response_model=list[ChannelMembershipResponse])
+async def list_channel_memberships(
+    channel_id: int | None = None,
+    current_user: User = Depends(get_current_user),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> list[ChannelMembershipResponse]:
+    """List tracked VIP channel memberships for the active tenant."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                query = """
+                    SELECT id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                           invite_link, status, expires_at, created_at
+                    FROM channel_memberships
+                    WHERE tenant_id = $1::uuid
+                """
+                params: list[Any] = [tenant_id]
+                if channel_id is not None:
+                    query += " AND channel_id = $2"
+                    params.append(channel_id)
+                query += " ORDER BY created_at DESC LIMIT 100"
+
+                rows = await conn.fetch(query, *params)
+                return [
+                    ChannelMembershipResponse(
+                        id=str(r["id"]),
+                        tenant_id=str(r["tenant_id"]),
+                        channel_id=r["channel_id"],
+                        telegram_user_id=r["telegram_user_id"],
+                        telegram_username=r["telegram_username"],
+                        invite_link=r["invite_link"],
+                        status=r["status"],
+                        expires_at=str(r["expires_at"]),
+                        created_at=str(r["created_at"]) if r["created_at"] else None,
+                    )
+                    for r in rows
+                ]
+    except Exception as ex:
+        logger.warning(f"Failed to fetch memberships from postgres: {ex}")
+
+    return []
+
+
+@router.post("/gatekeeper/evict")
+async def evict_expired_vip_members(
+    current_user: User = Depends(get_current_user),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> dict[str, Any]:
+    """Execute eviction worker to kick all expired VIP channel members immediately."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    gatekeeper = MembershipGatekeeperService(gateway)
+    evicted_ids: list[str] = []
+
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                rows = await conn.fetch(
+                    """
+                    SELECT id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                           invite_link, status, expires_at
+                    FROM channel_memberships
+                    WHERE tenant_id = $1::uuid AND status = 'ACTIVE' AND telegram_user_id IS NOT NULL
+                    """,
+                    tenant_id,
+                )
+                memberships = [
+                    ChannelMembership(
+                        id=str(r["id"]),
+                        tenant_id=str(r["tenant_id"]),
+                        channel_id=r["channel_id"],
+                        telegram_user_id=r["telegram_user_id"],
+                        telegram_username=r["telegram_username"],
+                        invite_link=r["invite_link"],
+                        status=MembershipStatus(r["status"]),
+                        expires_at=str(r["expires_at"]),
+                    )
+                    for r in rows
+                ]
+                evicted = await gatekeeper.evaluate_and_evict_expired(memberships)
+                for ev in evicted:
+                    await conn.execute(
+                        "UPDATE channel_memberships SET status = 'KICKED', updated_at = NOW() WHERE id = $1::uuid",
+                        ev.id,
+                    )
+                    evicted_ids.append(ev.id)
+    except Exception as ex:
+        logger.warning(f"Error running gatekeeper eviction: {ex}")
+
+    return {"status": "ok", "evicted_count": len(evicted_ids), "evicted_ids": evicted_ids}
 

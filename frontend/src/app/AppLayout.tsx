@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   CreditCard,
+  Tv,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
@@ -46,6 +47,11 @@ const NAV_ITEMS: NavItem[] = [
     name: "Sincronización en Vivo",
     path: "/sync",
     icon: Radio,
+  },
+  {
+    name: "Administrar Canales",
+    path: "/channels",
+    icon: Tv,
   },
   {
     name: "Pipeline & Módulos",

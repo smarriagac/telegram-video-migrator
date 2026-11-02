@@ -12,6 +12,7 @@ import { AnalyticsView } from "../features/analytics/presentation/AnalyticsView"
 import { SettingsView } from "../features/settings/presentation/SettingsView";
 import { AuditView } from "../features/audit/presentation/AuditView";
 import { BillingPlansView } from "../features/billing/presentation/BillingPlansView";
+import { ChannelManagementView } from "../features/channels/presentation/ChannelManagementView";
 import { ErrorBoundary } from "../shared/components/ErrorBoundary";
 
 export const App: React.FC = () => {
@@ -28,6 +29,7 @@ export const App: React.FC = () => {
               <Route path="/" element={<Navigate to="/migration" replace />} />
               <Route path="/migration" element={<MigrationView />} />
               <Route path="/sync" element={<LiveSyncHubView />} />
+              <Route path="/channels" element={<ChannelManagementView />} />
               <Route path="/pipeline" element={<PipelineModulesView />} />
               <Route path="/chats" element={<ChatsView />} />
               <Route path="/jobs" element={<JobsView />} />
