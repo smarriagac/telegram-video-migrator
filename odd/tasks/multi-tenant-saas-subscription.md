@@ -21,6 +21,10 @@ Delivery strategy: single-pr
   - `MembershipGatekeeperService`: generation of single-use expiring invite links (`ExportChatInviteRequest`) and automated eviction worker (`EditBannedRequest`).
 - S6: Frontend Billing & Subscription Plans View (`/billing`):
   - Tier cards (`FREE_TRIAL`, `CREATOR`, `PRO_AGENCY`, `ENTERPRISE`) with quota indicators, annual discount toggle (-20%), and tenant cluster isolation specs.
+- S7: Stripe Checkout & Webhook Integration:
+  - `POST /api/billing/checkout`: creates Stripe Checkout session or sandbox fallback.
+  - `POST /api/billing/webhook`: processes `checkout.session.completed`, `customer.subscription.updated`, and `customer.subscription.deleted`.
+  - `GET /api/billing/subscription`: returns tenant subscription state and quotas.
 
 ## Tasks
 - [x] T1 (S1): Create `backend/domain/entities/tenant.py` with `Tenant`, `PlanTier`, `TenantStatus`, and quota validation [inline]
@@ -40,6 +44,9 @@ Delivery strategy: single-pr
 - [x] T15 (S6): Build `BillingPlansView.tsx` with tier cards, annual toggle, and tenant cluster status [inline]
 - [x] T16 (S6): Register `/billing` route in `App.tsx` and sidebar navigation item in `AppLayout.tsx` [inline]
 - [x] T17 (S5-S6): Compile frontend bundle and deploy to Docker Nginx container (HTTP 200) [inline]
+- [x] T18 (S7): Implement `backend/presentation/api/routers/billing.py` with checkout, webhook, and subscription endpoints [inline]
+- [x] T19 (S7): Wire `billingApi.ts` in frontend to trigger checkout from plan cards [inline]
+- [x] T20 (S7): Verify full test suite (86 tests passing in backend container) and commit [inline]
 
 ## Log
 - L1: User requested architecture and data model definition to sell Telegram Hub as a subscription-based multi-tenant SaaS.
@@ -50,3 +57,4 @@ Delivery strategy: single-pr
 - L6: Verified 80 tests passing in backend container.
 - L7: Implemented `ChannelMembership` entity, `MembershipGatekeeperService`, and MTProto eviction methods (83 tests passing).
 - L8: Created `BillingPlansView.tsx` and wired `/billing` into dashboard and sidebar. Built with Vite in 3.48s and deployed to Nginx.
+- L9: Implemented Stripe billing router, webhook listener, and frontend billing client (86 tests passing).
