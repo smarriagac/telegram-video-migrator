@@ -242,43 +242,43 @@ export const JobsView: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
-        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardContent className="p-3 space-y-1">
-            <div className="flex items-center justify-between text-zinc-400 text-xs">
+            <div className="flex items-center justify-between text-muted-foreground text-xs">
               <span>Total Trabajos</span>
-              <Layers className="w-4 h-4 text-cyan-400" />
+              <Layers className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-xl font-semibold font-mono text-zinc-100">{total}</p>
+            <p className="text-xl font-semibold font-mono text-foreground">{total}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardContent className="p-3 space-y-1">
-            <div className="flex items-center justify-between text-zinc-400 text-xs">
+            <div className="flex items-center justify-between text-muted-foreground text-xs">
               <span>En Ejecución</span>
-              <Play className="w-4 h-4 text-cyan-400 animate-pulse" />
+              <Play className="w-4 h-4 text-primary animate-pulse" />
             </div>
-            <p className="text-xl font-semibold font-mono text-cyan-400">{runningCount}</p>
+            <p className="text-xl font-semibold font-mono text-primary">{runningCount}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardContent className="p-3 space-y-1">
-            <div className="flex items-center justify-between text-zinc-400 text-xs">
+            <div className="flex items-center justify-between text-muted-foreground text-xs">
               <span>Completados</span>
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             </div>
-            <p className="text-xl font-semibold font-mono text-emerald-400">{completedCount}</p>
+            <p className="text-xl font-semibold font-mono text-emerald-600 dark:text-emerald-400">{completedCount}</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-[#0e1015] border-zinc-800 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardContent className="p-3 space-y-1">
-            <div className="flex items-center justify-between text-zinc-400 text-xs">
+            <div className="flex items-center justify-between text-muted-foreground text-xs">
               <span>Fallidos / Pausados</span>
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             </div>
-            <p className="text-xl font-semibold font-mono text-amber-400">
+            <p className="text-xl font-semibold font-mono text-amber-600 dark:text-amber-400">
               {failedCount + pausedCount}
             </p>
           </CardContent>
@@ -286,7 +286,7 @@ export const JobsView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#0e1015] border border-zinc-800 p-2.5 rounded-lg shrink-0">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card border border-border p-2.5 rounded-lg shrink-0">
         {/* Status Filters */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
           {[
@@ -327,30 +327,30 @@ export const JobsView: React.FC = () => {
       </div>
 
       {/* Main Jobs Table */}
-      <Card className="bg-[#0e1015] border-zinc-800 rounded-lg shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="p-3 border-b border-zinc-800 flex items-center justify-between text-xs text-zinc-400">
-          <span className="font-medium text-zinc-300">
-            Trabajos Registrados: <span className="font-mono text-cyan-400">{filteredJobs.length}</span>
+      <Card className="border-border bg-card rounded-lg shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="p-3 border-b border-border flex items-center justify-between text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">
+            Trabajos Registrados: <span className="font-mono text-primary">{filteredJobs.length}</span>
           </span>
-          <span className="text-xs font-mono text-zinc-500">Auto-refresco cada 5s</span>
+          <span className="text-xs font-mono text-muted-foreground">Auto-refresco cada 5s</span>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-300 text-xs">
+          <div className="p-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-500 dark:text-rose-300 text-xs">
             {error}
           </div>
         )}
 
         <div className="flex-1 overflow-auto">
           {filteredJobs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-500 text-xs space-y-2">
-              <Layers className="w-8 h-8 text-zinc-600" />
+            <div className="flex flex-col items-center justify-center h-48 text-center text-muted-foreground text-xs space-y-2">
+              <Layers className="w-8 h-8 text-muted-foreground/60" />
               <p>No se encontraron trabajos para el criterio seleccionado.</p>
             </div>
           ) : (
             <Table className="w-full min-w-[760px] text-left text-xs border-collapse">
-              <TableHeader className="bg-[#090a0e] text-zinc-400 sticky top-0 font-mono text-xs border-b border-zinc-800 z-10">
-                <TableRow className="border-b border-zinc-800 hover:bg-transparent">
+              <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono text-xs border-b border-border z-10">
+                <TableRow className="border-b border-border hover:bg-transparent">
                   <TableHead className="py-2.5 px-3">ID / Fecha</TableHead>
                   <TableHead className="py-2.5 px-3">Ruta de Canales</TableHead>
                   <TableHead className="py-2.5 px-3">Progreso & Cuota</TableHead>
@@ -359,7 +359,7 @@ export const JobsView: React.FC = () => {
                   <TableHead className="py-2.5 px-3 text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="divide-y divide-zinc-800/60 font-mono text-xs">
+              <TableBody className="divide-y divide-border font-mono text-xs">
                 {filteredJobs.map((job) => {
                   const pct =
                     job.total_videos > 0
@@ -512,7 +512,7 @@ export const JobsView: React.FC = () => {
         </div>
 
         {/* Pagination Controls */}
-        <div className="p-3 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-400 bg-[#090a0e] shrink-0">
+        <div className="p-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground bg-secondary/40 shrink-0">
           <div className="flex items-center gap-2">
             <span>Mostrar</span>
             <Select
@@ -520,10 +520,10 @@ export const JobsView: React.FC = () => {
               onValueChange={(val) => setPageSize(Number(val))}
               disabled={isLoading}
             >
-              <SelectTrigger className="w-16 h-7 bg-zinc-900 border-zinc-800 text-xs text-zinc-200 font-mono">
+              <SelectTrigger className="w-16 h-7 bg-card border-border text-xs text-foreground font-mono">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200 font-mono">
+              <SelectContent className="bg-popover border-border text-popover-foreground font-mono">
                 <SelectItem value="10">10</SelectItem>
                 <SelectItem value="20">20</SelectItem>
                 <SelectItem value="50">50</SelectItem>

@@ -123,9 +123,9 @@ export const LiveSyncHubView: React.FC = () => {
 
       {/* Daemon Status Bar - Compact 2x2 on mobile, 4 columns on lg */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-2.5">
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2 sm:p-2.5 pb-1">
-            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold truncate">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
               Estado del Motor MTProto
             </CardTitle>
             <div className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0">
@@ -134,62 +134,62 @@ export const LiveSyncHubView: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="p-2 sm:p-2.5 pt-0">
-            <div className="text-xs sm:text-base font-bold text-white flex items-center gap-1 sm:gap-1.5 font-mono truncate">
-              <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400 shrink-0" />
+            <div className="text-xs sm:text-base font-bold text-foreground flex items-center gap-1 sm:gap-1.5 font-mono truncate">
+              <CheckCircle2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
               <span className="truncate">{health?.is_running ? "DAEMON ACTIVO" : "INICIANDO"}</span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               Escucha pasiva MTProto
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2 sm:p-2.5 pb-1">
-            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold truncate">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
               Clientes Conectados
             </CardTitle>
-            <Radio className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-cyan-400 shrink-0" />
+            <Radio className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
           </CardHeader>
           <CardContent className="p-2 sm:p-2.5 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-white">
+            <div className="text-base sm:text-xl font-bold font-mono text-foreground">
               {health?.attached_clients_count || 1}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               Pool MTProto cuentas
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2 sm:p-2.5 pb-1">
-            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold truncate">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
               Rutas Activas
             </CardTitle>
-            <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-cyan-400 shrink-0" />
+            <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
           </CardHeader>
           <CardContent className="p-2 sm:p-2.5 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-white">
+            <div className="text-base sm:text-xl font-bold font-mono text-foreground">
               {bindings.filter((b) => b.is_active).length} / {bindings.length}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               Pares en escucha
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between p-2 sm:p-2.5 pb-1">
-            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold truncate">
+            <CardTitle className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-muted-foreground font-semibold truncate">
               Cola de Despacho
             </CardTitle>
-            <ShieldAlert className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-400 shrink-0" />
+            <ShieldAlert className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
           </CardHeader>
           <CardContent className="p-2 sm:p-2.5 pt-0">
-            <div className="text-base sm:text-xl font-bold font-mono text-white">
+            <div className="text-base sm:text-xl font-bold font-mono text-foreground">
               {health?.queue_depth || 0}
             </div>
-            <p className="text-[10px] sm:text-[11px] text-zinc-400 mt-0.5 truncate">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-0.5 truncate">
               En tránsito inmediato
             </p>
           </CardContent>
@@ -197,32 +197,32 @@ export const LiveSyncHubView: React.FC = () => {
       </div>
 
       {/* Main Bindings Matrix Card */}
-      <Card className="border-zinc-800/80 bg-zinc-900/60 shadow-sm">
+      <Card className="border-border bg-card shadow-sm">
         <CardHeader className="p-3 pb-2">
           <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-sm font-semibold text-white">
+              <CardTitle className="text-sm font-semibold text-foreground">
                 Pares de Canales Vinculados
               </CardTitle>
-              <CardDescription className="text-xs text-zinc-400">
+              <CardDescription className="text-xs text-muted-foreground">
                 Cada mensaje nuevo publicado en el origen será clonado instantáneamente hacia el destino según las reglas configuradas.
               </CardDescription>
             </div>
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-zinc-500" />
+              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nombre o ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 bg-zinc-950/50 border-zinc-800 text-xs text-white placeholder:text-zinc-500 h-7.5"
+                className="pl-8 bg-background border-border text-xs text-foreground placeholder:text-muted-foreground h-7.5"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-3 pt-0">
-          <div className="rounded-md border border-zinc-800 overflow-hidden bg-zinc-950/40">
+          <div className="rounded-md border border-border overflow-hidden bg-card">
             {/* Mobile View: High-Density Card List (< 640px) */}
-            <div className="sm:hidden divide-y divide-zinc-800/80">
+            <div className="sm:hidden divide-y divide-border">
               {isLoading ? (
                 <div className="p-4 text-center text-xs text-zinc-500 font-mono">
                   Cargando matriz de sincronización...
@@ -338,27 +338,27 @@ export const LiveSyncHubView: React.FC = () => {
             {/* Desktop & Tablet View: Full Scrollable Table (>= 640px) */}
             <div className="hidden sm:block overflow-x-auto w-full">
               <Table className="min-w-[680px]">
-                <TableHeader className="bg-zinc-950/80">
-                  <TableRow className="border-zinc-800 hover:bg-transparent">
-                    <TableHead className="text-zinc-400 text-xs py-2 px-3">Canal Origen</TableHead>
-                    <TableHead className="text-zinc-400 text-xs text-center w-10 py-2 px-1"></TableHead>
-                    <TableHead className="text-zinc-400 text-xs py-2 px-3">Canal Destino</TableHead>
-                    <TableHead className="text-zinc-400 text-xs py-2 px-3">Filtros & Reglas</TableHead>
-                    <TableHead className="text-zinc-400 text-xs py-2 px-3">Último Sincronizado</TableHead>
-                    <TableHead className="text-zinc-400 text-xs text-center py-2 px-3">Estado</TableHead>
-                    <TableHead className="text-zinc-400 text-xs text-right py-2 px-3">Acciones</TableHead>
+                <TableHeader className="bg-secondary/70">
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground text-xs py-2 px-3">Canal Origen</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-center w-10 py-2 px-1"></TableHead>
+                    <TableHead className="text-muted-foreground text-xs py-2 px-3">Canal Destino</TableHead>
+                    <TableHead className="text-muted-foreground text-xs py-2 px-3">Filtros & Reglas</TableHead>
+                    <TableHead className="text-muted-foreground text-xs py-2 px-3">Último Sincronizado</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-center py-2 px-3">Estado</TableHead>
+                    <TableHead className="text-muted-foreground text-xs text-right py-2 px-3">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-xs text-zinc-500 font-mono">
+                      <TableCell colSpan={7} className="h-24 text-center text-xs text-muted-foreground font-mono">
                         Cargando matriz de sincronización...
                       </TableCell>
                     </TableRow>
                   ) : filteredBindings.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-xs text-zinc-500 font-mono">
+                      <TableCell colSpan={7} className="h-24 text-center text-xs text-muted-foreground font-mono">
                         No hay canales vinculados para sincronización en vivo. Haz clic en "+ Vincular Canales" para iniciar.
                       </TableCell>
                     </TableRow>
@@ -372,15 +372,15 @@ export const LiveSyncHubView: React.FC = () => {
                       return (
                         <TableRow
                           key={`${binding.source_channel_id}-${binding.target_channel_id}`}
-                          className="border-zinc-800/60 hover:bg-zinc-800/30"
+                          className="border-border/60 hover:bg-muted/40"
                         >
                           {/* Source Channel */}
                           <TableCell className="py-2 px-3">
                             <div className="flex flex-col">
-                              <span className="font-medium text-white text-xs truncate max-w-[180px]">
+                              <span className="font-medium text-foreground text-xs truncate max-w-[180px]">
                                 {binding.source_channel_title || "Canal Origen"}
                               </span>
-                              <span className="font-mono text-[10px] text-zinc-500">
+                              <span className="font-mono text-[10px] text-muted-foreground">
                                 {binding.source_channel_id}
                               </span>
                             </div>
@@ -388,16 +388,16 @@ export const LiveSyncHubView: React.FC = () => {
 
                           {/* Arrow */}
                           <TableCell className="text-center py-2 px-1">
-                            <ArrowRight className="h-3.5 w-3.5 text-cyan-400 inline-block" />
+                            <ArrowRight className="h-3.5 w-3.5 text-primary inline-block" />
                           </TableCell>
 
                           {/* Target Channel */}
                           <TableCell className="py-2 px-3">
                             <div className="flex flex-col">
-                              <span className="font-medium text-white text-xs truncate max-w-[180px]">
+                              <span className="font-medium text-foreground text-xs truncate max-w-[180px]">
                                 {binding.target_channel_title || "Canal Destino"}
                               </span>
-                              <span className="font-mono text-[10px] text-zinc-500">
+                              <span className="font-mono text-[10px] text-muted-foreground">
                                 {binding.target_channel_id}
                               </span>
                             </div>

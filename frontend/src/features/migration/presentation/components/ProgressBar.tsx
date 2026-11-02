@@ -67,13 +67,13 @@ export const ProgressBar: React.FC = () => {
     <div
       role="region"
       aria-label="Progreso de la migración"
-      className="bg-[#0e1015] rounded-md border border-zinc-800 p-3.5 shadow-sm space-y-2.5"
+      className="bg-card rounded-md border border-border p-3.5 shadow-sm space-y-2.5"
     >
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-[10px] uppercase tracking-wider text-zinc-400 font-mono">Progreso de Clonación</span>
-          <h4 className="text-base font-bold text-white tracking-tight flex items-center gap-2 mt-0.5">
-            {percentage}% <span className="text-[11px] font-normal text-zinc-500 font-mono">({processed} de {total} elementos)</span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Progreso de Clonación</span>
+          <h4 className="text-base font-bold text-foreground tracking-tight flex items-center gap-2 mt-0.5">
+            {percentage}% <span className="text-[11px] font-normal text-muted-foreground font-mono">({processed} de {total} elementos)</span>
           </h4>
         </div>
         {getStatusBadge()}
@@ -88,9 +88,9 @@ export const ProgressBar: React.FC = () => {
       {progress?.message && (
         <p
           aria-live="polite"
-          className="text-[11px] text-zinc-400 font-mono truncate"
+          className="text-[11px] text-muted-foreground font-mono truncate"
         >
-          <span className="text-zinc-500">Último evento:</span> {progress.message}
+          <span className="text-muted-foreground/70">Último evento:</span> {progress.message}
         </p>
       )}
     </div>

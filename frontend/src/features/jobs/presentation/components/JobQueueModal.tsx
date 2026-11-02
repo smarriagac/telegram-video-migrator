@@ -99,13 +99,13 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
 
   return (
     <Dialog open={Boolean(job)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl bg-[#0e1015] border-zinc-800 text-zinc-100 p-4 sm:p-6 shadow-xl max-h-[85vh] flex flex-col min-h-0">
-        <DialogHeader className="border-b border-zinc-800 pb-3 space-y-2 shrink-0">
+      <DialogContent className="max-w-3xl bg-card border-border text-foreground p-4 sm:p-6 shadow-xl max-h-[85vh] flex flex-col min-h-0">
+        <DialogHeader className="border-b border-border pb-3 space-y-2 shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-cyan-400 shrink-0" />
-              <DialogTitle className="text-sm font-semibold text-zinc-100 font-mono">
-                Cola de Migración: <span className="text-zinc-400 font-normal">#{job.job_id.slice(0, 8)}</span>
+              <Layers className="w-4 h-4 text-primary shrink-0" />
+              <DialogTitle className="text-sm font-semibold text-foreground font-mono">
+                Cola de Migración: <span className="text-muted-foreground font-normal">#{job.job_id.slice(0, 8)}</span>
               </DialogTitle>
             </div>
             {failedCount > 0 && (
@@ -185,8 +185,8 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
             </div>
           ) : (
             <Table className="w-full text-xs">
-              <TableHeader className="bg-[#090a0e] text-zinc-400 sticky top-0 font-mono border-b border-zinc-800 z-10">
-                <TableRow className="border-b border-zinc-800 hover:bg-transparent">
+              <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono border-b border-border z-10">
+                <TableRow className="border-b border-border hover:bg-transparent">
                   <TableHead className="py-2 px-3">Msg ID Origen</TableHead>
                   <TableHead className="py-2 px-3">Tipo</TableHead>
                   <TableHead className="py-2 px-3">Estado</TableHead>
@@ -195,7 +195,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
                   <TableHead className="py-2 px-3">Detalle / Error</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className="divide-y divide-zinc-800/60 font-mono text-xs">
+              <TableBody className="divide-y divide-border font-mono text-xs">
                 {items.map((item) => (
                   <TableRow key={item.source_message_id} className="hover:bg-zinc-800/20">
                     <TableCell className="py-2 px-3 text-zinc-300">

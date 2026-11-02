@@ -115,13 +115,13 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
 
   return (
     <Dialog open={Boolean(log)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-[#0e1015] border-zinc-800 text-zinc-100 p-6 shadow-xl">
-        <DialogHeader className="border-b border-zinc-800 pb-4 space-y-2">
+      <DialogContent className="max-w-2xl bg-card border-border text-foreground p-6 shadow-xl">
+        <DialogHeader className="border-b border-border pb-4 space-y-2">
           <div className="flex items-center justify-between">
             {getActionBadge(log.action)}
-            <span className="font-mono text-xs text-zinc-500">ID Evento: #{log.id}</span>
+            <span className="font-mono text-xs text-muted-foreground">ID Evento: #{log.id}</span>
           </div>
-          <DialogTitle className="text-base font-semibold text-zinc-100 flex items-center gap-2">
+          <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
             Inspección de Registro de Auditoría
           </DialogTitle>
         </DialogHeader>
@@ -301,7 +301,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
                 {copied ? "Copiado!" : "Copiar JSON"}
               </Button>
             </div>
-            <pre className="p-3 rounded-lg bg-[#090a0e] border border-zinc-800 font-mono text-xs text-zinc-300 overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">
+            <pre className="p-3 rounded-lg bg-secondary/50 border border-border font-mono text-xs text-foreground overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">
               {JSON.stringify(log.details || {}, null, 2)}
             </pre>
           </div>

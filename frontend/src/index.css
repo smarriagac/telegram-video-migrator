@@ -29,25 +29,25 @@
 
   .dark {
     color-scheme: dark;
-    --background: 222 47% 8%; /* #0b1120 Deep Navy Slate-950 */
-    --foreground: 210 40% 98%; /* #f8fafc */
-    --card: 222 40% 12%; /* #111a2e Slate-900 Navy */
+    --background: 222 47% 10%; /* #0d1527 Rich Telegram Navy Night */
+    --foreground: 210 40% 98%; /* #f8fafc Crisp Light */
+    --card: 222 38% 15%; /* #172338 Distinct Telegram Slate Navy Card */
     --card-foreground: 210 40% 98%;
-    --popover: 222 44% 10%; /* #0f172a */
+    --popover: 222 42% 13%; /* #121c2e */
     --popover-foreground: 210 40% 98%;
     --primary: 199 76% 51%; /* #24a1de Telegram Sky Blue */
     --primary-foreground: 0 0% 100%;
     --primary-hover: 199 78% 60%; /* #38bdf8 */
-    --secondary: 217 33% 18%;
+    --secondary: 222 35% 20%; /* #21304a Inset navy containers */
     --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 16%;
-    --muted-foreground: 215 20% 65%; /* #94a3b8 */
-    --accent: 199 76% 51% / 0.15;
+    --muted: 222 35% 19%;
+    --muted-foreground: 215 20% 68%; /* #9baec8 */
+    --accent: 199 76% 51% / 0.18;
     --accent-foreground: 199 76% 65%;
     --destructive: 346 84% 61%;
     --destructive-foreground: 0 0% 100%;
-    --border: 217 33% 22%; /* #263347 */
-    --input: 217 33% 22%;
+    --border: 222 30% 24%; /* #2b3d58 Clear navy-tinted border */
+    --input: 222 30% 24%;
     --ring: 199 76% 51%;
   }
 }

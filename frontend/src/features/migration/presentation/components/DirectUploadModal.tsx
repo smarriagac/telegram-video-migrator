@@ -131,18 +131,18 @@ export const DirectUploadModal: React.FC<Props> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && onClose()}>
-      <DialogContent className="max-w-lg bg-[#0e1015] border border-zinc-800 p-6 space-y-4 shadow-xl">
+      <DialogContent className="max-w-lg bg-card border border-border p-6 space-y-4 shadow-xl">
         {/* Header */}
         <DialogHeader>
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
               <UploadCloud className="w-5 h-5" />
             </div>
             <div>
-              <DialogTitle className="text-base font-semibold text-zinc-100">
+              <DialogTitle className="text-base font-semibold text-foreground">
                 Publicar Contenido Local en Telegram
               </DialogTitle>
-              <DialogDescription className="text-xs text-zinc-400">
+              <DialogDescription className="text-xs text-muted-foreground">
                 Subí videos, fotos o documentos desde tu computadora directamente al canal sin pasar por clonación.
               </DialogDescription>
             </div>
@@ -150,32 +150,32 @@ export const DirectUploadModal: React.FC<Props> = ({
         </DialogHeader>
 
         {/* Target Channel Pill */}
-        <div className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 flex items-center justify-between text-xs">
+        <div className="p-2.5 rounded-lg bg-secondary/60 border border-border flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-emerald-400 font-semibold text-[11px] uppercase">
+            <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold text-[11px] uppercase">
               Canal Destino:
             </span>
-            <span className="text-zinc-200 font-medium font-mono">
+            <span className="text-foreground font-medium font-mono">
               {targetChannelTitle || (targetChannelId ? `#${targetChannelId}` : "Sin seleccionar")}
             </span>
           </div>
-          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
+          <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono flex items-center gap-1">
             <Tv className="w-3 h-3" /> Publicación Directa
           </span>
         </div>
 
         {/* Success Banner */}
         {successMsg && (
-          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
             <span>{successMsg}</span>
           </div>
         )}
 
         {/* Error Banner */}
         {error && (
-          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-            <X className="w-4 h-4 text-rose-400 shrink-0" />
+          <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+            <X className="w-4 h-4 text-rose-500 shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -184,7 +184,7 @@ export const DirectUploadModal: React.FC<Props> = ({
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {/* File Drag and Drop Zone */}
           <div>
-            <label className="text-xs font-semibold text-zinc-300 block mb-1.5 font-mono">
+            <label className="text-xs font-semibold text-foreground block mb-1.5 font-mono">
               Archivo Multimedia (Video, Foto o Documento):
             </label>
 
@@ -196,33 +196,33 @@ export const DirectUploadModal: React.FC<Props> = ({
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center space-y-2 ${
                   isDragging
-                    ? "border-cyan-400 bg-cyan-950/20"
-                    : "border-white/10 hover:border-cyan-500/40 bg-zinc-950/40 hover:bg-zinc-950/80"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/40 bg-secondary/30 hover:bg-secondary/60"
                 }`}
               >
-                <div className="w-10 h-10 rounded-md bg-zinc-900 border border-white/10 flex items-center justify-center text-zinc-400 group-hover:text-cyan-400">
+                <div className="w-10 h-10 rounded-md bg-secondary border border-border flex items-center justify-center text-muted-foreground group-hover:text-primary">
                   <UploadCloud className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-zinc-200">
+                  <p className="text-xs font-semibold text-foreground">
                     Hacé click para buscar o arrastrá tu archivo aquí
                   </p>
-                  <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">
+                  <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
                     Soporta MP4, MKV, MOV, JPG, PNG, WEBP, PDF y más
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="p-3 rounded-md bg-zinc-950/90 border border-cyan-500/30 flex items-center justify-between gap-3 shadow-md">
+              <div className="p-3 rounded-md bg-secondary/50 border border-primary/30 flex items-center justify-between gap-3 shadow-md">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-lg bg-zinc-900 border border-white/5 shrink-0">
+                  <div className="p-2 rounded-lg bg-secondary border border-border shrink-0">
                     {getFileIcon(selectedFile.type)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold text-zinc-200 truncate font-mono">
+                    <p className="text-xs font-semibold text-foreground truncate font-mono">
                       {selectedFile.name}
                     </p>
-                    <p className="text-[10px] font-mono text-cyan-400 mt-0.5">
+                    <p className="text-[10px] font-mono text-primary mt-0.5">
                       {formatBytes(selectedFile.size)} · {selectedFile.type || "Archivo"}
                     </p>
                   </div>
@@ -232,7 +232,7 @@ export const DirectUploadModal: React.FC<Props> = ({
                   type="button"
                   onClick={handleRemoveFile}
                   disabled={isUploading}
-                  className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+                  className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   title="Eliminar archivo seleccionado"
                 >
                   <X className="w-4 h-4" />
@@ -250,7 +250,7 @@ export const DirectUploadModal: React.FC<Props> = ({
 
           {/* Caption / Text Area */}
           <div>
-            <label className="text-xs font-semibold text-zinc-300 block mb-1 font-mono">
+            <label className="text-xs font-semibold text-foreground block mb-1 font-mono">
               Descripción / Caption del mensaje (Opcional si hay archivo):
             </label>
             <textarea
@@ -258,20 +258,20 @@ export const DirectUploadModal: React.FC<Props> = ({
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               placeholder="Escribí el texto, emojis, hashtags o descripción que acompañará la publicación..."
-              className="w-full bg-[#10121A] border border-white/10 rounded-md p-2.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 resize-none font-sans"
+              className="w-full bg-secondary/50 border border-border rounded-md p-2.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary resize-none font-sans"
               disabled={isUploading}
             />
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={onClose}
               disabled={isUploading}
-              className="h-9 text-xs text-zinc-400 hover:text-white"
+              className="h-9 text-xs text-muted-foreground hover:text-foreground"
             >
               Cancelar
             </Button>

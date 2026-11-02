@@ -116,8 +116,8 @@ export const CreateSyncBindingModal: React.FC = () => {
             {/* Source Channel Field */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-300">
-                  Canal Origen <span className="text-red-400">*</span>
+                <label className="text-xs font-semibold text-foreground">
+                  Canal Origen <span className="text-red-500">*</span>
                 </label>
                 <button
                   type="button"
@@ -127,7 +127,7 @@ export const CreateSyncBindingModal: React.FC = () => {
                       isManualSource: !prev.isManualSource,
                     }))
                   }
-                  className="text-[10px] font-mono text-cyan-400 hover:underline"
+                  className="text-[10px] font-mono text-primary hover:underline"
                 >
                   {formData.isManualSource ? "Buscar en lista" : "ID manual"}
                 </button>
@@ -141,7 +141,7 @@ export const CreateSyncBindingModal: React.FC = () => {
                     setFormData((prev) => ({ ...prev, manualSourceId: e.target.value }))
                   }
                   required
-                  className="bg-zinc-900 border-zinc-800 text-white font-mono text-xs h-8"
+                  className="bg-secondary/70 border-border text-foreground font-mono text-xs h-8"
                 />
               ) : (
                 <SearchableChannelSelect
@@ -165,8 +165,8 @@ export const CreateSyncBindingModal: React.FC = () => {
             {/* Target Channel Field */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-300">
-                  Canal Destino <span className="text-red-400">*</span>
+                <label className="text-xs font-semibold text-foreground">
+                  Canal Destino <span className="text-red-500">*</span>
                 </label>
                 <button
                   type="button"
@@ -176,7 +176,7 @@ export const CreateSyncBindingModal: React.FC = () => {
                       isManualTarget: !prev.isManualTarget,
                     }))
                   }
-                  className="text-[10px] font-mono text-cyan-400 hover:underline"
+                  className="text-[10px] font-mono text-primary hover:underline"
                 >
                   {formData.isManualTarget ? "Buscar en lista" : "ID manual"}
                 </button>
@@ -190,7 +190,7 @@ export const CreateSyncBindingModal: React.FC = () => {
                     setFormData((prev) => ({ ...prev, manualTargetId: e.target.value }))
                   }
                   required
-                  className="bg-zinc-900 border-zinc-800 text-white font-mono text-xs h-8"
+                  className="bg-secondary/70 border-border text-foreground font-mono text-xs h-8"
                 />
               ) : (
                 <SearchableChannelSelect
@@ -215,9 +215,9 @@ export const CreateSyncBindingModal: React.FC = () => {
           {/* Channel Titles Grid (Auto-populated or customized) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-zinc-400 flex items-center justify-between">
+              <label className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
                 <span>Título Origen</span>
-                <span className="text-[10px] text-zinc-500 font-mono">Autocompletado</span>
+                <span className="text-[10px] text-muted-foreground font-mono">Autocompletado</span>
               </label>
               <Input
                 placeholder="Nombre del canal origen"
@@ -225,13 +225,13 @@ export const CreateSyncBindingModal: React.FC = () => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, sourceChannelTitle: e.target.value }))
                 }
-                className="bg-zinc-900/80 border-zinc-800 text-white text-xs h-7.5"
+                className="bg-secondary/70 border-border text-foreground text-xs h-7.5"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-zinc-400 flex items-center justify-between">
+              <label className="text-[11px] font-medium text-muted-foreground flex items-center justify-between">
                 <span>Título Destino</span>
-                <span className="text-[10px] text-zinc-500 font-mono">Autocompletado</span>
+                <span className="text-[10px] text-muted-foreground font-mono">Autocompletado</span>
               </label>
               <Input
                 placeholder="Nombre del canal destino"
@@ -239,19 +239,19 @@ export const CreateSyncBindingModal: React.FC = () => {
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, targetChannelTitle: e.target.value }))
                 }
-                className="bg-zinc-900/80 border-zinc-800 text-white text-xs h-7.5"
+                className="bg-secondary/70 border-border text-foreground text-xs h-7.5"
               />
             </div>
           </div>
 
           {/* Pipeline Defaults */}
-          <div className="rounded-md border border-zinc-800/80 bg-zinc-900/40 p-2.5 sm:p-3 space-y-2.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block font-mono">
+          <div className="rounded-md border border-border bg-secondary/50 p-2.5 sm:p-3 space-y-2.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block font-mono">
               Reglas Iniciales de Pipeline
             </span>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Limpiar enlaces externos (anti-spam)</span>
+              <span className="text-xs text-foreground">Limpiar enlaces externos (anti-spam)</span>
               <Switch
                 checked={formData.stripLinks}
                 onCheckedChange={(checked) =>
@@ -261,7 +261,7 @@ export const CreateSyncBindingModal: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Sincronizar Videos</span>
+              <span className="text-xs text-foreground">Sincronizar Videos</span>
               <Switch
                 checked={formData.allowVideo}
                 onCheckedChange={(checked) =>
@@ -271,7 +271,7 @@ export const CreateSyncBindingModal: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Sincronizar Fotos e Imágenes</span>
+              <span className="text-xs text-foreground">Sincronizar Fotos e Imágenes</span>
               <Switch
                 checked={formData.allowPhoto}
                 onCheckedChange={(checked) =>
@@ -281,7 +281,7 @@ export const CreateSyncBindingModal: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Sincronizar Documentos y Archivos</span>
+              <span className="text-xs text-foreground">Sincronizar Documentos y Archivos</span>
               <Switch
                 checked={formData.allowDocument}
                 onCheckedChange={(checked) =>

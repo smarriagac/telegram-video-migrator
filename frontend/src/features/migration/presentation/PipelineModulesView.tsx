@@ -147,12 +147,12 @@ export const PipelineModulesView: React.FC = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             {/* Left: Rules Configuration Form */}
-            <div className="lg:col-span-7 bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-4 space-y-3.5 sm:space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs font-semibold text-zinc-200 font-mono uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" /> Reglas de Sanitización
+            <div className="lg:col-span-7 bg-card border border-border rounded-md p-3.5 sm:p-4 space-y-3.5 sm:space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> Reglas de Sanitización
                 </span>
-                <span className="text-[11px] text-zinc-500 font-mono">Aplicado en tiempo real</span>
+                <span className="text-[11px] text-muted-foreground font-mono">Aplicado en tiempo real</span>
               </div>
 
               {/* Toggles */}
@@ -269,34 +269,34 @@ export const PipelineModulesView: React.FC = () => {
             </div>
 
             {/* Right: Live Interactive Sandbox Preview */}
-            <div className="lg:col-span-5 bg-[#0e1015] border border-zinc-800 rounded-md p-4 space-y-3">
-              <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-                <span className="text-xs font-semibold text-zinc-200 font-mono uppercase tracking-wider flex items-center gap-1.5">
-                  <Eye className="w-3.5 h-3.5 text-cyan-400" /> Simulador en Tiempo Real
+            <div className="lg:col-span-5 bg-card border border-border rounded-md p-4 space-y-3">
+              <div className="flex items-center justify-between border-b border-border pb-2">
+                <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-primary" /> Simulador en Tiempo Real
                 </span>
-                <span className="text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
                   Preview interactivo
                 </span>
               </div>
 
               <div>
-                <label className="text-[11px] font-medium text-zinc-400 block mb-1">
+                <label className="text-[11px] font-medium text-muted-foreground block mb-1">
                   Texto de entrada original (editable para probar):
                 </label>
                 <textarea
                   rows={3}
                   value={testText}
                   onChange={(e) => setTestText(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs text-zinc-300 focus:outline-none focus:border-cyan-500/50 resize-none font-mono"
+                  className="w-full bg-secondary/50 border border-border rounded p-2 text-xs text-foreground focus:outline-none focus:border-primary resize-none font-mono"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-medium text-emerald-400 block mb-1 flex items-center gap-1">
+                <label className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 block mb-1 flex items-center gap-1">
                   <Check className="w-3.5 h-3.5" /> Resultado post-sanitización:
                 </label>
-                <div className="w-full bg-zinc-950/80 border border-emerald-500/30 rounded p-3 text-xs text-zinc-200 font-mono whitespace-pre-wrap min-h-24">
-                  {previewResult || <span className="text-zinc-600 italic">El texto sanitizado quedó vacío.</span>}
+                <div className="w-full bg-secondary/50 border border-emerald-500/30 rounded p-3 text-xs text-foreground font-mono whitespace-pre-wrap min-h-24">
+                  {previewResult || <span className="text-muted-foreground italic">El texto sanitizado quedó vacío.</span>}
                 </div>
               </div>
             </div>
@@ -306,14 +306,14 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 2: Drip Feed & Scheduler Pacing */}
       {activeTab === "drip" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
-          <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Clock className="w-4 h-4 text-sky-400 shrink-0" />
+        <div className="bg-card border border-border rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <Clock className="w-4 h-4 text-primary shrink-0" />
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100 font-mono">
+              <h2 className="text-sm font-semibold text-foreground font-mono">
                 Control de Ritmo y Publicación Programada (Drip Feed)
               </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Regula el intervalo de tiempo entre cada post clonado para proteger la cuenta contra FloodWait de Telegram y evitar saturar a los suscriptores.
               </p>
             </div>
@@ -362,42 +362,42 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 3: Duplicate Guard */}
       {activeTab === "dedup" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
-          <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
+        <div className="bg-card border border-border rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100 font-mono">
+              <h2 className="text-sm font-semibold text-foreground font-mono">
                 Deduplicador Inteligente por Huella Digital (Duplicate Guard)
               </h2>
-              <p className="text-xs text-zinc-400 mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Previene la clonación accidental de videos y fotos repetidos en el canal destino mediante huellas SHA-256 persistidas.
               </p>
             </div>
           </div>
 
-          <div className="p-3.5 sm:p-4 rounded-lg bg-zinc-950 border border-zinc-800 space-y-3">
+          <div className="p-3.5 sm:p-4 rounded-lg bg-secondary/40 border border-border space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-semibold text-zinc-200">Motor de Deduplicación Activo</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-semibold text-foreground">Motor de Deduplicación Activo</span>
               </div>
-              <span className="text-[10px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded">
+              <span className="text-[10px] font-mono bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded">
                 SHA-256 Engine
               </span>
             </div>
 
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              Cada archivo migrado genera una huella criptográfica determinística calculada a partir de su identificador MTProto global (<code className="text-zinc-300">input_document_id</code>), tamaño en bytes y dimensiones. Si el elemento ya fue publicado previamente en el canal destino, el sistema lo marcará como <span className="text-amber-400 font-mono">SKIPPED</span> automáticamente sin consumir ancho de banda ni duplicar el feed.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Cada archivo migrado genera una huella criptográfica determinística calculada a partir de su identificador MTProto global (<code className="text-foreground">input_document_id</code>), tamaño en bytes y dimensiones. Si el elemento ya fue publicado previamente en el canal destino, el sistema lo marcará como <span className="text-amber-500 font-mono">SKIPPED</span> automáticamente sin consumir ancho de banda ni duplicar el feed.
             </p>
 
-            <div className="pt-2 border-t border-zinc-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 text-xs font-mono">
-              <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">Almacenamiento</span>
-                <span className="text-zinc-200 font-semibold break-words">PostgreSQL (migrated_media_fingerprints)</span>
+            <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 text-xs font-mono">
+              <div className="p-2.5 rounded bg-secondary/70 border border-border">
+                <span className="text-muted-foreground block text-[10px]">Almacenamiento</span>
+                <span className="text-foreground font-semibold break-words">PostgreSQL (migrated_media_fingerprints)</span>
               </div>
-              <div className="p-2.5 rounded bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">Estrategia</span>
-                <span className="text-emerald-400 font-semibold">Omitir Idénticos (Zero-Duplicate)</span>
+              <div className="p-2.5 rounded bg-secondary/70 border border-border">
+                <span className="text-muted-foreground block text-[10px]">Estrategia</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Omitir Idénticos (Zero-Duplicate)</span>
               </div>
             </div>
           </div>
@@ -406,14 +406,14 @@ export const PipelineModulesView: React.FC = () => {
 
       {/* Module 4: Quality & Duration Gates */}
       {activeTab === "quality" && (
-        <div className="bg-[#0e1015] border border-zinc-800 rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
-          <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
-            <Filter className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="bg-card border border-border rounded-md p-3.5 sm:p-5 space-y-4 sm:space-y-5 max-w-3xl">
+          <div className="flex items-center gap-2 border-b border-border pb-3">
+            <Filter className="w-4 h-4 text-amber-500 shrink-0" />
             <div>
-              <h2 className="text-sm font-semibold text-zinc-100 font-mono">
+              <h2 className="text-sm font-semibold text-foreground font-mono">
                 Filtros de Calidad y Duración (Quality Gates)
               </h2>
-              <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 Descarta clips cortos, reels de baja resolución o archivos pesados antes de copiar, sin consumo de CPU ni descargas.
               </p>
             </div>

@@ -185,31 +185,31 @@ export const MessageSelector: React.FC = () => {
 
   if (!selectedSourceId) {
     return (
-      <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-4 shadow-sm space-y-4 flex flex-col min-h-[520px]">
-        <div className="border-b border-zinc-800 pb-2.5 flex items-center justify-between">
+      <div className="bg-card rounded-md border border-border p-4 shadow-sm space-y-4 flex flex-col min-h-[520px]">
+        <div className="border-b border-border pb-2.5 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 font-mono">
+            <h2 className="text-sm font-semibold tracking-tight text-foreground font-mono">
               Mensajes, videos e imágenes del canal a copiar
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Elegí un canal de origen en el panel "De:" para cargar y previsualizar su contenido.
             </p>
           </div>
-          <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 px-2 py-0.5 rounded font-mono">
+          <span className="text-[10px] bg-muted text-muted-foreground border border-border px-2 py-0.5 rounded font-mono">
             Sin canal activo
           </span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center space-y-4 border border-dashed border-white/10 rounded-md bg-black/20">
-          <div className="w-12 h-12 rounded-md bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center space-y-4 border border-dashed border-border rounded-md bg-secondary/30">
+          <div className="w-12 h-12 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
             <Video className="w-6 h-6" />
           </div>
           <div className="max-w-sm space-y-1">
-            <p className="text-xs font-semibold text-zinc-200">
+            <p className="text-xs font-semibold text-foreground">
               Canal de origen no seleccionado
             </p>
-            <p className="text-[11px] text-zinc-400">
-              Seleccioná un canal en el campo <span className="text-cyan-400 font-mono">De:</span> del panel izquierdo para explorar y elegir los mensajes antes de clonar.
+            <p className="text-[11px] text-muted-foreground">
+              Seleccioná un canal en el campo <span className="text-primary font-mono">De:</span> del panel izquierdo para explorar y elegir los mensajes antes de clonar.
             </p>
           </div>
 
@@ -276,21 +276,21 @@ export const MessageSelector: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#0e1015] rounded-md border border-zinc-800 p-3 sm:p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
+    <div className="bg-card rounded-md border border-border p-3 sm:p-3.5 shadow-sm flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
       {/* Header & Controls */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 border-b border-zinc-800 pb-2.5 shrink-0">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2.5 border-b border-border pb-2.5 shrink-0">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-xs sm:text-sm font-semibold tracking-tight text-zinc-100 font-mono truncate">
+            <h2 className="text-xs sm:text-sm font-semibold tracking-tight text-foreground font-mono truncate">
               Mensajes y multimedia del canal
             </h2>
-            <span className="text-[10px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded-full font-mono shrink-0">
+            <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-mono shrink-0">
               {selectedMessageIds.length > 0
                 ? `${selectedMessageIds.length} selec. (${formatBytes(selectedSizeSum)})`
                 : `${filteredMessages.length} elementos`}
             </span>
           </div>
-          <p className="text-[11px] text-zinc-400 mt-0.5 hidden xs:block">
+          <p className="text-[11px] text-muted-foreground mt-0.5 hidden xs:block">
             Hacé click en cada miniatura para seleccionarlo o previsualizarlo antes de migrar.
           </p>
         </div>
@@ -534,7 +534,7 @@ export const MessageSelector: React.FC = () => {
               placeholder="Buscar por texto o #ID..."
               value={filterState.search}
               onChange={(e) => setFilterState((prev) => ({ ...prev, search: e.target.value }))}
-              className="w-full bg-[#0E1017] border border-white/10 rounded-lg pl-8 pr-3 py-0.5 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500 h-7"
+              className="w-full bg-secondary/60 border border-border rounded-lg pl-8 pr-3 py-0.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary h-7"
             />
           </div>
         </div>
@@ -542,12 +542,12 @@ export const MessageSelector: React.FC = () => {
 
       {/* Main Content: Gallery Grid or List */}
       {isLoadingMessages ? (
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 py-14 text-center text-zinc-500 text-xs">
-          <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-          <span className="font-mono text-zinc-400">Escaneando multimedia y generando miniaturas...</span>
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-2.5 py-14 text-center text-muted-foreground text-xs">
+          <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <span className="font-mono text-muted-foreground">Escaneando multimedia y generando miniaturas...</span>
         </div>
       ) : filteredMessages.length === 0 ? (
-        <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-zinc-500 text-xs bg-[#0E1017] rounded-md border border-white/5 font-mono">
+        <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-muted-foreground text-xs bg-secondary/40 rounded-md border border-border font-mono">
           No se encontraron mensajes con los filtros seleccionados.
         </div>
       ) : viewMode === "grid" ? (
@@ -641,7 +641,7 @@ export const MessageSelector: React.FC = () => {
         </div>
       ) : (
         /* COMPACT TABLE / LIST VIEW */
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1.5 border border-white/5 rounded-md bg-[#0E1017]/80 divide-y divide-white/[0.03]">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1.5 border border-border rounded-md bg-secondary/40 divide-y divide-border/40">
           {filteredMessages.map((msg) => {
             const isSelected = selectedMessageIds.includes(msg.id);
             const sizeStr = formatBytes(msg.file_size);

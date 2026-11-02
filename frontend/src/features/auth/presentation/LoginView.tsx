@@ -26,21 +26,21 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090a0e] text-zinc-200 flex flex-col justify-center items-center px-4 relative">
-      <div className="relative z-10 w-full max-w-sm bg-[#0e1015] border border-zinc-800 rounded-md p-6 shadow-xl space-y-4">
+    <div className="min-h-screen bg-background text-foreground flex flex-col justify-center items-center px-4 relative">
+      <div className="relative z-10 w-full max-w-sm bg-card border border-border rounded-md p-6 shadow-xl space-y-4">
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-1">
             <BrandLogo size="lg" className="w-12 h-12" />
           </div>
-          <h1 className="text-lg font-semibold tracking-tight text-zinc-100">Telegram Hub</h1>
-          <p className="text-xs text-zinc-400 font-mono">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">Telegram Hub</h1>
+          <p className="text-xs text-muted-foreground font-mono">
             Panel de Administración & Control RBAC
           </p>
         </div>
 
         {error && (
-          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+          <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-300 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -49,31 +49,31 @@ export const LoginView: React.FC = () => {
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-zinc-300 block">Correo Electrónico</label>
+            <label className="text-xs font-medium text-foreground block">Correo Electrónico</label>
             <div className="relative">
-              <Mail className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Mail className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="operador@telegramhub.local"
                 required
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-md pl-9 pr-3 py-1.5 h-9 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+                className="w-full bg-secondary/60 border border-border rounded-md pl-9 pr-3 py-1.5 h-9 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-zinc-300 block">Contraseña</label>
+            <label className="text-xs font-medium text-foreground block">Contraseña</label>
             <div className="relative">
-              <Lock className="w-3.5 h-3.5 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Lock className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
                 required
-                className="w-full bg-zinc-900 border border-zinc-800 rounded-md pl-9 pr-3 py-1.5 h-9 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+                className="w-full bg-secondary/60 border border-border rounded-md pl-9 pr-3 py-1.5 h-9 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-colors"
               />
             </div>
           </div>

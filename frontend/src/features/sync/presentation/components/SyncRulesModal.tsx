@@ -72,50 +72,50 @@ export const SyncRulesModal: React.FC = () => {
 
   return (
     <Dialog open={isRulesModalOpen} onOpenChange={setRulesModalOpen}>
-      <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-zinc-800 text-zinc-100 rounded-md">
+      <DialogContent className="sm:max-w-[500px] bg-card border-border text-foreground rounded-md">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-white flex items-center gap-2">
-            <Sliders className="h-5 w-5 text-cyan-400" />
+          <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+            <Sliders className="h-5 w-5 text-primary" />
             Configuración de Pipeline y Filtros
           </DialogTitle>
-          <DialogDescription className="text-xs text-zinc-400">
+          <DialogDescription className="text-xs text-muted-foreground">
             Reglas de transformación aplicadas en tiempo real para el canal {selectedBinding?.source_channel_title || selectedBinding?.source_channel_id}.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Caption Rules */}
-          <div className="space-y-3 rounded-md border border-zinc-800/80 bg-zinc-900/40 p-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 block">
+          <div className="space-y-3 rounded-md border border-border bg-secondary/50 p-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block font-mono">
               Reglas de Caption & Texto
             </span>
 
             <div className="space-y-1.5">
-              <label className="text-xs text-zinc-300">Encabezado Automático (Header)</label>
+              <label className="text-xs text-foreground">Encabezado Automático (Header)</label>
               <Input
                 placeholder="🔥 Exclusivo de Mi Red:"
                 value={rules.headerText}
                 onChange={(e) =>
                   setRules((prev) => ({ ...prev, headerText: e.target.value }))
                 }
-                className="bg-zinc-900 border-zinc-800 text-white text-xs"
+                className="bg-secondary/70 border-border text-foreground text-xs"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs text-zinc-300">Pie de Mensaje (Footer / Firma)</label>
+              <label className="text-xs text-foreground">Pie de Mensaje (Footer / Firma)</label>
               <Input
                 placeholder="Únete a nuestro canal: @canal_oficial"
                 value={rules.footerText}
                 onChange={(e) =>
                   setRules((prev) => ({ ...prev, footerText: e.target.value }))
                 }
-                className="bg-zinc-900 border-zinc-800 text-white text-xs"
+                className="bg-secondary/70 border-border text-foreground text-xs"
               />
             </div>
 
             <div className="flex items-center justify-between pt-1">
-              <span className="text-xs text-zinc-300">Eliminar enlaces externos (URLs)</span>
+              <span className="text-xs text-foreground">Eliminar enlaces externos (URLs)</span>
               <Switch
                 checked={rules.stripLinks}
                 onCheckedChange={(checked) =>
@@ -125,7 +125,7 @@ export const SyncRulesModal: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Remover hashtags y menciones (@user)</span>
+              <span className="text-xs text-foreground">Remover hashtags y menciones (@user)</span>
               <Switch
                 checked={rules.stripTags}
                 onCheckedChange={(checked) =>
@@ -136,13 +136,13 @@ export const SyncRulesModal: React.FC = () => {
           </div>
 
           {/* Media Filter Rules */}
-          <div className="space-y-3 rounded-md border border-zinc-800/80 bg-zinc-900/40 p-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400 block">
+          <div className="space-y-3 rounded-md border border-border bg-secondary/50 p-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block font-mono">
               Tipos de Medios Permitidos
             </span>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Videos & GIFs</span>
+              <span className="text-xs text-foreground">Videos & GIFs</span>
               <Switch
                 checked={rules.allowVideo}
                 onCheckedChange={(checked) =>
@@ -152,7 +152,7 @@ export const SyncRulesModal: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Fotos & Álbumes</span>
+              <span className="text-xs text-foreground">Fotos & Álbumes</span>
               <Switch
                 checked={rules.allowPhoto}
                 onCheckedChange={(checked) =>
@@ -162,7 +162,7 @@ export const SyncRulesModal: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-300">Documentos & Archivos adjuntos</span>
+              <span className="text-xs text-foreground">Documentos & Archivos adjuntos</span>
               <Switch
                 checked={rules.allowDocument}
                 onCheckedChange={(checked) =>
