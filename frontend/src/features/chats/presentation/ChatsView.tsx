@@ -367,6 +367,7 @@ interface ExtraViewState {
   isSubmitting: boolean;
   userMemberships: VipMembership[];
   showUserVipPopover: boolean;
+  deleteMessageTargetId: number | null;
 }
 
 export const ChatsView: React.FC = () => {
@@ -381,6 +382,7 @@ export const ChatsView: React.FC = () => {
     isSubmitting: false,
     userMemberships: [],
     showUserVipPopover: false,
+    deleteMessageTargetId: null,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1057,9 +1059,10 @@ export const ChatsView: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  if (window.confirm("¿Seguro que querés eliminar este mensaje de Telegram?")) {
-                                    deleteMessage(msg.id);
-                                  }
+                                  setViewState((prev) => ({
+                                    ...prev,
+                                    deleteMessageTargetId: msg.id,
+                                  }));
                                 }}
                                 title="Eliminar mensaje"
                                 className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-rose-500 transition-colors border border-border/40"
@@ -1547,6 +1550,56 @@ export const ChatsView: React.FC = () => {
               className="text-xs"
             >
               Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Message Confirmation Dialog (Replaces browser window.confirm alert) */}
+      <Dialog
+        open={viewState.deleteMessageTargetId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewState((prev) => ({ ...prev, deleteMessageTargetId: null }));
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md bg-card border-border shadow-2xl">
+          <DialogHeader className="space-y-2">
+            <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-base font-semibold text-foreground">
+              ¿Eliminar mensaje de Telegram?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
+              Esta acción eliminará el mensaje permanentemente de la conversación o canal de Telegram tanto para vos como para todos los participantes. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex flex-row items-center justify-end gap-2 pt-2 border-t border-border mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setViewState((prev) => ({ ...prev, deleteMessageTargetId: null }))}
+              className="h-8 text-xs px-3"
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                const targetId = viewState.deleteMessageTargetId;
+                setViewState((prev) => ({ ...prev, deleteMessageTargetId: null }));
+                if (targetId !== null) {
+                  await deleteMessage(targetId);
+                }
+              }}
+              className="h-8 text-xs px-4 gap-1.5 font-medium"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Eliminar mensaje</span>
             </Button>
           </DialogFooter>
         </DialogContent>
