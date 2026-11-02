@@ -490,31 +490,33 @@ export const MessageSelector: React.FC = () => {
         )}
 
         {/* Row 2: Type Filters & Search */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 justify-between">
-          {/* Type filters */}
-          <div className="flex items-center gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 overflow-x-auto no-scrollbar flex-1 min-w-0">
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center gap-2 justify-between">
+          {/* 5-Column Type filters (fills 100% width evenly on mobile & tablet without clipping) */}
+          <div className="grid grid-cols-5 gap-1 bg-zinc-950/80 p-0.5 rounded-lg border border-white/5 w-full xl:flex-1">
             {[
-              { id: "all", label: "Todos", count: countsByType.all },
-              { id: "video", label: "Videos", count: countsByType.video },
-              { id: "photo", label: "Fotos", count: countsByType.photo },
-              { id: "document", label: "Archivos", count: countsByType.document },
-              { id: "text", label: "Texto", count: countsByType.text },
+              { id: "all", label: "Todos", shortLabel: "Todos", count: countsByType.all },
+              { id: "video", label: "Videos", shortLabel: "Videos", count: countsByType.video },
+              { id: "photo", label: "Fotos", shortLabel: "Fotos", count: countsByType.photo },
+              { id: "document", label: "Archivos", shortLabel: "Docs", count: countsByType.document },
+              { id: "text", label: "Texto", shortLabel: "Texto", count: countsByType.text },
             ].map((item) => (
               <button
                 type="button"
                 key={item.id}
                 onClick={() => setFilterState((prev) => ({ ...prev, type: item.id }))}
                 className={cn(
-                  "flex-1 sm:flex-initial px-2.5 py-1 rounded-md text-[11px] font-mono transition-all flex items-center justify-center gap-1 shrink-0 whitespace-nowrap",
+                  "py-1.5 px-0.5 sm:px-2 rounded-md text-[10px] sm:text-[11px] font-mono transition-all flex items-center justify-center gap-0.5 sm:gap-1 min-w-0 text-center",
                   filterState.type === item.id
                     ? "bg-cyan-500 text-black font-semibold shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200"
                 )}
+                title={`${item.label} (${item.count})`}
               >
-                <span>{item.label}</span>
+                <span className="hidden sm:inline truncate">{item.label}</span>
+                <span className="sm:hidden truncate">{item.shortLabel}</span>
                 <span
                   className={cn(
-                    "text-[10px] opacity-80",
+                    "text-[9px] sm:text-[10px] opacity-80 shrink-0",
                     filterState.type === item.id ? "text-black/80 font-bold" : ""
                   )}
                 >
@@ -525,7 +527,7 @@ export const MessageSelector: React.FC = () => {
           </div>
 
           {/* Search Input */}
-          <div className="relative w-full sm:w-48 xl:w-56 shrink-0">
+          <div className="relative w-full xl:w-56 shrink-0">
             <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
