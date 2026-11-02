@@ -118,3 +118,15 @@ class TelegramGatewayPort(ABC):
     ) -> ChannelMessage:
         """Edit the caption or text of an existing channel message."""
         raise NotImplementedError
+
+    async def kick_chat_member(
+        self, channel_id: int, user_id: int, account_id: int | None = None
+    ) -> bool:
+        """Kick/remove a member from a channel or supergroup."""
+        return False
+
+    async def create_channel_invite_link(
+        self, channel_id: int, expire_date: int | None = None, member_limit: int = 1, account_id: int | None = None
+    ) -> str:
+        """Create a single-use or expiring invite link for a channel."""
+        return ""

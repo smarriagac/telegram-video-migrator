@@ -16,6 +16,11 @@ Delivery strategy: single-pr
   - `TelegramClientPool`: segregated `_tenant_clients` mappings preventing cross-tenant client access.
   - `TelethonAdapter`: tenant-scoped adapter throwing `ChannelAccessDeniedException` if a tenant attempts to operate on another tenant's MTProto client.
   - Channel discovery isolation: `get_managed_channels` restricted to the active tenant's client instances.
+- S5: Telegram VIP Gatekeeper & Channel Membership Orchestrator:
+  - `ChannelMembership` entity with status lifecycle (`INVITED`, `ACTIVE`, `GRACE_PERIOD`, `EXPIRED`, `KICKED`).
+  - `MembershipGatekeeperService`: generation of single-use expiring invite links (`ExportChatInviteRequest`) and automated eviction worker (`EditBannedRequest`).
+- S6: Frontend Billing & Subscription Plans View (`/billing`):
+  - Tier cards (`FREE_TRIAL`, `CREATOR`, `PRO_AGENCY`, `ENTERPRISE`) with quota indicators, annual discount toggle (-20%), and tenant cluster isolation specs.
 
 ## Tasks
 - [x] T1 (S1): Create `backend/domain/entities/tenant.py` with `Tenant`, `PlanTier`, `TenantStatus`, and quota validation [inline]
@@ -29,6 +34,12 @@ Delivery strategy: single-pr
 - [x] T9 (S4): Update `TelethonAdapter` to enforce tenant isolation and prevent cross-tenant message/channel operations [inline]
 - [x] T10 (S4): Add `tenant_id` to `PostgresRepository` account persistence and apply DDL migration in Postgres database [inline]
 - [x] T11 (S4): Implement unit tests in `test_tenant_session_isolation.py` (3 new tests, 80 total tests passing) [inline]
+- [x] T12 (S5): Create `ChannelMembership` entity and `MembershipGatekeeperService` with auto-eviction logic [inline]
+- [x] T13 (S5): Add `kick_chat_member` and `create_channel_invite_link` to `TelegramGatewayPort` and `TelethonAdapter` [inline]
+- [x] T14 (S5): Verify gatekeeper unit tests in `test_membership_gatekeeper.py` (83 total tests passing) [inline]
+- [x] T15 (S6): Build `BillingPlansView.tsx` with tier cards, annual toggle, and tenant cluster status [inline]
+- [x] T16 (S6): Register `/billing` route in `App.tsx` and sidebar navigation item in `AppLayout.tsx` [inline]
+- [x] T17 (S5-S6): Compile frontend bundle and deploy to Docker Nginx container (HTTP 200) [inline]
 
 ## Log
 - L1: User requested architecture and data model definition to sell Telegram Hub as a subscription-based multi-tenant SaaS.
@@ -37,3 +48,5 @@ Delivery strategy: single-pr
 - L4: Implemented tenant-isolated `TelegramClientPool` and updated `TelethonAdapter` with strict tenant boundary checks.
 - L5: Applied PostgreSQL DDL migration `001_multi_tenant_saas.sql` enabling RLS policies on tables.
 - L6: Verified 80 tests passing in backend container.
+- L7: Implemented `ChannelMembership` entity, `MembershipGatekeeperService`, and MTProto eviction methods (83 tests passing).
+- L8: Created `BillingPlansView.tsx` and wired `/billing` into dashboard and sidebar. Built with Vite in 3.48s and deployed to Nginx.

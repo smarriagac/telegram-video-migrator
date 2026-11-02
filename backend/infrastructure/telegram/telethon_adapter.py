@@ -900,3 +900,58 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.error(f"Error editing message {message_id} in channel {channel_id}: {e}")
             raise
+
+    async def kick_chat_member(
+        self, channel_id: int, user_id: int, account_id: int | None = None
+    ) -> bool:
+        """Kick/remove a member from a channel or supergroup."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            from telethon.tl.functions.channels import EditBannedRequest
+            from telethon.tl.types import ChatBannedRights
+
+            # Temporarily ban to kick
+            await client(
+                EditBannedRequest(
+                    channel=channel_id,
+                    participant=user_id,
+                    banned_rights=ChatBannedRights(until_date=None, view_messages=True),
+                )
+            )
+            # Lift ban to leave them free to re-subscribe
+            await client(
+                EditBannedRequest(
+                    channel=channel_id,
+                    participant=user_id,
+                    banned_rights=ChatBannedRights(until_date=None, view_messages=False),
+                )
+            )
+            return True
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except Exception as e:
+            logger.error(f"Error kicking user {user_id} from channel {channel_id}: {e}")
+            return False
+
+    async def create_channel_invite_link(
+        self, channel_id: int, expire_date: int | None = None, member_limit: int = 1, account_id: int | None = None
+    ) -> str:
+        """Create a single-use or expiring invite link for a channel."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            from telethon.tl.functions.messages import ExportChatInviteRequest
+            res = await client(
+                ExportChatInviteRequest(
+                    peer=channel_id,
+                    expire_date=expire_date,
+                    usage_limit=member_limit,
+                )
+            )
+            return getattr(res, "link", "")
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except Exception as e:
+            logger.error(f"Error creating invite link for channel {channel_id}: {e}")
+            raise
