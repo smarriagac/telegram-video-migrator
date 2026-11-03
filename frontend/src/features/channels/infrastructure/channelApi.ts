@@ -256,4 +256,39 @@ export const channelApi = {
     }
     return res.json();
   },
+
+  async processPaymentWebhook(payload: {
+    channelId: number;
+    userIdOrUsername: string;
+    durationDays?: number;
+    amount?: number;
+    currency?: string;
+    paymentProvider?: string;
+    paymentId?: string;
+    autoSendDm?: boolean;
+    secretToken?: string;
+  }): Promise<any> {
+    const res = await fetch("/api/channels/gatekeeper/webhooks/payment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        channel_id: payload.channelId,
+        user_id_or_username: payload.userIdOrUsername,
+        duration_days: payload.durationDays || 30,
+        amount: payload.amount || null,
+        currency: payload.currency || "USD",
+        payment_provider: payload.paymentProvider || "STRIPE",
+        payment_id: payload.paymentId || null,
+        auto_send_dm: payload.autoSendDm ?? true,
+        secret_token: payload.secretToken || null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al procesar webhook de pago.");
+    }
+    return res.json();
+  },
 };

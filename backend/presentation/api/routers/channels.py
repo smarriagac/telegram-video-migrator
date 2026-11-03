@@ -732,6 +732,19 @@ class AddMemberPayload(BaseModel):
     account_id: int | None = None
 
 
+class PaymentWebhookPayload(BaseModel):
+    channel_id: int
+    user_id_or_username: str
+    duration_days: int = 30
+    amount: float | None = None
+    currency: str = "USD"
+    payment_provider: str = "STRIPE"
+    payment_id: str | None = None
+    auto_send_dm: bool = True
+    account_id: int | None = None
+    secret_token: str | None = None
+
+
 @router.post("/gatekeeper/invite", response_model=ChannelMembershipResponse)
 async def create_vip_invite_pass(
     req: CreateVipInviteRequest,
@@ -1413,4 +1426,110 @@ async def evict_expired_vip_members(
         logger.warning(f"Error running gatekeeper eviction: {ex}")
 
     return {"status": "ok", "evicted_count": len(evicted_ids), "evicted_ids": evicted_ids}
+
+
+@router.post("/gatekeeper/webhooks/payment")
+async def process_gatekeeper_payment_webhook(
+    payload: PaymentWebhookPayload,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    pg_repo: Any = Depends(get_postgres_repository),
+) -> dict[str, Any]:
+    """Webhook for external payment gateways (Stripe, Crypto, MercadoPago) to issue and deliver VIP access passes."""
+    configured_secret = os.getenv("GATEKEEPER_WEBHOOK_SECRET")
+    if configured_secret and payload.secret_token and payload.secret_token != configured_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token secreto de webhook inválido.",
+        )
+
+    target = payload.user_id_or_username.strip()
+    uid = int(target) if target.isdigit() else None
+    uname = None if target.isdigit() else target.lstrip("@")
+
+    gatekeeper = MembershipGatekeeperService(gateway)
+    membership = await gatekeeper.generate_pass(
+        tenant_id="00000000-0000-0000-0000-000000000001",
+        channel_id=payload.channel_id,
+        duration_days=payload.duration_days,
+        account_id=payload.account_id,
+        request_needed=True,
+        title=f"VIP - {target}",
+    )
+
+    dm_sent = False
+    dm_error = None
+    if payload.auto_send_dm and uname and membership.invite_link:
+        dm_text = (
+            f"🎉 ¡Gracias por tu compra! Tu suscripción VIP está activa.\n\n"
+            f"🔗 Tu enlace exclusivo de ingreso:\n{membership.invite_link}\n\n"
+            f"⏳ Validez: {payload.duration_days} días.\n"
+            f"Hacé clic en el enlace para solicitar unirte y se te dará acceso inmediato."
+        )
+        try:
+            dm_sent = await gateway.send_direct_message(
+                recipient=uname,
+                text=dm_text,
+                account_id=payload.account_id,
+            )
+        except Exception as dm_ex:
+            logger.warning(f"Error auto-sending purchase DM to {uname}: {dm_ex}")
+            dm_sent = False
+            dm_error = str(dm_ex)
+
+    try:
+        await pg_repo.connect()
+        if pg_repo.pool:
+            async with pg_repo.pool.acquire() as conn:
+                await conn.execute(
+                    """
+                    INSERT INTO channel_memberships (
+                        id, tenant_id, channel_id, telegram_user_id, telegram_username,
+                        invite_link, status, expires_at, created_at, updated_at
+                    )
+                    VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, 'INVITED', $7::timestamptz, NOW(), NOW())
+                    """,
+                    membership.id,
+                    "00000000-0000-0000-0000-000000000001",
+                    membership.channel_id,
+                    uid,
+                    uname,
+                    membership.invite_link,
+                    membership.expires_at,
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO audit_logs (tenant_id, user_email, action, resource, details)
+                    VALUES ($1::uuid, $2, 'GATEKEEPER_PAYMENT_WEBHOOK', $3, $4::jsonb)
+                    """,
+                    "00000000-0000-0000-0000-000000000001",
+                    "webhook@gatekeeper.local",
+                    f"payment:{payload.payment_provider}:{payload.payment_id or 'auto'}",
+                    json.dumps({
+                        "channel_id": payload.channel_id,
+                        "target": target,
+                        "duration_days": payload.duration_days,
+                        "amount": payload.amount,
+                        "currency": payload.currency,
+                        "payment_provider": payload.payment_provider,
+                        "payment_id": payload.payment_id,
+                        "invite_link": membership.invite_link,
+                        "dm_sent": dm_sent,
+                        "dm_error": dm_error,
+                    }),
+                )
+    except Exception as db_err:
+        logger.warning(f"Error persisting webhook membership: {db_err}")
+
+    return {
+        "success": True,
+        "membership_id": membership.id,
+        "channel_id": payload.channel_id,
+        "target": target,
+        "invite_link": membership.invite_link,
+        "expires_at": membership.expires_at,
+        "duration_days": payload.duration_days,
+        "dm_sent": dm_sent,
+        "dm_error": dm_error,
+    }
+
 

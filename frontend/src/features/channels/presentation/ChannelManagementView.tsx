@@ -21,6 +21,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  CreditCard,
+  Play,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { ViewHeader } from "@/shared/components/ViewHeader";
@@ -101,6 +103,14 @@ interface ViewState {
   selectedMemberIds: string[];
   currentPage: number;
   pageSize: number;
+  webhookModalOpen: boolean;
+  webhookChannelId: number;
+  webhookUsername: string;
+  webhookDays: number;
+  webhookAmount: string;
+  webhookProvider: string;
+  webhookCopied: boolean;
+  webhookResult: any | null;
   modalOpen: boolean;
   modalChannelId: number;
   modalDays: number;
@@ -132,6 +142,14 @@ export const ChannelManagementView: React.FC = () => {
     selectedMemberIds: [],
     currentPage: 1,
     pageSize: 10,
+    webhookModalOpen: false,
+    webhookChannelId: 0,
+    webhookUsername: "",
+    webhookDays: 30,
+    webhookAmount: "19.99",
+    webhookProvider: "STRIPE",
+    webhookCopied: false,
+    webhookResult: null,
     modalOpen: false,
     modalChannelId: 0,
     modalDays: 30,
@@ -213,6 +231,33 @@ export const ChannelManagementView: React.FC = () => {
     } catch (err: any) {
       setState((s) => ({ ...s, isSubmitting: false }));
       showNotification(err.message || "Error al crear enlace VIP.", "error");
+    }
+  };
+
+  const handleSimulatePayment = async () => {
+    if (!state.webhookChannelId || !state.webhookUsername.trim()) return;
+    setState((s) => ({ ...s, isSubmitting: true }));
+    try {
+      const res = await channelApi.processPaymentWebhook({
+        channelId: state.webhookChannelId,
+        userIdOrUsername: state.webhookUsername.trim(),
+        durationDays: state.webhookDays || 30,
+        amount: Number(state.webhookAmount) || 19.99,
+        currency: "USD",
+        paymentProvider: state.webhookProvider,
+        paymentId: `sim_${Date.now()}`,
+        autoSendDm: true,
+      });
+      setState((s) => ({
+        ...s,
+        webhookResult: res,
+        isSubmitting: false,
+      }));
+      showNotification(`¡Pago simulado con éxito! Pase VIP generado para ${state.webhookUsername}.`);
+      await loadData();
+    } catch (err: any) {
+      setState((s) => ({ ...s, isSubmitting: false }));
+      showNotification(err.message || "Error al procesar simulación de pago.", "error");
     }
   };
 
@@ -506,6 +551,23 @@ export const ChannelManagementView: React.FC = () => {
           >
             <UserX className="w-3.5 h-3.5 text-destructive" />
             Purgar Vencidos
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              setState((s) => ({
+                ...s,
+                webhookModalOpen: true,
+                webhookResult: null,
+                webhookChannelId: adminChannels[0]?.id || state.channels[0]?.id || 0,
+              }))
+            }
+            className="h-8 text-xs gap-1.5 border-border bg-card/60 hover:bg-muted text-foreground"
+            title="Integración de pasarela de pagos y webhook VIP"
+          >
+            <CreditCard className="w-3.5 h-3.5 text-primary" />
+            Webhook Pagos
           </Button>
           <Button
             size="sm"
@@ -1474,6 +1536,179 @@ export const ChannelManagementView: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      {/* Dialog: Gatekeeper Payment Webhook & Simulator */}
+      <Dialog
+        open={state.webhookModalOpen}
+        onOpenChange={(open) => setState((s) => ({ ...s, webhookModalOpen: open }))}
+      >
+        <DialogContent className="sm:max-w-xl border-border bg-card max-h-[90vh] flex flex-col p-5">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-foreground font-semibold">
+              <CreditCard className="w-5 h-5 text-primary" />
+              Integración de Pagos & Webhook VIP
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1">
+              Automatizá las ventas de membresías VIP conectando tu pasarela de cobros externa (Stripe, Crypto Bot, MercadoPago, WooCommerce, Zapier).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 overflow-y-auto pr-1 text-xs">
+            {/* Endpoint URL Card */}
+            <div className="space-y-1.5 p-3 rounded-lg border border-border bg-secondary/30">
+              <span className="text-[11px] font-semibold text-foreground block font-mono">
+                URL del Webhook (POST):
+              </span>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={`${window.location.origin}/api/channels/gatekeeper/webhooks/payment`}
+                  className="h-8 text-xs font-mono select-all bg-background border-border flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/api/channels/gatekeeper/webhooks/payment`
+                    );
+                    setState((s) => ({ ...s, webhookCopied: true }));
+                    setTimeout(() => setState((s) => ({ ...s, webhookCopied: false })), 2000);
+                  }}
+                  className="h-8 px-3 text-xs gap-1.5 font-semibold"
+                >
+                  {state.webhookCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {state.webhookCopied ? "Copiado" : "Copiar"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Test Simulator Section */}
+            <div className="space-y-3 p-3.5 rounded-lg border border-primary/20 bg-primary/5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground text-xs flex items-center gap-1.5">
+                  <Play className="w-3.5 h-3.5 text-primary" />
+                  Simulador de Compra en Vivo
+                </span>
+                <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
+                  Test Sandbox
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">Canal VIP:</label>
+                  <Select
+                    value={String(state.webhookChannelId)}
+                    onValueChange={(val) => setState((s) => ({ ...s, webhookChannelId: Number(val) }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs bg-background border-border">
+                      <SelectValue placeholder="Seleccionar canal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {adminChannels.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">Comprador (@username o UID):</label>
+                  <Input
+                    type="text"
+                    value={state.webhookUsername}
+                    onChange={(e) => setState((s) => ({ ...s, webhookUsername: e.target.value }))}
+                    placeholder="@comprador_vip"
+                    className="h-8 text-xs bg-background border-border"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">Duración (Días):</label>
+                  <Input
+                    type="number"
+                    value={state.webhookDays}
+                    onChange={(e) => setState((s) => ({ ...s, webhookDays: Number(e.target.value) || 30 }))}
+                    className="h-8 text-xs bg-background border-border"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-foreground">Pasarela / Proveedor:</label>
+                  <Select
+                    value={state.webhookProvider}
+                    onValueChange={(val) => setState((s) => ({ ...s, webhookProvider: val }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="STRIPE">Stripe</SelectItem>
+                      <SelectItem value="CRYPTO">Crypto (USDT / BTC)</SelectItem>
+                      <SelectItem value="MERCADOPAGO">Mercado Pago</SelectItem>
+                      <SelectItem value="CUSTOM">Custom Webhook</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSimulatePayment}
+                disabled={state.isSubmitting || !state.webhookUsername.trim() || !state.webhookChannelId}
+                className="w-full h-8 text-xs gap-1.5 font-semibold mt-1"
+              >
+                {state.isSubmitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                Disparar Webhook & Emitir Pase VIP
+              </Button>
+
+              {state.webhookResult && (
+                <div className="p-2.5 rounded bg-background border border-emerald-500/30 text-xs space-y-1.5 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-emerald-500 font-semibold">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>¡Pase VIP emitido y registrado en Gatekeeper!</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={state.webhookResult.invite_link}
+                      className="h-7 text-[11px] font-mono bg-secondary/60 flex-1 select-all"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(state.webhookResult.invite_link)}
+                      className="h-7 px-2 text-xs"
+                    >
+                      Copiar
+                    </Button>
+                  </div>
+                  {state.webhookResult.dm_sent && (
+                    <span className="text-[11px] text-muted-foreground block">
+                      ✉️ Notificación enviada por DM al usuario en Telegram vía MTProto.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setState((s) => ({ ...s, webhookModalOpen: false }))}
+              className="h-8 text-xs"
+            >
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Shadcn Dialog: Create VIP Pass Modal */}
       <Dialog

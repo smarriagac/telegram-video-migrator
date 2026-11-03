@@ -162,3 +162,48 @@ async def test_kick_batch_channel_members_endpoint():
         app.dependency_overrides.pop(get_postgres_repository, None)
 
 
+@pytest.mark.asyncio
+async def test_gatekeeper_payment_webhook_endpoint():
+    from unittest.mock import AsyncMock, MagicMock
+    from backend.presentation.dependencies import get_telegram_gateway, get_postgres_repository
+
+    mock_gateway = MagicMock()
+    mock_gateway.create_channel_invite_link = AsyncMock(return_value="https://t.me/+PayTestPass123")
+    mock_gateway.send_direct_message = AsyncMock(return_value=True)
+
+    mock_pg = MagicMock()
+    mock_pg.connect = AsyncMock()
+    mock_pg.pool = None
+
+    app.dependency_overrides[get_telegram_gateway] = lambda: mock_gateway
+    app.dependency_overrides[get_postgres_repository] = lambda: mock_pg
+
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            payload = {
+                "channel_id": -1004337257363,
+                "user_id_or_username": "@buyer_vip",
+                "duration_days": 30,
+                "amount": 19.99,
+                "currency": "USD",
+                "payment_provider": "STRIPE",
+                "payment_id": "pi_test_123456789",
+                "auto_send_dm": True,
+            }
+            res = await client.post("/api/channels/gatekeeper/webhooks/payment", json=payload)
+            assert res.status_code == 200
+            data = res.json()
+            assert data["success"] is True
+            assert data["invite_link"] == "https://t.me/+PayTestPass123"
+            assert data["target"] == "@buyer_vip"
+            assert data["duration_days"] == 30
+            assert data["dm_sent"] is True
+            mock_gateway.create_channel_invite_link.assert_awaited_once()
+            mock_gateway.send_direct_message.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_telegram_gateway, None)
+        app.dependency_overrides.pop(get_postgres_repository, None)
+
+
+
