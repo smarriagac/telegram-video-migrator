@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
+import { DateTimePicker } from "@/shared/components/ui/date-time-picker";
 import { cn } from "@/shared/lib/utils";
 
 interface ConfirmModalProps {
@@ -70,39 +71,30 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
           </div>
         </div>
 
-        {/* Smart Scheduler Section */}
-        <div className="p-2.5 rounded-lg bg-secondary/40 border border-border space-y-2">
+        {/* Smart Scheduler Section with Canonical Shadcn DateTimePicker */}
+        <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs font-medium text-foreground">
+            <div className="flex items-center space-x-2 text-xs font-semibold text-foreground">
               <Clock className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Smart Scheduler (Programar Tarea)</span>
+              <span>Smart Scheduler (Programar Publicación)</span>
             </div>
             {scheduledAt && (
-              <button
-                type="button"
-                onClick={() => setScheduledAt(null)}
-                className="text-[10px] text-muted-foreground hover:text-foreground underline"
-              >
-                Limpiar (Ejecutar Ya)
-              </button>
+              <span className="text-[10px] text-cyan-400 font-mono font-medium">
+                Programado
+              </span>
             )}
           </div>
-          <input
-            type="datetime-local"
-            value={scheduledAt ? scheduledAt.slice(0, 16) : ""}
-            onChange={(e) => {
-              if (e.target.value) {
-                setScheduledAt(new Date(e.target.value).toISOString());
-              } else {
-                setScheduledAt(null);
-              }
-            }}
-            className="w-full bg-secondary/80 border border-border rounded-md px-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-cyan-400"
+
+          <DateTimePicker
+            value={scheduledAt}
+            onChange={(date) => setScheduledAt(date ? date.toISOString() : null)}
+            placeholder="Seleccionar fecha y horario..."
           />
+
           <p className="text-[10px] text-muted-foreground">
             {scheduledAt
-              ? `Se programará para iniciar automáticamente el ${new Date(scheduledAt).toLocaleString()}.`
-              : "Dejalo vacío para iniciar la migración inmediatamente."}
+              ? `Se iniciará automáticamente el ${new Date(scheduledAt).toLocaleString()}.`
+              : "Si lo dejás vacío, la migración arrancará de forma inmediata al confirmar."}
           </p>
         </div>
 
