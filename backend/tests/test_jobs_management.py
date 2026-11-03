@@ -114,3 +114,77 @@ async def test_list_and_manage_jobs():
     finally:
         if os.path.exists(db_path):
             os.remove(db_path)
+
+
+@pytest.mark.asyncio
+async def test_scheduled_job_with_selected_message_ids_preserved():
+    """Verify that selective message filtering is strictly preserved across scheduling and execution."""
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+        db_path = tmp.name
+
+    try:
+        repo = SqliteJobRepository(db_path=db_path)
+        await repo.initialize_schema()
+
+        app.dependency_overrides[get_job_repository] = lambda: repo
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            # 1. Create a scheduled migration job with ONLY 1 selected message (ID 42)
+            create_payload = {
+                "source_channel_id": -100111,
+                "target_channel_id": -100222,
+                "source_channel_title": "Origen",
+                "target_channel_title": "Destino",
+                "selected_message_ids": [42],
+                "scheduled_at": "2030-01-01T00:00:00Z",
+            }
+            resp = await client.post("/api/jobs", json=create_payload)
+            assert resp.status_code == 201
+            data = resp.json()
+            job_id = data["job_id"]
+            assert data["status"] == "SCHEDULED"
+            assert data["total_videos"] == 1
+
+            # 2. Verify stored job has selected_message_ids in media_filter_rules metadata
+            stored_job = await repo.get_job(job_id)
+            assert stored_job is not None
+            assert stored_job.media_filter_rules is not None
+            assert stored_job.media_filter_rules.get("selected_message_ids") == [42]
+
+            # 3. Verify use_case recovers selected_message_ids if dispatched without them
+            from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
+            from backend.domain.entities.video_message import VideoMessage
+            from unittest.mock import AsyncMock
+
+            mock_gw = AsyncMock()
+            # Channel actually has 4 messages: 40, 41, 42, 43
+            mock_gw.fetch_channel_videos.return_value = [
+                VideoMessage(message_id=40, caption="Video 40", media_type="video"),
+                VideoMessage(message_id=41, caption="Video 41", media_type="video"),
+                VideoMessage(message_id=42, caption="Video 42", media_type="video"),
+                VideoMessage(message_id=43, caption="Video 43", media_type="video"),
+            ]
+            mock_gw.copy_video_by_reference.return_value = 999
+
+            use_case = CloneChannelVideosUseCase(
+                telegram_gateway=mock_gw,
+                job_repository=repo,
+                min_delay_seconds=0.0,
+            )
+
+            # Execute without passing selected_message_ids (simulating run-now or scheduler pickup)
+            executed_job = await use_case.execute(job_id=job_id, selected_message_ids=None)
+            assert executed_job.status == JobStatus.COMPLETED
+
+            # Crucial assertion: Only message 42 was queued and cloned, NOT all 4!
+            queue_items = await repo.get_queue_items(job_id)
+            assert len(queue_items) == 1
+            assert queue_items[0].source_message_id == 42
+            assert executed_job.processed_videos == 1
+            assert executed_job.total_videos == 1
+
+        app.dependency_overrides.clear()
+    finally:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+
