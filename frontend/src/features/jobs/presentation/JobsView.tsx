@@ -46,6 +46,7 @@ import {
   TableCell,
 } from "@/shared/components/ui/table";
 import { JobQueueModal } from "./components/JobQueueModal";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 import { videoProcessingApi, VideoProcessingJob } from "../../migration/infrastructure/videoProcessingApi";
@@ -55,17 +56,26 @@ export const JobsView: React.FC = () => {
   // Hook 1: Active tab navigation ("migrations" | "ffmpeg")
   const [activeTab, setActiveTab] = useState<"migrations" | "ffmpeg">("migrations");
 
-  // Hook 2: Consolidated local UI and async state for both views
+  // Hook 2: Consolidated local UI, confirmation dialog and async state for both views
   const [uiState, setUiState] = useState<{
     searchQuery: string;
     feedback: { message: string; isError?: boolean } | null;
     ffmpegJobs: VideoProcessingJob[];
     isFfmpegLoading: boolean;
+    confirmDialog: {
+      isOpen: boolean;
+      title: string;
+      description: string;
+      confirmLabel?: string;
+      variant?: "destructive" | "default";
+      onConfirm: () => void;
+    } | null;
   }>({
     searchQuery: "",
     feedback: null,
     ffmpegJobs: [],
     isFfmpegLoading: false,
+    confirmDialog: null,
   });
 
   const jobs = useJobsStore((state) => state.jobs);
@@ -135,18 +145,52 @@ export const JobsView: React.FC = () => {
     else showFeedback("Error al iniciar el trabajo programado.", true);
   };
 
-  const handleCancel = async (jobId: string) => {
-    if (!window.confirm("¿Seguro que deseás cancelar este trabajo de migración?")) return;
-    const ok = await cancelJob(jobId);
-    if (ok) showFeedback("Trabajo cancelado.");
-    else showFeedback("Error al cancelar.", true);
+  const openConfirm = (opts: {
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    variant?: "destructive" | "default";
+    onConfirm: () => void;
+  }) => {
+    setUiState((prev) => ({
+      ...prev,
+      confirmDialog: {
+        isOpen: true,
+        ...opts,
+      },
+    }));
   };
 
-  const handleDelete = async (jobId: string) => {
-    if (!window.confirm("¿Eliminar este trabajo y su registro de cola permanentemente?")) return;
-    const ok = await deleteJob(jobId);
-    if (ok) showFeedback("Trabajo eliminado.");
-    else showFeedback("Error al eliminar el trabajo.", true);
+  const closeConfirm = () => {
+    setUiState((prev) => ({ ...prev, confirmDialog: null }));
+  };
+
+  const handleCancel = (jobId: string) => {
+    openConfirm({
+      title: "Cancelar Migración",
+      description: "¿Estás seguro de que deseás cancelar este trabajo de migración en curso?",
+      confirmLabel: "Cancelar Trabajo",
+      variant: "destructive",
+      onConfirm: async () => {
+        const ok = await cancelJob(jobId);
+        if (ok) showFeedback("Trabajo cancelado.");
+        else showFeedback("Error al cancelar.", true);
+      },
+    });
+  };
+
+  const handleDelete = (jobId: string) => {
+    openConfirm({
+      title: "Eliminar Trabajo",
+      description: "¿Estás seguro de que deseás eliminar este trabajo y su registro de cola permanentemente?",
+      confirmLabel: "Eliminar",
+      variant: "destructive",
+      onConfirm: async () => {
+        const ok = await deleteJob(jobId);
+        if (ok) showFeedback("Trabajo eliminado.");
+        else showFeedback("Error al eliminar el trabajo.", true);
+      },
+    });
   };
 
   const handleRetry = async (jobId: string) => {
@@ -158,26 +202,40 @@ export const JobsView: React.FC = () => {
     }
   };
 
-  const handleCancelFfmpeg = async (jobId: string) => {
-    if (!window.confirm("¿Cancelar este procesamiento de video con FFmpeg?")) return;
-    const ok = await videoProcessingApi.cancelJob(jobId);
-    if (ok) {
-      showFeedback("Tarea FFmpeg cancelada.");
-      fetchFfmpegJobs();
-    } else {
-      showFeedback("No se pudo cancelar la tarea.", true);
-    }
+  const handleCancelFfmpeg = (jobId: string) => {
+    openConfirm({
+      title: "Cancelar Tarea FFmpeg",
+      description: "¿Estás seguro de que deseás cancelar este procesamiento de video con FFmpeg?",
+      confirmLabel: "Cancelar Tarea",
+      variant: "destructive",
+      onConfirm: async () => {
+        const ok = await videoProcessingApi.cancelJob(jobId);
+        if (ok) {
+          showFeedback("Tarea FFmpeg cancelada.");
+          fetchFfmpegJobs();
+        } else {
+          showFeedback("No se pudo cancelar la tarea.", true);
+        }
+      },
+    });
   };
 
-  const handleDeleteFfmpeg = async (jobId: string) => {
-    if (!window.confirm("¿Eliminar este registro de procesamiento?")) return;
-    const ok = await videoProcessingApi.deleteJob(jobId);
-    if (ok) {
-      showFeedback("Registro eliminado.");
-      fetchFfmpegJobs();
-    } else {
-      showFeedback("Error al eliminar el registro.", true);
-    }
+  const handleDeleteFfmpeg = (jobId: string) => {
+    openConfirm({
+      title: "Eliminar Registro FFmpeg",
+      description: "¿Estás seguro de que deseás eliminar este registro de procesamiento?",
+      confirmLabel: "Eliminar",
+      variant: "destructive",
+      onConfirm: async () => {
+        const ok = await videoProcessingApi.deleteJob(jobId);
+        if (ok) {
+          showFeedback("Registro eliminado.");
+          fetchFfmpegJobs();
+        } else {
+          showFeedback("Error al eliminar el registro.", true);
+        }
+      },
+    });
   };
 
   const handleRetryFfmpeg = async (jobId: string) => {
@@ -1059,6 +1117,19 @@ export const JobsView: React.FC = () => {
         onClose={() => selectJob(null)}
         onRetryFailed={retryFailed}
       />
+
+      {/* Confirmation Dialog (replaces browser window.confirm) */}
+      {uiState.confirmDialog && (
+        <ConfirmDialog
+          isOpen={uiState.confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={uiState.confirmDialog.onConfirm}
+          title={uiState.confirmDialog.title}
+          description={uiState.confirmDialog.description}
+          confirmLabel={uiState.confirmDialog.confirmLabel}
+          variant={uiState.confirmDialog.variant}
+        />
+      )}
     </div>
   );
 };

@@ -37,6 +37,7 @@ import { ViewHeader } from "@/shared/components/ViewHeader";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { Role } from "@/features/auth/domain/types";
 import { TableSkeleton } from "@/shared/components/ui/skeleton";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { cn } from "@/shared/lib/utils";
 
 export const SettingsView: React.FC = () => {
@@ -54,6 +55,14 @@ export const SettingsView: React.FC = () => {
     notifyEvictions: boolean;
     isTestingAlert: boolean;
     isSavingAlerts: boolean;
+    confirmDialog: {
+      isOpen: boolean;
+      title: string;
+      description: string;
+      confirmLabel?: string;
+      variant?: "destructive" | "default";
+      onConfirm: () => void;
+    } | null;
   }>({
     feedback: null,
     alertRecipient: "@Smpyt",
@@ -64,6 +73,7 @@ export const SettingsView: React.FC = () => {
     notifyEvictions: true,
     isTestingAlert: false,
     isSavingAlerts: false,
+    confirmDialog: null,
   });
 
   const accounts = useAuthStore((state) => state.accounts);
@@ -141,16 +151,41 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleDeleteAccount = async (id: number, name: string) => {
-    if (!window.confirm(`¿Estás seguro de desconectar y eliminar la cuenta "${name}"?`)) {
-      return;
-    }
-    const ok = await deleteAccount(id);
-    if (ok) {
-      showFeedback(`Cuenta "${name}" eliminada correctamente.`);
-    } else {
-      showFeedback(`No se pudo eliminar la cuenta "${name}".`, true);
-    }
+  const openConfirm = (opts: {
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    variant?: "destructive" | "default";
+    onConfirm: () => void;
+  }) => {
+    setLocalState((prev) => ({
+      ...prev,
+      confirmDialog: {
+        isOpen: true,
+        ...opts,
+      },
+    }));
+  };
+
+  const closeConfirm = () => {
+    setLocalState((prev) => ({ ...prev, confirmDialog: null }));
+  };
+
+  const handleDeleteAccount = (id: number, name: string) => {
+    openConfirm({
+      title: "Desconectar Cuenta",
+      description: `¿Estás seguro de que deseás desconectar y eliminar permanentemente la cuenta "${name}"?`,
+      confirmLabel: "Eliminar Cuenta",
+      variant: "destructive",
+      onConfirm: async () => {
+        const ok = await deleteAccount(id);
+        if (ok) {
+          showFeedback(`Cuenta "${name}" eliminada correctamente.`);
+        } else {
+          showFeedback(`No se pudo eliminar la cuenta "${name}".`, true);
+        }
+      },
+    });
   };
 
   const handleSaveCredentials = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -224,16 +259,21 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleDeleteUser = async (targetId: number, targetEmail: string) => {
-    if (!window.confirm(`¿Estás seguro de eliminar permanentemente al usuario "${targetEmail}"?`)) {
-      return;
-    }
-    const ok = await deleteUser(targetId);
-    if (ok) {
-      showFeedback(`Usuario ${targetEmail} eliminado.`);
-    } else {
-      showFeedback("Error eliminando el usuario.", true);
-    }
+  const handleDeleteUser = (targetId: number, targetEmail: string) => {
+    openConfirm({
+      title: "Eliminar Usuario",
+      description: `¿Estás seguro de que deseás eliminar permanentemente al usuario "${targetEmail}"? Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar Usuario",
+      variant: "destructive",
+      onConfirm: async () => {
+        const ok = await deleteUser(targetId);
+        if (ok) {
+          showFeedback(`Usuario ${targetEmail} eliminado.`);
+        } else {
+          showFeedback("Error eliminando el usuario.", true);
+        }
+      },
+    });
   };
 
   const getRoleBadgeStyle = (role: string) => {
@@ -821,6 +861,19 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Confirmation Dialog (replaces browser window.confirm) */}
+      {localState.confirmDialog && (
+        <ConfirmDialog
+          isOpen={localState.confirmDialog.isOpen}
+          onClose={closeConfirm}
+          onConfirm={localState.confirmDialog.onConfirm}
+          title={localState.confirmDialog.title}
+          description={localState.confirmDialog.description}
+          confirmLabel={localState.confirmDialog.confirmLabel}
+          variant={localState.confirmDialog.variant}
+        />
       )}
     </div>
   );

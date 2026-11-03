@@ -35,14 +35,25 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import { ViewHeader } from "@/shared/components/ViewHeader";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { useSyncStore } from "../application/useSyncStore";
 import { CreateSyncBindingModal } from "./components/CreateSyncBindingModal";
 import { SyncRulesModal } from "./components/SyncRulesModal";
 import { SyncBinding } from "../domain/types";
 
 export const LiveSyncHubView: React.FC = () => {
-  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (only 1 used for filter)
+  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
+  // Hook 1: Search query filter
   const [searchQuery, setSearchQuery] = useState("");
+  // Hook 2: Confirmation dialog state (replaces browser window.confirm)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmLabel?: string;
+    variant?: "destructive" | "default";
+    onConfirm: () => void;
+  } | null>(null);
 
   const {
     bindings,
@@ -79,11 +90,18 @@ export const LiveSyncHubView: React.FC = () => {
     setRulesModalOpen(true);
   };
 
-  const handleDelete = async (binding: SyncBinding) => {
+  const handleDelete = (binding: SyncBinding) => {
     const confirmName = binding.source_channel_title || binding.source_channel_id;
-    if (window.confirm(`¿Desvincular la sincronización automática de ${confirmName}?`)) {
-      await deleteBinding(binding.source_channel_id, binding.target_channel_id);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: "Desvincular Sincronización",
+      description: `¿Estás seguro de que deseás desvincular la sincronización automática de "${confirmName}"?`,
+      confirmLabel: "Desvincular",
+      variant: "destructive",
+      onConfirm: async () => {
+        await deleteBinding(binding.source_channel_id, binding.target_channel_id);
+      },
+    });
   };
 
   return (
@@ -522,6 +540,19 @@ export const LiveSyncHubView: React.FC = () => {
       {/* Modals */}
       <CreateSyncBindingModal />
       <SyncRulesModal />
+
+      {/* Confirmation Dialog (replaces browser window.confirm) */}
+      {confirmDialog && (
+        <ConfirmDialog
+          isOpen={confirmDialog.isOpen}
+          onClose={() => setConfirmDialog(null)}
+          onConfirm={confirmDialog.onConfirm}
+          title={confirmDialog.title}
+          description={confirmDialog.description}
+          confirmLabel={confirmDialog.confirmLabel}
+          variant={confirmDialog.variant}
+        />
+      )}
     </div>
   );
 };

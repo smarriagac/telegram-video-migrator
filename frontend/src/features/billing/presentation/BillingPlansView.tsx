@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { billingApi } from "../infrastructure/billingApi";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 
 interface PlanFeature {
   text: string;
@@ -129,9 +130,22 @@ const PLANS: PlanDefinition[] = [
 ];
 
 export const BillingPlansView: React.FC = () => {
-  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (only 2 used)
-  const [isAnnual, setIsAnnual] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<string>("FREE_TRIAL");
+  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
+  // Hook 1: Plan selection and billing frequency state
+  const [planState, setPlanState] = useState<{ isAnnual: boolean; selectedTier: string }>({
+    isAnnual: false,
+    selectedTier: "FREE_TRIAL",
+  });
+  // Hook 2: Error modal dialog state (replaces browser window.alert)
+  const [errorDialog, setErrorDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const { isAnnual, selectedTier } = planState;
+  const setIsAnnual = (val: boolean) => setPlanState((prev) => ({ ...prev, isAnnual: val }));
+  const setSelectedTier = (tier: string) => setPlanState((prev) => ({ ...prev, selectedTier: tier }));
 
   useEffect(() => {
     billingApi
@@ -153,7 +167,11 @@ export const BillingPlansView: React.FC = () => {
         setSelectedTier(tier);
       }
     } catch (err: any) {
-      alert(err.message || "Error al conectar con la pasarela Stripe.");
+      setErrorDialog({
+        isOpen: true,
+        title: "Pasarela de Pago",
+        message: err.message || "Error al conectar con la pasarela Stripe. Por favor verificá tus credenciales o conexión.",
+      });
     }
   };
 
@@ -394,6 +412,20 @@ export const BillingPlansView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Error/Notice Dialog (replaces browser window.alert) */}
+      {errorDialog && (
+        <ConfirmDialog
+          isOpen={errorDialog.isOpen}
+          onClose={() => setErrorDialog(null)}
+          onConfirm={() => setErrorDialog(null)}
+          title={errorDialog.title}
+          description={errorDialog.message}
+          confirmLabel="Entendido"
+          cancelLabel="Cerrar"
+          variant="default"
+        />
+      )}
     </div>
   );
 };
