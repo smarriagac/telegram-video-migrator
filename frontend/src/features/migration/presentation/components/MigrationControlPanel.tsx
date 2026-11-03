@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   ArrowDown,
+  Clock,
   History,
   Layers,
   Play,
@@ -77,12 +78,15 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
     Boolean(captionRules.append_signature),
   ].filter(Boolean).length;
 
+  const navigate = useNavigate();
+
   const sourceChannel = channels.find((c) => c.id === selectedSourceId);
   const targetChannel = channels.find((c) => c.id === selectedTargetId);
   const isCrossAccount = Boolean(
     sourceChannel && targetChannel && sourceChannel.account_id !== targetChannel.account_id
   );
 
+  const isScheduled = activeJob?.status === "SCHEDULED";
   const isRunning = activeJob?.status === "RUNNING" || activeJob?.status === "PAUSED_FLOOD_WAIT";
   const isFinished =
     activeJob?.status === "COMPLETED" ||
@@ -354,9 +358,65 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button / Scheduled Banner */}
         <div className="pt-1">
-          {isRunning ? (
+          {isScheduled ? (
+            <div className="space-y-2">
+              <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-800/50 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 font-mono">
+                    <Clock className="w-4 h-4 text-cyan-400 animate-pulse" />
+                    Migración Programada
+                  </span>
+                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-300 text-[10px] bg-cyan-500/10">
+                    Smart Scheduler
+                  </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Esta migración arrancará automáticamente el:
+                  <strong className="block text-foreground text-xs font-mono mt-0.5">
+                    {activeJob?.scheduled_at
+                      ? new Date(activeJob.scheduled_at).toLocaleString("es-ES", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : "Fecha programada"}
+                  </strong>
+                </p>
+                <div className="pt-1.5 border-t border-cyan-900/40 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/jobs")}
+                    className="flex-1 h-7 text-xs border-cyan-800/60 hover:bg-cyan-950 text-cyan-200"
+                  >
+                    Ver en Cola
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => cancelMigration()}
+                    className="h-7 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-950/40"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => resetJob()}
+                className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Planificar Otra Migración
+              </Button>
+            </div>
+          ) : isRunning ? (
             <Button
               variant="destructive"
               size="default"
@@ -397,8 +457,8 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
           )}
         </div>
 
-        {/* Progress & Queue Section (shown when active job or running) */}
-        {(activeJob || isRunning) && (
+        {/* Progress & Queue Section (shown when active job or running, but not when scheduled) */}
+        {(activeJob || isRunning) && !isScheduled && (
           <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">

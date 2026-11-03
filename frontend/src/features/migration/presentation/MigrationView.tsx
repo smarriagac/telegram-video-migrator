@@ -1,17 +1,36 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { RotateCcw, Search, Sliders, Film } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { useMigrationStream } from "../application/useMigrationStream";
 import { MigrationControlPanel } from "./components/MigrationControlPanel";
 import { MessageSelector } from "./components/MessageSelector";
 import { ConfirmModal } from "./components/ConfirmModal";
+import { ScheduledSuccessModal } from "./components/ScheduledSuccessModal";
 import { BrandLogo } from "@/shared/components/BrandLogo";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 
 export const MigrationView: React.FC = () => {
+  const navigate = useNavigate();
+
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks in this view
-  const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+  // Hook 1: Consolidated modal dialog state (ConfirmModal and ScheduledSuccessModal)
+  const [modalState, setModalState] = useState<{
+    isConfirmOpen: boolean;
+    scheduledSuccess: {
+      jobId: string;
+      sourceTitle: string;
+      targetTitle: string;
+      scheduledAt: string;
+      itemCount: number | "all";
+    } | null;
+  }>({
+    isConfirmOpen: false,
+    scheduledSuccess: null,
+  });
+
+  // Hook 2: Consolidated UI filters and responsive mobile tab state
   const [viewState, setViewState] = useState<{
     searchFilter: string;
     mobileTab: "panel" | "messages";
@@ -22,6 +41,10 @@ export const MigrationView: React.FC = () => {
 
   // Domain & Job State managed strictly via Zustand
   const activeJob = useMigrationStore((state) => state.activeJob);
+  const channels = useMigrationStore((state) => state.channels);
+  const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
+  const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
+  const scheduledAt = useMigrationStore((state) => state.scheduledAt);
   const fetchChannels = useMigrationStore((state) => state.fetchChannels);
   const startMigration = useMigrationStore((state) => state.startMigration);
   const error = useMigrationStore((state) => state.error);
@@ -35,8 +58,26 @@ export const MigrationView: React.FC = () => {
   }, [fetchChannels]);
 
   const handleConfirmStart = async () => {
-    setIsConfirmOpen(false);
-    await startMigration();
+    const plannedSchedule = scheduledAt;
+    const sourceChan = channels.find((c) => c.id === selectedSourceId);
+    const targetChan = channels.find((c) => c.id === selectedTargetId);
+    const count = selectedMessageIds.length > 0 ? selectedMessageIds.length : "all";
+
+    const jobId = await startMigration();
+    setModalState((prev) => ({ ...prev, isConfirmOpen: false }));
+
+    if (jobId && plannedSchedule) {
+      setModalState((prev) => ({
+        ...prev,
+        scheduledSuccess: {
+          jobId,
+          sourceTitle: sourceChan?.title || String(selectedSourceId),
+          targetTitle: targetChan?.title || String(selectedTargetId),
+          scheduledAt: plannedSchedule,
+          itemCount: count,
+        },
+      }));
+    }
   };
 
   return (
@@ -134,7 +175,7 @@ export const MigrationView: React.FC = () => {
           )}
         >
           <MigrationControlPanel
-            onOpenConfirm={() => setIsConfirmOpen(true)}
+            onOpenConfirm={() => setModalState((prev) => ({ ...prev, isConfirmOpen: true }))}
             filterQuery={viewState.searchFilter}
           />
         </div>
@@ -150,12 +191,29 @@ export const MigrationView: React.FC = () => {
         </div>
       </div>
 
-      {/* Confirmation Modal using local state hook #1 */}
+      {/* Confirmation Modal */}
       <ConfirmModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
+        isOpen={modalState.isConfirmOpen}
+        onClose={() => setModalState((prev) => ({ ...prev, isConfirmOpen: false }))}
         onConfirm={handleConfirmStart}
       />
+
+      {/* Scheduled Success Modal */}
+      {modalState.scheduledSuccess && (
+        <ScheduledSuccessModal
+          isOpen={true}
+          onClose={() => setModalState((prev) => ({ ...prev, scheduledSuccess: null }))}
+          onViewJobs={() => {
+            setModalState((prev) => ({ ...prev, scheduledSuccess: null }));
+            navigate("/jobs");
+          }}
+          jobId={modalState.scheduledSuccess.jobId}
+          sourceTitle={modalState.scheduledSuccess.sourceTitle}
+          targetTitle={modalState.scheduledSuccess.targetTitle}
+          scheduledAt={modalState.scheduledSuccess.scheduledAt}
+          itemCount={modalState.scheduledSuccess.itemCount}
+        />
+      )}
     </div>
   );
 };

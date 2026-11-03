@@ -467,6 +467,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
       set({
         activeJob: job,
         isStartingJob: false,
+        scheduledAt: null,
         progress: {
           job_id: job.job_id,
           status: scheduledAt ? "SCHEDULED" : "PENDING",
