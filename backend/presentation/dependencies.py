@@ -281,3 +281,32 @@ async def get_video_processing_service():
         )
     return _video_processing_service
 
+
+_job_scheduler_instance = None
+
+async def get_job_scheduler_service():
+    global _job_scheduler_instance
+    if _job_scheduler_instance is None:
+        from backend.application.services.job_scheduler_service import JobSchedulerService
+        repo = await get_job_repository()
+        use_case = await get_migration_use_case()
+        bc = await get_broadcaster()
+        _job_scheduler_instance = JobSchedulerService(
+            job_repo=repo,
+            use_case=use_case,
+            broadcaster=bc,
+            poll_interval=10.0,
+        )
+    return _job_scheduler_instance
+
+
+_alerting_service_instance = None
+
+async def get_alerting_service():
+    global _alerting_service_instance
+    if _alerting_service_instance is None:
+        from backend.application.services.alerting_service import AlertingService
+        gateway = await get_telegram_gateway()
+        _alerting_service_instance = AlertingService(gateway=gateway)
+    return _alerting_service_instance
+

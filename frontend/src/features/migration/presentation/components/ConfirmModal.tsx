@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, ArrowRight, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, ShieldCheck, Clock } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
+import { cn } from "@/shared/lib/utils";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
   const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
   const selectedMessageIds = useMigrationStore((state) => state.selectedMessageIds);
   const isStarting = useMigrationStore((state) => state.isStartingJob);
+  const scheduledAt = useMigrationStore((state) => state.scheduledAt);
+  const setScheduledAt = useMigrationStore((state) => state.setScheduledAt);
 
   const sourceChannel = channels.find((c) => c.id === selectedSourceId);
   const targetChannel = channels.find((c) => c.id === selectedTargetId);
@@ -38,7 +41,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
             <div>
               <DialogTitle className="text-sm">Confirmar Migración</DialogTitle>
               <DialogDescription className="text-xs">
-                Verificá los canales seleccionados antes de disparar el proceso.
+                Verificá los canales y la planificación antes de confirmar.
               </DialogDescription>
             </div>
           </div>
@@ -65,6 +68,42 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
                 : "Todos los mensajes del canal"}
             </span>
           </div>
+        </div>
+
+        {/* Smart Scheduler Section */}
+        <div className="p-2.5 rounded-lg bg-secondary/40 border border-border space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-xs font-medium text-foreground">
+              <Clock className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Smart Scheduler (Programar Tarea)</span>
+            </div>
+            {scheduledAt && (
+              <button
+                type="button"
+                onClick={() => setScheduledAt(null)}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline"
+              >
+                Limpiar (Ejecutar Ya)
+              </button>
+            )}
+          </div>
+          <input
+            type="datetime-local"
+            value={scheduledAt ? scheduledAt.slice(0, 16) : ""}
+            onChange={(e) => {
+              if (e.target.value) {
+                setScheduledAt(new Date(e.target.value).toISOString());
+              } else {
+                setScheduledAt(null);
+              }
+            }}
+            className="w-full bg-secondary/80 border border-border rounded-md px-2.5 py-1 text-xs text-foreground focus:outline-none focus:border-cyan-400"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            {scheduledAt
+              ? `Se programará para iniciar automáticamente el ${new Date(scheduledAt).toLocaleString()}.`
+              : "Dejalo vacío para iniciar la migración inmediatamente."}
+          </p>
         </div>
 
         {/* Technical Safeguards */}
@@ -100,9 +139,16 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
             size="sm"
             onClick={onConfirm}
             disabled={isStarting}
-            className="h-8 text-xs"
+            className={cn(
+              "h-8 text-xs",
+              scheduledAt ? "bg-cyan-600 hover:bg-cyan-700 text-white" : ""
+            )}
           >
-            {isStarting ? "Iniciando..." : "Iniciar Migración"}
+            {isStarting
+              ? "Procesando..."
+              : scheduledAt
+              ? "Programar Migración"
+              : "Iniciar Migración"}
           </Button>
         </DialogFooter>
       </DialogContent>

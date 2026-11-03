@@ -86,6 +86,7 @@ export const JobsView: React.FC = () => {
   const selectJob = useJobsStore((state) => state.selectJob);
   const pauseJob = useJobsStore((state) => state.pauseJob);
   const resumeJob = useJobsStore((state) => state.resumeJob);
+  const runNow = useJobsStore((state) => state.runNow);
   const cancelJob = useJobsStore((state) => state.cancelJob);
   const retryFailed = useJobsStore((state) => state.retryFailed);
   const deleteJob = useJobsStore((state) => state.deleteJob);
@@ -126,6 +127,12 @@ export const JobsView: React.FC = () => {
     const ok = await resumeJob(jobId);
     if (ok) showFeedback("Trabajo reanudado en segundo plano.");
     else showFeedback("Error al reanudar el trabajo.", true);
+  };
+
+  const handleRunNow = async (jobId: string) => {
+    const ok = await runNow(jobId);
+    if (ok) showFeedback("Trabajo programado iniciado inmediatamente.");
+    else showFeedback("Error al iniciar el trabajo programado.", true);
   };
 
   const handleCancel = async (jobId: string) => {
@@ -224,6 +231,12 @@ export const JobsView: React.FC = () => {
 
   const getStatusBadge = (status: JobStatus) => {
     switch (status) {
+      case "SCHEDULED":
+        return (
+          <Badge variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/10 text-[10px]">
+            <Clock className="w-3 h-3 mr-1 text-cyan-400" /> Programado
+          </Badge>
+        );
       case "RUNNING":
         return (
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10 text-[10px] animate-pulse">
@@ -492,6 +505,7 @@ export const JobsView: React.FC = () => {
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
               {[
                 { id: "ALL", label: "Todos" },
+                { id: "SCHEDULED", label: "Programados" },
                 { id: "RUNNING", label: "En Ejecución" },
                 { id: "PAUSED", label: "Pausados" },
                 { id: "FAILED", label: "Fallidos" },
@@ -580,6 +594,11 @@ export const JobsView: React.FC = () => {
                               <Clock className="w-3 h-3" />
                               <span>{formatDate(job.created_at)}</span>
                             </div>
+                            {job.scheduled_at && (
+                              <div className="text-[10px] text-cyan-400 font-mono flex items-center gap-1 mt-0.5" title="Horario programado de inicio">
+                                <span>⏰ {formatDate(job.scheduled_at)}</span>
+                              </div>
+                            )}
                           </TableCell>
 
                           {/* Canales */}
@@ -640,8 +659,19 @@ export const JobsView: React.FC = () => {
                                 Cola
                               </Button>
 
-                              {/* Pausar / Reanudar */}
-                              {job.status === "RUNNING" ? (
+                              {/* Pausar / Reanudar / Iniciar Ya */}
+                              {job.status === "SCHEDULED" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRunNow(job.job_id)}
+                                  className="h-7 px-2 text-xs border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 font-sans"
+                                  title="Iniciar ejecución inmediata sin esperar"
+                                >
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Iniciar Ya
+                                </Button>
+                              ) : job.status === "RUNNING" ? (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -689,10 +719,11 @@ export const JobsView: React.FC = () => {
                                 </Button>
                               )}
 
-                              {/* Eliminar si terminó, falló o canceló */}
+                              {/* Eliminar si terminó, falló, canceló o está programado */}
                               {(job.status === "COMPLETED" ||
                                 job.status === "FAILED" ||
                                 job.status === "CANCELLED" ||
+                                job.status === "SCHEDULED" ||
                                 job.status === "PAUSED") && (
                                 <Button
                                   variant="ghost"

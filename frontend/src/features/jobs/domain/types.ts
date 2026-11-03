@@ -1,5 +1,6 @@
 export type JobStatus =
   | "PENDING"
+  | "SCHEDULED"
   | "RUNNING"
   | "PAUSED"
   | "PAUSED_FLOOD_WAIT"
@@ -16,6 +17,7 @@ export interface JobItem {
   processed_videos: number;
   last_processed_id: number | null;
   created_at: string | null;
+  scheduled_at: string | null;
   is_full_migration: boolean;
   source_title: string | null;
   target_title: string | null;

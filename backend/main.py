@@ -15,6 +15,7 @@ from backend.presentation.api.routers.analytics import router as analytics_route
 from backend.presentation.api.routers.sync import router as sync_router
 from backend.presentation.api.routers.billing import router as billing_router
 from backend.presentation.api.routers.video_processing import router as video_processing_router
+from backend.presentation.api.routers.alerts import router as alerts_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
@@ -69,8 +70,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to start VideoProcessingService during startup: {e}")
 
+    # Initialize Smart Scheduler Service for planned migrations
+    from backend.presentation.dependencies import get_job_scheduler_service
+    try:
+        job_scheduler = await get_job_scheduler_service()
+        await job_scheduler.start()
+        logger.info("JobSchedulerService started successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to start JobSchedulerService during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
+
+    try:
+        job_scheduler = await get_job_scheduler_service()
+        await job_scheduler.stop()
+    except Exception:
+        pass
 
     try:
         live_sync = await get_live_sync_service()
@@ -111,6 +127,7 @@ app.include_router(dialogs_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(video_processing_router, prefix="/api")
+app.include_router(alerts_router, prefix="/api")
 app.include_router(billing_router)
 
 

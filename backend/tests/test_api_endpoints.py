@@ -162,6 +162,7 @@ async def test_kick_batch_channel_members_endpoint():
         app.dependency_overrides.pop(get_postgres_repository, None)
 
 
+
 @pytest.mark.asyncio
 async def test_gatekeeper_payment_webhook_endpoint():
     from unittest.mock import AsyncMock, MagicMock
@@ -204,6 +205,96 @@ async def test_gatekeeper_payment_webhook_endpoint():
     finally:
         app.dependency_overrides.pop(get_telegram_gateway, None)
         app.dependency_overrides.pop(get_postgres_repository, None)
+
+
+@pytest.mark.asyncio
+async def test_scheduled_job_creation_and_run_now():
+    from unittest.mock import AsyncMock, MagicMock
+    from backend.presentation.dependencies import get_current_user
+    from backend.domain.entities.user import User, Role
+
+    admin_user = User(
+        id=1,
+        email="admin@test.com",
+        password_hash="hash",
+        role=Role.ADMIN,
+    )
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            sched_time = "2026-12-31T23:59:59Z"
+            create_payload = {
+                "source_channel_id": -1001111111,
+                "target_channel_id": -1002222222,
+                "source_channel_title": "Source Sched",
+                "target_channel_title": "Target Sched",
+                "scheduled_at": sched_time,
+            }
+            res = await client.post("/api/jobs", json=create_payload)
+            assert res.status_code == 201
+            job_data = res.json()
+            assert job_data["status"] == "SCHEDULED"
+            assert job_data["scheduled_at"] == sched_time
+            job_id = job_data["job_id"]
+
+            # Trigger immediate execution
+            run_res = await client.post(f"/api/jobs/{job_id}/run-now")
+            assert run_res.status_code == 200
+            run_data = run_res.json()
+            assert run_data["status"] == "RUNNING"
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_alerts_endpoints_and_delivery():
+    from unittest.mock import AsyncMock, MagicMock
+    from backend.presentation.dependencies import get_current_user, get_telegram_gateway
+    from backend.domain.entities.user import User, Role
+
+    admin_user = User(
+        id=1,
+        email="admin@test.com",
+        password_hash="hash",
+        role=Role.ADMIN,
+    )
+    mock_gateway = MagicMock()
+    mock_gateway.send_direct_message = AsyncMock(return_value=True)
+
+    app.dependency_overrides[get_current_user] = lambda: admin_user
+    app.dependency_overrides[get_telegram_gateway] = lambda: mock_gateway
+
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # GET alerts config
+            cfg_res = await client.get("/api/alerts/config")
+            assert cfg_res.status_code == 200
+            cfg_data = cfg_res.json()
+            assert "config" in cfg_data
+            assert cfg_data["config"]["notify_flood_wait"] is True
+
+            # POST alerts test
+            test_res = await client.post(
+                "/api/alerts/test",
+                json={
+                    "recipient": "@test_admin",
+                    "severity": "WARNING",
+                    "custom_message": "Test operational alert message",
+                },
+            )
+            assert test_res.status_code == 200
+            test_data = test_res.json()
+            assert test_data["success"] is True
+            assert test_data["delivered_to"] == "@test_admin"
+            mock_gateway.send_direct_message.assert_awaited_once()
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_telegram_gateway, None)
+
+
 
 
 

@@ -93,7 +93,8 @@ export const migrationApi = {
     targetAccountId?: number,
     captionRules?: CaptionRules | null,
     dripDelaySeconds?: number,
-    mediaFilterRules?: MediaFilterRules | null
+    mediaFilterRules?: MediaFilterRules | null,
+    scheduledAt?: string | null
   ): Promise<MigrationJob> {
     const payload: {
       source_channel_id: number;
@@ -106,6 +107,7 @@ export const migrationApi = {
       caption_rules?: CaptionRules | null;
       drip_delay_seconds?: number;
       media_filter_rules?: MediaFilterRules | null;
+      scheduled_at?: string | null;
     } = {
       source_channel_id: sourceChannelId,
       target_channel_id: targetChannelId,
@@ -133,6 +135,9 @@ export const migrationApi = {
     }
     if (mediaFilterRules) {
       payload.media_filter_rules = mediaFilterRules;
+    }
+    if (scheduledAt) {
+      payload.scheduled_at = scheduledAt;
     }
 
     const res = await fetch(`${API_BASE_URL}/jobs`, {

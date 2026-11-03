@@ -84,6 +84,32 @@ async def test_list_and_manage_jobs():
             zombie_check = await repo.get_job("zombie-1")
             assert zombie_check.status == JobStatus.PAUSED
 
+            # Test JobSchedulerService trigger
+            from backend.application.services.job_scheduler_service import JobSchedulerService
+            from unittest.mock import MagicMock
+            mock_uc = MagicMock()
+            mock_bc = MagicMock()
+
+            sched_job = MigrationJob(
+                job_id="sched-test-1",
+                source_id=-1,
+                target_id=-2,
+                status=JobStatus.SCHEDULED,
+                scheduled_at="2020-01-01T00:00:00Z",  # In the past -> should trigger immediately
+            )
+            await repo.create_job(sched_job)
+
+            scheduler_service = JobSchedulerService(
+                job_repo=repo,
+                use_case=mock_uc,
+                broadcaster=mock_bc,
+                poll_interval=1.0,
+            )
+            triggered = await scheduler_service.check_and_trigger_scheduled_jobs()
+            assert "sched-test-1" in triggered
+            updated_sched = await repo.get_job("sched-test-1")
+            assert updated_sched.status == JobStatus.RUNNING
+
         app.dependency_overrides.clear()
     finally:
         if os.path.exists(db_path):

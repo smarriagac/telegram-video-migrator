@@ -1,5 +1,6 @@
 export type JobStatus =
   | "PENDING"
+  | "SCHEDULED"
   | "RUNNING"
   | "PAUSED_FLOOD_WAIT"
   | "COMPLETED"
@@ -43,6 +44,7 @@ export interface MigrationJob {
   processed_videos: number;
   last_processed_id: number | null;
   created_at?: string;
+  scheduled_at?: string | null;
   source_account_id?: number;
   target_account_id?: number;
   caption_rules?: CaptionRules | null;

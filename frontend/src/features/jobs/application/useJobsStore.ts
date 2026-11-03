@@ -21,6 +21,7 @@ interface JobsState {
   selectJob: (job: JobItem | null) => Promise<void>;
   pauseJob: (jobId: string) => Promise<boolean>;
   resumeJob: (jobId: string) => Promise<boolean>;
+  runNow: (jobId: string) => Promise<boolean>;
   cancelJob: (jobId: string) => Promise<boolean>;
   retryFailed: (jobId: string) => Promise<number>;
   deleteJob: (jobId: string) => Promise<boolean>;
@@ -102,6 +103,17 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   resumeJob: async (jobId: string) => {
     try {
       await jobsApi.resumeJob(jobId);
+      await get().fetchJobs();
+      return true;
+    } catch (err: any) {
+      set({ error: err.message });
+      return false;
+    }
+  },
+
+  runNow: async (jobId: string) => {
+    try {
+      await jobsApi.runScheduledJobNow(jobId);
       await get().fetchJobs();
       return true;
     } catch (err: any) {

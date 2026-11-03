@@ -72,6 +72,18 @@ export const jobsApi = {
     return res.json();
   },
 
+  async runScheduledJobNow(jobId: string): Promise<JobItem> {
+    const res = await fetch(`${API_BASE_URL}/jobs/${jobId}/run-now`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al iniciar el trabajo programado");
+    }
+    return res.json();
+  },
+
   async cancelJob(jobId: string): Promise<{ job_id: string; status: string }> {
     const res = await fetch(`${API_BASE_URL}/jobs/${jobId}/cancel`, {
       method: "POST",

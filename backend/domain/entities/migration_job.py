@@ -8,6 +8,7 @@ class JobStatus(str, Enum):
     """Lifecycle statuses of a video migration job."""
 
     PENDING = "PENDING"
+    SCHEDULED = "SCHEDULED"
     RUNNING = "RUNNING"
     PAUSED = "PAUSED"
     PAUSED_FLOOD_WAIT = "PAUSED_FLOOD_WAIT"
@@ -29,6 +30,7 @@ class MigrationJob:
     last_processed_id: int | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    scheduled_at: str | None = None
     is_full_migration: bool = True
     source_title: str | None = None
     target_title: str | None = None

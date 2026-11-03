@@ -42,6 +42,7 @@ interface MigrationStore {
   captionRules: CaptionRules;
   dripDelaySeconds: number;
   mediaFilterRules: MediaFilterRules;
+  scheduledAt: string | null;
 
   // Actions
   fetchChannels: () => Promise<void>;
@@ -50,6 +51,7 @@ interface MigrationStore {
   setCaptionRules: (rules: Partial<CaptionRules>) => void;
   setDripDelaySeconds: (seconds: number) => void;
   setMediaFilterRules: (rules: Partial<MediaFilterRules>) => void;
+  setScheduledAt: (scheduledAt: string | null) => void;
   checkSyncStatus: () => Promise<void>;
   fetchAutoSyncStatus: () => Promise<void>;
   toggleAutoSync: (enabled: boolean) => Promise<void>;
@@ -114,6 +116,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     max_file_size_bytes: null,
     allowed_media_types: ["video", "photo", "document", "text"],
   },
+  scheduledAt: null,
 
   setCaptionRules: (rules) => {
     set((state) => ({
@@ -129,6 +132,10 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
     set((state) => ({
       mediaFilterRules: { ...state.mediaFilterRules, ...rules },
     }));
+  },
+
+  setScheduledAt: (scheduledAt) => {
+    set({ scheduledAt });
   },
 
   fetchChannels: async () => {
@@ -430,7 +437,7 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
   },
 
   startMigration: async () => {
-    const { selectedSourceId, selectedTargetId, selectedMessageIds, captionRules, dripDelaySeconds, mediaFilterRules } = get();
+    const { selectedSourceId, selectedTargetId, selectedMessageIds, captionRules, dripDelaySeconds, mediaFilterRules, scheduledAt } = get();
     if (!selectedSourceId || !selectedTargetId) {
       set({ error: "Please select both source and destination channels." });
       return null;
@@ -454,20 +461,26 @@ export const useMigrationStore = create<MigrationStore>((set, get) => ({
         targetChan?.account_id,
         captionRules,
         dripDelaySeconds,
-        mediaFilterRules
+        mediaFilterRules,
+        scheduledAt
       );
       set({
         activeJob: job,
         isStartingJob: false,
         progress: {
           job_id: job.job_id,
-          status: "PENDING",
+          status: scheduledAt ? "SCHEDULED" : "PENDING",
           percentage: 0,
           processed_videos: 0,
           total_videos: job.total_videos || selectedMessageIds.length || 0,
         },
       });
-      get().addLog(`Migration job initialized: ${job.job_id}`, "info");
+      get().addLog(
+        scheduledAt
+          ? `Migration job scheduled for ${new Date(scheduledAt).toLocaleString()}: ${job.job_id}`
+          : `Migration job initialized: ${job.job_id}`,
+        "info"
+      );
       get().fetchQueueStatus(job.job_id);
       return job.job_id;
     } catch (err: any) {

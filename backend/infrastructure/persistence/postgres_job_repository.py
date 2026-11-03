@@ -81,6 +81,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS caption_rules JSONB;
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS drip_delay_seconds INTEGER DEFAULT 0;
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS media_filter_rules JSONB;
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE;
 
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id VARCHAR(64) NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
@@ -175,6 +176,14 @@ class PostgresJobRepository(JobRepositoryPort):
         status_val = job.status.value if isinstance(job.status, JobStatus) else str(job.status)
         caption_rules_json = json.dumps(job.caption_rules) if job.caption_rules else None
         filter_rules_json = json.dumps(job.media_filter_rules) if job.media_filter_rules else None
+        sched_dt = None
+        if job.scheduled_at:
+            try:
+                from datetime import datetime
+                sched_dt = datetime.fromisoformat(job.scheduled_at.replace("Z", "+00:00"))
+            except Exception:
+                sched_dt = None
+
         async with self.pool.acquire() as conn:
             await conn.execute(
                 """
@@ -182,8 +191,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12, $13::jsonb, $14, $15::jsonb)
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules, scheduled_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12, $13::jsonb, $14, $15::jsonb, $16)
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
                     total_videos = EXCLUDED.total_videos,
@@ -197,6 +206,7 @@ class PostgresJobRepository(JobRepositoryPort):
                     caption_rules = EXCLUDED.caption_rules,
                     drip_delay_seconds = EXCLUDED.drip_delay_seconds,
                     media_filter_rules = EXCLUDED.media_filter_rules,
+                    scheduled_at = EXCLUDED.scheduled_at,
                     updated_at = NOW();
                 """,
                 job.job_id,
@@ -214,6 +224,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 caption_rules_json,
                 job.drip_delay_seconds,
                 filter_rules_json,
+                sched_dt,
             )
 
     async def update_job_progress(
@@ -302,6 +313,7 @@ class PostgresJobRepository(JobRepositoryPort):
             caption_rules=parsed_rules,
             drip_delay_seconds=drip_sec,
             media_filter_rules=parsed_filter,
+            scheduled_at=str(row["scheduled_at"]) if "scheduled_at" in row and row["scheduled_at"] is not None else None,
         )
 
     async def get_job(self, job_id: str) -> MigrationJob | None:
@@ -316,7 +328,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                       source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                       source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
+                       scheduled_at
                 FROM migration_jobs
                 WHERE id = $1;
                 """,
@@ -349,7 +362,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     SELECT id, source_channel_id, target_channel_id, status,
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
+                           scheduled_at
                     FROM migration_jobs
                     WHERE status = $1
                     ORDER BY created_at DESC
@@ -366,7 +380,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     SELECT id, source_channel_id, target_channel_id, status,
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
+                           scheduled_at
                     FROM migration_jobs
                     ORDER BY created_at DESC
                     LIMIT $1 OFFSET $2;

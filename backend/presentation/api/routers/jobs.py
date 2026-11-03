@@ -37,6 +37,7 @@ class CreateJobRequest(BaseModel):
     caption_rules: dict | None = None
     drip_delay_seconds: int = 0
     media_filter_rules: dict | None = None
+    scheduled_at: str | None = None
 
 
 class JobResponse(BaseModel):
@@ -48,6 +49,7 @@ class JobResponse(BaseModel):
     processed_videos: int
     last_processed_id: int | None = None
     created_at: str | None = None
+    scheduled_at: str | None = None
     is_full_migration: bool = True
     source_title: str | None = None
     target_title: str | None = None
@@ -75,6 +77,7 @@ def _to_job_response(job: MigrationJob) -> JobResponse:
         processed_videos=job.processed_videos,
         last_processed_id=job.last_processed_id,
         created_at=job.created_at,
+        scheduled_at=job.scheduled_at,
         is_full_migration=job.is_full_migration,
         source_title=job.source_title,
         target_title=job.target_title,
@@ -116,6 +119,17 @@ def _dispatch_worker(
                     "message": f"Worker error: {str(e)}",
                 },
             )
+            try:
+                from backend.presentation.dependencies import get_alerting_service
+                alerting = await get_alerting_service()
+                await alerting.send_alert(
+                    title=f"Fallo en Job de Migración",
+                    message=f"Job {job_id[:8]} terminó en error: {str(e)}",
+                    severity="ERROR",
+                    recipient=os.getenv("ALERT_TELEGRAM_RECIPIENT", "@Smpyt"),
+                )
+            except Exception:
+                pass
 
     asyncio.create_task(run_worker())
 
@@ -156,11 +170,14 @@ async def start_job(
 
     job_id = str(uuid.uuid4())
     is_full = True if req.selected_message_ids is None or len(req.selected_message_ids) == 0 else False
+    is_scheduled = bool(req.scheduled_at)
+    initial_status = JobStatus.SCHEDULED if is_scheduled else JobStatus.PENDING
+
     job = MigrationJob(
         job_id=job_id,
         source_id=req.source_channel_id,
         target_id=req.target_channel_id,
-        status=JobStatus.PENDING,
+        status=initial_status,
         is_full_migration=is_full,
         source_title=req.source_channel_title,
         target_title=req.target_channel_title,
@@ -169,6 +186,7 @@ async def start_job(
         caption_rules=req.caption_rules,
         drip_delay_seconds=req.drip_delay_seconds,
         media_filter_rules=req.media_filter_rules,
+        scheduled_at=req.scheduled_at,
     )
     await repo.create_job(job)
 
@@ -178,7 +196,7 @@ async def start_job(
                 id=None,
                 user_id=None,
                 user_email=None,
-                action="MIGRATION_START",
+                action="MIGRATION_SCHEDULED" if is_scheduled else "MIGRATION_START",
                 resource=f"job:{job_id}",
                 details={
                     "source_id": req.source_channel_id,
@@ -190,19 +208,21 @@ async def start_job(
                     "caption_rules": req.caption_rules,
                     "drip_delay_seconds": req.drip_delay_seconds,
                     "media_filter_rules": req.media_filter_rules,
+                    "scheduled_at": req.scheduled_at,
                 },
             )
         )
     except Exception as e:
         logger.warning(f"Could not record audit log for migration start: {e}")
 
-    _dispatch_worker(
-        job_id=job_id,
-        use_case=use_case,
-        repo=repo,
-        broadcaster=broadcaster,
-        selected_message_ids=req.selected_message_ids,
-    )
+    if not is_scheduled:
+        _dispatch_worker(
+            job_id=job_id,
+            use_case=use_case,
+            repo=repo,
+            broadcaster=broadcaster,
+            selected_message_ids=req.selected_message_ids,
+        )
 
     return _to_job_response(job)
 
@@ -400,6 +420,26 @@ async def resume_job(
     broadcaster: EventBroadcaster = Depends(get_broadcaster),
 ) -> JobResponse:
     """Resume execution of a paused or pending migration job."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job '{job_id}' not found.",
+        )
+    await repo.set_job_status(job_id, JobStatus.RUNNING)
+    _dispatch_worker(job_id, use_case, repo, broadcaster)
+    job.status = JobStatus.RUNNING
+    return _to_job_response(job)
+
+
+@router.post("/{job_id}/run-now", response_model=JobResponse)
+async def run_scheduled_job_now(
+    job_id: str,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+) -> JobResponse:
+    """Trigger a scheduled migration job immediately without waiting for its scheduled time."""
     job = await repo.get_job(job_id)
     if not job:
         raise HTTPException(

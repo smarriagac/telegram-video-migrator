@@ -90,6 +90,10 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE migration_jobs ADD COLUMN media_filter_rules TEXT;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN scheduled_at TIMESTAMP;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id TEXT NOT NULL,
@@ -178,8 +182,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_title, target_title,
-                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?);
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules, scheduled_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     job.job_id,
@@ -199,6 +203,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     rules_json,
                     job.drip_delay_seconds,
                     filter_json,
+                    job.scheduled_at,
                 ),
             )
             await conn.commit()
@@ -272,6 +277,7 @@ class SQLiteJobRepository(JobRepositoryPort):
             caption_rules=parsed_rules,
             drip_delay_seconds=drip_sec,
             media_filter_rules=parsed_filter,
+            scheduled_at=str(row[17]) if len(row) > 17 and row[17] is not None else None,
         )
 
     async def get_job(self, job_id: str) -> MigrationJob | None:
@@ -282,7 +288,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SELECT id, source_channel_id, target_channel_id, status,
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_title, target_title,
-                       source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                       source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
+                       scheduled_at
                 FROM migration_jobs
                 WHERE id = ?;
                 """,
@@ -311,7 +318,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     SELECT id, source_channel_id, target_channel_id, status,
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_title, target_title,
-                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
+                           scheduled_at
                     FROM migration_jobs
                     WHERE status = ?
                     ORDER BY created_at DESC
@@ -329,7 +337,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     SELECT id, source_channel_id, target_channel_id, status,
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_title, target_title,
-                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules
+                           source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
+                           scheduled_at
                     FROM migration_jobs
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?;

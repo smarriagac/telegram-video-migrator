@@ -1369,6 +1369,19 @@ async def kick_batch_channel_members(
     except Exception as audit_err:
         logger.warning(f"Failed to record audit log for batch kick: {audit_err}")
 
+    if kicked_count > 0:
+        try:
+            from backend.presentation.dependencies import get_alerting_service
+            alerting = await get_alerting_service()
+            await alerting.send_alert(
+                title="Expulsión Masiva de Miembros VIP",
+                message=f"Se expulsaron con éxito {kicked_count} miembros VIP ({failed_count} fallidos). Motivo: {payload.reason or 'Sin motivo'}.",
+                severity="WARNING",
+                recipient=os.getenv("ALERT_TELEGRAM_RECIPIENT", "@Smpyt"),
+            )
+        except Exception:
+            pass
+
     return {
         "success": True,
         "total_requested": len(payload.items),
@@ -1519,6 +1532,19 @@ async def process_gatekeeper_payment_webhook(
                 )
     except Exception as db_err:
         logger.warning(f"Error persisting webhook membership: {db_err}")
+
+    try:
+        from backend.presentation.dependencies import get_alerting_service
+        alerting = await get_alerting_service()
+        amt_info = f" ({payload.amount} {payload.currency})" if payload.amount else ""
+        await alerting.send_alert(
+            title="Nueva Suscripción VIP",
+            message=f"Se procesó un pago de {target}{amt_info} vía {payload.payment_provider} para el canal {payload.channel_id}.\nEnlace generado: {membership.invite_link}\nDM enviado: {'Sí' if dm_sent else 'No'}",
+            severity="INFO",
+            recipient=os.getenv("ALERT_TELEGRAM_RECIPIENT", "@Smpyt"),
+        )
+    except Exception as al_err:
+        logger.debug(f"Could not dispatch payment alert: {al_err}")
 
     return {
         "success": True,

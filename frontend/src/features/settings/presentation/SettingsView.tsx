@@ -10,8 +10,13 @@ import {
   CheckCircle2,
   XCircle,
   Trash2,
+  Bell,
+  Send,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
+import { Switch } from "@/shared/components/ui/switch";
+import { alertsApi } from "../infrastructure/alertsApi";
 import {
   Table,
   TableHeader,
@@ -36,10 +41,30 @@ import { cn } from "@/shared/lib/utils";
 
 export const SettingsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: Active tab navigation between Credentials and User Management
-  const [activeTab, setActiveTab] = useState<"credentials" | "users">("credentials");
-  // Hook 2: Temporary action feedback banner
-  const [feedback, setFeedback] = useState<{ message: string; isError?: boolean } | null>(null);
+  // Hook 1: Active tab navigation between Credentials, Users and Alerts
+  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts">("credentials");
+  // Hook 2: Consolidated local UI, alerts configuration and temporary action feedback banner
+  const [localState, setLocalState] = useState<{
+    feedback: { message: string; isError?: boolean } | null;
+    alertRecipient: string;
+    alertChannelId: string;
+    notifyFloodWait: boolean;
+    notifyJobFailures: boolean;
+    notifyVipPurchases: boolean;
+    notifyEvictions: boolean;
+    isTestingAlert: boolean;
+    isSavingAlerts: boolean;
+  }>({
+    feedback: null,
+    alertRecipient: "@Smpyt",
+    alertChannelId: "",
+    notifyFloodWait: true,
+    notifyJobFailures: true,
+    notifyVipPurchases: true,
+    notifyEvictions: true,
+    isTestingAlert: false,
+    isSavingAlerts: false,
+  });
 
   const accounts = useAuthStore((state) => state.accounts);
   const usersList = useAuthStore((state) => state.usersList);
@@ -57,12 +82,63 @@ export const SettingsView: React.FC = () => {
     loadAccounts();
     if (user?.role === "ADMIN") {
       loadUsers();
+      alertsApi.getAlertConfig().then((res) => {
+        if (res.config) {
+          setLocalState((prev) => ({
+            ...prev,
+            alertRecipient: res.config.alert_recipient || "@Smpyt",
+            alertChannelId: res.config.alert_channel_id ? String(res.config.alert_channel_id) : "",
+            notifyFloodWait: res.config.notify_flood_wait ?? true,
+            notifyJobFailures: res.config.notify_job_failures ?? true,
+            notifyVipPurchases: res.config.notify_vip_purchases ?? true,
+            notifyEvictions: res.config.notify_evictions ?? true,
+          }));
+        }
+      }).catch(() => {});
     }
   }, [loadAccounts, loadUsers, user]);
 
   const showFeedback = (message: string, isError = false) => {
-    setFeedback({ message, isError });
-    setTimeout(() => setFeedback(null), 3500);
+    setLocalState((prev) => ({ ...prev, feedback: { message, isError } }));
+    setTimeout(() => {
+      setLocalState((prev) => ({ ...prev, feedback: null }));
+    }, 3500);
+  };
+
+  const handleSaveAlerts = async () => {
+    setLocalState((prev) => ({ ...prev, isSavingAlerts: true }));
+    try {
+      await alertsApi.saveAlertConfig({
+        alert_recipient: localState.alertRecipient.trim() || null,
+        alert_channel_id: localState.alertChannelId.trim() ? Number(localState.alertChannelId.trim()) : null,
+        notify_flood_wait: localState.notifyFloodWait,
+        notify_job_failures: localState.notifyJobFailures,
+        notify_vip_purchases: localState.notifyVipPurchases,
+        notify_evictions: localState.notifyEvictions,
+      });
+      showFeedback("Configuración de alertas guardada con éxito.");
+    } catch (err: any) {
+      showFeedback(err.message || "Error al guardar alertas", true);
+    } finally {
+      setLocalState((prev) => ({ ...prev, isSavingAlerts: false }));
+    }
+  };
+
+  const handleTestAlert = async () => {
+    setLocalState((prev) => ({ ...prev, isTestingAlert: true }));
+    try {
+      const res = await alertsApi.sendTestAlert({
+        recipient: localState.alertRecipient.trim() || undefined,
+        channel_id: localState.alertChannelId.trim() ? Number(localState.alertChannelId.trim()) : undefined,
+        severity: "INFO",
+        custom_message: "Prueba de canal y alertas operativas de Telegram Hub. Monitoreo en tiempo real 100% operativo.",
+      });
+      showFeedback(`¡Alerta entregada a ${res.delivered_to}! Verificá tu Telegram.`);
+    } catch (err: any) {
+      showFeedback(err.message || "Error al enviar alerta de prueba", true);
+    } finally {
+      setLocalState((prev) => ({ ...prev, isTestingAlert: false }));
+    }
   };
 
   const handleDeleteAccount = async (id: number, name: string) => {
@@ -208,22 +284,34 @@ export const SettingsView: React.FC = () => {
               <Users className="w-3.5 h-3.5" />
               Gestión de Usuarios (RBAC)
             </button>
+            <button
+              onClick={() => setActiveTab("alerts")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                activeTab === "alerts"
+                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Bell className="w-3.5 h-3.5" />
+              Alertas y Monitoreo MTProto
+            </button>
           </div>
         )}
       </ViewHeader>
 
       {/* Global Feedback Banner */}
-      {feedback && (
+      {localState.feedback && (
         <div
           className={cn(
             "p-2.5 rounded-lg text-xs flex items-center gap-2 transition-all shrink-0",
-            feedback.isError
+            localState.feedback.isError
               ? "bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400"
               : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
           )}
         >
-          {feedback.isError ? <XCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
-          <span>{feedback.message}</span>
+          {localState.feedback.isError ? <XCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
+          <span>{localState.feedback.message}</span>
         </div>
       )}
 
@@ -586,6 +674,151 @@ export const SettingsView: React.FC = () => {
               </Table>
             </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: Operational Alerts and Proactive Monitoring */}
+      {activeTab === "alerts" && user?.role === "ADMIN" && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+          {/* Card 1: Delivery Channel & Telegram Recipient */}
+          <div className="lg:col-span-6 bg-card border border-border rounded-lg p-4 shadow-sm space-y-4">
+            <div className="flex items-center space-x-2.5 pb-2 border-b border-border">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Canal de Entrega Telegram (MTProto)</h3>
+                <p className="text-xs text-muted-foreground">
+                  Configurá el usuario o canal de administración que recibirá las alertas en tiempo real.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">
+                  Destinatario Directo (@username o ID de Telegram)
+                </label>
+                <input
+                  type="text"
+                  placeholder="@Smpyt o 809438653"
+                  value={localState.alertRecipient}
+                  onChange={(e) => setLocalState((prev) => ({ ...prev, alertRecipient: e.target.value }))}
+                  className="w-full bg-secondary/60 border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-400 font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  La cuenta MTProto enviará un mensaje privado con el detalle del incidente a este destinatario.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-foreground">
+                  ID de Canal de Difusión Administrativo (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="-100..."
+                  value={localState.alertChannelId}
+                  onChange={(e) => setLocalState((prev) => ({ ...prev, alertChannelId: e.target.value }))}
+                  className="w-full bg-secondary/60 border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-cyan-400 font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Si tenés un canal privado para el equipo de operaciones, agregá el ID con prefijo -100.
+                </p>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <Button
+                  onClick={handleTestAlert}
+                  disabled={localState.isTestingAlert}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex items-center justify-center gap-1.5"
+                >
+                  <Send className={cn("w-3.5 h-3.5", localState.isTestingAlert && "animate-spin")} />
+                  <span>{localState.isTestingAlert ? "Enviando..." : "Enviar Alerta de Prueba"}</span>
+                </Button>
+                <Button
+                  onClick={handleSaveAlerts}
+                  disabled={localState.isSavingAlerts}
+                  size="sm"
+                  className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700 text-white flex items-center justify-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{localState.isSavingAlerts ? "Guardando..." : "Guardar Configuración"}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Monitored Events & Triggers */}
+          <div className="lg:col-span-6 bg-card border border-border rounded-lg p-4 shadow-sm space-y-4">
+            <div className="flex items-center space-x-2.5 pb-2 border-b border-border">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <ShieldAlert className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Eventos Críticos Monitoreados</h3>
+                <p className="text-xs text-muted-foreground">
+                  Elegí qué tipo de sucesos disparan notificaciones prioritarias a Telegram.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/40 border border-border">
+                <div className="space-y-0.5 pr-2">
+                  <span className="text-xs font-medium text-foreground block">Rate-Limits y FloodWait</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Notifica cuando Telegram bloquea temporalmente por velocidad de subida/copia.
+                  </span>
+                </div>
+                <Switch
+                  checked={localState.notifyFloodWait}
+                  onCheckedChange={(checked) => setLocalState((prev) => ({ ...prev, notifyFloodWait: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/40 border border-border">
+                <div className="space-y-0.5 pr-2">
+                  <span className="text-xs font-medium text-foreground block">Fallos en Jobs de Migración</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Alerta cuando un job termina con estado FAILED debido a un error irrecuperable.
+                  </span>
+                </div>
+                <Switch
+                  checked={localState.notifyJobFailures}
+                  onCheckedChange={(checked) => setLocalState((prev) => ({ ...prev, notifyJobFailures: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/40 border border-border">
+                <div className="space-y-0.5 pr-2">
+                  <span className="text-xs font-medium text-foreground block">Compras y Altas VIP (Gatekeeper)</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Avisa en tiempo real cada vez que un webhook de Stripe/Crypto procesa un pase VIP.
+                  </span>
+                </div>
+                <Switch
+                  checked={localState.notifyVipPurchases}
+                  onCheckedChange={(checked) => setLocalState((prev) => ({ ...prev, notifyVipPurchases: checked }))}
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-secondary/40 border border-border">
+                <div className="space-y-0.5 pr-2">
+                  <span className="text-xs font-medium text-foreground block">Expulsiones Masivas</span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Notifica auditoría al ejecutar la expulsión por lote de miembros VIP expirados.
+                  </span>
+                </div>
+                <Switch
+                  checked={localState.notifyEvictions}
+                  onCheckedChange={(checked) => setLocalState((prev) => ({ ...prev, notifyEvictions: checked }))}
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
