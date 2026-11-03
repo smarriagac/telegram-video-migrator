@@ -913,6 +913,90 @@ class TelethonAdapter(TelegramGatewayPort):
             logger.error(f"Error editing message {message_id} in channel {channel_id}: {e}")
             raise
 
+    async def send_media_album(
+        self,
+        target_channel_id: int,
+        source_channel_id: int,
+        message_ids: list[int],
+        caption: str,
+        account_id: int | None = None,
+        schedule_date: Any = None,
+    ) -> list[int]:
+        """Post multiple media items from source channel as a grouped Telegram album (MediaGroup).
+
+        Enforces 2 <= len(message_ids) <= 10. Links media by reference without download if possible;
+        otherwise falls back to download/upload.
+        """
+        if not message_ids or len(message_ids) < 2:
+            raise ValueError("Telegram albums require at least 2 media items.")
+        if len(message_ids) > 10:
+            raise ValueError("Telegram albums allow a maximum of 10 media items.")
+
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+
+        try:
+            # Fetch source messages
+            messages = await client.get_messages(source_channel_id, ids=message_ids)
+            # Retain non-null messages with media
+            media_msgs = [m for m in messages if m and getattr(m, "media", None)]
+            if len(media_msgs) < 2:
+                raise ValueError(
+                    f"Only {len(media_msgs)} valid media items found among the requested IDs. An album requires at least 2."
+                )
+
+            try:
+                sent_msgs = await client.send_file(
+                    target_channel_id,
+                    file=media_msgs,
+                    caption=caption or "",
+                    schedule=schedule_date,
+                )
+                if isinstance(sent_msgs, list):
+                    return [m.id for m in sent_msgs]
+                return [sent_msgs.id]
+            except (FloodWaitError, ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError):
+                raise
+            except Exception as ref_err:
+                logger.info(
+                    f"Reference album send failed ({ref_err}), attempting resilient download/upload fallback..."
+                )
+                import tempfile
+                import os
+
+                downloaded_files = []
+                try:
+                    for m in media_msgs:
+                        ext = ".mp4" if getattr(m, "video", None) else (".jpg" if getattr(m, "photo", None) else "")
+                        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                            tmp_path = tmp.name
+                        dl = await client.download_media(m, file=tmp_path)
+                        downloaded_files.append(dl if dl and os.path.exists(dl) else tmp_path)
+
+                    sent_msgs = await client.send_file(
+                        target_channel_id,
+                        file=downloaded_files,
+                        caption=caption or "",
+                        schedule=schedule_date,
+                    )
+                    if isinstance(sent_msgs, list):
+                        return [m.id for m in sent_msgs]
+                    return [sent_msgs.id]
+                finally:
+                    for f in downloaded_files:
+                        if os.path.exists(f):
+                            try:
+                                os.remove(f)
+                            except Exception:
+                                pass
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error publishing album to channel {target_channel_id}: {e}")
+            raise
+
     async def kick_chat_member(
         self, channel_id: int, user_id: int, account_id: int | None = None
     ) -> bool:

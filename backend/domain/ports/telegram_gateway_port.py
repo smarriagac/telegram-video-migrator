@@ -119,6 +119,18 @@ class TelegramGatewayPort(ABC):
         """Edit the caption or text of an existing channel message."""
         raise NotImplementedError
 
+    async def send_media_album(
+        self,
+        target_channel_id: int,
+        source_channel_id: int,
+        message_ids: list[int],
+        caption: str,
+        account_id: int | None = None,
+        schedule_date: Any = None,
+    ) -> list[int]:
+        """Post multiple media items from source channel as a grouped Telegram album (MediaGroup)."""
+        raise NotImplementedError
+
     async def kick_chat_member(
         self, channel_id: int, user_id: int, account_id: int | None = None
     ) -> bool:

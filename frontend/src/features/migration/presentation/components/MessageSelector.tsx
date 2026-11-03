@@ -9,6 +9,7 @@ import {
   FileText,
   Grid,
   Image as ImageIcon,
+  Layers,
   List,
   Loader2,
   Maximize2,
@@ -27,6 +28,7 @@ import { MediaGallerySkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import { VideoSanitizerModal } from "./VideoSanitizerModal";
 import { BatchSanitizerModal } from "./BatchSanitizerModal";
+import { CreateAlbumModal } from "./CreateAlbumModal";
 
 function formatBytes(bytes: number | null): string {
   if (!bytes || bytes <= 0) return "";
@@ -139,12 +141,19 @@ export const MessageSelector: React.FC = () => {
     previewModalMsg: ChannelMessageItem | null;
     sanitizerMsg: ChannelMessageItem | null;
     batchSanitizerOpen: boolean;
+    createAlbumOpen: boolean;
   }>({
     viewMode: "grid",
     previewModalMsg: null,
     sanitizerMsg: null,
     batchSanitizerOpen: false,
+    createAlbumOpen: false,
   });
+
+  const selectedMessagesList = useMemo(() => {
+    const idSet = new Set(selectedMessageIds);
+    return sourceMessages.filter((m) => idSet.has(m.id));
+  }, [sourceMessages, selectedMessageIds]);
 
   const clonedMsgIds = useMemo(() => new Set(clonedItems.map((c) => c.source_message_id)), [clonedItems]);
 
@@ -434,16 +443,40 @@ export const MessageSelector: React.FC = () => {
           </Button>
 
           {selectedMessageIds.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setUiState((prev) => ({ ...prev, batchSanitizerOpen: true }))}
-              className="h-7.5 px-2.5 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10 font-mono gap-1.5 shadow-sm"
-              title="Quitar marcas de agua en lote con FFmpeg e IA para todos los elementos seleccionados"
-            >
-              <Wand2 className="w-3.5 h-3.5 text-purple-400" />
-              <span>Quitar Marcas ({selectedMessageIds.length})</span>
-            </Button>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUiState((prev) => ({ ...prev, createAlbumOpen: true }))}
+                className={cn(
+                  "h-7.5 px-2.5 text-xs font-mono gap-1.5 shadow-sm transition-all",
+                  selectedMessageIds.length >= 2 && selectedMessageIds.length <= 10
+                    ? "border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/10"
+                    : "border-border text-muted-foreground opacity-80"
+                )}
+                title={
+                  selectedMessageIds.length < 2
+                    ? "Seleccioná al menos 2 elementos para crear un álbum"
+                    : selectedMessageIds.length > 10
+                    ? "Telegram permite un máximo de 10 elementos por álbum"
+                    : "Agrupar en álbum con pie de foto / hashtag compartido"
+                }
+              >
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Agrupar Álbum ({selectedMessageIds.length})</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUiState((prev) => ({ ...prev, batchSanitizerOpen: true }))}
+                className="h-7.5 px-2.5 text-xs border-purple-500/40 text-purple-300 hover:bg-purple-500/10 font-mono gap-1.5 shadow-sm"
+                title="Quitar marcas de agua en lote con FFmpeg e IA para todos los elementos seleccionados"
+              >
+                <Wand2 className="w-3.5 h-3.5 text-purple-400" />
+                <span>Quitar Marcas ({selectedMessageIds.length})</span>
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -1076,6 +1109,24 @@ export const MessageSelector: React.FC = () => {
           sourceChannelId={selectedSourceId}
           channels={channels}
           selectedTargetId={selectedTargetId}
+        />
+      )}
+
+      {/* Create & Publish Telegram Album (MediaGroup) Modal */}
+      {selectedSourceId && uiState.createAlbumOpen && (
+        <CreateAlbumModal
+          isOpen={uiState.createAlbumOpen}
+          onClose={() => setUiState((prev) => ({ ...prev, createAlbumOpen: false }))}
+          sourceChannelId={selectedSourceId}
+          selectedMessages={selectedMessagesList}
+          channels={channels}
+          selectedTargetId={selectedTargetId}
+          onSuccess={() => {
+            deselectAllMessages();
+            if (selectedTargetId) {
+              checkSyncStatus();
+            }
+          }}
         />
       )}
     </div>

@@ -433,6 +433,111 @@ class EditMessageRequest(BaseModel):
     text: str
 
 
+class PublishAlbumRequest(BaseModel):
+    target_channel_id: int
+    message_ids: list[int]
+    caption: str = ""
+    account_id: int | None = None
+    target_account_id: int | None = None
+    scheduled_at: datetime | None = None
+
+
+class PublishAlbumResponse(BaseModel):
+    status: str
+    source_channel_id: int
+    target_channel_id: int
+    sent_message_ids: list[int]
+    caption: str
+    is_scheduled: bool
+
+
+@router.post("/{channel_id}/publish-album", response_model=PublishAlbumResponse, status_code=status.HTTP_201_CREATED)
+async def publish_album_endpoint(
+    channel_id: int,
+    req: PublishAlbumRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+) -> PublishAlbumResponse:
+    """Group 2 to 10 media messages from source channel and publish them as an album (MediaGroup) in target channel."""
+    if not req.message_ids or len(req.message_ids) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los álbumes de Telegram requieren al menos 2 elementos multimedia.",
+        )
+    if len(req.message_ids) > 10:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los álbumes de Telegram soportan un máximo de 10 elementos multimedia por grupo.",
+        )
+    if req.target_channel_id == channel_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El canal destino no puede ser idéntico al canal de origen.",
+        )
+
+    try:
+        sent_ids = await gateway.send_media_album(
+            target_channel_id=req.target_channel_id,
+            source_channel_id=channel_id,
+            message_ids=req.message_ids,
+            caption=req.caption,
+            account_id=req.account_id,
+            schedule_date=req.scheduled_at,
+        )
+
+        try:
+            await audit_repo.record_audit_log(
+                AuditLog(
+                    id=None,
+                    user_id=None,
+                    user_email=None,
+                    action="ALBUM_PUBLISHED",
+                    resource=f"channel:{req.target_channel_id}",
+                    details={
+                        "source_channel_id": channel_id,
+                        "target_channel_id": req.target_channel_id,
+                        "source_message_ids": req.message_ids,
+                        "sent_message_ids": sent_ids,
+                        "caption": req.caption,
+                        "is_scheduled": bool(req.scheduled_at),
+                        "scheduled_at": req.scheduled_at.isoformat() if req.scheduled_at else None,
+                    },
+                )
+            )
+        except Exception as audit_err:
+            logger.warning(f"Could not record audit log for album publish: {audit_err}")
+
+        return PublishAlbumResponse(
+            status="success",
+            source_channel_id=channel_id,
+            target_channel_id=req.target_channel_id,
+            sent_message_ids=sent_ids,
+            caption=req.caption,
+            is_scheduled=bool(req.scheduled_at),
+        )
+    except FloodWaitDomainException as fw:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Telegram rate limit: espere {fw.seconds} segundos.",
+        )
+    except ChannelAccessDeniedException as cad:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Permiso denegado en el canal: {cad}",
+        )
+    except ValueError as val_err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(val_err),
+        )
+    except Exception as e:
+        logger.error(f"Error publishing album from #{channel_id} to #{req.target_channel_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al publicar el álbum en Telegram: {e}",
+        )
+
+
 @router.post("/{channel_id}/upload", response_model=ChannelMessageItemResponse, status_code=status.HTTP_201_CREATED)
 async def upload_to_channel_endpoint(
     channel_id: int,

@@ -280,4 +280,37 @@ export const migrationApi = {
   getStreamUrl(jobId: string): string {
     return `${API_BASE_URL}/jobs/${jobId}/stream`;
   },
+
+  async publishAlbum(payload: {
+    source_channel_id: number;
+    target_channel_id: number;
+    message_ids: number[];
+    caption: string;
+    account_id?: number | null;
+    scheduled_at?: string | null;
+  }): Promise<{
+    status: string;
+    source_channel_id: number;
+    target_channel_id: number;
+    sent_message_ids: number[];
+    caption: string;
+    is_scheduled: boolean;
+  }> {
+    const res = await fetch(`${API_BASE_URL}/channels/${payload.source_channel_id}/publish-album`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target_channel_id: payload.target_channel_id,
+        message_ids: payload.message_ids,
+        caption: payload.caption,
+        account_id: payload.account_id,
+        scheduled_at: payload.scheduled_at,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al publicar el álbum en Telegram");
+    }
+    return res.json();
+  },
 };
