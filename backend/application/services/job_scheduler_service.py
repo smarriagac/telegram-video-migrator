@@ -84,11 +84,16 @@ class JobSchedulerService:
                 try:
                     await self.job_repo.set_job_status(job.job_id, JobStatus.RUNNING)
                     from backend.presentation.api.routers.jobs import _dispatch_worker
+                    selected_ids = None
+                    if job.media_filter_rules and isinstance(job.media_filter_rules, dict):
+                        selected_ids = job.media_filter_rules.get("selected_message_ids")
+
                     _dispatch_worker(
                         job_id=job.job_id,
                         use_case=self.use_case,
                         repo=self.job_repo,
                         broadcaster=self.broadcaster,
+                        selected_message_ids=selected_ids,
                     )
                     triggered_job_ids.append(job.job_id)
                 except Exception as ex:

@@ -55,6 +55,11 @@ class CloneChannelVideosUseCase:
         if not job:
             raise JobNotFoundException(job_id)
 
+        # Recover selected_message_ids from job metadata if omitted (e.g. scheduled or run-now)
+        if selected_message_ids is None and getattr(job, "media_filter_rules", None):
+            if isinstance(job.media_filter_rules, dict) and "selected_message_ids" in job.media_filter_rules:
+                selected_message_ids = job.media_filter_rules["selected_message_ids"]
+
         await self.repo.set_job_status(job_id, JobStatus.RUNNING)
         if on_progress:
             await on_progress({
@@ -105,6 +110,19 @@ class CloneChannelVideosUseCase:
         else:
             total_items = len(existing_queue)
             job.total_videos = total_items
+            try:
+                if getattr(job, "source_account_id", None) is not None:
+                    try:
+                        all_videos = await self.gateway.fetch_channel_videos(
+                            job.source_id, account_id=job.source_account_id
+                        )
+                    except TypeError:
+                        all_videos = await self.gateway.fetch_channel_videos(job.source_id)
+                else:
+                    all_videos = await self.gateway.fetch_channel_videos(job.source_id)
+                videos_cache = {v.message_id: v for v in all_videos}
+            except Exception as e:
+                logger.warning(f"Could not warm up videos_cache on existing queue: {e}")
 
         if total_items == 0:
             await self.repo.set_job_status(job_id, JobStatus.COMPLETED)

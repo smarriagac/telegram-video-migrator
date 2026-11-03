@@ -173,11 +173,19 @@ async def start_job(
     is_scheduled = bool(req.scheduled_at)
     initial_status = JobStatus.SCHEDULED if is_scheduled else JobStatus.PENDING
 
+    # Preserve selected_message_ids in media_filter_rules metadata so it survives scheduling, pause/resume and run-now
+    filter_rules = dict(req.media_filter_rules or {})
+    if req.selected_message_ids and len(req.selected_message_ids) > 0:
+        filter_rules["selected_message_ids"] = req.selected_message_ids
+
+    total_count = len(req.selected_message_ids) if req.selected_message_ids else 0
+
     job = MigrationJob(
         job_id=job_id,
         source_id=req.source_channel_id,
         target_id=req.target_channel_id,
         status=initial_status,
+        total_videos=total_count,
         is_full_migration=is_full,
         source_title=req.source_channel_title,
         target_title=req.target_channel_title,
@@ -185,7 +193,7 @@ async def start_job(
         target_account_id=req.target_account_id,
         caption_rules=req.caption_rules,
         drip_delay_seconds=req.drip_delay_seconds,
-        media_filter_rules=req.media_filter_rules,
+        media_filter_rules=filter_rules,
         scheduled_at=req.scheduled_at,
     )
     await repo.create_job(job)
@@ -427,7 +435,17 @@ async def resume_job(
             detail=f"Job '{job_id}' not found.",
         )
     await repo.set_job_status(job_id, JobStatus.RUNNING)
-    _dispatch_worker(job_id, use_case, repo, broadcaster)
+    selected_ids = None
+    if job.media_filter_rules and isinstance(job.media_filter_rules, dict):
+        selected_ids = job.media_filter_rules.get("selected_message_ids")
+
+    _dispatch_worker(
+        job_id=job_id,
+        use_case=use_case,
+        repo=repo,
+        broadcaster=broadcaster,
+        selected_message_ids=selected_ids,
+    )
     job.status = JobStatus.RUNNING
     return _to_job_response(job)
 
@@ -447,7 +465,17 @@ async def run_scheduled_job_now(
             detail=f"Job '{job_id}' not found.",
         )
     await repo.set_job_status(job_id, JobStatus.RUNNING)
-    _dispatch_worker(job_id, use_case, repo, broadcaster)
+    selected_ids = None
+    if job.media_filter_rules and isinstance(job.media_filter_rules, dict):
+        selected_ids = job.media_filter_rules.get("selected_message_ids")
+
+    _dispatch_worker(
+        job_id=job_id,
+        use_case=use_case,
+        repo=repo,
+        broadcaster=broadcaster,
+        selected_message_ids=selected_ids,
+    )
     job.status = JobStatus.RUNNING
     return _to_job_response(job)
 
