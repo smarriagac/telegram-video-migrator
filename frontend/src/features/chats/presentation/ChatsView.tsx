@@ -823,13 +823,26 @@ export const ChatsView: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="mt-0.5 flex items-center justify-between">
-                          <div className="flex items-center gap-1 text-[9px] text-muted-foreground font-mono uppercase">
-                            {getChatIcon(chat.type)}
-                            <span>{chat.type}</span>
+                        <div className="mt-0.5 flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                            <div className="flex items-center gap-1 text-[9px] text-muted-foreground font-mono uppercase shrink-0">
+                              {getChatIcon(chat.type)}
+                              <span>{chat.type}</span>
+                            </div>
+                            {chat.is_creator && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-semibold bg-amber-500/15 text-amber-500 dark:text-amber-300 border border-amber-500/30 flex items-center gap-1 shrink-0">
+                                <Crown className="w-2.5 h-2.5 shrink-0" />
+                                <span>{chat.type === "channel" ? "Canal Propio" : "Grupo Propio"}</span>
+                              </span>
+                            )}
+                            {!chat.is_creator && chat.is_admin && (
+                              <span className="px-1.5 py-0.5 rounded text-[8px] font-mono font-semibold bg-primary/15 text-primary border border-primary/30 shrink-0">
+                                Admin
+                              </span>
+                            )}
                           </div>
                           {chat.can_post === false && (
-                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-medium bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-mono font-medium bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30 shrink-0">
                               Solo Lectura
                             </span>
                           )}
