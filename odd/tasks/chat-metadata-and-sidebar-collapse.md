@@ -49,3 +49,4 @@ Delivery strategy: single-pr
 - L4: Implemented dynamic header presentation in `ChatsView.tsx` with subscriber counts, presence status, and "Canal Propio" / "Grupo Propio" crown badge.
 - L5: Fixed collapsed icon rail padding in `AppLayout.tsx`, centering header logo and vertically stacking avatar and theme toggle without overflow.
 - L6: All 109 automated tests passed cleanly and frontend bundle compiled with 0 errors.
+- L7: Eliminated redundant module-level titles and subtitles (`ViewHeader`), preserving pure action toolbars and status badges since domain context is already established in the top Breadcrumb header.

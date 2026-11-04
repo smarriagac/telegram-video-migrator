@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Send,
-  MessageSquare,
   Users,
   Radio,
   User as UserIcon,
@@ -656,17 +655,11 @@ export const ChatsView: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col space-y-3 min-h-0 overflow-hidden">
-      {/* Header (shrink-0) */}
-      <ViewHeader
-        icon={<MessageSquare className="w-4 h-4" />}
-        iconBoxColor="cyan"
-        title="Chats & Conversaciones"
-        subtitle="Diálogos reales de Telegram con scroll fluido, filtros por categoría y carga continua."
-      >
-
-        <div className="flex items-center gap-2">
-          {accounts.length > 1 && (
-            <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-0.5 gap-1 shrink-0">
+      {/* Toolbar / Actions */}
+      <ViewHeader>
+        <div className="flex items-center justify-between w-full gap-2">
+          {accounts.length > 1 ? (
+            <div className="flex items-center bg-secondary/60 border border-border rounded-lg p-0.5 gap-1 shrink-0">
               {accounts.map((acc) => {
                 const isActive = selectedAccountId === acc.id;
                 return (
@@ -674,10 +667,10 @@ export const ChatsView: React.FC = () => {
                     key={acc.id}
                     onClick={() => setSelectedAccountId(acc.id)}
                     className={cn(
-                      "px-2.5 py-1 text-xs rounded-md font-medium transition-all",
+                      "px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer",
                       isActive
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                        : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                        ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
                     )}
                   >
                     {acc.name}
@@ -685,6 +678,8 @@ export const ChatsView: React.FC = () => {
                 );
               })}
             </div>
+          ) : (
+            <div />
           )}
 
           <Button
@@ -692,10 +687,10 @@ export const ChatsView: React.FC = () => {
             disabled={isLoadingDialogs}
             variant="outline"
             size="sm"
-            className="rounded-md border-white/10 text-xs hover:bg-white/5 h-8 shrink-0"
+            className="rounded-md border-border text-xs hover:bg-secondary/60 h-8 shrink-0 cursor-pointer"
           >
             <RefreshCw
-              className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-cyan-400")}
+              className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-primary")}
             />
             Sincronizar
           </Button>
