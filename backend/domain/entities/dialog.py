@@ -19,3 +19,9 @@ class TelegramDialog:
     read_outbox_max_id: int = 0
     username: str | None = None
     account_id: int | None = None
+    participants_count: int | None = None
+    online_count: int | None = None
+    is_creator: bool = False
+    is_admin: bool = False
+    is_online: bool | None = None
+    status_text: str | None = None

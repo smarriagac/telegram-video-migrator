@@ -38,6 +38,12 @@ class DialogResponse(BaseModel):
     read_outbox_max_id: int = 0
     username: str | None = None
     account_id: int | None = None
+    participants_count: int | None = None
+    online_count: int | None = None
+    is_creator: bool = False
+    is_admin: bool = False
+    is_online: bool | None = None
+    status_text: str | None = None
 
 
 class ChatMessageResponse(BaseModel):
@@ -248,6 +254,12 @@ async def list_dialogs(
                 read_outbox_max_id=getattr(d, "read_outbox_max_id", 0),
                 username=getattr(d, "username", None),
                 account_id=getattr(d, "account_id", None),
+                participants_count=getattr(d, "participants_count", None),
+                online_count=getattr(d, "online_count", None),
+                is_creator=getattr(d, "is_creator", False),
+                is_admin=getattr(d, "is_admin", False),
+                is_online=getattr(d, "is_online", None),
+                status_text=getattr(d, "status_text", None),
             )
             for d in dialogs
         ]

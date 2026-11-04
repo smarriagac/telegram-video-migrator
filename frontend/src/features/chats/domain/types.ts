@@ -32,4 +32,10 @@ export interface Chat {
   read_outbox_max_id?: number;
   username?: string;
   account_id?: number;
+  participants_count?: number | null;
+  online_count?: number | null;
+  is_creator?: boolean;
+  is_admin?: boolean;
+  is_online?: boolean | null;
+  status_text?: string | null;
 }

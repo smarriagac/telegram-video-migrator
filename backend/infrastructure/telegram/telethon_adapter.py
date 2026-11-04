@@ -697,6 +697,41 @@ class TelethonAdapter(TelegramGatewayPort):
                 read_inbox_max_id = getattr(raw_d, "read_inbox_max_id", 0) or 0
                 read_outbox_max_id = getattr(raw_d, "read_outbox_max_id", 0) or 0
 
+                is_creator = bool(getattr(dialog.entity, "creator", False))
+                admin_rights = getattr(dialog.entity, "admin_rights", None)
+                is_admin = bool(admin_rights) or is_creator
+                participants_count = getattr(dialog.entity, "participants_count", None)
+                online_count = None
+                is_online = None
+                status_text = None
+
+                if chat_type == "channel":
+                    if participants_count is not None:
+                        status_text = f"{participants_count:,} suscriptores".replace(",", ".")
+                    else:
+                        status_text = "Canal"
+                elif chat_type == "group":
+                    if participants_count is not None:
+                        status_text = f"{participants_count:,} miembros".replace(",", ".")
+                    else:
+                        status_text = "Grupo"
+                elif chat_type == "user":
+                    status_obj = getattr(dialog.entity, "status", None)
+                    status_name = type(status_obj).__name__
+                    if status_name == "UserStatusOnline":
+                        is_online = True
+                        status_text = "En línea"
+                    elif status_name == "UserStatusRecently":
+                        is_online = False
+                        status_text = "Visto recientemente"
+                    elif status_name == "UserStatusOffline":
+                        is_online = False
+                        status_text = "Desconectado"
+                    elif getattr(dialog.entity, "bot", False):
+                        status_text = "Bot"
+                    else:
+                        status_text = "Usuario"
+
                 dialogs_list.append(
                     TelegramDialog(
                         id=dialog.id,
@@ -711,6 +746,12 @@ class TelethonAdapter(TelegramGatewayPort):
                         read_outbox_max_id=read_outbox_max_id,
                         username=getattr(dialog.entity, "username", None),
                         account_id=account_id,
+                        participants_count=participants_count,
+                        online_count=online_count,
+                        is_creator=is_creator,
+                        is_admin=is_admin,
+                        is_online=is_online,
+                        status_text=status_text,
                     )
                 )
             return dialogs_list

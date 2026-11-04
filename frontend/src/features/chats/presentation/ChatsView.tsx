@@ -29,6 +29,7 @@ import {
   CheckSquare,
   Square,
   Tag,
+  Crown,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -914,11 +915,52 @@ export const ChatsView: React.FC = () => {
                     <h2 className="text-xs font-bold text-white leading-none truncate max-w-[200px] sm:max-w-xs">
                       {activeChat.title || "Conversación"}
                     </h2>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                        MTProto Conectado
-                      </span>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      {/* Presence / Member Count / Subscriber Count */}
+                      {activeChat.type === "user" ? (
+                        activeChat.is_online ? (
+                          <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                            En línea
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                            {activeChat.status_text || "Desconectado"}
+                          </span>
+                        )
+                      ) : activeChat.type === "channel" ? (
+                        <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                          <Radio className="w-2.5 h-2.5 text-primary shrink-0" />
+                          <span>{activeChat.status_text || "Canal"}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                          <Users className="w-2.5 h-2.5 text-primary shrink-0" />
+                          <span>{activeChat.status_text || "Grupo"}</span>
+                        </span>
+                      )}
+
+                      {/* Own Group / Channel Badge */}
+                      {activeChat.is_creator && (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded border-amber-500/35 text-amber-400 bg-amber-500/10 flex items-center gap-1 font-semibold"
+                        >
+                          <Crown className="w-2.5 h-2.5" />
+                          <span>{activeChat.type === "channel" ? "Canal Propio" : "Grupo Propio"}</span>
+                        </Badge>
+                      )}
+                      {!activeChat.is_creator && activeChat.is_admin && (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] font-mono px-1.5 py-0.5 rounded border-primary/35 text-primary bg-primary/10 flex items-center gap-1 font-semibold"
+                        >
+                          Admin
+                        </Badge>
+                      )}
+
+                      {/* Permissions Badge */}
                       {activeChat.can_post === false ? (
                         <span className="text-[9px] text-amber-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
                           <Lock className="w-2.5 h-2.5" />

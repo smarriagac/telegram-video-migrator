@@ -98,33 +98,33 @@ export const AppLayout: React.FC = () => {
       <div className="h-screen h-dvh w-full flex overflow-hidden bg-background text-foreground transition-colors duration-200">
         <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
           {/* Header: Symmetrical h-16 Header matching Inset Top Bar */}
-          <SidebarHeader className="h-16 border-b border-sidebar-border px-3 flex justify-center">
-            <SidebarMenu>
-              <SidebarMenuItem>
+          <SidebarHeader className="h-16 border-b border-sidebar-border px-3 flex justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:items-center">
+            <SidebarMenu className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center"
                 >
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary/15 border border-primary/30 text-primary shrink-0">
                     <BrandLogo size="md" />
                   </div>
-                  <div className="grid flex-1 text-left text-xs leading-tight min-w-0">
+                  <div className="grid flex-1 text-left text-xs leading-tight min-w-0 group-data-[collapsible=icon]:hidden">
                     <span className="truncate font-semibold text-foreground">Telegram Hub</span>
                     <span className="truncate text-[10px] text-muted-foreground font-mono">
                       Enterprise Suite
                     </span>
                   </div>
-                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground shrink-0" />
+                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground shrink-0 group-data-[collapsible=icon]:hidden" />
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarHeader>
 
           {/* Content: Domain Navigation */}
-          <SidebarContent className="px-2 py-3 space-y-3">
+          <SidebarContent className="px-2 py-3 space-y-3 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:space-y-1">
             {/* Group 1: Canales & Audiencia */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-mono tracking-wider uppercase text-muted-foreground">
+            <SidebarGroup className="group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-1">
+              <SidebarGroupLabel className="text-[10px] font-mono tracking-wider uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
                 Canales & Audiencia
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -175,8 +175,8 @@ export const AppLayout: React.FC = () => {
             </SidebarGroup>
 
             {/* Group 2: Clonación & Pipeline (Nested sub-menu with vertical tree line) */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-mono tracking-wider uppercase text-muted-foreground">
+            <SidebarGroup className="group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-1">
+              <SidebarGroupLabel className="text-[10px] font-mono tracking-wider uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
                 Clonación & Pipeline
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -255,8 +255,8 @@ export const AppLayout: React.FC = () => {
             </SidebarGroup>
 
             {/* Group 3: Plataforma & Control */}
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-[10px] font-mono tracking-wider uppercase text-muted-foreground">
+            <SidebarGroup className="group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:py-1">
+              <SidebarGroupLabel className="text-[10px] font-mono tracking-wider uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
                 Plataforma & Control
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -354,13 +354,16 @@ export const AppLayout: React.FC = () => {
           </SidebarContent>
 
           {/* Footer: User Identity & Actions */}
-          <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 overflow-hidden min-w-0">
-                <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 text-primary flex items-center justify-center font-mono text-[11px] font-bold shrink-0">
+          <SidebarFooter className="border-t border-sidebar-border p-3 space-y-2 group-data-[collapsible=icon]:p-1.5 group-data-[collapsible=icon]:space-y-0 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center">
+            <div className="flex items-center justify-between group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:gap-2 w-full">
+              <div className="flex items-center gap-2 overflow-hidden min-w-0 group-data-[collapsible=icon]:justify-center">
+                <div
+                  className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 text-primary flex items-center justify-center font-mono text-[11px] font-bold shrink-0"
+                  title={user?.email || "Admin"}
+                >
                   {userInitials}
                 </div>
-                <div className="truncate min-w-0">
+                <div className="truncate min-w-0 group-data-[collapsible=icon]:hidden">
                   <span className="text-xs font-medium text-foreground block truncate">
                     {user?.email || "admin@telegramhub.local"}
                   </span>
@@ -375,7 +378,7 @@ export const AppLayout: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1">
                 <button
                   type="button"
                   onClick={toggleTheme}
@@ -392,7 +395,7 @@ export const AppLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-muted-foreground transition-colors cursor-pointer"
+                  className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-muted-foreground transition-colors cursor-pointer group-data-[collapsible=icon]:hidden"
                   title="Cerrar sesión"
                   aria-label="Cerrar sesión"
                 >

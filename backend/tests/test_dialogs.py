@@ -13,7 +13,46 @@ from backend.main import app
 
 
 @pytest.mark.asyncio
-async def test_get_dialogs_use_case():
+async def test_dialog_metadata_and_own_group_fields():
+    mock_gateway = AsyncMock(spec=TelegramGatewayPort)
+    mock_gateway.get_dialogs.return_value = [
+        TelegramDialog(
+            id=-100123456789,
+            title="Mi Canal Oficial",
+            type="channel",
+            unread_count=0,
+            last_message="Bienvenido",
+            last_message_date="15:00",
+            avatar_color="bg-primary",
+            participants_count=12500,
+            is_creator=True,
+            is_admin=True,
+            status_text="12.500 suscriptores",
+        ),
+        TelegramDialog(
+            id=999888,
+            title="Soporte VIP",
+            type="user",
+            unread_count=0,
+            is_online=True,
+            status_text="En línea",
+        ),
+    ]
+
+    use_case = GetDialogsUseCase(telegram_gateway=mock_gateway)
+    dialogs = await use_case.execute(limit=10)
+
+    assert len(dialogs) == 2
+    # Verify Channel metadata
+    assert dialogs[0].participants_count == 12500
+    assert dialogs[0].is_creator is True
+    assert dialogs[0].is_admin is True
+    assert dialogs[0].status_text == "12.500 suscriptores"
+
+    # Verify User metadata
+    assert dialogs[1].is_online is True
+    assert dialogs[1].status_text == "En línea"
+
     mock_gateway = AsyncMock(spec=TelegramGatewayPort)
     mock_gateway.get_dialogs.return_value = [
         TelegramDialog(
