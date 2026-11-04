@@ -92,8 +92,8 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "captions"
-                ? "bg-primary/10 text-primary border border-primary/25 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 font-medium"
+                ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
@@ -105,8 +105,8 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "drip"
-                ? "bg-primary/10 text-primary border border-primary/25 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 font-medium"
+                ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <Clock className="w-3.5 h-3.5 shrink-0" />
@@ -118,8 +118,8 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "dedup"
-                ? "bg-primary/10 text-primary border border-primary/25 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 font-medium"
+                ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
@@ -132,8 +132,8 @@ export const PipelineModulesView: React.FC = () => {
             className={cn(
               "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
               activeTab === "quality"
-                ? "bg-primary/10 text-primary border border-primary/25 shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary/40 font-medium"
+                ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <Filter className="w-3.5 h-3.5 shrink-0" />

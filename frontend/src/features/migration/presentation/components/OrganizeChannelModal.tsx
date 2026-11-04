@@ -250,8 +250,8 @@ export const OrganizeChannelModal: React.FC<OrganizeChannelModalProps> = ({
               className={cn(
                 "py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5",
                 formState.activeTab === "inplace"
-                  ? "bg-primary/10 text-primary border border-primary/25 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
               <Tag className="w-3.5 h-3.5" />
@@ -264,8 +264,8 @@ export const OrganizeChannelModal: React.FC<OrganizeChannelModalProps> = ({
               className={cn(
                 "py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5",
                 formState.activeTab === "album"
-                  ? "bg-primary/10 text-primary border border-primary/25 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
               <Layers className="w-3.5 h-3.5" />

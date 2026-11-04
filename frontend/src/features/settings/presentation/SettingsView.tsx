@@ -305,8 +305,8 @@ export const SettingsView: React.FC = () => {
               className={cn(
                 "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
                 activeTab === "credentials"
-                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
               <KeyRound className="w-3.5 h-3.5" />
@@ -317,8 +317,8 @@ export const SettingsView: React.FC = () => {
               className={cn(
                 "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
                 activeTab === "users"
-                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
               <Users className="w-3.5 h-3.5" />
@@ -329,8 +329,8 @@ export const SettingsView: React.FC = () => {
               className={cn(
                 "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
                 activeTab === "alerts"
-                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
               <Bell className="w-3.5 h-3.5" />
