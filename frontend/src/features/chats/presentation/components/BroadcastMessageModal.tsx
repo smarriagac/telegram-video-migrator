@@ -489,7 +489,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                 2. Contenido del Mensaje y Etiquetas
               </span>
               <span className="text-[10px] text-muted-foreground font-mono">
-                {formState.text.length} caracteres
+                {formState.text.length} / {formState.files.length > 0 ? "1024 (caption multimedia)" : "4096"} chars
               </span>
             </div>
 
@@ -510,19 +510,19 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
 
             {/* Message Textarea */}
             <textarea
-              rows={3}
-              placeholder="Escribí aquí el mensaje a difundir con texto, enlaces y #etiquetas..."
+              rows={5}
+              placeholder="Escribí aquí el mensaje con enlaces, promociones y #etiquetas (la imagen o video es opcional)..."
               value={formState.text}
               onChange={(e) => setFormState((s) => ({ ...s, text: e.target.value }))}
-              className="w-full bg-secondary/60 border border-border rounded-md p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-y"
+              className="w-full bg-secondary/60 border border-border rounded-md p-2.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-y min-h-[110px]"
             />
 
-            {/* Step 3: Attached Media (Photos, Video, GIF) */}
+            {/* Step 3: Attached Media (Photos, Video, GIF - Optional) */}
             <div className="space-y-2 pt-1 border-t border-border/50">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-foreground flex items-center gap-1.5 font-mono uppercase text-[11px]">
                   <Paperclip className="w-3.5 h-3.5 text-primary" />
-                  Archivos Multimedia ({formState.files.length}/10)
+                  3. Multimedia Opcional ({formState.files.length}/10)
                 </span>
                 <input
                   ref={fileInputRef}
@@ -538,7 +538,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={formState.files.length >= 10}
-                  className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 font-mono gap-1"
+                  className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 font-mono gap-1 cursor-pointer"
                 >
                   <Paperclip className="w-3 h-3" />
                   <span>+ Adjuntar Foto / Video / GIF</span>
@@ -562,7 +562,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                         <button
                           type="button"
                           onClick={() => removeFile(idx)}
-                          className="p-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                          className="p-1 rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors cursor-pointer"
                           title="Eliminar archivo"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -582,6 +582,33 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                 </p>
               )}
             </div>
+
+            {/* Live Message Preview (Telegram Post Style) */}
+            {(formState.text.trim() || formState.filePreviews.length > 0) && (
+              <div className="pt-2 border-t border-border/50 space-y-1.5">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                  Vista Previa del Post (Estilo Telegram):
+                </span>
+                <div className="p-3 rounded-lg bg-secondary/80 border border-border/80 max-w-lg space-y-2 text-foreground shadow-sm">
+                  {formState.filePreviews.length > 0 && (
+                    <div className="rounded-md overflow-hidden bg-black/90 aspect-video max-h-48 flex items-center justify-center">
+                      {formState.filePreviews[0].isVideo ? (
+                        <video src={formState.filePreviews[0].url} controls className="max-h-48 w-full object-contain" />
+                      ) : (
+                        <img src={formState.filePreviews[0].url} alt="Preview" className="max-h-48 w-full object-contain" />
+                      )}
+                    </div>
+                  )}
+                  {formState.text.trim() ? (
+                    <p className="text-xs whitespace-pre-wrap leading-relaxed font-sans select-text">
+                      {formState.text}
+                    </p>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground italic font-mono">Multimedia sin texto</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Rate Limit Pacing Notice */}
