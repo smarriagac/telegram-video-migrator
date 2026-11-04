@@ -23,6 +23,7 @@ import {
   Maximize2,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   UserPlus,
   Key,
   CheckSquare,
@@ -32,6 +33,7 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
+import { Message } from "../domain/types";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { ViewHeader } from "@/shared/components/ViewHeader";
@@ -63,6 +65,7 @@ interface ChatMediaThumbnailProps {
   mediaType: "video" | "photo" | "document" | "text" | undefined;
   accountId?: number | null;
   text?: string;
+  onOpenViewer?: () => void;
 }
 
 const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
@@ -71,6 +74,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   mediaType,
   accountId,
   text,
+  onOpenViewer,
 }) => {
   const [loaded, setLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -101,9 +105,9 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/70 backdrop-blur-md rounded-md p-0.5 border border-white/10 z-10">
           <button
             type="button"
-            onClick={() => setShowModal(true)}
-            title="Ampliar video (Pantalla completa / modal)"
-            className="p-1 hover:text-cyan-400 text-zinc-300 transition-colors"
+            onClick={() => (onOpenViewer ? onOpenViewer() : setShowModal(true))}
+            title="Ampliar video (Pantalla completa / visor de cine)"
+            className="p-1 hover:text-cyan-400 text-zinc-300 transition-colors cursor-pointer"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
@@ -223,7 +227,9 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
           onLoad={() => setLoaded(true)}
           onError={() => setHasError(true)}
           onClick={() => {
-            if (mediaType === "video") {
+            if (onOpenViewer) {
+              onOpenViewer();
+            } else if (mediaType === "video") {
               setIsPlayingInline(true);
             } else {
               setShowModal(true);
@@ -253,10 +259,14 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setShowModal(true);
+            if (onOpenViewer) {
+              onOpenViewer();
+            } else {
+              setShowModal(true);
+            }
           }}
-          title="Ver en pantalla completa / modal"
-          className="absolute top-2 right-2 p-1 rounded bg-black/70 backdrop-blur-md text-zinc-300 hover:text-cyan-400 border border-white/10 opacity-0 group-hover/preview:opacity-100 transition-opacity"
+          title="Ver en pantalla completa / visor de cine"
+          className="absolute top-2 right-2 p-1 rounded bg-black/70 backdrop-blur-md text-zinc-300 hover:text-cyan-400 border border-white/10 opacity-0 group-hover/preview:opacity-100 transition-opacity cursor-pointer"
         >
           <Maximize2 className="w-3.5 h-3.5" />
         </button>
@@ -377,6 +387,7 @@ interface ExtraViewState {
   selectedMessageIds: number[];
   isSelectionMode: boolean;
   organizeModalOpen: boolean;
+  previewModalMsg: Message | null;
 }
 
 export const ChatsView: React.FC = () => {
@@ -395,6 +406,7 @@ export const ChatsView: React.FC = () => {
     selectedMessageIds: [],
     isSelectionMode: false,
     organizeModalOpen: false,
+    previewModalMsg: null,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -461,6 +473,61 @@ export const ChatsView: React.FC = () => {
         is_migrated: false,
       }));
   }, [activeMessages, viewState.selectedMessageIds]);
+
+  const previewableMessages = useMemo(
+    () =>
+      activeMessages.filter(
+        (m) => m.media_type === "photo" || m.media_type === "video" || m.media_type === "document"
+      ),
+    [activeMessages]
+  );
+
+  const previewIndex = useMemo(
+    () =>
+      viewState.previewModalMsg
+        ? previewableMessages.findIndex((m) => m.id === viewState.previewModalMsg?.id)
+        : -1,
+    [viewState.previewModalMsg, previewableMessages]
+  );
+
+  const hasPrevPreview = previewIndex > 0;
+  const hasNextPreview = previewIndex >= 0 && previewIndex < previewableMessages.length - 1;
+
+  const handlePrevPreview = () => {
+    if (hasPrevPreview) {
+      setViewState((prev) => ({
+        ...prev,
+        previewModalMsg: previewableMessages[previewIndex - 1],
+      }));
+    }
+  };
+
+  const handleNextPreview = () => {
+    if (hasNextPreview) {
+      setViewState((prev) => ({
+        ...prev,
+        previewModalMsg: previewableMessages[previewIndex + 1],
+      }));
+    }
+  };
+
+  // Keyboard navigation for cinema media viewer (ArrowLeft, ArrowRight, Escape)
+  useEffect(() => {
+    if (!viewState.previewModalMsg) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setViewState((prev) => ({ ...prev, previewModalMsg: null }));
+      } else if (e.key === "ArrowLeft" && hasPrevPreview) {
+        handlePrevPreview();
+      } else if (e.key === "ArrowRight" && hasNextPreview) {
+        handleNextPreview();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewState.previewModalMsg, hasPrevPreview, hasNextPreview]);
 
   const firstUnreadIndex =
     (activeChat?.unread_count || 0) > 0
@@ -1251,6 +1318,7 @@ export const ChatsView: React.FC = () => {
                               mediaType={msg.media_type}
                               accountId={selectedAccountId}
                               text={msg.text}
+                              onOpenViewer={() => setViewState((prev) => ({ ...prev, previewModalMsg: msg }))}
                             />
                           )}
                           {msg.media_type === "document" && (
@@ -1803,6 +1871,181 @@ export const ChatsView: React.FC = () => {
           }}
         />
       )}
+
+      {/* Immersive Cinema Fullscreen Media Viewer */}
+      {viewState.previewModalMsg && activeChat &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col justify-between overflow-hidden select-none animate-in fade-in duration-200"
+            onClick={() => setViewState((prev) => ({ ...prev, previewModalMsg: null }))}
+          >
+            {/* Top Floating Glass Header Bar */}
+            <div
+              className="relative z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent backdrop-blur-sm border-b border-white/10 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-white font-mono tracking-wide">
+                  Mensaje #{viewState.previewModalMsg.id}
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-primary/20 text-primary border border-primary/30 font-semibold">
+                  {viewState.previewModalMsg.media_type || "Media"}
+                </span>
+                {previewIndex >= 0 && (
+                  <span className="text-xs font-mono text-zinc-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+                    {previewIndex + 1} de {previewableMessages.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Top Right Quick Actions */}
+              <div className="flex items-center gap-2">
+                {/* Select / Deselect Button (only if own/admin) */}
+                {Boolean(activeChat.is_creator || activeChat.is_admin) && (
+                  <Button
+                    variant={
+                      viewState.selectedMessageIds.includes(viewState.previewModalMsg.id)
+                        ? "destructive"
+                        : "default"
+                    }
+                    size="sm"
+                    onClick={() => {
+                      if (!viewState.previewModalMsg) return;
+                      const msgId = viewState.previewModalMsg.id;
+                      setViewState((prev) => {
+                        const exists = prev.selectedMessageIds.includes(msgId);
+                        return {
+                          ...prev,
+                          isSelectionMode: true,
+                          selectedMessageIds: exists
+                            ? prev.selectedMessageIds.filter((id) => id !== msgId)
+                            : [...prev.selectedMessageIds, msgId],
+                        };
+                      });
+                    }}
+                    className="h-8 text-xs px-3.5 font-mono gap-1.5 shadow-lg backdrop-blur-sm cursor-pointer"
+                  >
+                    {viewState.selectedMessageIds.includes(viewState.previewModalMsg.id) ? (
+                      <>
+                        <CheckSquare className="w-3.5 h-3.5" />
+                        <span>Desmarcar</span>
+                      </>
+                    ) : (
+                      <>
+                        <Square className="w-3.5 h-3.5" />
+                        <span>Seleccionar</span>
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                <div className="w-[1px] h-5 bg-white/20 mx-1 hidden sm:block" />
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setViewState((prev) => ({ ...prev, previewModalMsg: null }))}
+                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/25 text-zinc-300 hover:text-white transition-all border border-white/10 cursor-pointer"
+                  title="Cerrar visor (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Central Full-Screen Media Stage with Floating Navigation Chevrons */}
+            <div
+              className="relative flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-6 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Left Floating Chevron */}
+              {hasPrevPreview && (
+                <button
+                  type="button"
+                  onClick={handlePrevPreview}
+                  className="absolute left-3 sm:left-6 z-40 p-3 sm:p-4 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 hover:border-primary/60 transition-all hover:scale-110 shadow-2xl backdrop-blur-md cursor-pointer"
+                  title="Elemento anterior (Flecha Izquierda ←)"
+                >
+                  <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
+                </button>
+              )}
+
+              {/* Right Floating Chevron */}
+              {hasNextPreview && (
+                <button
+                  type="button"
+                  onClick={handleNextPreview}
+                  className="absolute right-3 sm:right-6 z-40 p-3 sm:p-4 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 hover:border-primary/60 transition-all hover:scale-110 shadow-2xl backdrop-blur-md cursor-pointer"
+                  title="Siguiente elemento (Flecha Derecha →)"
+                >
+                  <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
+                </button>
+              )}
+
+              {/* Center Media: takes maximum viewport height & width */}
+              <div className="relative max-w-full max-h-full flex items-center justify-center">
+                {viewState.previewModalMsg.media_type === "video" ? (
+                  <video
+                    key={viewState.previewModalMsg.id}
+                    src={`/api/dialogs/${activeChat.id}/messages/${viewState.previewModalMsg.id}/video${
+                      selectedAccountId ? `?account_id=${selectedAccountId}` : ""
+                    }`}
+                    poster={`/api/dialogs/${activeChat.id}/messages/${viewState.previewModalMsg.id}/thumbnail${
+                      selectedAccountId ? `?account_id=${selectedAccountId}` : ""
+                    }`}
+                    controls
+                    autoPlay
+                    playsInline
+                    className="max-h-[78vh] sm:max-h-[82vh] w-auto max-w-[94vw] object-contain rounded-lg shadow-2xl"
+                  />
+                ) : (
+                  <img
+                    key={viewState.previewModalMsg.id}
+                    src={`/api/dialogs/${activeChat.id}/messages/${viewState.previewModalMsg.id}/thumbnail${
+                      selectedAccountId ? `?account_id=${selectedAccountId}` : ""
+                    }`}
+                    alt="Vista previa de imagen"
+                    className="max-h-[78vh] sm:max-h-[82vh] w-auto max-w-[94vw] object-contain rounded-lg shadow-2xl"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Floating Glass Footer Bar (Caption, Metadata & Shortcuts) */}
+            <div
+              className="relative z-50 px-4 py-3 bg-gradient-to-t from-black/95 via-black/75 to-transparent backdrop-blur-md border-t border-white/10 shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                {/* Caption / Description */}
+                <div className="min-w-0 flex-1">
+                  {viewState.previewModalMsg.text ? (
+                    <p className="text-xs text-zinc-200 line-clamp-2 hover:line-clamp-none transition-all cursor-pointer font-sans leading-relaxed bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg max-h-24 overflow-y-auto">
+                      {viewState.previewModalMsg.text}
+                    </p>
+                  ) : (
+                    <span className="text-[11px] text-zinc-500 italic font-mono">
+                      Multimedia sin texto
+                    </span>
+                  )}
+                </div>
+
+                {/* Metadata & Shortcuts */}
+                <div className="flex items-center gap-3 shrink-0 text-xs font-mono text-zinc-400">
+                  {viewState.previewModalMsg.date && (
+                    <span className="text-[11px] text-zinc-400">
+                      {viewState.previewModalMsg.date}
+                    </span>
+                  )}
+                  <span className="hidden sm:inline-block text-[11px] text-zinc-500 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                    ← → Navegar | Esc Salir
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
