@@ -1797,3 +1797,120 @@ async def process_gatekeeper_payment_webhook(
     }
 
 
+class BroadcastResultItem(BaseModel):
+    target_id: int
+    message_id: int | None = None
+    status: str
+    error: str | None = None
+
+
+class BroadcastResponse(BaseModel):
+    status: str
+    total_targets: int
+    successful_count: int
+    failed_count: int
+    results: list[BroadcastResultItem]
+
+
+@router.post("/broadcast", response_model=BroadcastResponse, status_code=status.HTTP_201_CREATED)
+async def broadcast_message_endpoint(
+    target_ids: str = Form(""),
+    text: str = Form(""),
+    account_id: int | None = Form(None),
+    files: list[UploadFile] = File([]),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+) -> BroadcastResponse:
+    """Broadcast a rich message with optional media/album to multiple channels and groups simultaneously."""
+    parsed_ids: list[int] = []
+    cleaned_str = target_ids.strip()
+    if cleaned_str.startswith("["):
+        try:
+            parsed_ids = [int(x) for x in json.loads(cleaned_str)]
+        except Exception:
+            pass
+    if not parsed_ids:
+        for part in cleaned_str.split(","):
+            part_str = part.strip()
+            if part_str:
+                try:
+                    parsed_ids.append(int(part_str))
+                except ValueError:
+                    pass
+
+    if not parsed_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe especificar al menos un canal o grupo de destino.",
+        )
+
+    valid_files = [f for f in files if f and f.filename]
+
+    if not text.strip() and not valid_files:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe incluir un texto o al menos un archivo multimedia para difundir.",
+        )
+
+    temp_paths: list[str] = []
+    try:
+        for f in valid_files:
+            suffix = Path(f.filename or "media").suffix or ".bin"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp_path = tmp.name
+                content = await f.read()
+                tmp.write(content)
+                temp_paths.append(tmp_path)
+
+        res = await gateway.broadcast_message(
+            target_ids=parsed_ids,
+            text=text.strip(),
+            media_paths=temp_paths if temp_paths else None,
+            account_id=account_id,
+        )
+
+        try:
+            await audit_repo.record_audit_log(
+                AuditLog(
+                    id=None,
+                    user_id=None,
+                    user_email=None,
+                    action="MESSAGE_BROADCAST",
+                    resource=f"broadcast:{len(parsed_ids)}_targets",
+                    details={
+                        "target_ids": parsed_ids,
+                        "text": text.strip()[:100],
+                        "media_count": len(temp_paths),
+                        "successful_count": res.get("successful_count", 0),
+                        "failed_count": res.get("failed_count", 0),
+                    },
+                )
+            )
+        except Exception as audit_err:
+            logger.warning(f"Could not record audit log for broadcast: {audit_err}")
+
+        return BroadcastResponse(
+            status="success" if res.get("successful_count", 0) > 0 else "failed",
+            total_targets=res.get("total_targets", len(parsed_ids)),
+            successful_count=res.get("successful_count", 0),
+            failed_count=res.get("failed_count", 0),
+            results=[
+                BroadcastResultItem(
+                    target_id=r["target_id"],
+                    message_id=r.get("message_id"),
+                    status=r.get("status", "failed"),
+                    error=r.get("error"),
+                )
+                for r in res.get("results", [])
+            ],
+        )
+    finally:
+        for p in temp_paths:
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
+
+
+

@@ -291,4 +291,54 @@ export const channelApi = {
     }
     return res.json();
   },
+
+  async broadcastMessage(payload: {
+    targetIds: number[];
+    text: string;
+    files?: File[];
+    accountId?: number | null;
+  }): Promise<{
+    status: "success" | "failed";
+    total_targets: number;
+    successful_count: number;
+    failed_count: number;
+    results: Array<{
+      target_id: number;
+      message_id: number | null;
+      status: "success" | "failed";
+      error: string | null;
+    }>;
+  }> {
+    const formData = new FormData();
+    formData.append("target_ids", payload.targetIds.join(","));
+    formData.append("text", payload.text);
+    if (payload.accountId) {
+      formData.append("account_id", String(payload.accountId));
+    }
+    if (payload.files) {
+      for (const file of payload.files) {
+        formData.append("files", file);
+      }
+    }
+
+    const token =
+      localStorage.getItem("telegram_hub_token") ||
+      localStorage.getItem("auth_token") ||
+      localStorage.getItem("token") ||
+      useAuthStore.getState().token;
+
+    const res = await fetch("/api/channels/broadcast", {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al difundir el mensaje.");
+    }
+    return res.json();
+  },
 };

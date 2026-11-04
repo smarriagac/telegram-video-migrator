@@ -1293,3 +1293,86 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.warning(f"Could not directly invite {user_id_or_username} to channel {channel_id}: {e}")
             raise
+
+    async def broadcast_message(
+        self,
+        target_ids: list[int],
+        text: str,
+        media_paths: list[str] | None = None,
+        account_id: int | None = None,
+        delay_seconds: float = 1.0,
+    ) -> dict[str, Any]:
+        """Broadcast a message (with optional media/album) to multiple channels/groups with rate-limiting pacing."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+
+        results = []
+        successful_count = 0
+        failed_count = 0
+
+        for i, target_id in enumerate(target_ids):
+            try:
+                try:
+                    target_entity = await client.get_input_entity(target_id)
+                except Exception:
+                    target_entity = await client.get_entity(target_id)
+
+                if media_paths and len(media_paths) > 1:
+                    sent = await client.send_file(
+                        target_entity,
+                        file=media_paths,
+                        caption=text or "",
+                    )
+                    sent_id = sent[0].id if isinstance(sent, list) and sent else getattr(sent, "id", None)
+                elif media_paths and len(media_paths) == 1:
+                    sent = await client.send_file(
+                        target_entity,
+                        file=media_paths[0],
+                        caption=text or "",
+                    )
+                    sent_id = getattr(sent, "id", None)
+                else:
+                    sent = await client.send_message(
+                        target_entity,
+                        text or "",
+                    )
+                    sent_id = getattr(sent, "id", None)
+
+                results.append({
+                    "target_id": target_id,
+                    "message_id": sent_id,
+                    "status": "success",
+                    "error": None,
+                })
+                successful_count += 1
+
+            except FloodWaitError as fwe:
+                logger.warning(f"FloodWait while broadcasting to target {target_id}: {fwe.seconds}s")
+                results.append({
+                    "target_id": target_id,
+                    "message_id": None,
+                    "status": "failed",
+                    "error": f"FloodWait ({fwe.seconds}s)",
+                })
+                failed_count += 1
+                if fwe.seconds <= 10:
+                    await asyncio.sleep(fwe.seconds)
+            except Exception as e:
+                logger.warning(f"Error broadcasting to target {target_id}: {e}")
+                results.append({
+                    "target_id": target_id,
+                    "message_id": None,
+                    "status": "failed",
+                    "error": str(e),
+                })
+                failed_count += 1
+
+            if i < len(target_ids) - 1 and delay_seconds > 0:
+                await asyncio.sleep(delay_seconds)
+
+        return {
+            "total_targets": len(target_ids),
+            "successful_count": successful_count,
+            "failed_count": failed_count,
+            "results": results,
+        }

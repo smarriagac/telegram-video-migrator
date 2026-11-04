@@ -190,3 +190,19 @@ class TelegramGatewayPort(ABC):
     ) -> bool:
         """Directly invite/add a user to a channel or supergroup."""
         return False
+
+    async def broadcast_message(
+        self,
+        target_ids: list[int],
+        text: str,
+        media_paths: list[str] | None = None,
+        account_id: int | None = None,
+        delay_seconds: float = 1.0,
+    ) -> dict[str, Any]:
+        """Broadcast a message (with optional media/album) to multiple channels/groups with rate-limiting pacing."""
+        return {
+            "total_targets": len(target_ids),
+            "successful_count": 0,
+            "failed_count": 0,
+            "results": [],
+        }

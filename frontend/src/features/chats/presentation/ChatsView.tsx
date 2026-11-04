@@ -39,6 +39,7 @@ import { Badge } from "@/shared/components/ui/badge";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
 import { OrganizeChannelModal } from "@/features/migration/presentation/components/OrganizeChannelModal";
+import { BroadcastMessageModal } from "./components/BroadcastMessageModal";
 import { ChannelMessageItem } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -388,6 +389,7 @@ interface ExtraViewState {
   isSelectionMode: boolean;
   organizeModalOpen: boolean;
   previewModalMsg: Message | null;
+  broadcastModalOpen: boolean;
 }
 
 export const ChatsView: React.FC = () => {
@@ -407,6 +409,7 @@ export const ChatsView: React.FC = () => {
     isSelectionMode: false,
     organizeModalOpen: false,
     previewModalMsg: null,
+    broadcastModalOpen: false,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -758,18 +761,31 @@ export const ChatsView: React.FC = () => {
             <div />
           )}
 
-          <Button
-            onClick={() => loadDialogs(true)}
-            disabled={isLoadingDialogs}
-            variant="outline"
-            size="sm"
-            className="rounded-md border-border text-xs hover:bg-secondary/60 h-8 shrink-0 cursor-pointer"
-          >
-            <RefreshCw
-              className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-primary")}
-            />
-            Sincronizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setViewState((s) => ({ ...s, broadcastModalOpen: true }))}
+              variant="default"
+              size="sm"
+              className="rounded-md text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-8 shrink-0 cursor-pointer shadow-xs gap-1.5"
+              title="Crear un mensaje rico y difundirlo simultáneamente a múltiples canales y grupos"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Difusión Multicanal</span>
+            </Button>
+
+            <Button
+              onClick={() => loadDialogs(true)}
+              disabled={isLoadingDialogs}
+              variant="outline"
+              size="sm"
+              className="rounded-md border-border text-xs hover:bg-secondary/60 h-8 shrink-0 cursor-pointer"
+            >
+              <RefreshCw
+                className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-primary")}
+              />
+              Sincronizar
+            </Button>
+          </div>
         </div>
       </ViewHeader>
 
@@ -2046,6 +2062,31 @@ export const ChatsView: React.FC = () => {
           </div>,
           document.body
         )}
+
+      {/* Multi-Channel Broadcast Message Modal */}
+      {viewState.broadcastModalOpen && (
+        <BroadcastMessageModal
+          isOpen={viewState.broadcastModalOpen}
+          onClose={() => setViewState((s) => ({ ...s, broadcastModalOpen: false }))}
+          availableTargets={chats.map((c) => ({
+            id: c.id,
+            title: c.title,
+            username: c.username || null,
+            type: c.type,
+            can_post: c.can_post ?? true,
+            is_creator: c.is_creator,
+            is_admin: c.is_admin,
+            participants_count: c.participants_count,
+            status_text: c.status_text,
+            avatar_color: c.avatar_color,
+            account_id: c.account_id,
+          }))}
+          defaultAccountId={selectedAccountId}
+          onSuccess={() => {
+            loadDialogs(false);
+          }}
+        />
+      )}
     </div>
   );
 };
