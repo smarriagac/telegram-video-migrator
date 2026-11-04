@@ -35,4 +35,5 @@ Delivery strategy: single-pr
 - L3: Installed `@radix-ui/react-tooltip`, `@radix-ui/react-separator`, and scaffolded canonical UI components.
 - L4: Implemented official shadcn/ui `Sidebar` suite with collapsible icon rail, `SidebarMenuSub` vertical tree lines, and `SidebarTrigger`.
 - L5: Verified hook budget (exactly 1 `useState` hook in `AppLayout.tsx`), 0 TypeScript build errors, and all 108 backend tests passing.
+- L6: Fixed header height asymmetry by standardizing both `SidebarHeader` and `SidebarInset` top bar to `h-16`, aligning the horizontal border across the full viewport, adding `ChevronsUpDown`, and implementing canonical `Breadcrumb` navigation with `ChevronRight` separators.
 

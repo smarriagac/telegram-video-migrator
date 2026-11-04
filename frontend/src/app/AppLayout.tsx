@@ -8,6 +8,7 @@ import {
   LogOut,
   BarChart3,
   ChevronDown,
+  ChevronsUpDown,
   Sun,
   Moon,
   CreditCard,
@@ -17,6 +18,15 @@ import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { useThemeStore } from "@/shared/lib/useThemeStore";
 import { BrandLogo } from "@/shared/components/BrandLogo";
+import { Separator } from "@/shared/components/ui/separator";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/shared/components/ui/breadcrumb";
 import {
   Sidebar,
   SidebarContent,
@@ -36,6 +46,19 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/shared/components/ui/sidebar";
+
+const ROUTE_META: Record<string, { domain: string; module: string }> = {
+  "/chats": { domain: "Canales & Audiencia", module: "Chats & Mensajes" },
+  "/channels": { domain: "Canales & Audiencia", module: "Administrar Canales" },
+  "/migration": { domain: "Clonación & Pipeline", module: "Clonador de Videos" },
+  "/sync": { domain: "Clonación & Pipeline", module: "Sincronización en Vivo" },
+  "/pipeline": { domain: "Clonación & Pipeline", module: "Pipeline & Reglas" },
+  "/jobs": { domain: "Clonación & Pipeline", module: "Cola de Trabajos" },
+  "/analytics": { domain: "Plataforma & Control", module: "Analíticas & Rendimiento" },
+  "/billing": { domain: "Plataforma & Control", module: "Suscripción & Planes" },
+  "/audit": { domain: "Plataforma & Control", module: "Auditoría del Sistema" },
+  "/settings": { domain: "Plataforma & Control", module: "Configuración & API" },
+};
 
 export const AppLayout: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (only 1 used)
@@ -65,20 +88,24 @@ export const AppLayout: React.FC = () => {
 
   const userInitials = (user?.email?.slice(0, 2) || "AD").toUpperCase();
   const isCloningActive = ["/migration", "/sync", "/pipeline", "/jobs"].includes(location.pathname);
+  const currentMeta = ROUTE_META[location.pathname] || {
+    domain: "Telegram Hub",
+    module: "Módulos",
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="h-screen h-dvh w-full flex overflow-hidden bg-background text-foreground transition-colors duration-200">
         <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar">
-          {/* Header: Organization/App Identity Box */}
-          <SidebarHeader className="border-b border-sidebar-border p-3">
+          {/* Header: Symmetrical h-16 Header matching Inset Top Bar */}
+          <SidebarHeader className="h-16 border-b border-sidebar-border px-3 flex justify-center">
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   size="lg"
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary/15 border border-primary/30 text-primary">
+                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary/15 border border-primary/30 text-primary shrink-0">
                     <BrandLogo size="md" />
                   </div>
                   <div className="grid flex-1 text-left text-xs leading-tight min-w-0">
@@ -87,6 +114,7 @@ export const AppLayout: React.FC = () => {
                       Enterprise Suite
                     </span>
                   </div>
+                  <ChevronsUpDown className="ml-auto size-4 text-muted-foreground shrink-0" />
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -351,7 +379,7 @@ export const AppLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
+                  className="p-1.5 rounded-md hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                   title={theme === "dark" ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
                   aria-label="Toggle theme"
                 >
@@ -364,7 +392,7 @@ export const AppLayout: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-muted-foreground transition-colors"
+                  className="p-1.5 rounded-md hover:bg-rose-500/10 hover:text-rose-400 text-muted-foreground transition-colors cursor-pointer"
                   title="Cerrar sesión"
                   aria-label="Cerrar sesión"
                 >
@@ -379,43 +407,29 @@ export const AppLayout: React.FC = () => {
 
         {/* Main View Area with Top Bar & Trigger */}
         <SidebarInset className="flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-background">
-          {/* Top Inset Bar: Trigger & Breadcrumbs */}
-          <header className="h-12 border-b border-border/80 px-3 flex items-center justify-between shrink-0 bg-card/50 backdrop-blur-sm">
+          {/* Top Inset Bar: Symmetrical h-16 Header matching SidebarHeader */}
+          <header className="h-16 border-b border-border px-4 flex items-center justify-between shrink-0 bg-background/95 backdrop-blur-sm">
             <div className="flex items-center gap-2">
-              <SidebarTrigger />
-              <div className="h-4 w-px bg-border mx-1" />
-              <span className="text-xs font-medium text-muted-foreground">Telegram Hub</span>
-              <span className="text-xs text-muted-foreground/60">/</span>
-              <span className="text-xs font-semibold text-foreground">
-                {location.pathname === "/chats"
-                  ? "Chats & Mensajes"
-                  : location.pathname === "/channels"
-                  ? "Administrar Canales"
-                  : location.pathname === "/migration"
-                  ? "Clonador de Videos"
-                  : location.pathname === "/sync"
-                  ? "Sincronización en Vivo"
-                  : location.pathname === "/pipeline"
-                  ? "Pipeline & Reglas"
-                  : location.pathname === "/jobs"
-                  ? "Cola de Trabajos"
-                  : location.pathname === "/analytics"
-                  ? "Analíticas & Rendimiento"
-                  : location.pathname === "/billing"
-                  ? "Suscripción & Planes"
-                  : location.pathname === "/audit"
-                  ? "Auditoría del Sistema"
-                  : location.pathname === "/settings"
-                  ? "Configuración & API"
-                  : "Módulos"}
-              </span>
+              <SidebarTrigger className="-ml-1" />
+              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbLink href="#">{currentMeta.domain}</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{currentMeta.module}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors md:hidden"
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors md:hidden cursor-pointer"
                 title="Cambiar tema"
               >
                 {theme === "dark" ? (
