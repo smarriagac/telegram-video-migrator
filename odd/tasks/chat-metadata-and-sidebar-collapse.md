@@ -41,6 +41,7 @@ Delivery strategy: single-pr
 - [x] T5 (S4): Run full frontend build (`npm run build`) and backend tests (`pytest`) [inline]
 - [x] T6 (S4): Deploy build to Docker containers [inline]
 - [x] T7 (S4): Git commit and push with conventional commit message [inline]
+- [x] T8 (S2): Restrict message multi-selection in `ChatsView.tsx` exclusively to own channels/groups or admin chats [inline]
 
 ## Log
 - L1: User requested replacing generic "MTProto Conectado" with real subscribers/members/online count and identifying own channels/groups.
@@ -50,3 +51,4 @@ Delivery strategy: single-pr
 - L5: Fixed collapsed icon rail padding in `AppLayout.tsx`, centering header logo and vertically stacking avatar and theme toggle without overflow.
 - L6: All 109 automated tests passed cleanly and frontend bundle compiled with 0 errors.
 - L7: Eliminated redundant module-level titles and subtitles (`ViewHeader`), preserving pure action toolbars and status badges since domain context is already established in the top Breadcrumb header.
+- L8: Restricted `Seleccionar` action button and multi-selection mode to own channels (`is_creator`) or chats where user has admin rights (`is_admin`), resetting selection on chat change.

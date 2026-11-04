@@ -486,6 +486,15 @@ export const ChatsView: React.FC = () => {
     return () => clearTimeout(timer);
   }, [activeChatId, activeMessages.length > 0]);
 
+  // Reset multi-select mode if switching to another chat
+  useEffect(() => {
+    setViewState((prev) => ({
+      ...prev,
+      isSelectionMode: false,
+      selectedMessageIds: [],
+    }));
+  }, [activeChatId]);
+
   // Fetch VIP memberships associated with the active user chat
   useEffect(() => {
     if (!activeChat || activeChat.type !== "user") {
@@ -1028,30 +1037,32 @@ export const ChatsView: React.FC = () => {
                       <span>({activeChat.unread_count})</span>
                     </Button>
                   )}
-                  {/* Mode: Multi-Select for Self-Organization / Albums */}
-                  <Button
-                    variant={viewState.isSelectionMode ? "default" : "outline"}
-                    size="sm"
-                    onClick={() =>
-                      setViewState((prev) => ({
-                        ...prev,
-                        isSelectionMode: !prev.isSelectionMode,
-                        selectedMessageIds: prev.isSelectionMode ? [] : prev.selectedMessageIds,
-                      }))
-                    }
-                    className={cn(
-                      "h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 transition-all font-mono",
-                      viewState.isSelectionMode
-                        ? "bg-cyan-600 hover:bg-cyan-700 text-white"
-                        : "border-border text-muted-foreground hover:text-foreground"
-                    )}
-                    title="Seleccionar múltiples mensajes para organizar (#tag) o crear un álbum"
-                  >
-                    <CheckSquare className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">
-                      {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar"}
-                    </span>
-                  </Button>
+                  {/* Mode: Multi-Select for Self-Organization / Albums (Only for Own Channels/Groups or Admins) */}
+                  {Boolean(activeChat.is_creator || activeChat.is_admin) && (
+                    <Button
+                      variant={viewState.isSelectionMode ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        setViewState((prev) => ({
+                          ...prev,
+                          isSelectionMode: !prev.isSelectionMode,
+                          selectedMessageIds: prev.isSelectionMode ? [] : prev.selectedMessageIds,
+                        }))
+                      }
+                      className={cn(
+                        "h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 transition-all font-mono cursor-pointer",
+                        viewState.isSelectionMode
+                          ? "bg-primary text-primary-foreground font-semibold"
+                          : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                      )}
+                      title="Seleccionar múltiples mensajes para organizar (#tag) o crear un álbum"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">
+                        {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar"}
+                      </span>
+                    </Button>
+                  )}
                   <button
                     className="p-1 rounded-md hover:bg-white/5 text-zinc-400"
                     aria-label="Más opciones"
@@ -1063,15 +1074,15 @@ export const ChatsView: React.FC = () => {
 
               {/* Selected Messages Action Bar */}
               {viewState.selectedMessageIds.length > 0 && (
-                <div className="mx-3 mt-2 p-2 px-3 rounded-lg bg-secondary/90 border border-cyan-500/40 shadow-lg flex items-center justify-between gap-2 shrink-0 animate-in fade-in">
+                <div className="mx-3 mt-2 p-2 px-3 rounded-lg bg-secondary/90 border border-primary/40 shadow-lg flex items-center justify-between gap-2 shrink-0 animate-in fade-in">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="border-cyan-500/40 text-cyan-300 bg-cyan-500/10 text-xs font-mono">
+                    <Badge variant="outline" className="border-primary/40 text-primary bg-primary/10 text-xs font-mono">
                       {viewState.selectedMessageIds.length} seleccionados
                     </Badge>
                     <button
                       type="button"
                       onClick={() => setViewState((prev) => ({ ...prev, selectedMessageIds: [] }))}
-                      className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline cursor-pointer"
                     >
                       Desmarcar
                     </button>
@@ -1081,7 +1092,7 @@ export const ChatsView: React.FC = () => {
                     <Button
                       size="sm"
                       onClick={() => setViewState((prev) => ({ ...prev, organizeModalOpen: true }))}
-                      className="h-7 px-2.5 text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold flex items-center gap-1.5 shadow-sm"
+                      className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
                       <Tag className="w-3.5 h-3.5" />
                       <span>Organizar / Álbum ({viewState.selectedMessageIds.length})</span>
