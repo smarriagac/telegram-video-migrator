@@ -500,7 +500,7 @@ export const OrganizeChannelModal: React.FC<OrganizeChannelModalProps> = ({
                 </div>
 
                 {formState.isScheduled && (
-                  <div className="pt-1.5">
+                  <div className="pt-1.5 space-y-1.5">
                     <DateTimePicker
                       value={formState.scheduledAt}
                       onChange={(date) =>
@@ -511,6 +511,9 @@ export const OrganizeChannelModal: React.FC<OrganizeChannelModalProps> = ({
                       }
                       placeholder="Seleccionar fecha y horario..."
                     />
+                    <div className="p-2 rounded bg-amber-500/10 border border-amber-500/25 text-[11px] text-amber-400 font-mono">
+                      ⚠️ Se guardará en los <strong>Mensajes Programados</strong> de Telegram y se publicará en el chat a la hora elegida.
+                    </div>
                   </div>
                 )}
               </div>
