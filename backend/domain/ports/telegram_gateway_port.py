@@ -131,6 +131,12 @@ class TelegramGatewayPort(ABC):
         """Fetch specific messages by IDs."""
         return []
 
+    async def get_entity_avatar(
+        self, entity_id: int, account_id: int | None = None
+    ) -> bytes | None:
+        """Retrieve small profile photo / avatar thumbnail bytes for a user, group, or channel."""
+        return None
+
     async def send_media_album(
         self,
         target_channel_id: int,

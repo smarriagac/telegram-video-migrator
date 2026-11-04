@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Send,
@@ -26,11 +26,18 @@ import {
   ChevronLeft,
   UserPlus,
   Key,
+  CheckSquare,
+  Square,
+  Tag,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
 import { Button } from "@/shared/components/ui/button";
+import { Badge } from "@/shared/components/ui/badge";
 import { ViewHeader } from "@/shared/components/ViewHeader";
+import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
+import { OrganizeChannelModal } from "@/features/migration/presentation/components/OrganizeChannelModal";
+import { ChannelMessageItem } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
 import {
   Dialog,
@@ -47,7 +54,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
-import { Badge } from "@/shared/components/ui/badge";
 import { channelApi, ManagedChannel, VipMembership } from "@/features/channels/infrastructure/channelApi";
 import { ChatListSkeleton, ChatMessagesSkeleton } from "@/shared/components/ui/skeleton";
 
@@ -368,6 +374,9 @@ interface ExtraViewState {
   userMemberships: VipMembership[];
   showUserVipPopover: boolean;
   deleteMessageTargetId: number | null;
+  selectedMessageIds: number[];
+  isSelectionMode: boolean;
+  organizeModalOpen: boolean;
 }
 
 export const ChatsView: React.FC = () => {
@@ -383,6 +392,9 @@ export const ChatsView: React.FC = () => {
     userMemberships: [],
     showUserVipPopover: false,
     deleteMessageTargetId: null,
+    selectedMessageIds: [],
+    isSelectionMode: false,
+    organizeModalOpen: false,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -433,6 +445,22 @@ export const ChatsView: React.FC = () => {
 
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
+
+  const chatSelectedMessagesList: ChannelMessageItem[] = useMemo(() => {
+    const setIds = new Set(viewState.selectedMessageIds);
+    return activeMessages
+      .filter((m) => setIds.has(m.id))
+      .map((m) => ({
+        id: m.id,
+        channel_id: m.chat_id,
+        text: m.text || "",
+        media_type: m.media_type || "text",
+        date: m.date,
+        file_size: null,
+        views: null,
+        is_migrated: false,
+      }));
+  }, [activeMessages, viewState.selectedMessageIds]);
 
   const firstUnreadIndex =
     (activeChat?.unread_count || 0) > 0
@@ -773,14 +801,13 @@ export const ChatsView: React.FC = () => {
                         isActive && "bg-primary/10 border-l-2 border-primary"
                       )}
                     >
-                      <div
-                        className={cn(
-                          "w-8 h-8 rounded-md flex items-center justify-center font-bold text-xs text-white shrink-0 shadow-md",
-                          chat.avatar_color || "bg-primary"
-                        )}
-                      >
-                        {(chat.title || "C").charAt(0).toUpperCase()}
-                      </div>
+                      <ChatAvatar
+                        id={chat.id}
+                        title={chat.title}
+                        avatarColor={chat.avatar_color}
+                        accountId={selectedAccountId || chat.account_id}
+                        className="w-8 h-8 rounded-md"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-semibold text-foreground truncate">
@@ -876,14 +903,13 @@ export const ChatsView: React.FC = () => {
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <div
-                    className={cn(
-                      "w-7 h-7 rounded-md flex items-center justify-center font-bold text-[11px] text-white shrink-0",
-                      activeChat.avatar_color || "bg-primary"
-                    )}
-                  >
-                    {(activeChat.title || "C").charAt(0).toUpperCase()}
-                  </div>
+                  <ChatAvatar
+                    id={activeChat.id}
+                    title={activeChat.title}
+                    avatarColor={activeChat.avatar_color}
+                    accountId={selectedAccountId || activeChat.account_id}
+                    className="w-7 h-7 rounded-md"
+                  />
                   <div className="min-w-0">
                     <h2 className="text-xs font-bold text-white leading-none truncate max-w-[200px] sm:max-w-xs">
                       {activeChat.title || "Conversación"}
@@ -952,6 +978,30 @@ export const ChatsView: React.FC = () => {
                       <span>({activeChat.unread_count})</span>
                     </Button>
                   )}
+                  {/* Mode: Multi-Select for Self-Organization / Albums */}
+                  <Button
+                    variant={viewState.isSelectionMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() =>
+                      setViewState((prev) => ({
+                        ...prev,
+                        isSelectionMode: !prev.isSelectionMode,
+                        selectedMessageIds: prev.isSelectionMode ? [] : prev.selectedMessageIds,
+                      }))
+                    }
+                    className={cn(
+                      "h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 transition-all font-mono",
+                      viewState.isSelectionMode
+                        ? "bg-cyan-600 hover:bg-cyan-700 text-white"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    )}
+                    title="Seleccionar múltiples mensajes para organizar (#tag) o crear un álbum"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">
+                      {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar"}
+                    </span>
+                  </Button>
                   <button
                     className="p-1 rounded-md hover:bg-white/5 text-zinc-400"
                     aria-label="Más opciones"
@@ -960,6 +1010,35 @@ export const ChatsView: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Selected Messages Action Bar */}
+              {viewState.selectedMessageIds.length > 0 && (
+                <div className="mx-3 mt-2 p-2 px-3 rounded-lg bg-secondary/90 border border-cyan-500/40 shadow-lg flex items-center justify-between gap-2 shrink-0 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="border-cyan-500/40 text-cyan-300 bg-cyan-500/10 text-xs font-mono">
+                      {viewState.selectedMessageIds.length} seleccionados
+                    </Badge>
+                    <button
+                      type="button"
+                      onClick={() => setViewState((prev) => ({ ...prev, selectedMessageIds: [] }))}
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                    >
+                      Desmarcar
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => setViewState((prev) => ({ ...prev, organizeModalOpen: true }))}
+                      className="h-7 px-2.5 text-xs bg-cyan-600 hover:bg-cyan-700 text-white font-semibold flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Tag className="w-3.5 h-3.5" />
+                      <span>Organizar / Álbum ({viewState.selectedMessageIds.length})</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Error Banner (shrink-0) */}
               {error && (
@@ -1033,12 +1112,43 @@ export const ChatsView: React.FC = () => {
 
                         <div
                           className={cn(
-                            "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-sm transition-colors",
-                            msg.is_outgoing
-                              ? "self-end bg-primary/15 border border-primary/30 text-foreground"
-                              : "self-start bg-card border border-border text-foreground"
+                            "flex items-center gap-2 max-w-full",
+                            msg.is_outgoing ? "self-end justify-end" : "self-start justify-start"
                           )}
                         >
+                          {viewState.isSelectionMode && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setViewState((prev) => {
+                                  const exists = prev.selectedMessageIds.includes(msg.id);
+                                  return {
+                                    ...prev,
+                                    selectedMessageIds: exists
+                                      ? prev.selectedMessageIds.filter((id) => id !== msg.id)
+                                      : [...prev.selectedMessageIds, msg.id],
+                                  };
+                                });
+                              }}
+                              className="p-1 rounded hover:bg-secondary text-muted-foreground transition-colors shrink-0"
+                              title="Seleccionar mensaje"
+                            >
+                              {viewState.selectedMessageIds.includes(msg.id) ? (
+                                <CheckSquare className="w-4 h-4 text-cyan-400" />
+                              ) : (
+                                <Square className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </button>
+                          )}
+
+                          <div
+                            className={cn(
+                              "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-sm transition-colors",
+                              msg.is_outgoing
+                                ? "bg-primary/15 border border-primary/30 text-foreground"
+                                : "bg-card border border-border text-foreground"
+                            )}
+                          >
                           {/* Sender & Timestamp */}
                           <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14 text-muted-foreground">
                             <span className="font-semibold text-foreground/80">{msg.sender_name}</span>
@@ -1145,7 +1255,8 @@ export const ChatsView: React.FC = () => {
                             </div>
                           )}
                         </div>
-                      </React.Fragment>
+                      </div>
+                    </React.Fragment>
                     );
                   })
                 )}
@@ -1604,6 +1715,33 @@ export const ChatsView: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Organize / Batch Tagging & Album Repack Modal */}
+      {activeChat && viewState.organizeModalOpen && (
+        <OrganizeChannelModal
+          isOpen={viewState.organizeModalOpen}
+          onClose={() => setViewState((prev) => ({ ...prev, organizeModalOpen: false }))}
+          sourceChannelId={activeChat.id}
+          selectedMessages={chatSelectedMessagesList}
+          channels={chats.map((c) => ({
+            id: c.id,
+            title: c.title,
+            username: c.username || null,
+            can_post: c.can_post ?? true,
+            type: c.type,
+            account_id: c.account_id,
+          }))}
+          selectedTargetId={activeChat.id}
+          onSuccess={() => {
+            setViewState((prev) => ({
+              ...prev,
+              selectedMessageIds: [],
+              isSelectionMode: false,
+            }));
+            refreshActiveMessages();
+          }}
+        />
+      )}
     </div>
   );
 };

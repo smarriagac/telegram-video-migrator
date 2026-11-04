@@ -310,6 +310,23 @@ async def mark_dialog_read_endpoint(
     return {"success": success, "chat_id": chat_id, "max_id": max_id}
 
 
+@router.get("/{chat_id}/avatar")
+async def get_dialog_avatar_endpoint(
+    chat_id: int,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> Response:
+    """Retrieve profile photo thumbnail for a chat/user/channel."""
+    photo_bytes = await gateway.get_entity_avatar(chat_id, account_id=account_id)
+    if not photo_bytes:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
+    return Response(
+        content=photo_bytes,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 DEMO_THUMBNAIL_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="360" height="200" viewBox="0 0 360 200" fill="none">
   <rect width="360" height="200" fill="#14161F"/>
   <rect x="1" y="1" width="358" height="198" rx="8" stroke="#ffffff" stroke-opacity="0.08"/>

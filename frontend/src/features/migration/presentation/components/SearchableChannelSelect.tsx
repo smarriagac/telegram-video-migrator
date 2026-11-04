@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
 import {
   Command,
   CommandEmpty,
@@ -54,6 +55,12 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
           <div className="truncate flex-1 mr-2">
             {selectedChannel ? (
               <span className="flex items-center gap-1.5 truncate">
+                <ChatAvatar
+                  id={selectedChannel.id}
+                  title={selectedChannel.title}
+                  accountId={selectedChannel.account_id}
+                  className="w-4 h-4 rounded-xs shrink-0"
+                />
                 {selectedChannel.account_name && (
                   <span className="text-[9px] text-primary font-medium px-1 rounded bg-primary/10 border border-primary/20 shrink-0">
                     {selectedChannel.account_name}
@@ -105,6 +112,12 @@ export const SearchableChannelSelect: React.FC<SearchableChannelSelectProps> = (
                     )}
                   >
                     <div className="flex items-center gap-1.5 truncate mr-2 min-w-0 flex-1">
+                      <ChatAvatar
+                        id={c.id}
+                        title={c.title}
+                        accountId={c.account_id}
+                        className="w-4 h-4 rounded-xs shrink-0"
+                      />
                       {c.account_name && (
                         <span className="text-[9px] text-primary font-medium px-1 py-0.2 rounded bg-primary/10 border border-primary/20 shrink-0">
                           {c.account_name}

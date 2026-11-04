@@ -273,6 +273,23 @@ async def get_message_thumbnail_endpoint(
     )
 
 
+@router.get("/{channel_id}/avatar")
+async def get_channel_avatar_endpoint(
+    channel_id: int,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> Response:
+    """Retrieve profile photo thumbnail for a channel."""
+    photo_bytes = await gateway.get_entity_avatar(channel_id, account_id=account_id)
+    if not photo_bytes:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
+    return Response(
+        content=photo_bytes,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 @router.get("/{channel_id}/messages/{message_id}/video")
 async def get_message_video_endpoint(
     channel_id: int,

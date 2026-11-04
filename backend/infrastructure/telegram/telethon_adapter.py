@@ -32,6 +32,7 @@ class TelethonAdapter(TelegramGatewayPort):
         self.client = client
         self.pool = pool
         self.tenant_id = str(tenant_id) if tenant_id is not None else None
+        self._avatar_cache: dict[int, bytes | None] = {}
 
     def _get_client(self, account_id: int | None = None) -> TelegramClient:
         if self.pool and account_id is not None:
@@ -1054,6 +1055,31 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.error(f"Error publishing album to channel {target_channel_id}: {e}")
             raise
+
+    async def get_entity_avatar(
+        self, entity_id: int, account_id: int | None = None
+    ) -> bytes | None:
+        """Retrieve small profile photo / avatar thumbnail bytes for a user, group, or channel."""
+        if entity_id in self._avatar_cache:
+            return self._avatar_cache[entity_id]
+
+        client = self._get_client(account_id)
+        try:
+            await self._ensure_connected(client)
+            entity = await client.get_entity(entity_id)
+            if not getattr(entity, "photo", None):
+                self._avatar_cache[entity_id] = None
+                return None
+
+            photo_bytes = await client.download_profile_photo(
+                entity, file=bytes, download_big=False
+            )
+            self._avatar_cache[entity_id] = photo_bytes
+            return photo_bytes
+        except Exception as e:
+            logger.debug(f"Could not download avatar for entity {entity_id}: {e}")
+            self._avatar_cache[entity_id] = None
+            return None
 
     async def kick_chat_member(
         self, channel_id: int, user_id: int, account_id: int | None = None
