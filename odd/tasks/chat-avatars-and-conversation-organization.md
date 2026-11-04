@@ -37,3 +37,4 @@ Delivery strategy: single-pr
 - L5: Created reusable `ChatAvatar` component and integrated it into chat lists, conversation header, and channel select dropdowns.
 - L6: Added multi-message selection mode and mounted `OrganizeChannelModal` in `ChatsView.tsx` adhering to the 2-hook budget.
 - L7: Verified all 108 backend tests pass and frontend builds with 0 errors and deployed to Docker.
+- L8: Fixed backend container stale process (restarted container so uvicorn loaded new /avatar routes), removed premature None caching on transient exceptions in `telethon_adapter.py`, and made `ChatAvatar.tsx` reset error state on URL change.

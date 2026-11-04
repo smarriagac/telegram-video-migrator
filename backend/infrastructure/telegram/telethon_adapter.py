@@ -1078,7 +1078,6 @@ class TelethonAdapter(TelegramGatewayPort):
             return photo_bytes
         except Exception as e:
             logger.debug(f"Could not download avatar for entity {entity_id}: {e}")
-            self._avatar_cache[entity_id] = None
             return None
 
     async def kick_chat_member(

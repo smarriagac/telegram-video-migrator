@@ -16,9 +16,15 @@ export const ChatAvatar: React.FC<ChatAvatarProps> = ({
   className = "w-8 h-8 rounded-md",
   accountId,
 }) => {
-  const [hasError, setHasError] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const avatarUrl = `/api/dialogs/${id}/avatar${accountId ? `?account_id=${accountId}` : ""}`;
-  const initial = (title || "C").trim().charAt(0).toUpperCase();
+  const hasError = failedUrl === avatarUrl;
+
+  const cleanTitle = (title || "").trim();
+  const alphanumericMatch = cleanTitle.match(/[a-zA-Z0-9]/);
+  const initial = alphanumericMatch
+    ? alphanumericMatch[0].toUpperCase()
+    : Array.from(cleanTitle)[0] || "C";
 
   if (hasError || !id) {
     return (
@@ -45,7 +51,7 @@ export const ChatAvatar: React.FC<ChatAvatarProps> = ({
         src={avatarUrl}
         alt={title}
         loading="lazy"
-        onError={() => setHasError(true)}
+        onError={() => setFailedUrl(avatarUrl)}
         className="w-full h-full object-cover"
       />
     </div>
