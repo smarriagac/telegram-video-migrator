@@ -288,6 +288,7 @@ export const migrationApi = {
     caption: string;
     account_id?: number | null;
     scheduled_at?: string | null;
+    delete_source_messages?: boolean;
   }): Promise<{
     status: string;
     source_channel_id: number;
@@ -295,6 +296,7 @@ export const migrationApi = {
     sent_message_ids: number[];
     caption: string;
     is_scheduled: boolean;
+    deleted_source_count?: number;
   }> {
     const res = await fetch(`${API_BASE_URL}/channels/${payload.source_channel_id}/publish-album`, {
       method: "POST",
@@ -305,11 +307,42 @@ export const migrationApi = {
         caption: payload.caption,
         account_id: payload.account_id,
         scheduled_at: payload.scheduled_at,
+        delete_source_messages: payload.delete_source_messages,
       }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Error al publicar el álbum en Telegram");
+    }
+    return res.json();
+  },
+
+  async batchEditCaptions(payload: {
+    channel_id: number;
+    message_ids: number[];
+    text: string;
+    mode?: "append" | "prepend" | "replace";
+    account_id?: number | null;
+  }): Promise<{
+    status: string;
+    channel_id: number;
+    updated_count: number;
+    message_ids: number[];
+    mode: string;
+  }> {
+    const res = await fetch(`${API_BASE_URL}/channels/${payload.channel_id}/messages/batch-edit-caption`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message_ids: payload.message_ids,
+        text: payload.text,
+        mode: payload.mode || "append",
+        account_id: payload.account_id,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al editar los mensajes en lote");
     }
     return res.json();
   },

@@ -113,7 +113,7 @@ async def test_publish_album_endpoint_rejects_overflow_media():
 
 
 @pytest.mark.asyncio
-async def test_publish_album_endpoint_rejects_same_source_target():
+async def test_publish_album_endpoint_supports_same_source_target():
     gateway = DummyAlbumGateway()
     app.dependency_overrides[get_telegram_gateway] = lambda: gateway
     try:
@@ -127,8 +127,9 @@ async def test_publish_album_endpoint_rejects_same_source_target():
                     "caption": "#ejemplo1 Mismo canal",
                 },
             )
-            assert res.status_code == 400
-            assert "no puede ser idéntico" in res.json()["detail"]
+            assert res.status_code == 201
+            assert res.json()["source_channel_id"] == -100123
+            assert res.json()["target_channel_id"] == -100123
     finally:
         app.dependency_overrides.pop(get_telegram_gateway, None)
 

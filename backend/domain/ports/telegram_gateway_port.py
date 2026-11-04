@@ -112,12 +112,24 @@ class TelegramGatewayPort(ABC):
         """Delete a message from a channel."""
         raise NotImplementedError
 
+    async def delete_channel_messages(
+        self, channel_id: int, message_ids: list[int], account_id: int | None = None
+    ) -> bool:
+        """Delete multiple messages from a channel in a single call."""
+        raise NotImplementedError
+
     @abstractmethod
     async def edit_channel_message(
         self, channel_id: int, message_id: int, text: str
     ) -> ChannelMessage:
         """Edit the caption or text of an existing channel message."""
         raise NotImplementedError
+
+    async def get_messages_by_ids(
+        self, channel_id: int, message_ids: list[int], account_id: int | None = None
+    ) -> list[ChannelMessage]:
+        """Fetch specific messages by IDs."""
+        return []
 
     async def send_media_album(
         self,

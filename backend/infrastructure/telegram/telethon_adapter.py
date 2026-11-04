@@ -866,13 +866,14 @@ class TelethonAdapter(TelegramGatewayPort):
             raise
 
     async def delete_channel_message(
-        self, channel_id: int, message_id: int
+        self, channel_id: int, message_id: int, account_id: int | None = None
     ) -> bool:
         """Delete a message from a channel."""
+        client = self._get_client(account_id)
         try:
-            await self._ensure_connected()
-            entity = await self.client.get_input_entity(channel_id)
-            await self.client.delete_messages(entity, [message_id])
+            await self._ensure_connected(client)
+            entity = await client.get_input_entity(channel_id)
+            await client.delete_messages(entity, [message_id])
             return True
         except FloodWaitError as e:
             raise FloodWaitDomainException(seconds=e.seconds) from e
@@ -882,14 +883,35 @@ class TelethonAdapter(TelegramGatewayPort):
             logger.error(f"Error deleting message {message_id} from channel {channel_id}: {e}")
             raise
 
+    async def delete_channel_messages(
+        self, channel_id: int, message_ids: list[int], account_id: int | None = None
+    ) -> bool:
+        """Delete multiple messages from a channel in a single MTProto call."""
+        if not message_ids:
+            return True
+        client = self._get_client(account_id)
+        try:
+            await self._ensure_connected(client)
+            entity = await client.get_input_entity(channel_id)
+            await client.delete_messages(entity, message_ids)
+            return True
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error deleting messages from channel {channel_id}: {e}")
+            raise
+
     async def edit_channel_message(
-        self, channel_id: int, message_id: int, text: str
+        self, channel_id: int, message_id: int, text: str, account_id: int | None = None
     ) -> ChannelMessage:
         """Edit the caption or text of an existing channel message."""
+        client = self._get_client(account_id)
         try:
-            await self._ensure_connected()
-            entity = await self.client.get_input_entity(channel_id)
-            edited = await self.client.edit_message(entity, message_id, text)
+            await self._ensure_connected(client)
+            entity = await client.get_input_entity(channel_id)
+            edited = await client.edit_message(entity, message_id, text)
             media_type = None
             if getattr(edited, "photo", None):
                 media_type = "photo"
@@ -911,6 +933,42 @@ class TelethonAdapter(TelegramGatewayPort):
             raise ChannelAccessDeniedException(str(e)) from e
         except Exception as e:
             logger.error(f"Error editing message {message_id} in channel {channel_id}: {e}")
+            raise
+
+    async def get_messages_by_ids(
+        self, channel_id: int, message_ids: list[int], account_id: int | None = None
+    ) -> list[ChannelMessage]:
+        """Fetch specific messages from a channel by their IDs."""
+        client = self._get_client(account_id)
+        try:
+            await self._ensure_connected(client)
+            entity = await client.get_input_entity(channel_id)
+            msgs = await client.get_messages(entity, ids=message_ids)
+            result = []
+            for m in msgs:
+                if not m:
+                    continue
+                media_type = "text"
+                if getattr(m, "photo", None):
+                    media_type = "photo"
+                elif getattr(m, "video", None):
+                    media_type = "video"
+                elif getattr(m, "document", None):
+                    media_type = "document"
+                result.append(
+                    ChannelMessage(
+                        id=m.id,
+                        channel_id=channel_id,
+                        text=m.message or "",
+                        media_type=media_type,
+                        date=m.date.strftime("%Y-%m-%d %H:%M") if m.date else "",
+                    )
+                )
+            return result
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except Exception as e:
+            logger.error(f"Error fetching messages by IDs for channel {channel_id}: {e}")
             raise
 
     async def send_media_album(

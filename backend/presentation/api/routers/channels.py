@@ -433,6 +433,21 @@ class EditMessageRequest(BaseModel):
     text: str
 
 
+class BatchEditCaptionRequest(BaseModel):
+    message_ids: list[int]
+    text: str
+    mode: str = "append"  # "append" | "prepend" | "replace"
+    account_id: int | None = None
+
+
+class BatchEditCaptionResponse(BaseModel):
+    status: str
+    channel_id: int
+    updated_count: int
+    message_ids: list[int]
+    mode: str
+
+
 class PublishAlbumRequest(BaseModel):
     target_channel_id: int
     message_ids: list[int]
@@ -440,6 +455,7 @@ class PublishAlbumRequest(BaseModel):
     account_id: int | None = None
     target_account_id: int | None = None
     scheduled_at: datetime | None = None
+    delete_source_messages: bool = False
 
 
 class PublishAlbumResponse(BaseModel):
@@ -449,6 +465,91 @@ class PublishAlbumResponse(BaseModel):
     sent_message_ids: list[int]
     caption: str
     is_scheduled: bool
+    deleted_source_count: int = 0
+
+
+@router.post("/{channel_id}/messages/batch-edit-caption", response_model=BatchEditCaptionResponse)
+async def batch_edit_caption_endpoint(
+    channel_id: int,
+    req: BatchEditCaptionRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+) -> BatchEditCaptionResponse:
+    """Batch edit captions or tags on existing messages in a channel without re-sending."""
+    if not req.message_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe seleccionar al menos un mensaje para editar.",
+        )
+    if not req.text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El texto o etiqueta a aplicar no puede estar vacío.",
+        )
+
+    tag_text = req.text.strip()
+    updated_ids: list[int] = []
+
+    # Attempt to fetch existing messages to preserve caption when appending/prepending
+    existing_messages_map: dict[int, str] = {}
+    try:
+        if hasattr(gateway, "get_messages_by_ids"):
+            existing_msgs = await gateway.get_messages_by_ids(
+                channel_id=channel_id,
+                message_ids=req.message_ids,
+                account_id=req.account_id,
+            )
+            for em in existing_msgs:
+                existing_messages_map[em.id] = em.text or ""
+    except Exception as e:
+        logger.warning(f"Could not batch fetch messages for caption edit: {e}")
+
+    for msg_id in req.message_ids:
+        current_text = existing_messages_map.get(msg_id, "")
+        if req.mode == "append":
+            new_text = f"{current_text} {tag_text}".strip() if current_text else tag_text
+        elif req.mode == "prepend":
+            new_text = f"{tag_text} {current_text}".strip() if current_text else tag_text
+        else:  # replace
+            new_text = tag_text
+
+        try:
+            await gateway.edit_channel_message(
+                channel_id=channel_id,
+                message_id=msg_id,
+                text=new_text,
+            )
+            updated_ids.append(msg_id)
+        except Exception as edit_err:
+            logger.warning(f"Failed to edit message #{msg_id} in channel {channel_id}: {edit_err}")
+
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="BATCH_CAPTION_EDIT",
+                resource=f"channel:{channel_id}",
+                details={
+                    "channel_id": channel_id,
+                    "updated_count": len(updated_ids),
+                    "message_ids": updated_ids,
+                    "mode": req.mode,
+                    "tag_text": tag_text,
+                },
+            )
+        )
+    except Exception as audit_err:
+        logger.warning(f"Could not record audit log for batch caption edit: {audit_err}")
+
+    return BatchEditCaptionResponse(
+        status="success",
+        channel_id=channel_id,
+        updated_count=len(updated_ids),
+        message_ids=updated_ids,
+        mode=req.mode,
+    )
 
 
 @router.post("/{channel_id}/publish-album", response_model=PublishAlbumResponse, status_code=status.HTTP_201_CREATED)
@@ -458,7 +559,7 @@ async def publish_album_endpoint(
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
     audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
 ) -> PublishAlbumResponse:
-    """Group 2 to 10 media messages from source channel and publish them as an album (MediaGroup) in target channel."""
+    """Group 2 to 10 media messages from source channel and publish them as an album (MediaGroup) in target channel or same channel."""
     if not req.message_ids or len(req.message_ids) < 2:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -468,11 +569,6 @@ async def publish_album_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Los álbumes de Telegram soportan un máximo de 10 elementos multimedia por grupo.",
-        )
-    if req.target_channel_id == channel_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El canal destino no puede ser idéntico al canal de origen.",
         )
 
     try:
@@ -484,6 +580,23 @@ async def publish_album_endpoint(
             account_id=req.account_id,
             schedule_date=req.scheduled_at,
         )
+
+        deleted_count = 0
+        if req.delete_source_messages:
+            try:
+                if hasattr(gateway, "delete_channel_messages"):
+                    await gateway.delete_channel_messages(
+                        channel_id=channel_id,
+                        message_ids=req.message_ids,
+                        account_id=req.account_id,
+                    )
+                    deleted_count = len(req.message_ids)
+                else:
+                    for mid in req.message_ids:
+                        await gateway.delete_channel_message(channel_id, mid)
+                        deleted_count += 1
+            except Exception as del_err:
+                logger.warning(f"Failed to delete original loose messages after album publication: {del_err}")
 
         try:
             await audit_repo.record_audit_log(
@@ -501,6 +614,8 @@ async def publish_album_endpoint(
                         "caption": req.caption,
                         "is_scheduled": bool(req.scheduled_at),
                         "scheduled_at": req.scheduled_at.isoformat() if req.scheduled_at else None,
+                        "deleted_source_messages": req.delete_source_messages,
+                        "deleted_count": deleted_count,
                     },
                 )
             )
@@ -514,6 +629,7 @@ async def publish_album_endpoint(
             sent_message_ids=sent_ids,
             caption=req.caption,
             is_scheduled=bool(req.scheduled_at),
+            deleted_source_count=deleted_count,
         )
     except FloodWaitDomainException as fw:
         raise HTTPException(
