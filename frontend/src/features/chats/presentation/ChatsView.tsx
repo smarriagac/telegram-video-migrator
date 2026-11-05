@@ -194,7 +194,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   }
 
   return (
-    <div className="relative mb-2 rounded-lg overflow-hidden bg-black/60 border border-white/10 max-w-sm group/preview shadow-inner">
+    <div className="relative mb-0 rounded-t-[17px] overflow-hidden bg-black/80 max-w-sm group/preview shadow-inner w-full">
       {!loaded && !hasError && (
         <div className="w-full h-36 bg-secondary/60 animate-pulse flex items-center justify-center text-muted-foreground">
           <Loader2 className="w-5 h-5 text-primary/60 animate-spin" />
@@ -284,9 +284,9 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
               setIsPlayingInline(true);
             }}
             title="Reproducir video inline"
-            className="w-12 h-12 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
+            className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
           >
-            <Play className="w-5 h-5 fill-primary-foreground ml-0.5" />
+            <Play className="w-5 h-5 fill-white ml-0.5" />
           </button>
         </div>
       )}
@@ -1215,7 +1215,7 @@ export const ChatsView: React.FC = () => {
                     markAsRead(activeChat.id);
                   }
                 }}
-                className="relative flex-1 min-h-0 p-3 overflow-y-auto space-y-2.5 flex flex-col"
+                className="relative flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-2 flex flex-col bg-[#0b121e]/40 dark:bg-[#0c1422]"
               >
                 <div className="text-center my-1 shrink-0">
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
@@ -1238,6 +1238,7 @@ export const ChatsView: React.FC = () => {
                       (activeChat?.read_outbox_max_id
                         ? msg.id <= activeChat.read_outbox_max_id
                         : false);
+                    const hasMedia = msg.media_type === "video" || msg.media_type === "photo";
 
                     return (
                       <React.Fragment key={msg.id}>
@@ -1286,29 +1287,23 @@ export const ChatsView: React.FC = () => {
                             </button>
                           )}
 
+                          {/* Telegram Official-Styled Bubble adapted to Dark Cyber */}
                           <div
                             className={cn(
-                              "group relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] w-fit p-3 text-xs flex flex-col shadow-sm transition-all",
+                              "group relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] w-fit text-xs flex flex-col shadow-md transition-all overflow-hidden",
                               msg.is_outgoing
-                                ? "bg-primary/15 border border-primary/30 text-foreground rounded-2xl rounded-tr-xs self-end"
-                                : "bg-card border border-border/80 text-foreground rounded-2xl rounded-tl-xs self-start"
+                                ? "bg-primary/20 dark:bg-[#1a3353] border border-primary/30 dark:border-[#2d527c] text-foreground dark:text-slate-100 rounded-[18px] rounded-br-[4px] self-end"
+                                : "bg-card dark:bg-[#172338] border border-border dark:border-[#22354e] text-foreground dark:text-slate-100 rounded-[18px] rounded-bl-[4px] self-start"
                             )}
                           >
-                            {/* Sender Name (only on incoming messages in multi-user groups) */}
-                            {Boolean(!msg.is_outgoing && activeChat?.type === "group" && msg.sender_name) && (
-                              <div className="text-[10px] font-semibold text-primary font-mono mb-1 truncate select-none">
-                                {msg.sender_name}
-                              </div>
-                            )}
-
                             {/* Hover Action Buttons (Edit / Delete) */}
                             {!isEditingThis && (
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2 z-10">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2 z-20">
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(msg)}
                                   title="Editar mensaje"
-                                  className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-primary transition-colors border border-border/40 cursor-pointer"
+                                  className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-white transition-colors border border-white/10 cursor-pointer shadow-xs"
                                 >
                                   <Pencil className="w-3 h-3" />
                                 </button>
@@ -1321,7 +1316,7 @@ export const ChatsView: React.FC = () => {
                                     }));
                                   }}
                                   title="Eliminar mensaje"
-                                  className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-rose-500 transition-colors border border-border/40 cursor-pointer"
+                                  className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-rose-400 transition-colors border border-white/10 cursor-pointer shadow-xs"
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </button>
@@ -1329,68 +1324,94 @@ export const ChatsView: React.FC = () => {
                             )}
 
                             {/* Media Preview Card (Video / Photo / Document) */}
-                            {(msg.media_type === "video" || msg.media_type === "photo") && (
-                              <ChatMediaThumbnail
-                                chatId={msg.chat_id}
-                                messageId={msg.id}
-                                mediaType={msg.media_type}
-                                accountId={selectedAccountId}
-                                text={msg.text}
-                                onOpenViewer={() => setViewState((prev) => ({ ...prev, previewModalMsg: msg }))}
-                              />
-                            )}
-                            {msg.media_type === "document" && (
-                              <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[10px] font-mono w-fit">
-                                <FileText className="w-3.5 h-3.5 text-amber-500" />
-                                <span>Documento / Archivo</span>
+                            {hasMedia && (
+                              <div className="w-full overflow-hidden">
+                                <ChatMediaThumbnail
+                                  chatId={msg.chat_id}
+                                  messageId={msg.id}
+                                  mediaType={msg.media_type}
+                                  accountId={selectedAccountId}
+                                  text={msg.text}
+                                  onOpenViewer={() => setViewState((prev) => ({ ...prev, previewModalMsg: msg }))}
+                                />
                               </div>
                             )}
 
-                            {/* Message content or inline editing */}
-                            {isEditingThis ? (
-                              <div className="space-y-1.5 mt-0.5">
-                                <input
-                                  type="text"
-                                  value={viewState.editText}
-                                  onChange={(e) =>
-                                    setViewState((s) => ({ ...s, editText: e.target.value }))
-                                  }
-                                  className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      handleSaveEdit(msg.id);
-                                    } else if (e.key === "Escape") {
-                                      setEditingMessage(null);
-                                    }
-                                  }}
-                                />
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingMessage(null)}
-                                    className="p-1 px-2 rounded text-[10px] text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border cursor-pointer"
-                                  >
-                                    <X className="w-3 h-3" />
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSaveEdit(msg.id)}
-                                    className="p-1 px-2 rounded text-[10px] text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1 cursor-pointer"
-                                  >
-                                    <Check className="w-3 h-3" />
-                                    Guardar
-                                  </button>
+                            {/* Bubble Content Body */}
+                            <div className="p-2.5 sm:p-3 space-y-1">
+                              {/* Sender Name (only on incoming messages in multi-user groups) */}
+                              {Boolean(!msg.is_outgoing && activeChat?.type === "group" && msg.sender_name) && (
+                                <div className="text-[11px] font-semibold text-primary font-mono truncate select-none leading-none mb-1">
+                                  {msg.sender_name}
                                 </div>
-                              </div>
-                            ) : (
-                              <p className="leading-relaxed break-words whitespace-pre-wrap font-sans">{msg.text}</p>
-                            )}
+                              )}
+
+                              {msg.media_type === "document" && (
+                                <div className="flex items-center gap-1.5 px-2 py-1 mb-1 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[10px] font-mono w-fit">
+                                  <FileText className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>Documento / Archivo</span>
+                                </div>
+                              )}
+
+                              {/* Message content or inline editing with floating timestamp */}
+                              {isEditingThis ? (
+                                <div className="space-y-1.5 mt-0.5">
+                                  <input
+                                    type="text"
+                                    value={viewState.editText}
+                                    onChange={(e) =>
+                                      setViewState((s) => ({ ...s, editText: e.target.value }))
+                                    }
+                                    className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleSaveEdit(msg.id);
+                                      } else if (e.key === "Escape") {
+                                        setEditingMessage(null);
+                                      }
+                                    }}
+                                  />
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingMessage(null)}
+                                      className="p-1 px-2 rounded text-[10px] text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border cursor-pointer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                      Cancelar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSaveEdit(msg.id)}
+                                      className="p-1 px-2 rounded text-[10px] text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Check className="w-3 h-3" />
+                                      Guardar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="leading-relaxed break-words whitespace-pre-wrap font-sans text-xs">
+                                  {msg.text && <span>{msg.text}</span>}
+                                  {/* Floating Telegram Timestamp & Checkmarks */}
+                                  <span className="float-right ml-2.5 mt-1 -mb-0.5 inline-flex items-center gap-0.5 text-[10px] font-mono opacity-65 leading-none select-none">
+                                    <span>{msg.date}</span>
+                                    {msg.is_outgoing && !isEditingThis && (
+                                      isOutgoingRead ? (
+                                        <CheckCheck className="w-3.5 h-3.5 text-primary ml-0.5 shrink-0" />
+                                      ) : (
+                                        <Check className="w-3.5 h-3.5 text-muted-foreground ml-0.5 shrink-0" />
+                                      )
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
 
                             {/* Bot Interactive Buttons (reply_markup) */}
                             {msg.buttons && msg.buttons.length > 0 && (
-                              <div className="pt-2 space-y-1 w-full">
+                              <div className="px-2.5 pb-2.5 space-y-1 w-full">
                                 {msg.buttons.map((row, rowIdx) => (
                                   <div key={rowIdx} className="flex items-center gap-1.5 flex-wrap w-full">
                                     {row.map((btn, colIdx) => {
@@ -1434,22 +1455,6 @@ export const ChatsView: React.FC = () => {
                                 ))}
                               </div>
                             )}
-
-                            {/* Timestamp & Read Receipt Footer inside bubble */}
-                            <div className="self-end mt-1 flex items-center gap-1 text-[10px] font-mono text-muted-foreground select-none">
-                              <span>{msg.date}</span>
-                              {msg.is_outgoing && !isEditingThis && (
-                                isOutgoingRead ? (
-                                  <span title="Leído por el destinatario" className="text-primary flex items-center">
-                                    <CheckCheck className="w-3 h-3" />
-                                  </span>
-                                ) : (
-                                  <span title="Entregado al servidor (no leído aún)" className="text-muted-foreground flex items-center">
-                                    <Check className="w-3 h-3" />
-                                  </span>
-                                )
-                              )}
-                            </div>
                           </div>
                       </div>
                     </React.Fragment>
