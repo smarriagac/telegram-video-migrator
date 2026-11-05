@@ -30,6 +30,7 @@ Delivery strategy: single-pr
 - [x] T4 (S5): Compile frontend bundle and deploy to Docker container [inline]
 - [x] T5 (S5): Run full pytest test suite [inline]
 - [x] T6 (S5): Git commit and push with conventional commit message [inline]
+- [x] T7 (S2): Replace floating modals (Captions rules, Cloning history, Direct upload) with an integrated Inline Workbench occupying the bottom 60% viewport space [inline]
 
 ## Log
 - L1: User critiqued the prior wizard design as basic and amateur (nested cards, numbered circles, emojis).
@@ -38,3 +39,4 @@ Delivery strategy: single-pr
 - L4: Built industrial hairline step track (`Canales ─── Selección de Videos ─── Confirmación`).
 - L5: Implemented symmetrical dual-terminal workstation (Canal Origen | Canal Destino) with lower pipeline parameters shelf.
 - L6: Implemented single-surface technical dispatch sheet for Step 3 and verified full test suite.
+- L7: Eliminated intrusive floating modals for text rules, audit history, and direct upload. Replaced them with an integrated Inline Workbench tray in the lower canvas with live transformation simulator and history table.

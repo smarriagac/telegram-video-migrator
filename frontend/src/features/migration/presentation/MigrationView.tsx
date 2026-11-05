@@ -16,9 +16,9 @@ import { useMigrationStore } from "../application/useMigrationStore";
 import { useMigrationStream } from "../application/useMigrationStream";
 import { SearchableChannelSelect } from "./components/SearchableChannelSelect";
 import { MessageSelector } from "./components/MessageSelector";
-import { ChannelCloningHistoryModal } from "./components/ChannelCloningHistoryModal";
-import { DirectUploadModal } from "./components/DirectUploadModal";
-import { CaptionRulesModal } from "./components/CaptionRulesModal";
+import { InlineCaptionRules } from "./components/InlineCaptionRules";
+import { InlineCloningHistory } from "./components/InlineCloningHistory";
+import { InlineDirectUpload } from "./components/InlineDirectUpload";
 import { ScheduledSuccessModal } from "./components/ScheduledSuccessModal";
 import { DateTimePicker } from "@/shared/components/ui/date-time-picker";
 import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
@@ -39,7 +39,7 @@ type WizardStep = "channels" | "content" | "review";
 
 interface WizardViewState {
   currentStep: WizardStep;
-  activeModal: "none" | "history" | "upload" | "caption_rules";
+  workbenchTab: "none" | "rules" | "history" | "upload";
   isScheduleEnabled: boolean;
   scheduledSuccess: {
     jobId: string;
@@ -56,7 +56,7 @@ export const MigrationView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Exactly 1 useState hook (consolidated wizard state)
   const [wizardState, setWizardState] = useState<WizardViewState>({
     currentStep: "channels",
-    activeModal: "none",
+    workbenchTab: "none",
     isScheduleEnabled: false,
     scheduledSuccess: null,
   });
@@ -391,194 +391,265 @@ export const MigrationView: React.FC = () => {
             </div>
           </div>
         ) : wizardState.currentStep === "channels" ? (
-          /* ================= STEP 1: DUAL-TERMINAL CONSOLE ================= */
-          <div className="flex-1 min-h-0 w-full flex flex-col justify-between max-w-5xl mx-auto py-2">
-            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-              {/* Top Bar with Console Header */}
-              <div className="px-5 py-3 border-b border-border/80 bg-secondary/30 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" />
-                  <span className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
-                    Consola de Enrutamiento de Canales
+          /* ================= STEP 1: DUAL-TERMINAL CONSOLE & INLINE WORKBENCH ================= */
+          <div className="flex-1 min-h-0 w-full flex flex-col justify-between max-w-5xl mx-auto py-2 overflow-y-auto space-y-4">
+            <div className="space-y-4">
+              {/* Dual Console Surface */}
+              <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+                {/* Top Bar with Console Header */}
+                <div className="px-5 py-3 border-b border-border/80 bg-secondary/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-primary" />
+                    <span className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Consola de Enrutamiento de Canales
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-mono">
+                    Extracción por referencia MTProto
                   </span>
                 </div>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  Extracción por referencia MTProto
-                </span>
-              </div>
 
-              {/* Dual Workstation Grid: Origen | Destino */}
-              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
-                {/* Left Wing: Canal Origen */}
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
-                      Canal Origen
-                    </span>
-                    {selectedSourceId && (
-                      <button
-                        type="button"
-                        onClick={() => setWizardState((s) => ({ ...s, activeModal: "history" }))}
-                        className="text-[11px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <History className="w-3 h-3" />
-                        <span>Auditar Historial ({history?.total_clones ?? 0})</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <SearchableChannelSelect
-                    disabled={isRunning || isLoading}
-                    value={selectedSourceId}
-                    onChange={selectSource}
-                    channels={channels}
-                    disabledId={selectedTargetId}
-                    placeholder="Seleccionar canal de extracción..."
-                    accentColor="cyan"
-                  />
-
-                  {sourceChannel ? (
-                    <div className="p-3 rounded-lg bg-secondary/40 border border-border/70 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <ChatAvatar
-                          id={sourceChannel.id}
-                          title={sourceChannel.title}
-                          accountId={sourceChannel.account_id}
-                          className="w-8 h-8 rounded-md shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <span className="font-semibold text-foreground truncate block">{sourceChannel.title}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono truncate block">
-                            {sourceChannel.username ? `@${sourceChannel.username}` : `ID: ${sourceChannel.id}`}
-                          </span>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] font-mono shrink-0">
-                        {sourceChannel.type === "channel" ? "Canal" : "Grupo"}
-                      </Badge>
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Elegí el canal desde el cual querés transferir publicaciones y videos sin descargarlos a tu disco.
-                    </p>
-                  )}
-                </div>
-
-                {/* Right Wing: Canal Destino */}
-                <div className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
-                      Canal Destino
-                    </span>
-                    {selectedTargetId && (
-                      <button
-                        type="button"
-                        onClick={() => setWizardState((s) => ({ ...s, activeModal: "upload" }))}
-                        className="text-[11px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <UploadCloud className="w-3 h-3" />
-                        <span>Publicar desde PC</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <SearchableChannelSelect
-                    disabled={isRunning || isLoading}
-                    value={selectedTargetId}
-                    onChange={selectTarget}
-                    channels={channels}
-                    disabledId={selectedSourceId}
-                    placeholder="Seleccionar canal receptor..."
-                    accentColor="cyan"
-                  />
-
-                  {targetChannel ? (
-                    <div className="p-3 rounded-lg bg-secondary/40 border border-border/70 flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <ChatAvatar
-                          id={targetChannel.id}
-                          title={targetChannel.title}
-                          accountId={targetChannel.account_id}
-                          className="w-8 h-8 rounded-md shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <span className="font-semibold text-foreground truncate block">{targetChannel.title}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono truncate block">
-                            {targetChannel.username ? `@${targetChannel.username}` : `ID: ${targetChannel.id}`}
-                          </span>
-                        </div>
-                      </div>
-                      {targetChannel.can_post ? (
-                        <Badge variant="admin" className="text-[10px] font-mono shrink-0">
-                          Permiso OK
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="text-[10px] font-mono shrink-0">
-                          Solo Lectura
-                        </Badge>
+                {/* Dual Workstation Grid: Origen | Destino */}
+                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+                  {/* Left Wing: Canal Origen */}
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
+                        Canal Origen
+                      </span>
+                      {selectedSourceId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setWizardState((s) => ({
+                              ...s,
+                              workbenchTab: s.workbenchTab === "history" ? "none" : "history",
+                            }))
+                          }
+                          className={cn(
+                            "text-[11px] font-mono px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer",
+                            wizardState.workbenchTab === "history"
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "text-primary hover:underline hover:bg-primary/10"
+                          )}
+                        >
+                          <History className="w-3 h-3" />
+                          <span>Auditar Historial ({history?.total_clones ?? 0})</span>
+                        </button>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Elegí el canal propio o comunidad donde se publicará el contenido clonado.
-                    </p>
+
+                    <SearchableChannelSelect
+                      disabled={isRunning || isLoading}
+                      value={selectedSourceId}
+                      onChange={selectSource}
+                      channels={channels}
+                      disabledId={selectedTargetId}
+                      placeholder="Seleccionar canal de extracción..."
+                      accentColor="cyan"
+                    />
+
+                    {sourceChannel ? (
+                      <div className="p-3 rounded-lg bg-secondary/40 border border-border/70 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <ChatAvatar
+                            id={sourceChannel.id}
+                            title={sourceChannel.title}
+                            accountId={sourceChannel.account_id}
+                            className="w-8 h-8 rounded-md shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-foreground truncate block">{sourceChannel.title}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono truncate block">
+                              {sourceChannel.username ? `@${sourceChannel.username}` : `ID: ${sourceChannel.id}`}
+                            </span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] font-mono shrink-0">
+                          {sourceChannel.type === "channel" ? "Canal" : "Grupo"}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Elegí el canal desde el cual querés transferir publicaciones y videos sin descargarlos a tu disco.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Right Wing: Canal Destino */}
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
+                        Canal Destino
+                      </span>
+                      {selectedTargetId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setWizardState((s) => ({
+                              ...s,
+                              workbenchTab: s.workbenchTab === "upload" ? "none" : "upload",
+                            }))
+                          }
+                          className={cn(
+                            "text-[11px] font-mono px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer",
+                            wizardState.workbenchTab === "upload"
+                              ? "bg-primary text-primary-foreground font-semibold"
+                              : "text-primary hover:underline hover:bg-primary/10"
+                          )}
+                        >
+                          <UploadCloud className="w-3 h-3" />
+                          <span>Publicar desde PC</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <SearchableChannelSelect
+                      disabled={isRunning || isLoading}
+                      value={selectedTargetId}
+                      onChange={selectTarget}
+                      channels={channels}
+                      disabledId={selectedSourceId}
+                      placeholder="Seleccionar canal receptor..."
+                      accentColor="cyan"
+                    />
+
+                    {targetChannel ? (
+                      <div className="p-3 rounded-lg bg-secondary/40 border border-border/70 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <ChatAvatar
+                            id={targetChannel.id}
+                            title={targetChannel.title}
+                            accountId={targetChannel.account_id}
+                            className="w-8 h-8 rounded-md shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-foreground truncate block">{targetChannel.title}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono truncate block">
+                              {targetChannel.username ? `@${targetChannel.username}` : `ID: ${targetChannel.id}`}
+                            </span>
+                          </div>
+                        </div>
+                        {targetChannel.can_post ? (
+                          <Badge variant="admin" className="text-[10px] font-mono shrink-0">
+                            Permiso OK
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[10px] font-mono shrink-0">
+                            Solo Lectura
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Elegí el canal propio o comunidad donde se publicará el contenido clonado.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lower Shelf: Horizontal Pipeline Control Bar */}
+                <div className="p-4 bg-secondary/20 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      variant={wizardState.workbenchTab === "rules" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        setWizardState((s) => ({
+                          ...s,
+                          workbenchTab: s.workbenchTab === "rules" ? "none" : "rules",
+                        }))
+                      }
+                      className="h-8 text-xs px-3 font-mono gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Reglas de Texto</span>
+                      <Badge variant={activeRulesCount > 0 ? "admin" : "secondary"} className="text-[9px] px-1 py-0 ml-1">
+                        {activeRulesCount > 0 ? `${activeRulesCount} activas` : "Inactivas"}
+                      </Badge>
+                    </Button>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-muted-foreground font-mono">Pacing:</span>
+                      <Select
+                        value={String(dripDelaySeconds)}
+                        onValueChange={(val) => setDripDelaySeconds(Number(val))}
+                      >
+                        <SelectTrigger className="h-8 w-36 bg-card border-border text-xs px-2.5 font-mono">
+                          <SelectValue placeholder="Pacing" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border-border text-xs font-mono">
+                          <SelectItem value="0">Inmediato (2s)</SelectItem>
+                          <SelectItem value="60">Goteo 1 min</SelectItem>
+                          <SelectItem value="300">Goteo 5 min</SelectItem>
+                          <SelectItem value="900">Goteo 15 min</SelectItem>
+                          <SelectItem value="1800">Goteo 30 min</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {selectedSourceId && selectedTargetId && selectedTargetId !== selectedSourceId && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono text-muted-foreground">Auto-Sync en Vivo:</span>
+                      <Switch
+                        checked={Boolean(autoSyncStatus?.is_active)}
+                        onCheckedChange={(checked) => toggleAutoSync(checked)}
+                        disabled={isLoadingAutoSync}
+                        aria-label="Auto sync"
+                      />
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Lower Shelf: Horizontal Pipeline Control Bar */}
-              <div className="p-4 bg-secondary/20 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setWizardState((s) => ({ ...s, activeModal: "caption_rules" }))}
-                    className="h-8 text-xs px-3 bg-card border-border hover:bg-secondary font-mono gap-1.5 cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3 text-primary" />
-                    <span>Reglas de Texto</span>
-                    <Badge variant={activeRulesCount > 0 ? "admin" : "secondary"} className="text-[9px] px-1 py-0 ml-1">
-                      {activeRulesCount > 0 ? `${activeRulesCount} activas` : "Inactivas"}
-                    </Badge>
-                  </Button>
+              {/* Inline Workbench Area (Occupies the 60% free canvas space) */}
+              <div className="w-full">
+                {wizardState.workbenchTab === "rules" && (
+                  <InlineCaptionRules onClose={() => setWizardState((s) => ({ ...s, workbenchTab: "none" }))} />
+                )}
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-muted-foreground font-mono">Pacing:</span>
-                    <Select
-                      value={String(dripDelaySeconds)}
-                      onValueChange={(val) => setDripDelaySeconds(Number(val))}
-                    >
-                      <SelectTrigger className="h-8 w-36 bg-card border-border text-xs px-2.5 font-mono">
-                        <SelectValue placeholder="Pacing" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border text-xs font-mono">
-                        <SelectItem value="0">Inmediato (2s)</SelectItem>
-                        <SelectItem value="60">Goteo 1 min</SelectItem>
-                        <SelectItem value="300">Goteo 5 min</SelectItem>
-                        <SelectItem value="900">Goteo 15 min</SelectItem>
-                        <SelectItem value="1800">Goteo 30 min</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+                {wizardState.workbenchTab === "history" && (
+                  <InlineCloningHistory onClose={() => setWizardState((s) => ({ ...s, workbenchTab: "none" }))} />
+                )}
 
-                {selectedSourceId && selectedTargetId && selectedTargetId !== selectedSourceId && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono text-muted-foreground">Auto-Sync en Vivo:</span>
-                    <Switch
-                      checked={Boolean(autoSyncStatus?.is_active)}
-                      onCheckedChange={(checked) => toggleAutoSync(checked)}
-                      disabled={isLoadingAutoSync}
-                      aria-label="Auto sync"
-                    />
+                {wizardState.workbenchTab === "upload" && (
+                  <InlineDirectUpload
+                    targetChannelId={selectedTargetId}
+                    targetChannelTitle={targetChannel?.title}
+                    onClose={() => setWizardState((s) => ({ ...s, workbenchTab: "none" }))}
+                  />
+                )}
+
+                {wizardState.workbenchTab === "none" && (
+                  <div className="p-4 rounded-xl border border-dashed border-border/80 bg-secondary/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground select-none">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-foreground text-xs block font-mono">
+                          Mesa de Trabajo Lista
+                        </span>
+                        <span className="text-[11px] text-muted-foreground block">
+                          Podés desplegar las <strong className="text-foreground">Reglas de Texto</strong>, auditar el <strong className="text-foreground">Historial</strong> o hacer clic en <strong className="text-primary font-semibold">Continuar a Selección de Videos →</strong>.
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 text-[11px] font-mono">
+                      <span className="px-2 py-0.5 rounded bg-secondary/60 border border-border text-muted-foreground">
+                        Paso 1 de 3
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Action Bar */}
-            <div className="pt-4 flex justify-end">
+            {/* Step 1 Action Bar */}
+            <div className="pt-2 flex justify-end">
               <Button
                 type="button"
                 size="default"
@@ -759,26 +830,6 @@ export const MigrationView: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Channel Cloning Audit & History Modal */}
-      <ChannelCloningHistoryModal
-        isOpen={wizardState.activeModal === "history"}
-        onClose={() => setWizardState((prev) => ({ ...prev, activeModal: "none" }))}
-      />
-
-      {/* Direct Local Media Upload Modal */}
-      <DirectUploadModal
-        isOpen={wizardState.activeModal === "upload"}
-        onClose={() => setWizardState((prev) => ({ ...prev, activeModal: "none" }))}
-        targetChannelId={selectedTargetId}
-        targetChannelTitle={targetChannel?.title}
-      />
-
-      {/* Caption Rules & Sanitization Pipeline Modal */}
-      <CaptionRulesModal
-        isOpen={wizardState.activeModal === "caption_rules"}
-        onClose={() => setWizardState((prev) => ({ ...prev, activeModal: "none" }))}
-      />
 
       {/* Scheduled Success Modal */}
       {wizardState.scheduledSuccess && (
