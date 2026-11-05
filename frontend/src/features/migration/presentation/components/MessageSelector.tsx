@@ -102,7 +102,15 @@ const MessageThumbnailImage: React.FC<ThumbnailProps> = ({
   );
 };
 
-export const MessageSelector: React.FC = () => {
+export interface MessageSelectorProps {
+  onBack?: () => void;
+  onNext?: () => void;
+}
+
+export const MessageSelector: React.FC<MessageSelectorProps> = ({
+  onBack,
+  onNext,
+}) => {
   const selectedSourceId = useMigrationStore((state) => state.selectedSourceId);
   const selectedTargetId = useMigrationStore((state) => state.selectedTargetId);
   const sourceMessages = useMigrationStore((state) => state.sourceMessages);
@@ -1129,6 +1137,48 @@ export const MessageSelector: React.FC = () => {
             }
           }}
         />
+      )}
+
+      {/* Wizard Step Navigation Footer */}
+      {(onBack || onNext) && (
+        <div className="shrink-0 p-2.5 sm:p-3 border-t border-border bg-secondary/30 rounded-b-md flex items-center justify-between gap-3 select-none">
+          {onBack ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="text-xs h-8 px-3 gap-1.5 border-border hover:bg-muted cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>Volver a Canales</span>
+            </Button>
+          ) : (
+            <div />
+          )}
+
+          <div className="text-xs text-muted-foreground font-mono hidden sm:block">
+            {selectedMessageIds.length > 0 ? (
+              <span className="text-primary font-semibold">
+                {selectedMessageIds.length} elemento{selectedMessageIds.length > 1 ? "s" : ""} marcado{selectedMessageIds.length > 1 ? "s" : ""} para clonar
+              </span>
+            ) : (
+              <span>Se clonará el canal completo (todos los videos)</span>
+            )}
+          </div>
+
+          {onNext && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onNext}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 gap-1.5 shadow-sm cursor-pointer"
+            >
+              <span>Continuar al Resumen</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
