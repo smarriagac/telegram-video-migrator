@@ -14,6 +14,7 @@ export interface Channel {
   can_post: boolean;
   account_id?: number;
   account_name?: string;
+  type?: "channel" | "group" | "supergroup" | string;
 }
 
 export interface CaptionRules {

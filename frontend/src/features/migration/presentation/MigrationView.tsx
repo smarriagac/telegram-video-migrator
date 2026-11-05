@@ -1,22 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowDown,
-  ChevronDown,
   ChevronLeft,
-  Clock,
-  Film,
+  ChevronRight,
   History,
   Layers,
   Play,
-  Radio,
-  RefreshCw,
   RotateCcw,
-  Sliders,
   Sparkles,
   StopCircle,
   Terminal,
-  Tv,
   UploadCloud,
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
@@ -47,7 +40,6 @@ type WizardStep = "channels" | "content" | "review";
 interface WizardViewState {
   currentStep: WizardStep;
   activeModal: "none" | "history" | "upload" | "caption_rules";
-  isAdvancedOpen: boolean;
   isScheduleEnabled: boolean;
   scheduledSuccess: {
     jobId: string;
@@ -61,12 +53,10 @@ interface WizardViewState {
 export const MigrationView: React.FC = () => {
   const navigate = useNavigate();
 
-  // STRICT ARCHITECTURAL CONSTRAINT: Exactly 2 useState hooks
-  // Hook 1: Master Wizard Stepper and Dialog State
+  // STRICT ARCHITECTURAL CONSTRAINT: Exactly 1 useState hook (consolidated wizard state)
   const [wizardState, setWizardState] = useState<WizardViewState>({
     currentStep: "channels",
     activeModal: "none",
-    isAdvancedOpen: false,
     isScheduleEnabled: false,
     scheduledSuccess: null,
   });
@@ -86,9 +76,6 @@ export const MigrationView: React.FC = () => {
   const resetJob = useMigrationStore((state) => state.resetJob);
   const logs = useMigrationStore((state) => state.logs);
   const history = useMigrationStore((state) => state.channelCloningHistory);
-  const syncStatus = useMigrationStore((state) => state.syncStatus);
-  const isCheckingSync = useMigrationStore((state) => state.isCheckingSync);
-  const checkSyncStatus = useMigrationStore((state) => state.checkSyncStatus);
   const autoSyncStatus = useMigrationStore((state) => state.autoSyncStatus);
   const isLoadingAutoSync = useMigrationStore((state) => state.isLoadingAutoSync);
   const toggleAutoSync = useMigrationStore((state) => state.toggleAutoSync);
@@ -128,10 +115,7 @@ export const MigrationView: React.FC = () => {
     activeJob?.status === "FAILED" ||
     activeJob?.status === "CANCELLED";
 
-  // When job is running or scheduled, force step to live execution monitor
   const isExecutionMode = Boolean(activeJob || isRunning);
-
-  const filteredChannels = channels;
 
   const activeRulesCount = [
     captionRules.strip_links,
@@ -181,131 +165,106 @@ export const MigrationView: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-hidden">
-      {/* Wizard Status Bar (1. Canales -> 2. Contenido -> 3. Resumen & Lanzamiento) */}
+      {/* Industrial Step Track */}
       {!isExecutionMode && (
-        <div className="bg-card border border-border rounded-xl p-1.5 sm:p-2 shadow-xs shrink-0 select-none">
-          <div className="grid grid-cols-3 gap-1 sm:gap-2">
-            {/* Step 1: Canales */}
+        <div className="border-b border-border/70 pb-3 flex items-center justify-between shrink-0 select-none">
+          <div className="flex items-center gap-3 text-xs">
+            {/* Step 1 */}
             <button
               type="button"
               onClick={() => setWizardState((s) => ({ ...s, currentStep: "channels" }))}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left cursor-pointer",
+                "flex items-center gap-2 font-mono transition-colors cursor-pointer",
                 wizardState.currentStep === "channels"
-                  ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                  : canGoToContent
-                  ? "hover:bg-muted text-foreground"
-                  : "text-muted-foreground"
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               <span
                 className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold shrink-0",
+                  "w-2 h-2 rounded-full transition-all",
                   wizardState.currentStep === "channels"
-                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    ? "bg-primary scale-125"
                     : canGoToContent
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-primary/50"
+                    : "bg-muted-foreground/40"
                 )}
-              >
-                {canGoToContent && wizardState.currentStep !== "channels" ? "✓" : "1"}
-              </span>
-              <div className="min-w-0 truncate">
-                <span className="block truncate text-xs font-semibold">1. Canales</span>
-                <span
-                  className={cn(
-                    "text-[10px] truncate hidden sm:block",
-                    wizardState.currentStep === "channels"
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground font-mono"
-                  )}
-                >
-                  {selectedSourceId && selectedTargetId ? "Origen y Destino listos" : "Origen y Destino"}
-                </span>
-              </div>
+              />
+              <span>Canales</span>
             </button>
 
-            {/* Step 2: Contenido */}
+            <span className="text-muted-foreground/30 font-mono">───</span>
+
+            {/* Step 2 */}
             <button
               type="button"
               disabled={!canGoToContent}
               onClick={() => canGoToContent && setWizardState((s) => ({ ...s, currentStep: "content" }))}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left",
+                "flex items-center gap-2 font-mono transition-colors",
                 wizardState.currentStep === "content"
-                  ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                  ? "text-primary font-semibold cursor-pointer"
                   : canGoToContent
-                  ? "hover:bg-muted text-foreground cursor-pointer"
-                  : "text-muted-foreground/60 cursor-not-allowed opacity-60"
+                  ? "text-muted-foreground hover:text-foreground cursor-pointer"
+                  : "text-muted-foreground/40 cursor-not-allowed"
               )}
             >
               <span
                 className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold shrink-0",
+                  "w-2 h-2 rounded-full transition-all",
                   wizardState.currentStep === "content"
-                    ? "bg-primary-foreground/20 text-primary-foreground"
+                    ? "bg-primary scale-125"
                     : wizardState.currentStep === "review"
-                    ? "bg-primary/15 text-primary"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-primary/50"
+                    : "bg-muted-foreground/40"
                 )}
-              >
-                {wizardState.currentStep === "review" ? "✓" : "2"}
-              </span>
-              <div className="min-w-0 truncate">
-                <span className="block truncate text-xs font-semibold">2. Contenido</span>
-                <span
-                  className={cn(
-                    "text-[10px] truncate hidden sm:block",
-                    wizardState.currentStep === "content"
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground font-mono"
-                  )}
-                >
-                  {selectedMessageIds.length > 0
-                    ? `${selectedMessageIds.length} seleccionados`
-                    : "Galería completa"}
+              />
+              <span>Selección de Videos</span>
+              {selectedMessageIds.length > 0 && (
+                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.2 rounded border border-primary/20">
+                  {selectedMessageIds.length}
                 </span>
-              </div>
+              )}
             </button>
 
-            {/* Step 3: Resumen */}
+            <span className="text-muted-foreground/30 font-mono">───</span>
+
+            {/* Step 3 */}
             <button
               type="button"
               disabled={!canGoToContent}
               onClick={() => canGoToContent && setWizardState((s) => ({ ...s, currentStep: "review" }))}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left",
+                "flex items-center gap-2 font-mono transition-colors",
                 wizardState.currentStep === "review"
-                  ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                  ? "text-primary font-semibold cursor-pointer"
                   : canGoToContent
-                  ? "hover:bg-muted text-foreground cursor-pointer"
-                  : "text-muted-foreground/60 cursor-not-allowed opacity-60"
+                  ? "text-muted-foreground hover:text-foreground cursor-pointer"
+                  : "text-muted-foreground/40 cursor-not-allowed"
               )}
             >
               <span
                 className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center font-mono text-[10px] font-bold shrink-0",
+                  "w-2 h-2 rounded-full transition-all",
                   wizardState.currentStep === "review"
-                    ? "bg-primary-foreground/20 text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-primary scale-125"
+                    : "bg-muted-foreground/40"
                 )}
-              >
-                3
-              </span>
-              <div className="min-w-0 truncate">
-                <span className="block truncate text-xs font-semibold">3. Resumen</span>
-                <span
-                  className={cn(
-                    "text-[10px] truncate hidden sm:block",
-                    wizardState.currentStep === "review"
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground font-mono"
-                  )}
-                >
-                  Revisar y Lanzar
-                </span>
-              </div>
+              />
+              <span>Confirmación y Despacho</span>
             </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isCrossAccount ? (
+              <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-mono">
+                Puente Multi-Cuenta
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono">
+                Directo MTProto
+              </Badge>
+            )}
           </div>
         </div>
       )}
@@ -314,28 +273,28 @@ export const MigrationView: React.FC = () => {
       {error && (
         <div
           role="alert"
-          className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between shrink-0 animate-in fade-in"
+          className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center justify-between shrink-0 animate-in fade-in font-mono"
         >
           <span>{error}</span>
         </div>
       )}
 
-      {/* Main Wizard Stage */}
+      {/* Main Stage */}
       <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col">
         {/* ================= STEP 4: ACTIVE EXECUTION & MONITOR ================= */}
         {isExecutionMode ? (
-          <div className="max-w-3xl mx-auto w-full h-full min-h-0 overflow-y-auto space-y-4 py-2 sm:py-4">
-            <div className="p-4 sm:p-5 rounded-xl bg-card border border-border shadow-md space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-3">
+          <div className="max-w-4xl mx-auto w-full h-full min-h-0 overflow-y-auto space-y-4 py-2">
+            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 py-3.5 border-b border-border bg-secondary/30 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary">
                     <Layers className="w-4 h-4 animate-pulse" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-foreground font-mono">
-                      {isFinished ? "Clonación Finalizada" : isScheduled ? "Migración Programada" : "Clonación MTProto en Curso"}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
+                    <h3 className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
+                      {isFinished ? "Clonación Finalizada" : isScheduled ? "Migración Programada" : "Clonación en Ejecución"}
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
                       {sourceChannel?.title || "Origen"} → {targetChannel?.title || "Destino"}
                     </p>
                   </div>
@@ -347,7 +306,7 @@ export const MigrationView: React.FC = () => {
                       variant="destructive"
                       size="sm"
                       onClick={() => cancelMigration()}
-                      className="h-8 text-xs font-semibold gap-1.5 shadow-sm"
+                      className="h-8 text-xs font-semibold gap-1.5 shadow-sm cursor-pointer"
                     >
                       <StopCircle className="w-3.5 h-3.5" />
                       <span>Detener</span>
@@ -357,7 +316,7 @@ export const MigrationView: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => resetJob()}
-                      className="h-8 text-xs font-semibold gap-1.5"
+                      className="h-8 text-xs font-semibold gap-1.5 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Nueva Migración</span>
@@ -366,299 +325,270 @@ export const MigrationView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Progress Bar & Percentage */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-muted-foreground">Progreso de la cola:</span>
-                  <span className="text-primary font-bold text-sm">{percentage}%</span>
+              <div className="p-5 space-y-4">
+                {/* Progress Bar & Percentage */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-muted-foreground">Progreso de la cola:</span>
+                    <span className="text-primary font-bold text-sm">{percentage}%</span>
+                  </div>
+                  <Progress value={percentage} aria-label="Progreso" className="h-2" />
+                  {progress?.message && (
+                    <p className="text-[11px] text-muted-foreground font-mono truncate">{progress.message}</p>
+                  )}
                 </div>
-                <Progress value={percentage} aria-label="Progreso" className="h-2.5" />
-                {progress?.message && (
-                  <p className="text-[11px] text-muted-foreground font-mono truncate">{progress.message}</p>
-                )}
-              </div>
 
-              {/* Queue Metrics */}
-              <div className="grid grid-cols-4 gap-2 text-center font-mono text-xs pt-1">
-                <div className="p-2 rounded-lg bg-secondary/60 border border-border">
-                  <span className="text-muted-foreground text-[10px] block uppercase">Total</span>
-                  <span className="text-foreground font-bold text-sm">{stats.total}</span>
+                {/* Queue Metrics */}
+                <div className="grid grid-cols-4 gap-2 text-center font-mono text-xs">
+                  <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
+                    <span className="text-muted-foreground text-[10px] block uppercase">Total</span>
+                    <span className="text-foreground font-bold text-sm">{stats.total}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
+                    <span className="text-muted-foreground text-[10px] block uppercase">Pendientes</span>
+                    <span className="text-foreground font-bold text-sm">{stats.pending}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                    <span className="text-emerald-500/80 text-[10px] block uppercase">Éxito</span>
+                    <span className="font-bold text-sm">{stats.completed}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                    <span className="text-rose-500/80 text-[10px] block uppercase">Fallo</span>
+                    <span className="font-bold text-sm">{stats.failed}</span>
+                  </div>
                 </div>
-                <div className="p-2 rounded-lg bg-secondary/60 border border-border">
-                  <span className="text-muted-foreground text-[10px] block uppercase">Pendientes</span>
-                  <span className="text-foreground font-bold text-sm">{stats.pending}</span>
-                </div>
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
-                  <span className="text-emerald-500/80 text-[10px] block uppercase">Éxito</span>
-                  <span className="font-bold text-sm">{stats.completed}</span>
-                </div>
-                <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                  <span className="text-rose-500/80 text-[10px] block uppercase">Fallo</span>
-                  <span className="font-bold text-sm">{stats.failed}</span>
-                </div>
-              </div>
 
-              {/* Live Console Logs */}
-              <div className="border border-border rounded-lg bg-black/60 p-3 space-y-1 font-mono text-[11px] max-h-48 overflow-y-auto">
-                <div className="flex items-center gap-1.5 text-muted-foreground pb-1 border-b border-white/10 text-[10px]">
-                  <Terminal className="w-3 h-3" />
-                  <span>Consola de eventos en vivo</span>
+                {/* Live Console Logs */}
+                <div className="border border-border rounded-lg bg-black/60 p-3 space-y-1 font-mono text-[11px] max-h-44 overflow-y-auto">
+                  <div className="flex items-center gap-1.5 text-muted-foreground pb-1 border-b border-white/10 text-[10px]">
+                    <Terminal className="w-3 h-3" />
+                    <span>Consola de eventos en vivo</span>
+                  </div>
+                  {logs.length === 0 ? (
+                    <p className="text-zinc-500 italic py-2 text-center">Esperando eventos de streaming MTProto...</p>
+                  ) : (
+                    logs.slice(0, 30).map((l) => (
+                      <div key={l.id} className="truncate">
+                        <span className="text-zinc-500">[{l.timestamp}]</span>{" "}
+                        <span
+                          className={
+                            l.level === "error"
+                              ? "text-rose-400"
+                              : l.level === "warn"
+                              ? "text-amber-400"
+                              : l.level === "success"
+                              ? "text-emerald-400"
+                              : "text-zinc-200"
+                          }
+                        >
+                          {l.text}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
-                {logs.length === 0 ? (
-                  <p className="text-zinc-500 italic py-2 text-center">Esperando eventos de streaming MTProto...</p>
-                ) : (
-                  logs.slice(0, 30).map((l) => (
-                    <div key={l.id} className="truncate">
-                      <span className="text-zinc-500">[{l.timestamp}]</span>{" "}
-                      <span
-                        className={
-                          l.level === "error"
-                            ? "text-rose-400"
-                            : l.level === "warn"
-                            ? "text-amber-400"
-                            : l.level === "success"
-                            ? "text-emerald-400"
-                            : "text-zinc-200"
-                        }
-                      >
-                        {l.text}
-                      </span>
-                    </div>
-                  ))
-                )}
               </div>
             </div>
           </div>
         ) : wizardState.currentStep === "channels" ? (
-          /* ================= STEP 1: CHANNELS CONFIGURATION ================= */
-          <div className="max-w-2xl mx-auto w-full h-full min-h-0 overflow-y-auto py-2 sm:py-4 space-y-4">
-            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 shadow-sm space-y-3.5">
-              <div className="flex items-center justify-between border-b border-border pb-3">
-                <div>
-                  <h2 className="text-sm font-bold text-foreground font-mono">
-                    Paso 1: Configurar Canales Origen y Destino
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Elegí de qué canal clonar el contenido y en cuál publicarlo de forma directa.
-                  </p>
+          /* ================= STEP 1: DUAL-TERMINAL CONSOLE ================= */
+          <div className="flex-1 min-h-0 w-full flex flex-col justify-between max-w-5xl mx-auto py-2">
+            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+              {/* Top Bar with Console Header */}
+              <div className="px-5 py-3 border-b border-border/80 bg-secondary/30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-primary" />
+                  <span className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
+                    Consola de Enrutamiento de Canales
+                  </span>
                 </div>
-                {isCrossAccount ? (
-                  <Badge variant="outline" className="text-[10px] bg-indigo-500/15 text-indigo-300 border-indigo-500/30 font-mono">
-                    Puente Multi-Cuenta
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-mono">
-                    Directo MTProto
-                  </Badge>
-                )}
+                <span className="text-[11px] text-muted-foreground font-mono">
+                  Extracción por referencia MTProto
+                </span>
               </div>
 
-              {/* Step 1.1: Source Channel */}
-              <div className="space-y-1.5 p-3 rounded-lg bg-secondary/30 border border-border/70">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center font-mono">
-                      1
+              {/* Dual Workstation Grid: Origen | Destino */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
+                {/* Left Wing: Canal Origen */}
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
+                      Canal Origen
                     </span>
-                    <span>Canal Origen (De dónde copiar)</span>
-                  </label>
-                  {selectedSourceId && (
-                    <button
-                      type="button"
-                      onClick={() => setWizardState((s) => ({ ...s, activeModal: "history" }))}
-                      className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <History className="w-3 h-3" />
-                      <span>Historial ({history?.total_clones ?? 0})</span>
-                    </button>
-                  )}
-                </div>
-                <SearchableChannelSelect
-                  disabled={isRunning || isLoading}
-                  value={selectedSourceId}
-                  onChange={selectSource}
-                  channels={filteredChannels}
-                  disabledId={selectedTargetId}
-                  placeholder="Elegir canal origen..."
-                  accentColor="cyan"
-                />
-              </div>
-
-              {/* Visual Connector Arrow */}
-              <div className="flex justify-center -my-1 relative z-10">
-                <div className="w-7 h-7 rounded-full bg-secondary border border-border flex items-center justify-center text-primary shadow-xs">
-                  <ArrowDown className="w-4 h-4" />
-                </div>
-              </div>
-
-              {/* Step 1.2: Target Channel */}
-              <div className="space-y-1.5 p-3 rounded-lg bg-secondary/30 border border-border/70">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center font-mono">
-                      2
-                    </span>
-                    <span>Canal Destino (A dónde enviar)</span>
-                  </label>
-                  {selectedTargetId && (
-                    <button
-                      type="button"
-                      onClick={() => setWizardState((s) => ({ ...s, activeModal: "upload" }))}
-                      className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <UploadCloud className="w-3 h-3" />
-                      <span>+ Subir de mi PC</span>
-                    </button>
-                  )}
-                </div>
-                <SearchableChannelSelect
-                  disabled={isRunning || isLoading}
-                  value={selectedTargetId}
-                  onChange={selectTarget}
-                  channels={filteredChannels}
-                  disabledId={selectedSourceId}
-                  placeholder="Elegir canal destino..."
-                  accentColor="cyan"
-                />
-              </div>
-
-              {/* Step 1.3: Collapsible Advanced Pipeline Drawer */}
-              <div className="border border-border/70 rounded-lg overflow-hidden bg-secondary/20">
-                <button
-                  type="button"
-                  onClick={() => setWizardState((s) => ({ ...s, isAdvancedOpen: !s.isAdvancedOpen }))}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group cursor-pointer select-none"
-                >
-                  <div className="flex items-center gap-1.5">
-                    <Sliders className="w-3.5 h-3.5 text-primary" />
-                    <span className="font-semibold text-foreground text-[11px] font-mono uppercase tracking-wider">
-                      Ajustes Avanzados del Pipeline (Opcional)
-                    </span>
-                    {(activeRulesCount > 0 || dripDelaySeconds > 0 || autoSyncStatus?.is_active) && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary" title="Hay reglas activas" />
+                    {selectedSourceId && (
+                      <button
+                        type="button"
+                        onClick={() => setWizardState((s) => ({ ...s, activeModal: "history" }))}
+                        className="text-[11px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <History className="w-3 h-3" />
+                        <span>Auditar Historial ({history?.total_clones ?? 0})</span>
+                      </button>
                     )}
                   </div>
-                  <ChevronDown
-                    className={cn(
-                      "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
-                      wizardState.isAdvancedOpen ? "rotate-180" : "rotate-0"
-                    )}
+
+                  <SearchableChannelSelect
+                    disabled={isRunning || isLoading}
+                    value={selectedSourceId}
+                    onChange={selectSource}
+                    channels={channels}
+                    disabledId={selectedTargetId}
+                    placeholder="Seleccionar canal de extracción..."
+                    accentColor="cyan"
                   />
-                </button>
 
-                {wizardState.isAdvancedOpen && (
-                  <div className="p-3 pt-0 space-y-2.5 border-t border-border/50 text-xs animate-in fade-in">
-                    {/* Delta Sync & Auto-sync */}
-                    {selectedSourceId && selectedTargetId && selectedTargetId !== selectedSourceId && (
-                      <div className="space-y-1.5 pt-2">
-                        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-secondary/60 border border-border">
-                          <div className="flex items-center gap-1.5 truncate">
-                            <RefreshCw
-                              className={cn(
-                                "w-3.5 h-3.5 shrink-0",
-                                isCheckingSync ? "animate-spin text-primary" : "text-muted-foreground"
-                              )}
-                            />
-                            <span className="text-[11px] text-muted-foreground truncate">
-                              {isCheckingSync
-                                ? "Comprobando..."
-                                : syncStatus?.is_in_sync
-                                ? "✓ 100% al día"
-                                : syncStatus
-                                ? `${syncStatus.missing_count} novedades pendientes`
-                                : "Estado delta"}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => checkSyncStatus()}
-                            disabled={isCheckingSync}
-                            className="text-[10px] font-mono text-primary hover:underline cursor-pointer"
-                          >
-                            Auditar
-                          </button>
-                        </div>
-
-                        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-secondary/60 border border-border">
-                          <div className="min-w-0 pr-2">
-                            <span className="text-[11px] font-semibold text-foreground block">
-                              Auto-Sync en Vivo
-                            </span>
-                            <span className="text-[10px] text-muted-foreground block truncate">
-                              Clona nuevos posts al instante por push
-                            </span>
-                          </div>
-                          <Switch
-                            checked={Boolean(autoSyncStatus?.is_active)}
-                            onCheckedChange={(checked) => toggleAutoSync(checked)}
-                            disabled={isLoadingAutoSync}
-                            aria-label="Auto sync"
-                          />
+                  {sourceChannel ? (
+                    <div className="p-3 rounded-lg bg-secondary/40 border border-border/70 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <ChatAvatar
+                          id={sourceChannel.id}
+                          title={sourceChannel.title}
+                          accountId={sourceChannel.account_id}
+                          className="w-8 h-8 rounded-md shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-semibold text-foreground truncate block">{sourceChannel.title}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono truncate block">
+                            {sourceChannel.username ? `@${sourceChannel.username}` : `ID: ${sourceChannel.id}`}
+                          </span>
                         </div>
                       </div>
-                    )}
-
-                    {/* Captions & Pacing Drip */}
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setWizardState((s) => ({ ...s, activeModal: "caption_rules" }))}
-                        className="h-8 justify-between text-xs px-2.5 bg-secondary/60 border-border hover:bg-secondary font-normal"
-                      >
-                        <div className="flex items-center gap-1 truncate">
-                          <Sparkles className="w-3 h-3 text-primary shrink-0" />
-                          <span className="truncate">Captions</span>
-                        </div>
-                        <Badge
-                          variant={activeRulesCount > 0 ? "admin" : "secondary"}
-                          className="text-[9px] px-1.5 py-0 font-mono"
-                        >
-                          {activeRulesCount > 0 ? `${activeRulesCount} act.` : "Off"}
-                        </Badge>
-                      </Button>
-
-                      <Select
-                        value={String(dripDelaySeconds)}
-                        onValueChange={(val) => setDripDelaySeconds(Number(val))}
-                      >
-                        <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs px-2.5">
-                          <SelectValue placeholder="Pacing" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border-border text-xs">
-                          <SelectItem value="0" className="text-xs">⚡ Inmediato (2s)</SelectItem>
-                          <SelectItem value="60" className="text-xs">💧 Goteo: 1 min</SelectItem>
-                          <SelectItem value="300" className="text-xs">💧 Goteo: 5 min</SelectItem>
-                          <SelectItem value="900" className="text-xs">💧 Goteo: 15 min</SelectItem>
-                          <SelectItem value="1800" className="text-xs">💧 Goteo: 30 min</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Badge variant="outline" className="text-[10px] font-mono shrink-0">
+                        {sourceChannel.type === "channel" ? "Canal" : "Grupo"}
+                      </Badge>
                     </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Elegí el canal desde el cual querés transferir publicaciones y videos sin descargarlos a tu disco.
+                    </p>
+                  )}
+                </div>
+
+                {/* Right Wing: Canal Destino */}
+                <div className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
+                      Canal Destino
+                    </span>
+                    {selectedTargetId && (
+                      <button
+                        type="button"
+                        onClick={() => setWizardState((s) => ({ ...s, activeModal: "upload" }))}
+                        className="text-[11px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <UploadCloud className="w-3 h-3" />
+                        <span>Publicar desde PC</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <SearchableChannelSelect
+                    disabled={isRunning || isLoading}
+                    value={selectedTargetId}
+                    onChange={selectTarget}
+                    channels={channels}
+                    disabledId={selectedSourceId}
+                    placeholder="Seleccionar canal receptor..."
+                    accentColor="cyan"
+                  />
+
+                  {targetChannel ? (
+                    <div className="p-3 rounded-lg bg-secondary/40 border border-border/70 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <ChatAvatar
+                          id={targetChannel.id}
+                          title={targetChannel.title}
+                          accountId={targetChannel.account_id}
+                          className="w-8 h-8 rounded-md shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <span className="font-semibold text-foreground truncate block">{targetChannel.title}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono truncate block">
+                            {targetChannel.username ? `@${targetChannel.username}` : `ID: ${targetChannel.id}`}
+                          </span>
+                        </div>
+                      </div>
+                      {targetChannel.can_post ? (
+                        <Badge variant="admin" className="text-[10px] font-mono shrink-0">
+                          Permiso OK
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive" className="text-[10px] font-mono shrink-0">
+                          Solo Lectura
+                        </Badge>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Elegí el canal propio o comunidad donde se publicará el contenido clonado.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Lower Shelf: Horizontal Pipeline Control Bar */}
+              <div className="p-4 bg-secondary/20 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setWizardState((s) => ({ ...s, activeModal: "caption_rules" }))}
+                    className="h-8 text-xs px-3 bg-card border-border hover:bg-secondary font-mono gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-primary" />
+                    <span>Reglas de Texto</span>
+                    <Badge variant={activeRulesCount > 0 ? "admin" : "secondary"} className="text-[9px] px-1 py-0 ml-1">
+                      {activeRulesCount > 0 ? `${activeRulesCount} activas` : "Inactivas"}
+                    </Badge>
+                  </Button>
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground font-mono">Pacing:</span>
+                    <Select
+                      value={String(dripDelaySeconds)}
+                      onValueChange={(val) => setDripDelaySeconds(Number(val))}
+                    >
+                      <SelectTrigger className="h-8 w-36 bg-card border-border text-xs px-2.5 font-mono">
+                        <SelectValue placeholder="Pacing" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover border-border text-xs font-mono">
+                        <SelectItem value="0">Inmediato (2s)</SelectItem>
+                        <SelectItem value="60">Goteo 1 min</SelectItem>
+                        <SelectItem value="300">Goteo 5 min</SelectItem>
+                        <SelectItem value="900">Goteo 15 min</SelectItem>
+                        <SelectItem value="1800">Goteo 30 min</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {selectedSourceId && selectedTargetId && selectedTargetId !== selectedSourceId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono text-muted-foreground">Auto-Sync en Vivo:</span>
+                    <Switch
+                      checked={Boolean(autoSyncStatus?.is_active)}
+                      onCheckedChange={(checked) => toggleAutoSync(checked)}
+                      disabled={isLoadingAutoSync}
+                      aria-label="Auto sync"
+                    />
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* Continue to Step 2 Button */}
-              <div className="pt-2">
-                <Button
-                  type="button"
-                  size="default"
-                  disabled={!canGoToContent}
-                  onClick={() => setWizardState((s) => ({ ...s, currentStep: "content" }))}
-                  className="w-full h-10 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
-                >
-                  <span>
-                    {!selectedSourceId
-                      ? "Paso 1: Seleccioná un canal de origen"
-                      : !selectedTargetId
-                      ? "Paso 2: Seleccioná un canal de destino"
-                      : selectedSourceId === selectedTargetId
-                      ? "El canal destino debe ser diferente al origen"
-                      : "Continuar a Selección de Contenido →"}
-                  </span>
-                </Button>
-              </div>
+            {/* Action Bar */}
+            <div className="pt-4 flex justify-end">
+              <Button
+                type="button"
+                size="default"
+                disabled={!canGoToContent}
+                onClick={() => setWizardState((s) => ({ ...s, currentStep: "content" }))}
+                className="h-10 px-6 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer transition-all gap-1.5"
+              >
+                <span>Continuar a Selección de Videos</span>
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
             </div>
           </div>
         ) : wizardState.currentStep === "content" ? (
@@ -670,145 +600,109 @@ export const MigrationView: React.FC = () => {
             />
           </div>
         ) : (
-          /* ================= STEP 3: EXECUTIVE REVIEW & LAUNCH CARD ================= */
-          <div className="max-w-3xl mx-auto w-full h-full min-h-0 overflow-y-auto py-2 sm:py-4 space-y-4">
-            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-border pb-3">
+          /* ================= STEP 3: UNIFIED TECHNICAL DISPATCH SHEET ================= */
+          <div className="max-w-3xl mx-auto w-full h-full min-h-0 overflow-y-auto py-2 space-y-4">
+            <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+              {/* Sheet Header */}
+              <div className="px-5 py-3.5 border-b border-border bg-secondary/30 flex items-center justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-foreground font-mono flex items-center gap-2">
-                    <span>Paso 3: Revisar y Lanzar Clonación</span>
-                    <Badge variant="outline" className="text-[10px] font-mono text-primary border-primary/30 bg-primary/10">
-                      Ficha Ejecutiva
-                    </Badge>
-                  </h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Verificá los canales y la selección de videos antes de disparar el proceso por MTProto.
+                  <h3 className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
+                    Ficha Técnica de Despacho
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Confirmación de parámetros de transferencia MTProto
                   </p>
                 </div>
+                <Badge variant="outline" className="text-[10px] font-mono text-primary border-primary/30 bg-primary/10">
+                  Verificado
+                </Badge>
               </div>
 
-              {/* Source & Target Channel Comparison Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Source Channel Box */}
-                <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1 font-semibold">
-                    <Radio className="w-3 h-3 text-primary" />
-                    <span>Canal Origen (Extracción)</span>
+              {/* Transfer Route Table */}
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-border/70">
+                  {/* Origen */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">
+                      Origen
+                    </span>
+                    <div className="flex items-center gap-3">
+                      {sourceChannel && (
+                        <ChatAvatar
+                          id={sourceChannel.id}
+                          title={sourceChannel.title}
+                          accountId={sourceChannel.account_id}
+                          className="w-9 h-9 rounded-md shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-foreground block truncate">{sourceChannel?.title}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono block">
+                          {sourceChannel?.username ? `@${sourceChannel.username}` : `ID: ${sourceChannel?.id}`}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    {sourceChannel && (
-                      <ChatAvatar
-                        id={sourceChannel.id}
-                        title={sourceChannel.title}
-                        accountId={sourceChannel.account_id}
-                        className="w-9 h-9 rounded-md shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-foreground text-xs truncate">
-                        {sourceChannel?.title || "Origen"}
-                      </h4>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">
-                        {sourceChannel?.username ? `@${sourceChannel.username}` : `ID: ${sourceChannel?.id}`}
-                      </p>
+
+                  {/* Destino */}
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">
+                      Destino
+                    </span>
+                    <div className="flex items-center gap-3">
+                      {targetChannel && (
+                        <ChatAvatar
+                          id={targetChannel.id}
+                          title={targetChannel.title}
+                          accountId={targetChannel.account_id}
+                          className="w-9 h-9 rounded-md shrink-0"
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <span className="text-xs font-semibold text-foreground block truncate">{targetChannel?.title}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono block">
+                          {targetChannel?.username ? `@${targetChannel.username}` : `ID: ${targetChannel?.id}`}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Target Channel Box */}
-                <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1 font-semibold">
-                    <Tv className="w-3 h-3 text-emerald-400" />
-                    <span>Canal Destino (Publicación)</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    {targetChannel && (
-                      <ChatAvatar
-                        id={targetChannel.id}
-                        title={targetChannel.title}
-                        accountId={targetChannel.account_id}
-                        className="w-9 h-9 rounded-md shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-bold text-foreground text-xs truncate">
-                        {targetChannel?.title || "Destino"}
-                      </h4>
-                      <p className="text-[10px] text-muted-foreground font-mono truncate">
-                        {targetChannel?.username ? `@${targetChannel.username}` : `ID: ${targetChannel?.id}`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Scope & Media Selection Card */}
-              <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1 font-semibold">
-                    <Film className="w-3 h-3 text-primary" />
-                    <span>Alcance del Contenido</span>
-                  </span>
-                  <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary bg-primary/10">
-                    {selectedMessageIds.length > 0
-                      ? `${selectedMessageIds.length} elementos seleccionados`
-                      : "Canal Completo (Todos los videos)"}
-                  </Badge>
-                </div>
-                <p className="text-xs text-foreground/90 leading-relaxed">
-                  {selectedMessageIds.length > 0 ? (
-                    <>
-                      Se clonarán exactamente <strong>{selectedMessageIds.length} elementos multimedia</strong> seleccionados en la galería. Los elementos ya clonados previamente no se duplicarán gracias al filtro de idempotencia.
-                    </>
-                  ) : (
-                    <>
-                      Se clonarán <strong>todos los videos y archivos</strong> disponibles en el canal origen. Los elementos ya clonados en ejecuciones anteriores se omitirán automáticamente.
-                    </>
-                  )}
-                </p>
-              </div>
-
-              {/* Active Pipeline Settings Summary */}
-              <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1 font-semibold">
-                  <Sparkles className="w-3 h-3 text-primary" />
-                  <span>Pipeline y Reglas Activas</span>
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono">
-                  <div className="p-2 rounded bg-card border border-border">
-                    <span className="text-muted-foreground text-[10px] block">Sanitización:</span>
-                    <span className="text-foreground font-medium text-[11px]">
-                      {activeRulesCount > 0 ? `${activeRulesCount} reglas activas` : "Sin reglas"}
+                {/* Technical Parameters Table */}
+                <div className="grid grid-cols-3 gap-3 text-xs font-mono">
+                  <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
+                    <span className="text-[10px] text-muted-foreground block uppercase">Alcance</span>
+                    <span className="font-semibold text-foreground text-xs mt-0.5 block truncate">
+                      {selectedMessageIds.length > 0 ? `${selectedMessageIds.length} seleccionados` : "Canal completo"}
                     </span>
                   </div>
-                  <div className="p-2 rounded bg-card border border-border">
-                    <span className="text-muted-foreground text-[10px] block">Ritmo de Envío:</span>
-                    <span className="text-foreground font-medium text-[11px]">
-                      {dripDelaySeconds > 0 ? `Goteo ${dripDelaySeconds}s` : "Inmediato (2s)"}
+
+                  <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
+                    <span className="text-[10px] text-muted-foreground block uppercase">Filtro Idempotente</span>
+                    <span className="font-semibold text-emerald-400 text-xs mt-0.5 block">
+                      Duplicate Guard Activo
                     </span>
                   </div>
-                  <div className="p-2 rounded bg-card border border-border">
-                    <span className="text-muted-foreground text-[10px] block">Duplicate Guard:</span>
-                    <span className="text-emerald-400 font-medium text-[11px]">✓ Activo (Idempotente)</span>
+
+                  <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
+                    <span className="text-[10px] text-muted-foreground block uppercase">Pacing de Envío</span>
+                    <span className="font-semibold text-foreground text-xs mt-0.5 block">
+                      {dripDelaySeconds > 0 ? `Intervalo ${dripDelaySeconds}s` : "Inmediato (2s)"}
+                    </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Optional Scheduling Section */}
-              <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-primary" />
-                    <div>
-                      <span className="text-xs font-semibold text-foreground block">
-                        Programar Ejecución en el Futuro
-                      </span>
-                      <span className="text-[10px] text-muted-foreground block">
-                        {wizardState.isScheduleEnabled
-                          ? "El Smart Scheduler arrancará el trabajo a la fecha y hora configurada."
-                          : "Iniciar el trabajo inmediatamente al confirmar."}
-                      </span>
-                    </div>
+                {/* Scheduler Box */}
+                <div className="pt-2 border-t border-border/70 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-semibold text-foreground block">
+                      Programación Diferida
+                    </span>
+                    <span className="text-[10px] text-muted-foreground block">
+                      {wizardState.isScheduleEnabled
+                        ? "El trabajo se ejecutará en la fecha y hora seleccionada."
+                        : "El trabajo comenzará de forma inmediata al hacer clic en Iniciar."}
+                    </span>
                   </div>
 
                   <Switch
@@ -824,40 +718,40 @@ export const MigrationView: React.FC = () => {
                 </div>
 
                 {wizardState.isScheduleEnabled && (
-                  <div className="pt-2 border-t border-border/50 animate-in fade-in">
+                  <div className="pt-2">
                     <DateTimePicker
                       value={scheduledAt}
                       onChange={(date) => setScheduledAt(date ? date.toISOString() : null)}
-                      placeholder="Seleccionar fecha y horario..."
+                      placeholder="Definir fecha y hora de ejecución..."
                     />
                   </div>
                 )}
               </div>
 
-              {/* Action Buttons: Back or Launch */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+              {/* Footer Actions */}
+              <div className="px-5 py-3.5 bg-secondary/30 border-t border-border flex items-center justify-between">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setWizardState((s) => ({ ...s, currentStep: "content" }))}
-                  className="w-full sm:w-auto h-9 px-4 gap-1.5 border-border hover:bg-muted cursor-pointer"
+                  className="h-9 px-4 text-xs font-mono gap-1.5 cursor-pointer"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Modificar Selección de Contenido</span>
+                  <span>Modificar Selección</span>
                 </Button>
 
                 <Button
                   type="button"
                   size="default"
                   onClick={handleLaunchMigration}
-                  className="w-full sm:w-auto h-10 px-6 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  className="h-9 px-6 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Play className="w-4 h-4 fill-primary-foreground" />
+                  <Play className="w-3.5 h-3.5 fill-current" />
                   <span>
                     {wizardState.isScheduleEnabled
-                      ? "Programar Migración en la Nube ⏰"
-                      : "¡Iniciar Clonación MTProto Ahora! 🚀"}
+                      ? "Programar Despacho MTProto"
+                      : "Iniciar Proceso de Clonación"}
                   </span>
                 </Button>
               </div>
