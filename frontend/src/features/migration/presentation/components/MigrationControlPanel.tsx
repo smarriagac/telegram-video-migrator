@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowDown,
+  ChevronDown,
   Clock,
   History,
   Layers,
@@ -9,6 +10,7 @@ import {
   RefreshCw,
   RotateCcw,
   ShieldCheck,
+  Sliders,
   Sparkles,
   StopCircle,
   Terminal,
@@ -31,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { cn } from "@/shared/lib/utils";
 
 interface MigrationControlPanelProps {
   onOpenConfirm: () => void;
@@ -65,9 +68,16 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
   const dripDelaySeconds = useMigrationStore((state) => state.dripDelaySeconds);
   const setDripDelaySeconds = useMigrationStore((state) => state.setDripDelaySeconds);
 
-  // Strictly <= 2 useState hooks per architectural rules
-  const [activeModal, setActiveModal] = useState<"none" | "history" | "upload" | "caption_rules">("none");
-  const [showLogs, setShowLogs] = useState<boolean>(false);
+  // STRICT ARCHITECTURAL CONSTRAINT: Exactly 1 useState hook (consolidated UI state)
+  const [panelState, setPanelState] = useState<{
+    activeModal: "none" | "history" | "upload" | "caption_rules";
+    showLogs: boolean;
+    isAdvancedOpen: boolean;
+  }>({
+    activeModal: "none",
+    showLogs: false,
+    isAdvancedOpen: false,
+  });
 
   const activeRulesCount = [
     captionRules.strip_links,
@@ -120,33 +130,46 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
         <div className="border-b border-border pb-2 flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold tracking-tight text-foreground font-mono">
-              Migrar Canal
+              Clonador MTProto
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Configurá origen y destino para clonar el contenido.
+              Copia directa entre canales sin descargar a disco.
             </p>
           </div>
           {isCrossAccount ? (
-            <span className="text-[10px] bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded font-mono flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+            <Badge variant="outline" className="text-[10px] bg-indigo-500/15 text-indigo-300 border-indigo-500/30 font-mono">
               Puente Multi-Cuenta
-            </span>
+            </Badge>
           ) : (
-            <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded font-mono flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30 font-mono">
               Directo MTProto
-            </span>
+            </Badge>
           )}
         </div>
 
-        {/* Form: De -> Para */}
+        {/* Guided Sequential Flow (1 -> 2 -> 3) */}
         <div className="space-y-2">
-          {/* Campo "de" */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground/90 flex items-center justify-between">
-              <span className="font-mono text-primary font-bold uppercase text-[11px]">De:</span>
-              <span className="text-[10px] text-muted-foreground font-mono">Canal Origen</span>
-            </label>
+          {/* Step 1: Source Channel */}
+          <div className="space-y-1.5 p-2.5 rounded-lg bg-secondary/30 border border-border/70">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center font-mono">
+                  1
+                </span>
+                <span>Canal Origen (De dónde copiar)</span>
+              </label>
+              {selectedSourceId && (
+                <button
+                  type="button"
+                  onClick={() => setPanelState((prev) => ({ ...prev, activeModal: "history" }))}
+                  className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  title="Ver auditoría de clonaciones pasadas"
+                >
+                  <History className="w-3 h-3" />
+                  <span>Historial ({history?.total_clones ?? 0})</span>
+                </button>
+              )}
+            </div>
             <SearchableChannelSelect
               disabled={isRunning || isLoading}
               value={selectedSourceId}
@@ -156,52 +179,36 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               placeholder="Elegir canal origen..."
               accentColor="cyan"
             />
-
-            {/* Audit History Trigger Pill */}
-            {selectedSourceId && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveModal("history")}
-                className="w-full mt-1 flex items-center justify-between px-2.5 h-7.5 bg-secondary/60 border-border hover:border-primary/40 text-left font-normal transition-all group"
-                title="Ver historial de clonaciones y contenido copiado"
-              >
-                <div className="flex items-center gap-1.5 text-[11px]">
-                  <History className="w-3.5 h-3.5 text-primary group-hover:rotate-[-20deg] transition-transform" />
-                  <span className="text-foreground/90 font-medium">
-                    Clonado {history?.total_clones ?? 0} {(history?.total_clones ?? 0) === 1 ? "vez" : "veces"}
-                  </span>
-                  {history?.has_full_clone ? (
-                    <Badge variant="admin" size="sm">
-                      ✓ Completo
-                    </Badge>
-                  ) : (history?.total_clones ?? 0) > 0 ? (
-                    <Badge variant="secondary" size="sm" className="bg-amber-500/15 text-amber-500 dark:text-amber-300 border border-amber-500/25">
-                      Parcial
-                    </Badge>
-                  ) : null}
-                </div>
-                <span className="text-[10px] font-mono text-primary group-hover:underline">
-                  Auditar →
-                </span>
-              </Button>
-            )}
           </div>
 
-          {/* Connector arrow */}
-          <div className="flex justify-center -my-0.5">
-            <div className="w-5.5 h-5.5 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground shadow-sm">
-              <ArrowDown className="w-3 h-3 text-primary" />
+          {/* Visual Connector Arrow */}
+          <div className="flex justify-center -my-1 relative z-10">
+            <div className="w-6 h-6 rounded-full bg-secondary border border-border flex items-center justify-center text-primary shadow-xs">
+              <ArrowDown className="w-3.5 h-3.5" />
             </div>
           </div>
 
-          {/* Campo "para" */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-foreground/90 flex items-center justify-between">
-              <span className="font-mono text-primary font-bold uppercase text-[11px]">Para:</span>
-              <span className="text-[10px] text-muted-foreground font-mono">Canal Destino</span>
-            </label>
+          {/* Step 2: Target Channel */}
+          <div className="space-y-1.5 p-2.5 rounded-lg bg-secondary/30 border border-border/70">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <span className="w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center font-mono">
+                  2
+                </span>
+                <span>Canal Destino (A dónde enviar)</span>
+              </label>
+              {selectedTargetId && (
+                <button
+                  type="button"
+                  onClick={() => setPanelState((prev) => ({ ...prev, activeModal: "upload" }))}
+                  className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                  title="Publicar archivo local directamente a este canal"
+                >
+                  <UploadCloud className="w-3 h-3" />
+                  <span>+ Subir de mi PC</span>
+                </button>
+              )}
+            </div>
             <SearchableChannelSelect
               disabled={isRunning || isLoading}
               value={selectedTargetId}
@@ -211,155 +218,142 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               placeholder="Elegir canal destino..."
               accentColor="cyan"
             />
+          </div>
 
-            {/* Direct Local Upload Button */}
-            {selectedTargetId && (
-              <div className="space-y-1 mt-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveModal("upload")}
-                  className="w-full flex items-center justify-between px-2.5 h-7.5 bg-secondary/60 border-border hover:border-primary/40 text-left font-normal transition-all group"
-                  title="Subir archivo local directamente a este canal"
-                >
-                  <div className="flex items-center gap-1.5 text-[11px]">
-                    <UploadCloud className="w-3.5 h-3.5 text-primary group-hover:scale-110 transition-transform" />
-                    <span className="text-foreground/90 font-medium">Subir desde mi PC</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-primary group-hover:underline">
-                    + Publicar directo
-                  </span>
-                </Button>
-
-                {selectedSourceId && selectedTargetId !== selectedSourceId && (
-                  <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-secondary/60 border border-border text-[11px]">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${isCheckingSync ? "animate-spin text-primary" : syncStatus?.is_in_sync ? "text-emerald-500" : "text-amber-500"}`} />
-                      {isCheckingSync ? (
-                        <span className="text-muted-foreground truncate">Comprobando delta...</span>
-                      ) : syncStatus?.is_in_sync ? (
-                        <Badge variant="admin" size="sm" className="font-medium">✓ 100% sincronizado</Badge>
-                      ) : syncStatus ? (
-                        <Badge variant="secondary" size="sm" className="font-medium font-mono text-amber-500 dark:text-amber-300 bg-amber-500/15 border-amber-500/25">
-                          {syncStatus.missing_count} novedades
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground truncate">Sin verificar</span>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => checkSyncStatus()}
-                      disabled={isCheckingSync}
-                      className="h-5.5 px-1.5 text-[10px] font-mono text-primary hover:text-primary hover:bg-primary/10 shrink-0 ml-1.5"
-                    >
-                      Auditar
-                    </Button>
-                  </div>
+          {/* Step 3: Collapsible Advanced Pipeline Drawer (Progressive Disclosure) */}
+          <div className="border border-border/70 rounded-lg overflow-hidden bg-secondary/20">
+            <button
+              type="button"
+              onClick={() =>
+                setPanelState((prev) => ({ ...prev, isAdvancedOpen: !prev.isAdvancedOpen }))
+              }
+              className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group cursor-pointer select-none"
+            >
+              <div className="flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-primary" />
+                <span className="font-semibold text-foreground text-[11px] font-mono uppercase tracking-wider">
+                  Ajustes del Pipeline (Opcional)
+                </span>
+                {(activeRulesCount > 0 || dripDelaySeconds > 0 || autoSyncStatus?.is_active) && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" title="Hay reglas activas configuradas" />
                 )}
+              </div>
+              <ChevronDown
+                className={cn(
+                  "w-3.5 h-3.5 text-muted-foreground transition-transform duration-200",
+                  panelState.isAdvancedOpen ? "rotate-180" : "rotate-0"
+                )}
+              />
+            </button>
 
-                {/* Auto-Sync en Vivo Toggle */}
-                {selectedSourceId && selectedTargetId !== selectedSourceId && (
-                  <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-secondary/60 border border-border text-xs transition-all">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className={`w-2 h-2 rounded-full shrink-0 ${
-                          autoSyncStatus?.is_active
-                            ? "bg-emerald-400"
-                            : "bg-muted-foreground"
-                        }`}
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-foreground font-medium text-xs truncate flex items-center gap-1.5">
-                          Auto-Sync en Vivo
-                          {autoSyncStatus?.is_active && (
-                            <span className="text-[10px] bg-emerald-500/15 text-emerald-400 px-1 py-0.5 rounded border border-emerald-500/30 font-mono">
-                              MTProto Push
-                            </span>
+            {panelState.isAdvancedOpen && (
+              <div className="p-3 pt-0 space-y-2 border-t border-border/50 text-xs animate-in fade-in">
+                {/* Delta Sync & Auto-sync */}
+                {selectedSourceId && selectedTargetId && selectedTargetId !== selectedSourceId && (
+                  <div className="space-y-1.5 pt-2">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-secondary/60 border border-border">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <RefreshCw
+                          className={cn(
+                            "w-3.5 h-3.5 shrink-0",
+                            isCheckingSync ? "animate-spin text-primary" : "text-muted-foreground"
                           )}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground truncate">
-                          {autoSyncStatus?.is_active
-                            ? "Sincroniza nuevos posts al instante"
-                            : "Detecta y clona contenido en tiempo real"}
+                        />
+                        <span className="text-[11px] text-muted-foreground truncate">
+                          {isCheckingSync
+                            ? "Comprobando..."
+                            : syncStatus?.is_in_sync
+                            ? "✓ 100% al día"
+                            : syncStatus
+                            ? `${syncStatus.missing_count} novedades`
+                            : "Estado delta"}
                         </span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => checkSyncStatus()}
+                        disabled={isCheckingSync}
+                        className="text-[10px] font-mono text-primary hover:underline cursor-pointer"
+                      >
+                        Auditar
+                      </button>
                     </div>
-                    <Switch
-                      checked={Boolean(autoSyncStatus?.is_active)}
-                      onCheckedChange={(checked) => toggleAutoSync(checked)}
-                      disabled={isLoadingAutoSync}
-                      aria-label="Activar o desactivar auto-sincronización en vivo"
-                    />
+
+                    <div className="flex items-center justify-between px-2.5 py-1.5 rounded-md bg-secondary/60 border border-border">
+                      <div className="min-w-0 pr-2">
+                        <span className="text-[11px] font-semibold text-foreground block">
+                          Auto-Sync en Vivo
+                        </span>
+                        <span className="text-[10px] text-muted-foreground block truncate">
+                          Clona nuevos posts al instante por push
+                        </span>
+                      </div>
+                      <Switch
+                        checked={Boolean(autoSyncStatus?.is_active)}
+                        onCheckedChange={(checked) => toggleAutoSync(checked)}
+                        disabled={isLoadingAutoSync}
+                        aria-label="Auto sync"
+                      />
+                    </div>
                   </div>
                 )}
+
+                {/* Captions & Pacing Drip */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPanelState((prev) => ({ ...prev, activeModal: "caption_rules" }))
+                    }
+                    className="h-8 justify-between text-xs px-2.5 bg-secondary/60 border-border hover:bg-secondary font-normal"
+                  >
+                    <div className="flex items-center gap-1 truncate">
+                      <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                      <span className="truncate">Captions</span>
+                    </div>
+                    <Badge
+                      variant={activeRulesCount > 0 ? "admin" : "secondary"}
+                      className="text-[9px] px-1.5 py-0 font-mono"
+                    >
+                      {activeRulesCount > 0 ? `${activeRulesCount} act.` : "Off"}
+                    </Badge>
+                  </Button>
+
+                  <Select
+                    value={String(dripDelaySeconds)}
+                    onValueChange={(val) => setDripDelaySeconds(Number(val))}
+                  >
+                    <SelectTrigger className="h-8 bg-secondary/60 border-border text-xs px-2.5">
+                      <SelectValue placeholder="Pacing" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-popover border-border text-xs">
+                      <SelectItem value="0" className="text-xs">
+                        ⚡ Inmediato (2s)
+                      </SelectItem>
+                      <SelectItem value="60" className="text-xs">
+                        💧 Goteo: 1 min
+                      </SelectItem>
+                      <SelectItem value="300" className="text-xs">
+                        💧 Goteo: 5 min
+                      </SelectItem>
+                      <SelectItem value="900" className="text-xs">
+                        💧 Goteo: 15 min
+                      </SelectItem>
+                      <SelectItem value="1800" className="text-xs">
+                        💧 Goteo: 30 min
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
           </div>
-
-          {/* Advanced Pipeline Modules: Caption Rules, Drip Feed & Duplicate Guard */}
-          <div className="pt-1.5 border-t border-border space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-semibold">
-                <Sparkles className="w-3 h-3 text-primary" /> Pipeline & Módulos
-              </span>
-              <NavLink
-                to="/pipeline"
-                className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1"
-                title="Abrir vista completa del pipeline de procesamiento"
-              >
-                Panel completo →
-              </NavLink>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveModal("caption_rules")}
-                className="flex items-center justify-between px-2.5 h-7.5 bg-secondary/60 border-border hover:bg-muted text-xs text-foreground/90 font-normal w-full"
-                title="Configurar limpieza de links, reemplazo de menciones y firmas"
-              >
-                <div className="flex items-center gap-1.5 truncate">
-                  <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">Captions</span>
-                </div>
-                {activeRulesCount > 0 ? (
-                  <Badge variant="admin" size="sm" className="font-mono font-medium">
-                    {activeRulesCount} act.
-                  </Badge>
-                ) : (
-                  <Badge variant="viewer" size="sm" className="font-mono text-muted-foreground">
-                    Off
-                  </Badge>
-                )}
-              </Button>
-
-              <Select
-                value={String(dripDelaySeconds)}
-                onValueChange={(val) => setDripDelaySeconds(Number(val))}
-              >
-                <SelectTrigger className="h-7.5 bg-secondary/60 border-border hover:bg-muted text-xs text-foreground px-2.5 focus:ring-0 focus:ring-offset-0">
-                  <SelectValue placeholder="Pacing" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border-border text-popover-foreground text-xs">
-                  <SelectItem value="0" className="text-xs">⚡ Inmediato (2s)</SelectItem>
-                  <SelectItem value="60" className="text-xs">💧 Goteo: 1 min</SelectItem>
-                  <SelectItem value="300" className="text-xs">💧 Goteo: 5 min</SelectItem>
-                  <SelectItem value="900" className="text-xs">💧 Goteo: 15 min</SelectItem>
-                  <SelectItem value="1800" className="text-xs">💧 Goteo: 30 min</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </div>
 
-        {/* Action Button / Scheduled Banner */}
-        <div className="pt-1">
+        {/* Dynamic & Transparent CTA Action Button */}
+        <div className="pt-2">
           {isScheduled ? (
             <div className="space-y-2">
               <div className="p-3 rounded-lg bg-cyan-950/40 border border-cyan-800/50 space-y-2.5">
@@ -411,7 +405,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 variant="secondary"
                 size="sm"
                 onClick={() => resetJob()}
-                className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
+                className="w-full h-7 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 Planificar Otra Migración
               </Button>
@@ -421,24 +415,24 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
               variant="destructive"
               size="default"
               onClick={() => cancelMigration()}
-              className="w-full flex items-center justify-center gap-2 h-9 text-xs font-semibold shadow-lg shadow-rose-950/40"
+              className="w-full flex items-center justify-center gap-2 h-9.5 text-xs font-semibold shadow-lg shadow-rose-950/40 cursor-pointer"
             >
               <StopCircle className="w-4 h-4" />
-              Detener Migración
+              <span>Detener Migración</span>
             </Button>
           ) : isFinished ? (
             <Button
               variant="secondary"
               size="default"
               onClick={() => resetJob()}
-              className="w-full flex items-center justify-center gap-2 h-9 text-xs font-semibold"
+              className="w-full flex items-center justify-center gap-2 h-9.5 text-xs font-semibold cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
-              Nueva Migración
+              <span>Nueva Migración</span>
             </Button>
           ) : (
             <Button
-              variant="primary"
+              variant="default"
               size="default"
               disabled={
                 !selectedSourceId ||
@@ -447,17 +441,25 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 isLoading
               }
               onClick={onOpenConfirm}
-              className="w-full flex items-center justify-center gap-2 h-9 text-xs"
+              className="w-full flex items-center justify-center gap-2 h-10 text-xs font-semibold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer transition-all"
             >
-              <Play className="w-4 h-4 fill-current" />
-              {selectedMessageIds.length > 0
-                ? `Clonar (${selectedMessageIds.length}) Seleccionados`
-                : "Clonar Todo el Canal"}
+              <Play className="w-4 h-4 fill-primary-foreground" />
+              <span className="truncate">
+                {!selectedSourceId
+                  ? "Paso 1: Seleccioná un canal de origen"
+                  : !selectedTargetId
+                  ? "Paso 2: Seleccioná un canal de destino"
+                  : selectedSourceId === selectedTargetId
+                  ? "El destino debe ser diferente al origen"
+                  : selectedMessageIds.length > 0
+                  ? `Clonar ${selectedMessageIds.length} video${selectedMessageIds.length > 1 ? "s" : ""} seleccionado${selectedMessageIds.length > 1 ? "s" : ""} →`
+                  : "Clonar canal completo →"}
+              </span>
             </Button>
           )}
         </div>
 
-        {/* Progress & Queue Section (shown when active job or running, but not when scheduled) */}
+        {/* Progress & Queue Section */}
         {(activeJob || isRunning) && !isScheduled && (
           <div className="p-3 rounded-lg bg-secondary/50 border border-border space-y-2.5">
             <div className="flex items-center justify-between text-xs">
@@ -527,19 +529,21 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       {/* Terminal Log Toggle */}
       <div className="border-t border-border pt-2">
         <button
-          onClick={() => setShowLogs(!showLogs)}
-          className="w-full flex items-center justify-between text-xs font-mono text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40 transition-colors"
+          onClick={() =>
+            setPanelState((prev) => ({ ...prev, showLogs: !prev.showLogs }))
+          }
+          className="w-full flex items-center justify-between text-xs font-mono text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer"
         >
           <span className="flex items-center gap-1.5">
             <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
             Consola en vivo ({logs.length})
           </span>
           <span className="text-[10px] text-muted-foreground font-mono">
-            {showLogs ? "Ocultar" : "Mostrar"}
+            {panelState.showLogs ? "Ocultar" : "Mostrar"}
           </span>
         </button>
 
-        {showLogs && (
+        {panelState.showLogs && (
           <div className="mt-2 p-2 rounded-lg bg-secondary/40 border border-border font-mono text-[10px] text-muted-foreground max-h-36 overflow-y-auto space-y-1">
             {logs.length === 0 ? (
               <div className="text-muted-foreground italic">Esperando eventos...</div>
@@ -569,22 +573,22 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
       {/* Channel Cloning Audit & History Modal */}
       <ChannelCloningHistoryModal
-        isOpen={activeModal === "history"}
-        onClose={() => setActiveModal("none")}
+        isOpen={panelState.activeModal === "history"}
+        onClose={() => setPanelState((prev) => ({ ...prev, activeModal: "none" }))}
       />
 
       {/* Direct Local Media Upload Modal */}
       <DirectUploadModal
-        isOpen={activeModal === "upload"}
-        onClose={() => setActiveModal("none")}
+        isOpen={panelState.activeModal === "upload"}
+        onClose={() => setPanelState((prev) => ({ ...prev, activeModal: "none" }))}
         targetChannelId={selectedTargetId}
         targetChannelTitle={targetChannel?.title}
       />
 
       {/* Caption Rules & Sanitization Pipeline Modal */}
       <CaptionRulesModal
-        isOpen={activeModal === "caption_rules"}
-        onClose={() => setActiveModal("none")}
+        isOpen={panelState.activeModal === "caption_rules"}
+        onClose={() => setPanelState((prev) => ({ ...prev, activeModal: "none" }))}
       />
     </div>
   );

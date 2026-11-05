@@ -13,6 +13,7 @@ import {
   Loader2,
   Maximize2,
   MessageSquare,
+  Radio,
   RefreshCw,
   Search,
   Square,
@@ -656,6 +657,16 @@ export const MessageSelector: React.FC = () => {
       {/* Main Content: Gallery Grid or List */}
       {isLoadingMessages ? (
         <MediaGallerySkeleton count={12} />
+      ) : !selectedSourceId ? (
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-12 px-4 text-center bg-secondary/15 rounded-xl border border-dashed border-border/80">
+          <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-3">
+            <Radio className="w-6 h-6 animate-pulse" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground font-mono">Paso 1: Seleccioná un canal de origen</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mt-1 leading-relaxed">
+            Elegí el canal de donde querés extraer contenido en el panel izquierdo (<strong>Paso 1</strong>) para explorar y marcar sus videos aquí.
+          </p>
+        </div>
       ) : filteredMessages.length === 0 ? (
         <div className="flex-1 min-h-0 flex items-center justify-center py-10 text-center text-muted-foreground text-xs bg-secondary/40 rounded-md border border-border font-mono">
           No se encontraron mensajes con los filtros seleccionados.
