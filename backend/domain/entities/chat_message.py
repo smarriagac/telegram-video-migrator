@@ -16,3 +16,4 @@ class ChatMessage:
     is_outgoing: bool = False
     media_type: str | None = None
     is_read: bool = False
+    buttons: list[list[dict]] | None = None

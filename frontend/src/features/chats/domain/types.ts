@@ -17,6 +17,7 @@ export interface Message {
   is_outgoing: boolean;
   media_type?: "video" | "photo" | "document" | "text";
   is_read?: boolean;
+  buttons?: Array<Array<{ text: string; url?: string | null; has_callback?: boolean; row?: number; col?: number }>> | null;
 }
 
 export interface Chat {

@@ -206,3 +206,15 @@ class TelegramGatewayPort(ABC):
             "failed_count": 0,
             "results": [],
         }
+
+    async def click_message_button(
+        self,
+        chat_id: int,
+        message_id: int,
+        button_text: str | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        account_id: int | None = None,
+    ) -> bool:
+        """Click an inline keyboard button on a message (via callback or text)."""
+        return False

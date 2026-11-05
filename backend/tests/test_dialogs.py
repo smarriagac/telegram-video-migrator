@@ -178,3 +178,11 @@ async def test_dialogs_api_endpoints():
         )
         assert del_res.status_code == 200
         assert del_res.json()["success"] is True
+
+        # Test POST /api/dialogs/{chat_id}/messages/{message_id}/click-button
+        btn_res = await client.post(
+            f"/api/dialogs/{chat_id}/messages/101/click-button",
+            json={"button_text": "Comprar Ahora", "row": 0, "col": 0},
+        )
+        assert btn_res.status_code == 200
+        assert "success" in btn_res.json()

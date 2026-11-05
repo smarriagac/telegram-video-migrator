@@ -821,6 +821,22 @@ class TelethonAdapter(TelegramGatewayPort):
                 is_outgoing = bool(msg.out)
                 is_read = (msg.id <= read_outbox_max_id) if is_outgoing else (msg.id <= read_inbox_max_id)
 
+                buttons_matrix: list[list[dict]] | None = None
+                if getattr(msg, "reply_markup", None) and hasattr(msg.reply_markup, "rows"):
+                    buttons_matrix = []
+                    for row_idx, row in enumerate(msg.reply_markup.rows):
+                        row_items = []
+                        for col_idx, b in enumerate(row.buttons):
+                            row_items.append({
+                                "text": b.text,
+                                "url": getattr(b, "url", None),
+                                "has_callback": bool(getattr(b, "data", None)),
+                                "row": row_idx,
+                                "col": col_idx,
+                            })
+                        if row_items:
+                            buttons_matrix.append(row_items)
+
                 messages_list.append(
                     ChatMessage(
                         id=msg.id,
@@ -832,6 +848,7 @@ class TelethonAdapter(TelegramGatewayPort):
                         is_outgoing=is_outgoing,
                         media_type=media_type,
                         is_read=is_read,
+                        buttons=buttons_matrix,
                     )
                 )
             messages_list.reverse()
@@ -1376,3 +1393,39 @@ class TelethonAdapter(TelegramGatewayPort):
             "failed_count": failed_count,
             "results": results,
         }
+
+    async def click_message_button(
+        self,
+        chat_id: int,
+        message_id: int,
+        button_text: str | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        account_id: int | None = None,
+    ) -> bool:
+        """Click an inline keyboard button on a message (via callback or text)."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+        try:
+            try:
+                entity = await client.get_input_entity(chat_id)
+            except Exception:
+                entity = await client.get_entity(chat_id)
+
+            msg = await client.get_messages(entity, ids=message_id)
+            if not msg:
+                return False
+
+            if row is not None and col is not None and msg.reply_markup and hasattr(msg.reply_markup, "rows"):
+                await msg.click(row, col)
+                return True
+            elif button_text:
+                await msg.click(text=button_text)
+                return True
+            elif row is not None:
+                await msg.click(row)
+                return True
+            return False
+        except Exception as e:
+            logger.warning(f"Error clicking message button on msg {message_id} in {chat_id}: {e}")
+            return False

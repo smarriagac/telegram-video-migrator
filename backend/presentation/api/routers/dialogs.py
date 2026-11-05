@@ -56,6 +56,7 @@ class ChatMessageResponse(BaseModel):
     is_outgoing: bool
     media_type: str | None = None
     is_read: bool = False
+    buttons: list[list[dict]] | None = None
 
 
 class SendChatMessageRequest(BaseModel):
@@ -289,6 +290,7 @@ async def get_messages(
                 is_outgoing=m.is_outgoing,
                 media_type=m.media_type,
                 is_read=getattr(m, "is_read", False),
+                buttons=getattr(m, "buttons", None),
             )
             for m in messages
         ]
@@ -619,3 +621,29 @@ async def edit_dialog_message_endpoint(
             is_outgoing=True,
             media_type="text",
         )
+
+
+class ClickButtonRequest(BaseModel):
+    button_text: str | None = None
+    row: int | None = None
+    col: int | None = None
+    account_id: int | None = None
+
+
+@router.post("/{chat_id}/messages/{message_id}/click-button")
+async def click_message_button_endpoint(
+    chat_id: int,
+    message_id: int,
+    req: ClickButtonRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Interact with a bot inline button (callback query) on a specific message."""
+    success = await gateway.click_message_button(
+        chat_id=chat_id,
+        message_id=message_id,
+        button_text=req.button_text,
+        row=req.row,
+        col=req.col,
+        account_id=req.account_id,
+    )
+    return {"success": success, "chat_id": chat_id, "message_id": message_id}

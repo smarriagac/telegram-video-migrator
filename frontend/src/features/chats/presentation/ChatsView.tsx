@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
+import { chatApi } from "../infrastructure/chatApi";
 import { Message } from "../domain/types";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -1287,119 +1288,169 @@ export const ChatsView: React.FC = () => {
 
                           <div
                             className={cn(
-                              "group relative max-w-[80%] rounded-lg p-2.5 text-xs flex flex-col shadow-sm transition-colors",
+                              "group relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] w-fit p-3 text-xs flex flex-col shadow-sm transition-all",
                               msg.is_outgoing
-                                ? "bg-primary/15 border border-primary/30 text-foreground"
-                                : "bg-card border border-border text-foreground"
+                                ? "bg-primary/15 border border-primary/30 text-foreground rounded-2xl rounded-tr-xs self-end"
+                                : "bg-card border border-border/80 text-foreground rounded-2xl rounded-tl-xs self-start"
                             )}
                           >
-                          {/* Sender & Timestamp */}
-                          <div className="flex items-center justify-between gap-2.5 text-[9px] font-mono opacity-60 mb-1 pr-14 text-muted-foreground">
-                            <span className="font-semibold text-foreground/80">{msg.sender_name}</span>
-                            <span>{msg.date}</span>
-                          </div>
+                            {/* Sender Name (only on incoming messages in multi-user groups) */}
+                            {Boolean(!msg.is_outgoing && activeChat?.type === "group" && msg.sender_name) && (
+                              <div className="text-[10px] font-semibold text-primary font-mono mb-1 truncate select-none">
+                                {msg.sender_name}
+                              </div>
+                            )}
 
-                          {/* Hover Action Buttons (Edit / Delete) */}
-                          {!isEditingThis && (
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2">
-                              <button
-                                type="button"
-                                onClick={() => handleStartEdit(msg)}
-                                title="Editar mensaje"
-                                className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-primary transition-colors border border-border/40"
-                              >
-                                <Pencil className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setViewState((prev) => ({
-                                    ...prev,
-                                    deleteMessageTargetId: msg.id,
-                                  }));
-                                }}
-                                title="Eliminar mensaje"
-                                className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-rose-500 transition-colors border border-border/40"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Media Preview Card (Video / Photo / Document) */}
-                          {(msg.media_type === "video" || msg.media_type === "photo") && (
-                            <ChatMediaThumbnail
-                              chatId={msg.chat_id}
-                              messageId={msg.id}
-                              mediaType={msg.media_type}
-                              accountId={selectedAccountId}
-                              text={msg.text}
-                              onOpenViewer={() => setViewState((prev) => ({ ...prev, previewModalMsg: msg }))}
-                            />
-                          )}
-                          {msg.media_type === "document" && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[10px] font-mono w-fit">
-                              <FileText className="w-3.5 h-3.5 text-amber-500" />
-                              <span>Documento / Archivo</span>
-                            </div>
-                          )}
-
-                          {/* Message content or inline editing */}
-                          {isEditingThis ? (
-                            <div className="space-y-1.5 mt-0.5">
-                              <input
-                                type="text"
-                                value={viewState.editText}
-                                onChange={(e) =>
-                                  setViewState((s) => ({ ...s, editText: e.target.value }))
-                                }
-                                className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    handleSaveEdit(msg.id);
-                                  } else if (e.key === "Escape") {
-                                    setEditingMessage(null);
-                                  }
-                                }}
-                              />
-                              <div className="flex items-center justify-end gap-1.5">
+                            {/* Hover Action Buttons (Edit / Delete) */}
+                            {!isEditingThis && (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2 z-10">
                                 <button
                                   type="button"
-                                  onClick={() => setEditingMessage(null)}
-                                  className="p-1 px-2 rounded text-[10px] text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border"
+                                  onClick={() => handleStartEdit(msg)}
+                                  title="Editar mensaje"
+                                  className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-primary transition-colors border border-border/40 cursor-pointer"
                                 >
-                                  <X className="w-3 h-3" />
-                                  Cancelar
+                                  <Pencil className="w-3 h-3" />
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleSaveEdit(msg.id)}
-                                  className="p-1 px-2 rounded text-[10px] text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1"
+                                  onClick={() => {
+                                    setViewState((prev) => ({
+                                      ...prev,
+                                      deleteMessageTargetId: msg.id,
+                                    }));
+                                  }}
+                                  title="Eliminar mensaje"
+                                  className="p-1 rounded bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-rose-500 transition-colors border border-border/40 cursor-pointer"
                                 >
-                                  <Check className="w-3 h-3" />
-                                  Guardar
+                                  <Trash2 className="w-3 h-3" />
                                 </button>
                               </div>
-                            </div>
-                          ) : (
-                            <p className="leading-relaxed break-words">{msg.text}</p>
-                          )}
+                            )}
 
-                          {msg.is_outgoing && !isEditingThis && (
-                            <div className="self-end mt-0.5 flex items-center gap-0.5">
-                              {isOutgoingRead ? (
-                                <span title="Leído por el destinatario" className="text-primary flex items-center">
-                                  <CheckCheck className="w-3.5 h-3.5" />
-                                </span>
-                              ) : (
-                                <span title="Entregado al servidor (no leído aún)" className="text-muted-foreground flex items-center">
-                                  <Check className="w-3.5 h-3.5" />
-                                </span>
+                            {/* Media Preview Card (Video / Photo / Document) */}
+                            {(msg.media_type === "video" || msg.media_type === "photo") && (
+                              <ChatMediaThumbnail
+                                chatId={msg.chat_id}
+                                messageId={msg.id}
+                                mediaType={msg.media_type}
+                                accountId={selectedAccountId}
+                                text={msg.text}
+                                onOpenViewer={() => setViewState((prev) => ({ ...prev, previewModalMsg: msg }))}
+                              />
+                            )}
+                            {msg.media_type === "document" && (
+                              <div className="flex items-center gap-1.5 px-2 py-1 mb-1.5 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[10px] font-mono w-fit">
+                                <FileText className="w-3.5 h-3.5 text-amber-500" />
+                                <span>Documento / Archivo</span>
+                              </div>
+                            )}
+
+                            {/* Message content or inline editing */}
+                            {isEditingThis ? (
+                              <div className="space-y-1.5 mt-0.5">
+                                <input
+                                  type="text"
+                                  value={viewState.editText}
+                                  onChange={(e) =>
+                                    setViewState((s) => ({ ...s, editText: e.target.value }))
+                                  }
+                                  className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleSaveEdit(msg.id);
+                                    } else if (e.key === "Escape") {
+                                      setEditingMessage(null);
+                                    }
+                                  }}
+                                />
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingMessage(null)}
+                                    className="p-1 px-2 rounded text-[10px] text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border cursor-pointer"
+                                  >
+                                    <X className="w-3 h-3" />
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSaveEdit(msg.id)}
+                                    className="p-1 px-2 rounded text-[10px] text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    Guardar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="leading-relaxed break-words whitespace-pre-wrap font-sans">{msg.text}</p>
+                            )}
+
+                            {/* Bot Interactive Buttons (reply_markup) */}
+                            {msg.buttons && msg.buttons.length > 0 && (
+                              <div className="pt-2 space-y-1 w-full">
+                                {msg.buttons.map((row, rowIdx) => (
+                                  <div key={rowIdx} className="flex items-center gap-1.5 flex-wrap w-full">
+                                    {row.map((btn, colIdx) => {
+                                      if (btn.url) {
+                                        return (
+                                          <a
+                                            key={colIdx}
+                                            href={btn.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-1 min-w-[120px] text-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-secondary/90 hover:bg-secondary text-primary border border-border/80 hover:border-primary/40 transition-colors shadow-xs"
+                                          >
+                                            {btn.text} ↗
+                                          </a>
+                                        );
+                                      }
+                                      return (
+                                        <button
+                                          key={colIdx}
+                                          type="button"
+                                          onClick={async () => {
+                                            try {
+                                              await chatApi.clickMessageButton(msg.chat_id, msg.id, {
+                                                button_text: btn.text,
+                                                row: btn.row ?? rowIdx,
+                                                col: btn.col ?? colIdx,
+                                                account_id: selectedAccountId || activeChat.account_id,
+                                              });
+                                              await refreshActiveMessages();
+                                            } catch (err: any) {
+                                              console.error("Bot button click error:", err);
+                                            }
+                                          }}
+                                          className="flex-1 min-w-[120px] text-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-secondary/90 hover:bg-primary/20 text-foreground hover:text-primary border border-border/80 hover:border-primary/40 transition-colors shadow-xs cursor-pointer active:scale-95"
+                                        >
+                                          {btn.text}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Timestamp & Read Receipt Footer inside bubble */}
+                            <div className="self-end mt-1 flex items-center gap-1 text-[10px] font-mono text-muted-foreground select-none">
+                              <span>{msg.date}</span>
+                              {msg.is_outgoing && !isEditingThis && (
+                                isOutgoingRead ? (
+                                  <span title="Leído por el destinatario" className="text-primary flex items-center">
+                                    <CheckCheck className="w-3 h-3" />
+                                  </span>
+                                ) : (
+                                  <span title="Entregado al servidor (no leído aún)" className="text-muted-foreground flex items-center">
+                                    <Check className="w-3 h-3" />
+                                  </span>
+                                )
                               )}
                             </div>
-                          )}
-                        </div>
+                          </div>
                       </div>
                     </React.Fragment>
                     );

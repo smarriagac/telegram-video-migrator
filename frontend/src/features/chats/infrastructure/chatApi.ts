@@ -95,4 +95,26 @@ export const chatApi = {
       throw new Error(`Error ${res.status} al marcar diálogo como leído`);
     }
   },
+
+  async clickMessageButton(
+    chatId: number,
+    messageId: number,
+    payload: {
+      button_text?: string;
+      row?: number;
+      col?: number;
+      account_id?: number | null;
+    }
+  ): Promise<boolean> {
+    const res = await fetch(`/api/dialogs/${chatId}/messages/${messageId}/click-button`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al interactuar con el botón del bot`);
+    }
+    const data = await res.json();
+    return !!data.success;
+  },
 };
