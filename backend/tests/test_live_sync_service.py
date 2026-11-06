@@ -134,3 +134,45 @@ async def test_live_sync_catch_up_delta():
 
     await repo.close()
 
+
+@pytest.mark.asyncio
+async def test_live_sync_catch_up_delta_detects_access_revoked():
+    repo = SQLiteJobRepository(db_path=":memory:")
+    await repo.initialize_schema()
+
+    mock_client = AsyncMock()
+    mock_client.is_connected = MagicMock(return_value=True)
+    mock_client.get_input_entity = AsyncMock(
+        side_effect=ValueError("Could not find the input entity for PeerChannel(channel_id=3954412662)")
+    )
+
+    mock_pool = MagicMock()
+    mock_pool.get_client.return_value = mock_client
+    mock_pool.list_clients.return_value = [(1, "Cuenta Principal", mock_client)]
+
+    service = LiveSyncService(
+        job_repository=repo,
+        client_pool=mock_pool,
+        migration_use_case=MagicMock(),
+        broadcaster=MagicMock(),
+    )
+
+    binding = ChannelSyncBinding(
+        source_channel_id=-1003954412662,
+        target_channel_id=-1004337257363,
+        source_channel_title="La aldea del cacique",
+        is_active=True,
+    )
+    await repo.save_sync_binding(binding)
+
+    enqueued = await service.catch_up_delta(binding)
+    assert enqueued == 0
+
+    updated = await repo.get_sync_binding(-1003954412662, -1004337257363)
+    assert updated is not None
+    assert updated.status == "ACCESS_REVOKED"
+    assert updated.is_active is False
+    assert "expulsada" in updated.last_error.lower()
+
+    await repo.close()
+

@@ -27,6 +27,8 @@ export interface SyncBinding {
   updated_at?: string;
   caption_rules?: CaptionRules;
   media_filter_rules?: MediaFilterRules;
+  status?: "ACTIVE" | "PAUSED" | "ACCESS_REVOKED" | "ERROR";
+  last_error?: string | null;
 }
 
 export interface LiveSyncHealth {
@@ -47,6 +49,8 @@ export interface CreateSyncBindingPayload {
   target_account_id?: number;
   caption_rules?: CaptionRules;
   media_filter_rules?: MediaFilterRules;
+  status?: "ACTIVE" | "PAUSED" | "ACCESS_REVOKED" | "ERROR";
+  last_error?: string | null;
 }
 
 export interface UpdateSyncBindingPayload {
@@ -55,4 +59,6 @@ export interface UpdateSyncBindingPayload {
   target_channel_title?: string;
   caption_rules?: CaptionRules;
   media_filter_rules?: MediaFilterRules;
+  status?: "ACTIVE" | "PAUSED" | "ACCESS_REVOKED" | "ERROR";
+  last_error?: string | null;
 }

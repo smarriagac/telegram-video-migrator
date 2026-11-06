@@ -9,6 +9,7 @@ import {
   ShieldAlert,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   FileVideo,
   Image,
   File,
@@ -88,6 +89,17 @@ export const LiveSyncHubView: React.FC = () => {
   const handleOpenRules = (binding: SyncBinding) => {
     setSelectedBinding(binding);
     setRulesModalOpen(true);
+  };
+
+  const handleVerify = async (binding: SyncBinding) => {
+    try {
+      await fetch(`/api/sync/bindings/${binding.source_channel_id}/${binding.target_channel_id}/verify`, {
+        method: "POST",
+      });
+      await fetchData();
+    } catch (e) {
+      console.error("Error verifying sync binding:", e);
+    }
   };
 
   const handleDelete = (binding: SyncBinding) => {
@@ -278,10 +290,18 @@ export const LiveSyncHubView: React.FC = () => {
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0 space-y-1">
                           {/* Source */}
-                          <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
-                            <span className="text-[10px] text-muted-foreground font-mono shrink-0">DE:</span>
-                            <span className="truncate">{binding.source_channel_title || "Canal Origen"}</span>
-                            <span className="text-[9px] font-mono text-muted-foreground shrink-0">[{binding.source_channel_id}]</span>
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
+                              <span className="text-[10px] text-muted-foreground font-mono shrink-0">DE:</span>
+                              <span className="truncate">{binding.source_channel_title || "Canal Origen"}</span>
+                              <span className="text-[9px] font-mono text-muted-foreground shrink-0">[{binding.source_channel_id}]</span>
+                            </div>
+                            {binding.status === "ACCESS_REVOKED" && (
+                              <span className="text-[9px] text-destructive font-mono flex items-center gap-1 font-semibold mt-0.5">
+                                <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                                <span>Expulsado de Telegram</span>
+                              </span>
+                            )}
                           </div>
                           {/* Arrow & Target */}
                           <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
@@ -292,19 +312,32 @@ export const LiveSyncHubView: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Active Switch */}
+                        {/* Active Switch or Access Revoked Badge */}
                         <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                          <Switch
-                            checked={binding.is_active}
-                            onCheckedChange={() => toggleActive(binding)}
-                          />
-                          <span
-                            className={`text-[9px] font-semibold uppercase font-mono ${
-                              binding.is_active ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"
-                            }`}
-                          >
-                            {binding.is_active ? "ACTIVO" : "PAUSA"}
-                          </span>
+                          {binding.status === "ACCESS_REVOKED" ? (
+                            <Badge
+                              variant="destructive"
+                              className="text-[9px] font-mono gap-1 px-1.5 py-0.5 bg-destructive/15 text-destructive border-destructive/30"
+                              title={binding.last_error || "Fuiste expulsado del grupo en Telegram"}
+                            >
+                              <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                              <span>SIN ACCESO</span>
+                            </Badge>
+                          ) : (
+                            <>
+                              <Switch
+                                checked={binding.is_active}
+                                onCheckedChange={() => toggleActive(binding)}
+                              />
+                              <span
+                                className={`text-[9px] font-semibold uppercase font-mono ${
+                                  binding.is_active ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"
+                                }`}
+                              >
+                                {binding.is_active ? "ACTIVO" : "PAUSA"}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -430,6 +463,12 @@ export const LiveSyncHubView: React.FC = () => {
                               <span className="font-mono text-[10px] text-muted-foreground">
                                 {binding.source_channel_id}
                               </span>
+                              {binding.status === "ACCESS_REVOKED" && (
+                                <span className="text-[10px] text-destructive font-mono flex items-center gap-1 font-semibold mt-0.5">
+                                  <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                                  <span>Expulsado de Telegram</span>
+                                </span>
+                              )}
                             </div>
                           </TableCell>
 
@@ -486,26 +525,49 @@ export const LiveSyncHubView: React.FC = () => {
                             </Badge>
                           </TableCell>
 
-                          {/* Active Toggle */}
+                          {/* Active Toggle or Revoked Status */}
                           <TableCell className="text-center py-2 px-3 whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <Switch
-                                checked={binding.is_active}
-                                onCheckedChange={() => toggleActive(binding)}
-                              />
-                              <span
-                                className={`text-[9px] font-semibold uppercase font-mono ${
-                                  binding.is_active ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"
-                                }`}
-                              >
-                                {binding.is_active ? "ACTIVO" : "PAUSA"}
-                              </span>
-                            </div>
+                            {binding.status === "ACCESS_REVOKED" ? (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <Badge
+                                  variant="destructive"
+                                  className="bg-destructive/15 text-destructive border-destructive/30 font-mono text-[9px] gap-1 px-1.5 py-0.5"
+                                  title={binding.last_error || "Fuiste expulsado del canal en Telegram"}
+                                >
+                                  <AlertTriangle className="w-2.5 h-2.5 shrink-0" />
+                                  <span>SIN ACCESO</span>
+                                </Badge>
+                                <span className="text-[8px] font-mono text-muted-foreground">Expulsado</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Switch
+                                  checked={binding.is_active}
+                                  onCheckedChange={() => toggleActive(binding)}
+                                />
+                                <span
+                                  className={`text-[9px] font-semibold uppercase font-mono ${
+                                    binding.is_active ? "text-emerald-500 dark:text-emerald-400" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {binding.is_active ? "ACTIVO" : "PAUSA"}
+                                </span>
+                              </div>
+                            )}
                           </TableCell>
 
                           {/* Action Buttons */}
                           <TableCell className="text-right py-2 px-3 whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleVerify(binding)}
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-primary hover:bg-muted"
+                                title="Recomprobar acceso MTProto a este canal"
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"

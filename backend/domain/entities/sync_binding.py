@@ -19,3 +19,5 @@ class ChannelSyncBinding:
     updated_at: str | None = None
     caption_rules: dict | None = None
     media_filter_rules: dict | None = None
+    status: str = "ACTIVE"
+    last_error: str | None = None

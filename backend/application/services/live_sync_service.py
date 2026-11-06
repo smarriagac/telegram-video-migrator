@@ -108,10 +108,70 @@ class LiveSyncService:
                 )
             return enqueued
         except Exception as e:
-            logger.warning(
-                f"LiveSync: Catch-up delta failed for {binding.source_channel_id} -> {binding.target_channel_id}: {e}"
-            )
+            err_str = str(e).lower()
+            if (
+                "channelprivate" in err_str
+                or "userbannedinchannel" in err_str
+                or "not accessible" in err_str
+                or "could not find the input entity" in err_str
+            ):
+                logger.error(
+                    f"LiveSync: Access revoked for {binding.source_channel_id} -> {binding.target_channel_id}: {e}. Marking ACCESS_REVOKED."
+                )
+                binding.status = "ACCESS_REVOKED"
+                binding.is_active = False
+                binding.last_error = "Acceso revocado: La cuenta fue expulsada de este grupo en Telegram o el canal es privado."
+                try:
+                    await self.repo.save_sync_binding(binding)
+                    await self.reload_bindings()
+                except Exception as save_err:
+                    logger.warning(f"Could not persist revoked binding status: {save_err}")
+            else:
+                logger.warning(
+                    f"LiveSync: Catch-up delta failed for {binding.source_channel_id} -> {binding.target_channel_id}: {e}"
+                )
             return 0
+
+    async def verify_binding_access(self, source_channel_id: int, target_channel_id: int) -> dict[str, Any]:
+        """Check if source channel is currently accessible via Telegram client."""
+        binding = await self.repo.get_sync_binding(source_channel_id, target_channel_id)
+        if not binding:
+            return {"status": "NOT_FOUND", "message": "Vinculación no encontrada."}
+
+        client = self.pool.get_client(binding.source_account_id)
+        if not client:
+            clients = self.pool.list_clients()
+            client = clients[0][2] if clients else None
+        if not client:
+            return {"status": "ERROR", "message": "No hay clientes Telegram conectados en el pool."}
+
+        if not client.is_connected():
+            await client.connect()
+
+        try:
+            source_entity = await client.get_input_entity(binding.source_channel_id)
+            await client.get_messages(source_entity, limit=1)
+            binding.status = "ACTIVE" if binding.is_active else "PAUSED"
+            binding.last_error = None
+            await self.repo.save_sync_binding(binding)
+            await self.reload_bindings()
+            return {"status": "HEALTHY", "message": "Acceso verificado correctamente en Telegram."}
+        except Exception as e:
+            err_str = str(e).lower()
+            if (
+                "channelprivate" in err_str
+                or "userbannedinchannel" in err_str
+                or "not accessible" in err_str
+                or "could not find the input entity" in err_str
+            ):
+                binding.status = "ACCESS_REVOKED"
+                binding.is_active = False
+                binding.last_error = "Acceso revocado: Fuiste expulsado de este grupo en Telegram."
+                await self.repo.save_sync_binding(binding)
+                await self.reload_bindings()
+                return {"status": "ACCESS_REVOKED", "message": binding.last_error}
+
+            return {"status": "ERROR", "message": str(e)}
 
     async def stop(self) -> None:
         """Gracefully stop worker task."""

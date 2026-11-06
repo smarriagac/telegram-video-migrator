@@ -31,6 +31,8 @@ class SyncBindingItem(BaseModel):
     updated_at: str | None = None
     caption_rules: dict | None = None
     media_filter_rules: dict | None = None
+    status: str = "ACTIVE"
+    last_error: str | None = None
 
 
 class CreateSyncBindingRequest(BaseModel):
@@ -43,6 +45,8 @@ class CreateSyncBindingRequest(BaseModel):
     target_account_id: int | None = None
     caption_rules: dict | None = None
     media_filter_rules: dict | None = None
+    status: str = "ACTIVE"
+    last_error: str | None = None
 
 
 class UpdateSyncBindingRequest(BaseModel):
@@ -51,6 +55,8 @@ class UpdateSyncBindingRequest(BaseModel):
     target_channel_title: str | None = None
     caption_rules: dict | None = None
     media_filter_rules: dict | None = None
+    status: str = "ACTIVE"
+    last_error: str | None = None
 
 
 class SyncHealthResponse(BaseModel):
@@ -81,6 +87,8 @@ async def list_sync_bindings(
             updated_at=b.updated_at,
             caption_rules=b.caption_rules,
             media_filter_rules=b.media_filter_rules,
+            status=getattr(b, "status", "ACTIVE") or "ACTIVE",
+            last_error=getattr(b, "last_error", None),
         )
         for b in bindings
     ]
@@ -253,3 +261,13 @@ async def get_live_sync_health(
         attached_clients_count=metrics.get("attached_clients_count", 0),
         queue_depth=metrics.get("queue_depth", 0),
     )
+
+
+@router.post("/bindings/{source_channel_id}/{target_channel_id}/verify")
+async def verify_binding_endpoint(
+    source_channel_id: int,
+    target_channel_id: int,
+    live_sync_svc: Any = Depends(get_live_sync_service),
+) -> dict[str, Any]:
+    """Verify live MTProto channel accessibility for a specific sync binding."""
+    return await live_sync_svc.verify_binding_access(source_channel_id, target_channel_id)

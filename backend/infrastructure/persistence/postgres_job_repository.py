@@ -124,6 +124,8 @@ class PostgresJobRepository(JobRepositoryPort):
 
                 ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS caption_rules JSONB;
                 ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS media_filter_rules JSONB;
+                ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'ACTIVE';
+                ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS last_error VARCHAR(500);
 
                 CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
                     id SERIAL PRIMARY KEY,
@@ -833,8 +835,9 @@ class PostgresJobRepository(JobRepositoryPort):
                     source_channel_id, target_channel_id,
                     source_channel_title, target_channel_title,
                     source_account_id, target_account_id,
-                    is_active, last_synced_message_id, caption_rules, media_filter_rules, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, NOW())
+                    is_active, last_synced_message_id, caption_rules, media_filter_rules,
+                    status, last_error, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11, $12, NOW())
                 ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
                     source_channel_title = EXCLUDED.source_channel_title,
                     target_channel_title = EXCLUDED.target_channel_title,
@@ -844,6 +847,8 @@ class PostgresJobRepository(JobRepositoryPort):
                     last_synced_message_id = EXCLUDED.last_synced_message_id,
                     caption_rules = EXCLUDED.caption_rules,
                     media_filter_rules = EXCLUDED.media_filter_rules,
+                    status = EXCLUDED.status,
+                    last_error = EXCLUDED.last_error,
                     updated_at = NOW();
                 """,
                 binding.source_channel_id,
@@ -856,6 +861,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 binding.last_synced_message_id,
                 rules_json,
                 filter_json,
+                getattr(binding, "status", "ACTIVE") or "ACTIVE",
+                getattr(binding, "last_error", None),
             )
             return binding
 
@@ -875,7 +882,8 @@ class PostgresJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules, media_filter_rules
+                       caption_rules, media_filter_rules,
+                       status, last_error
                 FROM channel_sync_bindings
                 WHERE source_channel_id = $1 AND target_channel_id = $2;
                 """,
@@ -920,6 +928,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 updated_at=str(row["updated_at"]) if row["updated_at"] else None,
                 caption_rules=parsed_rules,
                 media_filter_rules=parsed_filter,
+                status=row["status"] if "status" in row and row["status"] else "ACTIVE",
+                last_error=row.get("last_error") if "last_error" in row else None,
             )
 
     async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
@@ -936,7 +946,8 @@ class PostgresJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules, media_filter_rules
+                       caption_rules, media_filter_rules,
+                       status, last_error
                 FROM channel_sync_bindings
                 WHERE is_active = TRUE
                 ORDER BY updated_at DESC;
@@ -980,6 +991,8 @@ class PostgresJobRepository(JobRepositoryPort):
                         updated_at=str(r["updated_at"]) if r["updated_at"] else None,
                         caption_rules=parsed_rules,
                         media_filter_rules=parsed_filter,
+                        status=r["status"] if "status" in r and r["status"] else "ACTIVE",
+                        last_error=r.get("last_error") if "last_error" in r else None,
                     )
                 )
             return result
@@ -998,7 +1011,8 @@ class PostgresJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules, media_filter_rules
+                       caption_rules, media_filter_rules,
+                       status, last_error
                 FROM channel_sync_bindings
                 ORDER BY updated_at DESC;
                 """
@@ -1041,6 +1055,8 @@ class PostgresJobRepository(JobRepositoryPort):
                         updated_at=str(r["updated_at"]) if r["updated_at"] else None,
                         caption_rules=parsed_rules,
                         media_filter_rules=parsed_filter,
+                        status=r["status"] if "status" in r and r["status"] else "ACTIVE",
+                        last_error=r.get("last_error") if "last_error" in r else None,
                     )
                 )
             return result

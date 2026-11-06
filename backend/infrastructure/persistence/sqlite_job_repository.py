@@ -147,6 +147,14 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN media_filter_rules TEXT;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN status TEXT DEFAULT 'ACTIVE';")
+            except Exception:
+                pass
+            try:
+                await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN last_error TEXT;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -718,8 +726,9 @@ class SQLiteJobRepository(JobRepositoryPort):
                     source_channel_id, target_channel_id,
                     source_channel_title, target_channel_title,
                     source_account_id, target_account_id,
-                    is_active, last_synced_message_id, caption_rules, media_filter_rules, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    is_active, last_synced_message_id, caption_rules, media_filter_rules,
+                    status, last_error, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT (source_channel_id, target_channel_id) DO UPDATE SET
                     source_channel_title = excluded.source_channel_title,
                     target_channel_title = excluded.target_channel_title,
@@ -729,6 +738,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     last_synced_message_id = excluded.last_synced_message_id,
                     caption_rules = excluded.caption_rules,
                     media_filter_rules = excluded.media_filter_rules,
+                    status = excluded.status,
+                    last_error = excluded.last_error,
                     updated_at = CURRENT_TIMESTAMP;
                 """,
                 (
@@ -742,6 +753,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     binding.last_synced_message_id,
                     rules_json,
                     filter_json,
+                    getattr(binding, "status", "ACTIVE") or "ACTIVE",
+                    getattr(binding, "last_error", None),
                 ),
             )
             await conn.commit()
@@ -758,7 +771,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules, media_filter_rules
+                       caption_rules, media_filter_rules,
+                       status, last_error
                 FROM channel_sync_bindings
                 WHERE source_channel_id = ? AND target_channel_id = ?
                 LIMIT 1;
@@ -796,6 +810,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                     updated_at=str(row[9]) if row[9] else None,
                     caption_rules=parsed_rules,
                     media_filter_rules=parsed_filter,
+                    status=str(row[12]) if len(row) > 12 and row[12] else "ACTIVE",
+                    last_error=str(row[13]) if len(row) > 13 and row[13] else None,
                 )
 
     async def get_active_sync_bindings(self) -> list[ChannelSyncBinding]:
@@ -807,7 +823,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules, media_filter_rules
+                       caption_rules, media_filter_rules,
+                       status, last_error
                 FROM channel_sync_bindings
                 WHERE is_active = 1
                 ORDER BY updated_at DESC;
@@ -842,6 +859,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                             updated_at=str(r[9]) if r[9] else None,
                             caption_rules=parsed_rules,
                             media_filter_rules=parsed_filter,
+                            status=str(r[12]) if len(r) > 12 and r[12] else "ACTIVE",
+                            last_error=str(r[13]) if len(r) > 13 and r[13] else None,
                         )
                     )
                 return result
@@ -855,7 +874,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                        source_channel_title, target_channel_title,
                        source_account_id, target_account_id,
                        is_active, last_synced_message_id, created_at, updated_at,
-                       caption_rules, media_filter_rules
+                       caption_rules, media_filter_rules,
+                       status, last_error
                 FROM channel_sync_bindings
                 ORDER BY updated_at DESC;
                 """
@@ -889,6 +909,8 @@ class SQLiteJobRepository(JobRepositoryPort):
                             updated_at=str(r[9]) if r[9] else None,
                             caption_rules=parsed_rules,
                             media_filter_rules=parsed_filter,
+                            status=str(r[12]) if len(r) > 12 and r[12] else "ACTIVE",
+                            last_error=str(r[13]) if len(r) > 13 and r[13] else None,
                         )
                     )
                 return result
