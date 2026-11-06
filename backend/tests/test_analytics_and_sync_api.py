@@ -32,6 +32,28 @@ class MockJobRepository:
             "media_type_distribution": {"video": 100, "photo": 50},
             "daily_volume": [{"date": "2026-11-01", "count": 150, "estimated_mb": 3750.0}],
             "efficiency_percent": 99.8,
+            "recent_transfers": [
+                {
+                    "job_id": "job_123",
+                    "source_channel_id": -100111,
+                    "target_channel_id": -100222,
+                    "source_title": "Source A",
+                    "target_title": "Target B",
+                    "status": "COMPLETED",
+                    "total_videos": 10,
+                    "processed_videos": 10,
+                    "estimated_mb": 250.0,
+                    "created_at": "2026-11-05 18:00",
+                }
+            ],
+            "top_channels": [
+                {
+                    "channel_id": -100111,
+                    "title": "Source A",
+                    "total_items": 150,
+                    "volume_gb": 3.75,
+                }
+            ],
         }
 
     async def list_sync_bindings(self):
@@ -109,6 +131,11 @@ async def test_analytics_overview_endpoint():
             assert data["duplicates_prevented"] == 12
             assert data["efficiency_percent"] == 99.8
             assert len(data["daily_volume"]) == 1
+            assert "recent_transfers" in data
+            assert len(data["recent_transfers"]) == 1
+            assert "top_channels" in data
+            assert "pipeline_health" in data
+            assert data["pipeline_health"]["local_io_bypass_percent"] == 100.0
     finally:
         app.dependency_overrides.pop(get_job_repository, None)
 

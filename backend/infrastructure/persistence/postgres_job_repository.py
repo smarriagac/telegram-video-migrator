@@ -1185,6 +1185,64 @@ class PostgresJobRepository(JobRepositoryPort):
             avg_media_bytes = 26214400
             total_bandwidth_saved_bytes = total_items * avg_media_bytes
 
+            recent_rows = await conn.fetch(
+                """
+                SELECT
+                    id as job_id,
+                    source_channel_id,
+                    target_channel_id,
+                    COALESCE(source_channel_title, 'Canal #' || source_channel_id::text) as source_title,
+                    COALESCE(target_channel_title, 'Canal #' || target_channel_id::text) as target_title,
+                    status,
+                    total_videos,
+                    processed_videos,
+                    round(processed_videos * 25.0, 1) as estimated_mb,
+                    TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+                FROM migration_jobs
+                ORDER BY created_at DESC
+                LIMIT 8;
+                """
+            )
+            recent_transfers = [
+                {
+                    "job_id": r["job_id"],
+                    "source_channel_id": r["source_channel_id"],
+                    "target_channel_id": r["target_channel_id"],
+                    "source_title": r["source_title"],
+                    "target_title": r["target_title"],
+                    "status": r["status"],
+                    "total_videos": r["total_videos"],
+                    "processed_videos": r["processed_videos"],
+                    "estimated_mb": float(r["estimated_mb"] or 0),
+                    "created_at": r["created_at"] or "",
+                }
+                for r in recent_rows
+            ]
+
+            top_rows = await conn.fetch(
+                """
+                SELECT
+                    source_channel_id as channel_id,
+                    COALESCE(source_channel_title, 'Canal #' || source_channel_id::text) as title,
+                    sum(processed_videos) as total_items,
+                    round(sum(processed_videos) * 25.0 / 1024, 2) as volume_gb
+                FROM migration_jobs
+                GROUP BY source_channel_id, source_channel_title
+                ORDER BY total_items DESC
+                LIMIT 5;
+                """
+            )
+            top_channels = [
+                {
+                    "channel_id": r["channel_id"],
+                    "title": r["title"],
+                    "total_items": int(r["total_items"] or 0),
+                    "volume_gb": float(r["volume_gb"] or 0.0),
+                }
+                for r in top_rows
+                if (r["total_items"] or 0) > 0
+            ]
+
             return {
                 "total_items_migrated": total_items,
                 "total_bandwidth_saved_bytes": total_bandwidth_saved_bytes,
@@ -1195,6 +1253,8 @@ class PostgresJobRepository(JobRepositoryPort):
                 "media_type_distribution": media_type_distribution,
                 "daily_volume": daily_volume,
                 "efficiency_percent": 99.8,
+                "recent_transfers": recent_transfers,
+                "top_channels": top_channels,
             }
 
     async def close(self) -> None:
