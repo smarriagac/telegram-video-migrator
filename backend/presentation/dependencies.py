@@ -310,3 +310,24 @@ async def get_alerting_service():
         _alerting_service_instance = AlertingService(gateway=gateway)
     return _alerting_service_instance
 
+
+_broadcast_scheduler_instance = None
+
+async def get_broadcast_scheduler_service():
+    global _broadcast_scheduler_instance
+    if _broadcast_scheduler_instance is None:
+        from backend.application.services.broadcast_scheduler_service import BroadcastSchedulerService
+        repo = await get_job_repository()
+        gateway = await get_telegram_gateway()
+        bc = await get_broadcaster()
+        audit_repo = await get_audit_repository()
+        _broadcast_scheduler_instance = BroadcastSchedulerService(
+            job_repo=repo,
+            telegram_gateway=gateway,
+            broadcaster=bc,
+            audit_repo=audit_repo,
+            poll_interval=10.0,
+        )
+    return _broadcast_scheduler_instance
+
+

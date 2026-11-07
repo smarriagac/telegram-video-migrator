@@ -79,8 +79,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to start JobSchedulerService during startup: {e}")
 
+    # Initialize Broadcast Scheduler Service for scheduled & recurring campaigns
+    from backend.presentation.dependencies import get_broadcast_scheduler_service
+    try:
+        broadcast_scheduler = await get_broadcast_scheduler_service()
+        await broadcast_scheduler.start()
+        logger.info("BroadcastSchedulerService started successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to start BroadcastSchedulerService during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
+
+    try:
+        broadcast_scheduler = await get_broadcast_scheduler_service()
+        await broadcast_scheduler.stop()
+    except Exception:
+        pass
 
     try:
         job_scheduler = await get_job_scheduler_service()

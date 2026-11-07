@@ -18,6 +18,7 @@ from backend.application.use_cases.clone_channel_videos_use_case import CloneCha
 from backend.domain.entities.channel import Channel
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.audit_log import AuditLog
+from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.domain.ports.audit_repository_port import AuditRepositoryPort
@@ -1911,6 +1912,199 @@ async def broadcast_message_endpoint(
                     os.remove(p)
                 except Exception:
                     pass
+
+
+class ScheduledBroadcastItem(BaseModel):
+    id: str
+    name: str | None = None
+    target_ids: list[int]
+    text: str
+    media_paths: list[str] = []
+    account_id: int | None = None
+    scheduled_at: str
+    recurrence: str
+    status: str
+    last_run_at: str | None = None
+    run_count: int = 0
+    last_error: str | None = None
+    created_at: str
+
+
+@router.post("/broadcast/schedule", response_model=ScheduledBroadcastItem, status_code=status.HTTP_201_CREATED)
+async def schedule_broadcast_endpoint(
+    target_ids: str = Form(""),
+    text: str = Form(""),
+    scheduled_at: str = Form(""),
+    recurrence: str = Form("ONCE"),
+    name: str | None = Form(None),
+    account_id: int | None = Form(None),
+    files: list[UploadFile] = File([]),
+    job_repo: JobRepositoryPort = Depends(get_job_repository),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+) -> ScheduledBroadcastItem:
+    """Schedule a one-time or recurring broadcast campaign to multiple channels."""
+    parsed_ids: list[int] = []
+    cleaned_str = target_ids.strip()
+    if cleaned_str.startswith("["):
+        try:
+            parsed_ids = [int(x) for x in json.loads(cleaned_str)]
+        except Exception:
+            pass
+    if not parsed_ids:
+        for part in cleaned_str.split(","):
+            part_str = part.strip()
+            if part_str:
+                try:
+                    parsed_ids.append(int(part_str))
+                except ValueError:
+                    pass
+
+    if not parsed_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe especificar al menos un canal o grupo de destino.",
+        )
+
+    if not scheduled_at.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe especificar la fecha y hora de programación (scheduled_at).",
+        )
+
+    valid_recurrences = {"ONCE", "EVERY_6_HOURS", "EVERY_12_HOURS", "DAILY", "WEEKLY"}
+    recurrence_val = recurrence.strip().upper() or "ONCE"
+    if recurrence_val not in valid_recurrences:
+        recurrence_val = "ONCE"
+
+    campaign_id = str(uuid.uuid4())
+    stored_media_paths: list[str] = []
+    valid_files = [f for f in files if f and f.filename]
+
+    if valid_files:
+        broadcast_media_dir = Path("data/broadcast_media") / campaign_id
+        broadcast_media_dir.mkdir(parents=True, exist_ok=True)
+        for f in valid_files:
+            file_path = broadcast_media_dir / (f.filename or "media.bin")
+            content = await f.read()
+            with open(file_path, "wb") as out_f:
+                out_f.write(content)
+            stored_media_paths.append(str(file_path.resolve()))
+
+    broadcast = ScheduledBroadcast(
+        id=campaign_id,
+        name=name.strip() if name and name.strip() else None,
+        target_ids=parsed_ids,
+        text=text.strip(),
+        media_paths=stored_media_paths,
+        account_id=account_id,
+        scheduled_at=scheduled_at.strip(),
+        recurrence=recurrence_val,
+        status="SCHEDULED",
+    )
+
+    created = await job_repo.create_scheduled_broadcast(broadcast)
+
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="SCHEDULED_BROADCAST_CREATED",
+                resource=f"broadcast:{campaign_id}",
+                details={
+                    "target_count": len(parsed_ids),
+                    "scheduled_at": scheduled_at,
+                    "recurrence": recurrence_val,
+                    "media_count": len(stored_media_paths),
+                },
+            )
+        )
+    except Exception as ae:
+        logger.warning(f"Could not write audit log for created scheduled broadcast: {ae}")
+
+    return ScheduledBroadcastItem(
+        id=created.id,
+        name=created.name,
+        target_ids=created.target_ids,
+        text=created.text,
+        media_paths=created.media_paths,
+        account_id=created.account_id,
+        scheduled_at=created.scheduled_at,
+        recurrence=created.recurrence,
+        status=created.status,
+        last_run_at=created.last_run_at,
+        run_count=created.run_count,
+        last_error=created.last_error,
+        created_at=created.created_at,
+    )
+
+
+@router.get("/broadcast/scheduled", response_model=list[ScheduledBroadcastItem])
+async def list_scheduled_broadcasts_endpoint(
+    status_filter: str | None = Query(None, alias="status"),
+    job_repo: JobRepositoryPort = Depends(get_job_repository),
+) -> list[ScheduledBroadcastItem]:
+    """List all scheduled and recurring broadcast campaigns."""
+    items = await job_repo.list_scheduled_broadcasts(status=status_filter)
+    return [
+        ScheduledBroadcastItem(
+            id=item.id,
+            name=item.name,
+            target_ids=item.target_ids,
+            text=item.text,
+            media_paths=item.media_paths,
+            account_id=item.account_id,
+            scheduled_at=item.scheduled_at,
+            recurrence=item.recurrence,
+            status=item.status,
+            last_run_at=item.last_run_at,
+            run_count=item.run_count,
+            last_error=item.last_error,
+            created_at=item.created_at,
+        )
+        for item in items
+    ]
+
+
+@router.delete("/broadcast/scheduled/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_scheduled_broadcast_endpoint(
+    campaign_id: str,
+    job_repo: JobRepositoryPort = Depends(get_job_repository),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+) -> None:
+    """Cancel or remove a scheduled broadcast campaign."""
+    existing = await job_repo.get_scheduled_broadcast(campaign_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Campaña programada '{campaign_id}' no encontrada.",
+        )
+
+    await job_repo.delete_scheduled_broadcast(campaign_id)
+
+    media_dir = Path("data/broadcast_media") / campaign_id
+    if media_dir.exists():
+        try:
+            import shutil
+            shutil.rmtree(media_dir)
+        except Exception as e:
+            logger.warning(f"Failed to remove campaign media dir {media_dir}: {e}")
+
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="SCHEDULED_BROADCAST_CANCELLED",
+                resource=f"broadcast:{campaign_id}",
+                details={"status": "cancelled"},
+            )
+        )
+    except Exception as ae:
+        logger.warning(f"Could not write audit log for cancelled broadcast: {ae}")
+
 
 
 

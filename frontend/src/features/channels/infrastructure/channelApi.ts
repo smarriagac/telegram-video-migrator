@@ -36,6 +36,22 @@ export interface JoinRequest {
   about?: string | null;
 }
 
+export interface ScheduledBroadcastCampaign {
+  id: string;
+  name?: string | null;
+  target_ids: number[];
+  text: string;
+  media_paths: string[];
+  account_id?: number | null;
+  scheduled_at: string;
+  recurrence: "ONCE" | "EVERY_6_HOURS" | "EVERY_12_HOURS" | "DAILY" | "WEEKLY";
+  status: "SCHEDULED" | "RUNNING" | "COMPLETED" | "CANCELLED" | "FAILED";
+  last_run_at?: string | null;
+  run_count: number;
+  last_error?: string | null;
+  created_at: string;
+}
+
 const getAuthHeaders = (): HeadersInit => {
   const token =
     localStorage.getItem("telegram_hub_token") ||
@@ -340,5 +356,86 @@ export const channelApi = {
       throw new Error(err.detail || "Error al difundir el mensaje.");
     }
     return res.json();
+  },
+
+  async scheduleBroadcast(payload: {
+    targetIds: number[];
+    text: string;
+    scheduledAt: string;
+    recurrence: string;
+    name?: string;
+    accountId?: number | null;
+    files?: File[];
+  }): Promise<ScheduledBroadcastCampaign> {
+    const formData = new FormData();
+    formData.append("target_ids", payload.targetIds.join(","));
+    formData.append("text", payload.text);
+    formData.append("scheduled_at", payload.scheduledAt);
+    formData.append("recurrence", payload.recurrence);
+    if (payload.name) formData.append("name", payload.name);
+    if (payload.accountId) formData.append("account_id", String(payload.accountId));
+    if (payload.files) {
+      for (const file of payload.files) {
+        formData.append("files", file);
+      }
+    }
+
+    const token =
+      localStorage.getItem("telegram_hub_token") ||
+      localStorage.getItem("auth_token") ||
+      localStorage.getItem("token") ||
+      useAuthStore.getState().token;
+
+    const res = await fetch("/api/channels/broadcast/schedule", {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al programar la difusión.");
+    }
+    return res.json();
+  },
+
+  async listScheduledBroadcasts(status?: string): Promise<ScheduledBroadcastCampaign[]> {
+    const token =
+      localStorage.getItem("telegram_hub_token") ||
+      localStorage.getItem("auth_token") ||
+      localStorage.getItem("token") ||
+      useAuthStore.getState().token;
+
+    const url = status ? `/api/channels/broadcast/scheduled?status=${status}` : `/api/channels/broadcast/scheduled`;
+    const res = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+
+    if (!res.ok) return [];
+    return res.json();
+  },
+
+  async cancelScheduledBroadcast(campaignId: string): Promise<void> {
+    const token =
+      localStorage.getItem("telegram_hub_token") ||
+      localStorage.getItem("auth_token") ||
+      localStorage.getItem("token") ||
+      useAuthStore.getState().token;
+
+    const res = await fetch(`/api/channels/broadcast/scheduled/${campaignId}`, {
+      method: "DELETE",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "Error al cancelar la campaña programada.");
+    }
   },
 };

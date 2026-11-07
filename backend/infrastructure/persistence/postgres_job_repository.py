@@ -10,6 +10,7 @@ from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.entities.sync_binding import ChannelSyncBinding
+from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
 
@@ -161,6 +162,23 @@ class PostgresJobRepository(JobRepositoryPort):
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
                 CREATE INDEX IF NOT EXISTS idx_video_processing_status ON video_processing_jobs(status, created_at);
+
+                CREATE TABLE IF NOT EXISTS scheduled_broadcasts (
+                    id VARCHAR(64) PRIMARY KEY,
+                    name TEXT,
+                    target_ids JSONB NOT NULL,
+                    text TEXT NOT NULL,
+                    media_paths JSONB,
+                    account_id INT,
+                    scheduled_at VARCHAR(64) NOT NULL,
+                    recurrence VARCHAR(32) NOT NULL DEFAULT 'ONCE',
+                    status VARCHAR(32) NOT NULL DEFAULT 'SCHEDULED',
+                    last_run_at VARCHAR(64),
+                    run_count INT NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_sched_broadcast_status ON scheduled_broadcasts(status, scheduled_at);
             """)
         self._initialized = True
 
@@ -1272,6 +1290,167 @@ class PostgresJobRepository(JobRepositoryPort):
                 "recent_transfers": recent_transfers,
                 "top_channels": top_channels,
             }
+
+    async def create_scheduled_broadcast(
+        self, broadcast: ScheduledBroadcast
+    ) -> ScheduledBroadcast:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.create_scheduled_broadcast(broadcast)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO scheduled_broadcasts (
+                    id, name, target_ids, text, media_paths, account_id,
+                    scheduled_at, recurrence, status, last_run_at, run_count,
+                    last_error, created_at
+                ) VALUES ($1, $2, $3::jsonb, $4, $5::jsonb, $6, $7, $8, $9, $10, $11, $12, NOW())
+                """,
+                broadcast.id,
+                broadcast.name,
+                json.dumps(broadcast.target_ids),
+                broadcast.text,
+                json.dumps(broadcast.media_paths) if broadcast.media_paths else None,
+                broadcast.account_id,
+                broadcast.scheduled_at,
+                broadcast.recurrence,
+                broadcast.status,
+                broadcast.last_run_at,
+                broadcast.run_count,
+                broadcast.last_error,
+            )
+            return broadcast
+
+    async def get_scheduled_broadcast(self, id: str) -> ScheduledBroadcast | None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_scheduled_broadcast(id)
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT id, name, target_ids, text, media_paths, account_id,
+                       scheduled_at, recurrence, status, last_run_at, run_count,
+                       last_error, created_at
+                FROM scheduled_broadcasts WHERE id = $1
+                """,
+                id,
+            )
+            if not row:
+                return None
+            return self._pg_row_to_scheduled_broadcast(row)
+
+    async def list_scheduled_broadcasts(
+        self, status: str | None = None
+    ) -> list[ScheduledBroadcast]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_scheduled_broadcasts(status)
+
+        async with self.pool.acquire() as conn:
+            if status:
+                rows = await conn.fetch(
+                    """
+                    SELECT id, name, target_ids, text, media_paths, account_id,
+                           scheduled_at, recurrence, status, last_run_at, run_count,
+                           last_error, created_at
+                    FROM scheduled_broadcasts WHERE status = $1
+                    ORDER BY scheduled_at ASC
+                    """,
+                    status,
+                )
+            else:
+                rows = await conn.fetch(
+                    """
+                    SELECT id, name, target_ids, text, media_paths, account_id,
+                           scheduled_at, recurrence, status, last_run_at, run_count,
+                           last_error, created_at
+                    FROM scheduled_broadcasts
+                    ORDER BY scheduled_at ASC
+                    """
+                )
+            return [self._pg_row_to_scheduled_broadcast(r) for r in rows]
+
+    async def update_scheduled_broadcast(
+        self, broadcast: ScheduledBroadcast
+    ) -> ScheduledBroadcast:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.update_scheduled_broadcast(broadcast)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE scheduled_broadcasts SET
+                    name = $1,
+                    target_ids = $2::jsonb,
+                    text = $3,
+                    media_paths = $4::jsonb,
+                    account_id = $5,
+                    scheduled_at = $6,
+                    recurrence = $7,
+                    status = $8,
+                    last_run_at = $9,
+                    run_count = $10,
+                    last_error = $11
+                WHERE id = $12
+                """,
+                broadcast.name,
+                json.dumps(broadcast.target_ids),
+                broadcast.text,
+                json.dumps(broadcast.media_paths) if broadcast.media_paths else None,
+                broadcast.account_id,
+                broadcast.scheduled_at,
+                broadcast.recurrence,
+                broadcast.status,
+                broadcast.last_run_at,
+                broadcast.run_count,
+                broadcast.last_error,
+                broadcast.id,
+            )
+            return broadcast
+
+    async def delete_scheduled_broadcast(self, id: str) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.delete_scheduled_broadcast(id)
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute("DELETE FROM scheduled_broadcasts WHERE id = $1", id)
+            return "DELETE 1" in res
+
+    def _pg_row_to_scheduled_broadcast(self, row: Any) -> ScheduledBroadcast:
+        target_ids = (
+            json.loads(row["target_ids"])
+            if isinstance(row["target_ids"], str)
+            else (row["target_ids"] or [])
+        )
+        media_paths = (
+            json.loads(row["media_paths"])
+            if isinstance(row["media_paths"], str)
+            else (row["media_paths"] or [])
+        )
+        return ScheduledBroadcast(
+            id=row["id"],
+            name=row["name"],
+            target_ids=target_ids,
+            text=row["text"],
+            media_paths=media_paths,
+            account_id=row["account_id"],
+            scheduled_at=row["scheduled_at"],
+            recurrence=row["recurrence"],
+            status=row["status"],
+            last_run_at=row["last_run_at"],
+            run_count=row["run_count"] or 0,
+            last_error=row["last_error"],
+            created_at=str(row["created_at"]),
+        )
 
     async def close(self) -> None:
         if self.pool is not None:

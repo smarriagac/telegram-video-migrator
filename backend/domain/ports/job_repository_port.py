@@ -5,6 +5,7 @@ from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.entities.sync_binding import ChannelSyncBinding
+from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 
 
 class JobRepositoryPort(ABC):
@@ -180,4 +181,30 @@ class JobRepositoryPort(ABC):
             "daily_volume": [],
             "efficiency_percent": 99.8,
         }
+
+    async def create_scheduled_broadcast(
+        self, broadcast: ScheduledBroadcast
+    ) -> ScheduledBroadcast:
+        """Create a new scheduled broadcast campaign."""
+        return broadcast
+
+    async def get_scheduled_broadcast(self, id: str) -> ScheduledBroadcast | None:
+        """Retrieve a scheduled broadcast by its ID."""
+        return None
+
+    async def list_scheduled_broadcasts(
+        self, status: str | None = None
+    ) -> list[ScheduledBroadcast]:
+        """List scheduled broadcast campaigns, optionally filtered by status."""
+        return []
+
+    async def update_scheduled_broadcast(
+        self, broadcast: ScheduledBroadcast
+    ) -> ScheduledBroadcast:
+        """Update an existing scheduled broadcast record."""
+        return broadcast
+
+    async def delete_scheduled_broadcast(self, id: str) -> bool:
+        """Delete a scheduled broadcast campaign by its ID."""
+        return True
 

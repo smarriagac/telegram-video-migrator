@@ -14,6 +14,8 @@ import {
   Loader2,
   Clock,
   Eye,
+  Calendar,
+  Repeat,
 } from "lucide-react";
 import {
   Dialog,
@@ -25,8 +27,9 @@ import {
 } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
+import { Switch } from "@/shared/components/ui/switch";
 import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
-import { channelApi } from "@/features/channels/infrastructure/channelApi";
+import { channelApi, ScheduledBroadcastCampaign } from "@/features/channels/infrastructure/channelApi";
 import { cn } from "@/shared/lib/utils";
 
 export interface BroadcastTargetItem {
@@ -58,6 +61,11 @@ interface FormState {
   filePreviews: Array<{ file: File; url: string; isVideo: boolean }>;
   searchQuery: string;
   filterOnlyOwn: boolean;
+  isScheduled: boolean;
+  scheduledAt: string;
+  recurrence: "ONCE" | "EVERY_6_HOURS" | "EVERY_12_HOURS" | "DAILY" | "WEEKLY";
+  campaignName: string;
+  activeTab: "compose" | "scheduled";
 }
 
 interface AsyncState {
@@ -68,6 +76,8 @@ interface AsyncState {
     message: string;
     details?: Array<{ target_id: number; status: string; error: string | null }>;
   } | null;
+  scheduledCampaigns: ScheduledBroadcastCampaign[];
+  isLoadingCampaigns: boolean;
 }
 
 const PRESET_HASHTAGS = [
@@ -124,6 +134,8 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
       (t) => t.can_post && (t.type === "channel" || t.type === "group" || t.type === "supergroup")
     );
     const ownIds = eligible.filter((t) => t.is_creator).map((t) => t.id);
+    const defDate = new Date(Date.now() + 3600 * 1000);
+    defDate.setMinutes(defDate.getMinutes() - defDate.getTimezoneOffset());
     return {
       selectedTargetIds: ownIds.length > 0 ? ownIds : eligible.slice(0, 5).map((t) => t.id),
       text: "",
@@ -131,6 +143,11 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
       filePreviews: [],
       searchQuery: "",
       filterOnlyOwn: false,
+      isScheduled: false,
+      scheduledAt: defDate.toISOString().slice(0, 16),
+      recurrence: "ONCE",
+      campaignName: "",
+      activeTab: "compose",
     };
   });
 
@@ -139,9 +156,30 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
     isSubmitting: false,
     progressText: "",
     feedback: null,
+    scheduledCampaigns: [],
+    isLoadingCampaigns: false,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadCampaigns = async () => {
+    setAsyncState((prev) => ({ ...prev, isLoadingCampaigns: true }));
+    try {
+      const items = await channelApi.listScheduledBroadcasts();
+      setAsyncState((prev) => ({ ...prev, scheduledCampaigns: items, isLoadingCampaigns: false }));
+    } catch {
+      setAsyncState((prev) => ({ ...prev, isLoadingCampaigns: false }));
+    }
+  };
+
+  const handleCancelCampaign = async (campaignId: string) => {
+    try {
+      await channelApi.cancelScheduledBroadcast(campaignId);
+      await loadCampaigns();
+    } catch (e: any) {
+      console.error("Error cancelling scheduled broadcast:", e);
+    }
+  };
 
   // Eligible targets where sending is permitted
   const eligibleTargets = useMemo(() => {
@@ -246,34 +284,95 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
 
   const handleSubmit = async () => {
     if (formState.selectedTargetIds.length === 0) {
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         progressText: "",
         feedback: {
           type: "error",
           message: "Por favor seleccioná al menos un canal o grupo de destino.",
         },
-      });
+      }));
       return;
     }
 
     if (!formState.text.trim() && formState.files.length === 0) {
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         progressText: "",
         feedback: {
           type: "error",
           message: "El mensaje debe contener texto o al menos un archivo multimedia.",
         },
-      });
+      }));
       return;
     }
 
-    setAsyncState({
+    if (formState.isScheduled) {
+      if (!formState.scheduledAt) {
+        setAsyncState((prev) => ({
+          ...prev,
+          isSubmitting: false,
+          progressText: "",
+          feedback: {
+            type: "error",
+            message: "Por favor indicá la fecha y hora programada.",
+          },
+        }));
+        return;
+      }
+
+      setAsyncState((prev) => ({
+        ...prev,
+        isSubmitting: true,
+        progressText: "Guardando y programando campaña de difusión...",
+        feedback: null,
+      }));
+
+      try {
+        const utcDate = new Date(formState.scheduledAt).toISOString();
+        const created = await channelApi.scheduleBroadcast({
+          targetIds: formState.selectedTargetIds,
+          text: formState.text.trim(),
+          scheduledAt: utcDate,
+          recurrence: formState.recurrence,
+          name: formState.campaignName.trim() || undefined,
+          files: formState.files,
+          accountId: defaultAccountId,
+        });
+
+        setAsyncState((prev) => ({
+          ...prev,
+          isSubmitting: false,
+          progressText: "",
+          feedback: {
+            type: "success",
+            message: `¡Campaña "${created.name || 'Difusión'}" programada con éxito para ${new Date(created.scheduled_at).toLocaleString()}!`,
+          },
+        }));
+
+        if (onSuccess) onSuccess();
+      } catch (err: any) {
+        setAsyncState((prev) => ({
+          ...prev,
+          isSubmitting: false,
+          progressText: "",
+          feedback: {
+            type: "error",
+            message: err.message || "Error al programar la campaña de difusión.",
+          },
+        }));
+      }
+      return;
+    }
+
+    setAsyncState((prev) => ({
+      ...prev,
       isSubmitting: true,
       progressText: `Iniciando difusión a ${formState.selectedTargetIds.length} canales con pacing anti-flood...`,
       feedback: null,
-    });
+    }));
 
     try {
       const res = await channelApi.broadcastMessage({
@@ -286,7 +385,8 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
       const succCount = res.successful_count;
       const failCount = res.failed_count;
 
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         progressText: "",
         feedback: {
@@ -297,20 +397,21 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
               : `Difusión procesada: ${succCount} exitoso${succCount > 1 ? "s" : ""}, ${failCount} fallido${failCount > 1 ? "s" : ""}.`,
           details: res.results,
         },
-      });
+      }));
 
       if (succCount > 0 && onSuccess) {
         onSuccess();
       }
     } catch (err: any) {
-      setAsyncState({
+      setAsyncState((prev) => ({
+        ...prev,
         isSubmitting: false,
         progressText: "",
         feedback: {
           type: "error",
           message: err.message || "Error al procesar la difusión multicanal.",
         },
-      });
+      }));
     }
   };
 
@@ -318,8 +419,8 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && !asyncState.isSubmitting && onClose()}>
       <DialogContent className="max-w-4xl lg:max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground shadow-2xl">
         {/* Header */}
-        <DialogHeader className="p-4 border-b border-border bg-secondary/30 shrink-0 space-y-1">
-          <div className="flex items-center justify-between">
+        <DialogHeader className="p-4 border-b border-border bg-secondary/30 shrink-0 space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary">
                 <Send className="w-4 h-4" />
@@ -332,9 +433,46 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Componé tu mensaje y previsualizalo en vivo antes de enviarlo a tus canales y grupos.
+                  Componé o programá difusiones recurrentes con previsualización en vivo MTProto.
                 </DialogDescription>
               </div>
+            </div>
+
+            {/* Tab Switcher */}
+            <div className="flex items-center p-0.5 rounded-lg bg-secondary/80 border border-border">
+              <button
+                type="button"
+                onClick={() => setFormState((s) => ({ ...s, activeTab: "compose" }))}
+                className={cn(
+                  "px-3 py-1 rounded text-xs font-medium transition-all cursor-pointer",
+                  formState.activeTab === "compose"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Redactar Difusión
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormState((s) => ({ ...s, activeTab: "scheduled" }));
+                  loadCampaigns();
+                }}
+                className={cn(
+                  "px-3 py-1 rounded text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer",
+                  formState.activeTab === "scheduled"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Campañas Programadas</span>
+                {asyncState.scheduledCampaigns.length > 0 && (
+                  <Badge variant="secondary" className="px-1 py-0 text-[9px] font-mono">
+                    {asyncState.scheduledCampaigns.length}
+                  </Badge>
+                )}
+              </button>
             </div>
           </div>
         </DialogHeader>
@@ -387,8 +525,121 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
             </div>
           )}
 
-          {/* 2-Column Split: Form (Left) & Live Telegram Post Simulator (Right) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          {formState.activeTab === "scheduled" ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-foreground text-xs">
+                    Campañas Programadas y Recurrentes
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground">
+                    El servicio daemon MTProto procesará automáticamente estas difusiones en sus fechas e intervalos configurados.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={loadCampaigns}
+                  disabled={asyncState.isLoadingCampaigns}
+                  className="h-7 text-xs gap-1 border-border font-mono cursor-pointer"
+                >
+                  <Clock className={cn("w-3 h-3", asyncState.isLoadingCampaigns && "animate-spin")} />
+                  <span>Actualizar</span>
+                </Button>
+              </div>
+
+              {asyncState.isLoadingCampaigns ? (
+                <div className="p-8 text-center text-muted-foreground text-xs flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span>Cargando campañas...</span>
+                </div>
+              ) : asyncState.scheduledCampaigns.length === 0 ? (
+                <div className="p-10 border border-dashed border-border rounded-lg text-center space-y-2">
+                  <Calendar className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                  <p className="text-xs text-muted-foreground">
+                    No tenés campañas programadas activas en este momento.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFormState((s) => ({ ...s, activeTab: "compose", isScheduled: true }))}
+                    className="text-xs font-medium border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+                  >
+                    + Programar Nueva Difusión
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                  {asyncState.scheduledCampaigns.map((c) => (
+                    <div
+                      key={c.id}
+                      className="p-3 rounded-lg border border-border bg-secondary/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-foreground truncate max-w-[220px]">
+                            {c.name || "Difusión Programada"}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[9px] font-mono px-1.5 py-0.2",
+                              c.status === "SCHEDULED" && "border-primary/40 bg-primary/10 text-primary",
+                              c.status === "RUNNING" && "border-amber-500/40 bg-amber-500/10 text-amber-400 animate-pulse",
+                              c.status === "COMPLETED" && "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
+                              c.status === "FAILED" && "border-destructive/40 bg-destructive/10 text-destructive"
+                            )}
+                          >
+                            {c.status}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[9px] font-mono px-1.5 py-0.2 gap-1">
+                            <Repeat className="w-2.5 h-2.5" />
+                            {c.recurrence === "ONCE"
+                              ? "Una sola vez"
+                              : c.recurrence === "EVERY_6_HOURS"
+                              ? "Cada 6h"
+                              : c.recurrence === "EVERY_12_HOURS"
+                              ? "Cada 12h"
+                              : c.recurrence === "DAILY"
+                              ? "Diario"
+                              : c.recurrence}
+                          </Badge>
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground truncate max-w-[400px]">
+                          {c.text || "(Solo multimedia)"}
+                        </p>
+
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground font-mono flex-wrap">
+                          <span>Destinos: <strong>{c.target_ids.length} canales</strong></span>
+                          <span>Próximo: <strong>{new Date(c.scheduled_at).toLocaleString()}</strong></span>
+                          <span>Ejecuciones: <strong>{c.run_count}</strong></span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelCampaign(c.id)}
+                          className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                          title="Cancelar y eliminar campaña"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-1" />
+                          <span>Cancelar</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* 2-Column Split: Form (Left) & Live Telegram Post Simulator (Right) */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
             {/* Left Column: Form Controls (7 cols) */}
             <div className="lg:col-span-7 space-y-3">
               {/* Step 1: Destination Channels & Groups Selection */}
@@ -620,6 +871,84 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                     </p>
                   )}
                 </div>
+
+                {/* Step 4: Programación y Recurrencia */}
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5 font-mono uppercase text-[11px]">
+                      <Calendar className="w-3.5 h-3.5 text-primary" />
+                      4. Programación y Recurrencia
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        {formState.isScheduled ? "Programado" : "Inmediato"}
+                      </span>
+                      <Switch
+                        checked={formState.isScheduled}
+                        onCheckedChange={(checked) =>
+                          setFormState((s) => ({ ...s, isScheduled: checked }))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {formState.isScheduled && (
+                    <div className="space-y-2.5 p-3 rounded-md bg-secondary/40 border border-border/60">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[10px] text-muted-foreground font-mono block mb-1">
+                            Fecha y Hora de Inicio
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={formState.scheduledAt}
+                            onChange={(e) =>
+                              setFormState((s) => ({ ...s, scheduledAt: e.target.value }))
+                            }
+                            className="w-full bg-secondary/70 border border-border rounded p-1.5 text-xs text-foreground font-mono"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] text-muted-foreground font-mono block mb-1">
+                            Frecuencia de Repetición
+                          </label>
+                          <select
+                            value={formState.recurrence}
+                            onChange={(e) =>
+                              setFormState((s) => ({
+                                ...s,
+                                recurrence: e.target.value as any,
+                              }))
+                            }
+                            className="w-full bg-secondary/70 border border-border rounded p-1.5 text-xs text-foreground font-mono"
+                          >
+                            <option value="ONCE">Una sola vez (Sin repetición)</option>
+                            <option value="EVERY_6_HOURS">Cada 6 horas</option>
+                            <option value="EVERY_12_HOURS">Cada 12 horas</option>
+                            <option value="DAILY">Diario (Misma hora)</option>
+                            <option value="WEEKLY">Semanal</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-muted-foreground font-mono block mb-1">
+                          Nombre de la Campaña (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej: Anuncio Diario Canal VIP"
+                          value={formState.campaignName}
+                          onChange={(e) =>
+                            setFormState((s) => ({ ...s, campaignName: e.target.value }))
+                          }
+                          className="w-full bg-secondary/70 border border-border rounded p-1.5 text-xs text-foreground placeholder:text-muted-foreground"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Rate Limit Pacing Notice */}
@@ -720,7 +1049,8 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
               </div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
 
         {/* Footer Actions */}
         <DialogFooter className="p-3 border-t border-border bg-secondary/30 flex sm:justify-between items-center w-full">
@@ -732,28 +1062,49 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
             disabled={asyncState.isSubmitting}
             className="text-xs text-muted-foreground"
           >
-            Cancelar
+            Cerrar
           </Button>
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSubmit}
-            disabled={asyncState.isSubmitting || formState.selectedTargetIds.length === 0}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            {asyncState.isSubmitting ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
-                <span>Difundiendo ({formState.selectedTargetIds.length})...</span>
-              </>
-            ) : (
-              <>
-                <Send className="w-3.5 h-3.5" />
-                <span>Difundir a {formState.selectedTargetIds.length} canales</span>
-              </>
-            )}
-          </Button>
+          {formState.activeTab === "compose" ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={asyncState.isSubmitting || formState.selectedTargetIds.length === 0}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              {asyncState.isSubmitting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />
+                  <span>
+                    {formState.isScheduled
+                      ? "Programando campaña..."
+                      : `Difundiendo (${formState.selectedTargetIds.length})...`}
+                  </span>
+                </>
+              ) : formState.isScheduled ? (
+                <>
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Programar Campaña ({formState.selectedTargetIds.length} canales)</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Difundir a {formState.selectedTargetIds.length} canales</span>
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setFormState((s) => ({ ...s, activeTab: "compose" }))}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Redactar Nueva Difusión</span>
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -9,6 +9,7 @@ from backend.domain.entities.migration_job import JobStatus, MigrationJob
 from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.entities.sync_binding import ChannelSyncBinding
+from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 
 
@@ -170,6 +171,26 @@ class SQLiteJobRepository(JobRepositoryPort):
             """)
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_media_fingerprint ON migrated_media_fingerprints(target_channel_id, fingerprint_hash);
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS scheduled_broadcasts (
+                    id TEXT PRIMARY KEY,
+                    name TEXT,
+                    target_ids TEXT NOT NULL,
+                    text TEXT NOT NULL,
+                    media_paths TEXT,
+                    account_id INTEGER,
+                    scheduled_at TEXT NOT NULL,
+                    recurrence TEXT NOT NULL DEFAULT 'ONCE',
+                    status TEXT NOT NULL DEFAULT 'SCHEDULED',
+                    last_run_at TEXT,
+                    run_count INTEGER NOT NULL DEFAULT 0,
+                    last_error TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_sched_broadcast_status ON scheduled_broadcasts(status, scheduled_at);
             """)
             await conn.commit()
             self._initialized = True
@@ -1037,6 +1058,149 @@ class SQLiteJobRepository(JobRepositoryPort):
             "daily_volume": daily_volume,
             "efficiency_percent": 99.8,
         }
+
+    async def create_scheduled_broadcast(
+        self, broadcast: ScheduledBroadcast
+    ) -> ScheduledBroadcast:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO scheduled_broadcasts (
+                    id, name, target_ids, text, media_paths, account_id,
+                    scheduled_at, recurrence, status, last_run_at, run_count,
+                    last_error, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    broadcast.id,
+                    broadcast.name,
+                    json.dumps(broadcast.target_ids),
+                    broadcast.text,
+                    json.dumps(broadcast.media_paths) if broadcast.media_paths else None,
+                    broadcast.account_id,
+                    broadcast.scheduled_at,
+                    broadcast.recurrence,
+                    broadcast.status,
+                    broadcast.last_run_at,
+                    broadcast.run_count,
+                    broadcast.last_error,
+                    broadcast.created_at,
+                ),
+            )
+            await conn.commit()
+            return broadcast
+
+    async def get_scheduled_broadcast(self, id: str) -> ScheduledBroadcast | None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                """
+                SELECT id, name, target_ids, text, media_paths, account_id,
+                       scheduled_at, recurrence, status, last_run_at, run_count,
+                       last_error, created_at
+                FROM scheduled_broadcasts WHERE id = ?
+                """,
+                (id,),
+            )
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_scheduled_broadcast(row)
+
+    async def list_scheduled_broadcasts(
+        self, status: str | None = None
+    ) -> list[ScheduledBroadcast]:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            if status:
+                cursor = await conn.execute(
+                    """
+                    SELECT id, name, target_ids, text, media_paths, account_id,
+                           scheduled_at, recurrence, status, last_run_at, run_count,
+                           last_error, created_at
+                    FROM scheduled_broadcasts WHERE status = ?
+                    ORDER BY scheduled_at ASC
+                    """,
+                    (status,),
+                )
+            else:
+                cursor = await conn.execute(
+                    """
+                    SELECT id, name, target_ids, text, media_paths, account_id,
+                           scheduled_at, recurrence, status, last_run_at, run_count,
+                           last_error, created_at
+                    FROM scheduled_broadcasts
+                    ORDER BY scheduled_at ASC
+                    """
+                )
+            rows = await cursor.fetchall()
+            return [self._row_to_scheduled_broadcast(r) for r in rows]
+
+    async def update_scheduled_broadcast(
+        self, broadcast: ScheduledBroadcast
+    ) -> ScheduledBroadcast:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE scheduled_broadcasts SET
+                    name = ?,
+                    target_ids = ?,
+                    text = ?,
+                    media_paths = ?,
+                    account_id = ?,
+                    scheduled_at = ?,
+                    recurrence = ?,
+                    status = ?,
+                    last_run_at = ?,
+                    run_count = ?,
+                    last_error = ?
+                WHERE id = ?
+                """,
+                (
+                    broadcast.name,
+                    json.dumps(broadcast.target_ids),
+                    broadcast.text,
+                    json.dumps(broadcast.media_paths) if broadcast.media_paths else None,
+                    broadcast.account_id,
+                    broadcast.scheduled_at,
+                    broadcast.recurrence,
+                    broadcast.status,
+                    broadcast.last_run_at,
+                    broadcast.run_count,
+                    broadcast.last_error,
+                    broadcast.id,
+                ),
+            )
+            await conn.commit()
+            return broadcast
+
+    async def delete_scheduled_broadcast(self, id: str) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute("DELETE FROM scheduled_broadcasts WHERE id = ?", (id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    def _row_to_scheduled_broadcast(self, row: tuple) -> ScheduledBroadcast:
+        target_ids = json.loads(row[2]) if row[2] else []
+        media_paths = json.loads(row[4]) if row[4] else []
+        return ScheduledBroadcast(
+            id=row[0],
+            name=row[1],
+            target_ids=target_ids,
+            text=row[3],
+            media_paths=media_paths,
+            account_id=row[5],
+            scheduled_at=row[6],
+            recurrence=row[7],
+            status=row[8],
+            last_run_at=row[9],
+            run_count=row[10] or 0,
+            last_error=row[11],
+            created_at=row[12],
+        )
 
     async def close(self) -> None:
         if self._shared_mem_conn is not None:
