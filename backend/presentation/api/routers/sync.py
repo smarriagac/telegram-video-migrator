@@ -59,6 +59,10 @@ class UpdateSyncBindingRequest(BaseModel):
     last_error: str | None = None
 
 
+class SwitchSyncAccountRequest(BaseModel):
+    new_account_id: int
+
+
 class SyncHealthResponse(BaseModel):
     is_running: bool
     active_sources_count: int
@@ -271,3 +275,57 @@ async def verify_binding_endpoint(
 ) -> dict[str, Any]:
     """Verify live MTProto channel accessibility for a specific sync binding."""
     return await live_sync_svc.verify_binding_access(source_channel_id, target_channel_id)
+
+
+@router.post("/bindings/{source_channel_id}/{target_channel_id}/switch-account", response_model=SyncBindingItem)
+async def switch_binding_account_endpoint(
+    source_channel_id: int,
+    target_channel_id: int,
+    req: SwitchSyncAccountRequest,
+    live_sync_svc: Any = Depends(get_live_sync_service),
+    audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+) -> SyncBindingItem:
+    """Switch source Telegram account for an active or revoked sync binding."""
+    try:
+        binding = await live_sync_svc.switch_binding_account(
+            source_channel_id=source_channel_id,
+            target_channel_id=target_channel_id,
+            new_account_id=req.new_account_id,
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
+    except PermissionError as pe:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(pe))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+    try:
+        await audit_repo.record_audit_log(
+            AuditLog(
+                id=None,
+                user_id=None,
+                user_email=None,
+                action="LIVE_SYNC_ACCOUNT_SWITCH",
+                resource=f"sync:{source_channel_id}->{target_channel_id}",
+                details={"new_account_id": req.new_account_id},
+            )
+        )
+    except Exception as e:
+        logger.warning(f"Failed to record audit log for sync account switch: {e}")
+
+    return SyncBindingItem(
+        source_channel_id=binding.source_channel_id,
+        target_channel_id=binding.target_channel_id,
+        source_channel_title=binding.source_channel_title,
+        target_channel_title=binding.target_channel_title,
+        source_account_id=binding.source_account_id,
+        target_account_id=binding.target_account_id,
+        is_active=binding.is_active,
+        last_synced_message_id=binding.last_synced_message_id,
+        created_at=binding.created_at,
+        updated_at=binding.updated_at,
+        caption_rules=binding.caption_rules,
+        media_filter_rules=binding.media_filter_rules,
+        status=getattr(binding, "status", "ACTIVE") or "ACTIVE",
+        last_error=getattr(binding, "last_error", None),
+    )

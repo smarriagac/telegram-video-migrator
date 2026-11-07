@@ -14,6 +14,7 @@ import {
   Image,
   File,
   Search,
+  Users,
 } from "lucide-react";
 import {
   Card,
@@ -40,6 +41,7 @@ import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { useSyncStore } from "../application/useSyncStore";
 import { CreateSyncBindingModal } from "./components/CreateSyncBindingModal";
 import { SyncRulesModal } from "./components/SyncRulesModal";
+import { SwitchSyncAccountModal } from "./components/SwitchSyncAccountModal";
 import { SyncBinding } from "../domain/types";
 
 export const LiveSyncHubView: React.FC = () => {
@@ -69,6 +71,7 @@ export const LiveSyncHubView: React.FC = () => {
     setSelectedBinding,
     setCreateModalOpen,
     setRulesModalOpen,
+    openSwitchModal,
   } = useSyncStore();
 
   useEffect(() => {
@@ -559,6 +562,18 @@ export const LiveSyncHubView: React.FC = () => {
                           {/* Action Buttons */}
                           <TableCell className="text-right py-2 px-3 whitespace-nowrap">
                             <div className="flex items-center justify-end gap-1">
+                              {binding.status === "ACCESS_REVOKED" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openSwitchModal(binding)}
+                                  className="h-7 px-2 border-amber-500/40 text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 text-xs gap-1 font-medium"
+                                  title="Relevar cuenta de extracción para este canal"
+                                >
+                                  <Users className="h-3.5 w-3.5" />
+                                  <span className="hidden sm:inline">Cambiar Cuenta</span>
+                                </Button>
+                              )}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -602,6 +617,7 @@ export const LiveSyncHubView: React.FC = () => {
       {/* Modals */}
       <CreateSyncBindingModal />
       <SyncRulesModal />
+      <SwitchSyncAccountModal />
 
       {/* Confirmation Dialog (replaces browser window.confirm) */}
       {confirmDialog && (

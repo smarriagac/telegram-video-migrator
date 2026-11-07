@@ -102,4 +102,27 @@ export const syncApi = {
     }
     return res.json();
   },
+
+  async switchBindingAccount(
+    sourceChannelId: number,
+    targetChannelId: number,
+    newAccountId: number
+  ): Promise<SyncBinding> {
+    const res = await fetch(
+      `${API_BASE_URL}/sync/bindings/${sourceChannelId}/${targetChannelId}/switch-account`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ new_account_id: newAccountId }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al transferir la cuenta de extracción");
+    }
+    return res.json();
+  },
 };

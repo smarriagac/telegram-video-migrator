@@ -19,6 +19,10 @@ interface SyncState {
   isCreateModalOpen: boolean;
   isRulesModalOpen: boolean;
 
+  // Multi-account failover modal
+  switchTargetBinding: SyncBinding | null;
+  isSwitchModalOpen: boolean;
+
   fetchData: () => Promise<void>;
   createBinding: (payload: CreateSyncBindingPayload) => Promise<void>;
   toggleActive: (binding: SyncBinding) => Promise<void>;
@@ -29,10 +33,17 @@ interface SyncState {
   ) => Promise<void>;
   deleteBinding: (sourceId: number, targetId: number) => Promise<void>;
   reloadDaemon: () => Promise<void>;
+  switchAccount: (
+    sourceId: number,
+    targetId: number,
+    newAccountId: number
+  ) => Promise<void>;
 
   setSelectedBinding: (binding: SyncBinding | null) => void;
   setCreateModalOpen: (open: boolean) => void;
   setRulesModalOpen: (open: boolean) => void;
+  openSwitchModal: (binding: SyncBinding) => void;
+  closeSwitchModal: () => void;
 }
 
 export const useSyncStore = create<SyncState>((set, get) => ({
@@ -44,6 +55,8 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   selectedBinding: null,
   isCreateModalOpen: false,
   isRulesModalOpen: false,
+  switchTargetBinding: null,
+  isSwitchModalOpen: false,
 
   fetchData: async () => {
     set({ isLoading: true, error: null });
@@ -166,7 +179,33 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     }
   },
 
+  switchAccount: async (sourceId: number, targetId: number, newAccountId: number) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updated = await syncApi.switchBindingAccount(sourceId, targetId, newAccountId);
+      set((state) => ({
+        bindings: state.bindings.map((b) =>
+          b.source_channel_id === updated.source_channel_id &&
+          b.target_channel_id === updated.target_channel_id
+            ? updated
+            : b
+        ),
+        isLoading: false,
+        isSwitchModalOpen: false,
+        switchTargetBinding: null,
+      }));
+    } catch (err: any) {
+      set({
+        error: err.message || "Error al relevar cuenta de extracción",
+        isLoading: false,
+      });
+      throw err;
+    }
+  },
+
   setSelectedBinding: (binding) => set({ selectedBinding: binding }),
   setCreateModalOpen: (open) => set({ isCreateModalOpen: open }),
   setRulesModalOpen: (open) => set({ isRulesModalOpen: open }),
+  openSwitchModal: (binding) => set({ switchTargetBinding: binding, isSwitchModalOpen: true }),
+  closeSwitchModal: () => set({ switchTargetBinding: null, isSwitchModalOpen: false }),
 }));

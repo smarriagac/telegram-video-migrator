@@ -173,6 +173,49 @@ class LiveSyncService:
 
             return {"status": "ERROR", "message": str(e)}
 
+    async def switch_binding_account(
+        self,
+        source_channel_id: int,
+        target_channel_id: int,
+        new_account_id: int,
+    ) -> ChannelSyncBinding:
+        """Switch the Telegram account assigned to source extraction on a sync binding, verifying accessibility."""
+        binding = await self.repo.get_sync_binding(source_channel_id, target_channel_id)
+        if not binding:
+            raise ValueError(f"Vinculación {source_channel_id} -> {target_channel_id} no encontrada.")
+
+        client = self.pool.get_client(new_account_id)
+        if not client:
+            raise ValueError(f"No existe un cliente activo para la cuenta #{new_account_id} en el pool de Telegram.")
+
+        if not client.is_connected():
+            await client.connect()
+
+        try:
+            source_entity = await client.get_input_entity(source_channel_id)
+            await client.get_messages(source_entity, limit=1)
+        except Exception as e:
+            logger.warning(
+                f"LiveSync: Cuenta #{new_account_id} no tiene acceso a {source_channel_id}: {e}"
+            )
+            raise PermissionError(
+                f"La cuenta #{new_account_id} no tiene acceso o fue expulsada de este canal/grupo ({e})."
+            )
+
+        binding.source_account_id = new_account_id
+        binding.status = "ACTIVE"
+        binding.is_active = True
+        binding.last_error = None
+        saved = await self.repo.save_sync_binding(binding)
+        await self.reload_bindings()
+        self.attach_client_listeners()
+
+        asyncio.create_task(self.catch_up_delta(saved))
+        logger.info(
+            f"LiveSync: Successfully switched source extraction for {source_channel_id} -> {target_channel_id} to account #{new_account_id}."
+        )
+        return saved
+
     async def stop(self) -> None:
         """Gracefully stop worker task."""
         self._is_running = False

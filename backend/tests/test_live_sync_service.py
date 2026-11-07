@@ -176,3 +176,110 @@ async def test_live_sync_catch_up_delta_detects_access_revoked():
 
     await repo.close()
 
+
+@pytest.mark.asyncio
+async def test_live_sync_switch_binding_account_success():
+    repo = SQLiteJobRepository(db_path=":memory:")
+    await repo.initialize_schema()
+
+    mock_client1 = AsyncMock()
+    mock_client1.on = MagicMock(return_value=lambda f: f)
+    mock_client2 = AsyncMock()
+    mock_client2.on = MagicMock(return_value=lambda f: f)
+    mock_client2.is_connected = MagicMock(return_value=False)
+    mock_client2.connect = AsyncMock()
+    mock_client2.get_input_entity = AsyncMock(return_value="entity_ok")
+    mock_client2.get_messages = AsyncMock(return_value=[])
+
+    mock_pool = MagicMock()
+    mock_pool.get_client.side_effect = lambda acc_id: mock_client2 if acc_id == 2 else mock_client1
+    mock_pool.list_clients.return_value = [(1, "Cuenta 1", mock_client1), (2, "Cuenta 2", mock_client2)]
+
+    service = LiveSyncService(
+        job_repository=repo,
+        client_pool=mock_pool,
+        migration_use_case=MagicMock(),
+        broadcaster=MagicMock(),
+    )
+
+    binding = ChannelSyncBinding(
+        source_channel_id=-1003954412662,
+        target_channel_id=-1004337257363,
+        source_channel_title="La aldea del cacique",
+        source_account_id=1,
+        is_active=False,
+    )
+    binding.status = "ACCESS_REVOKED"
+    binding.last_error = "Fuiste expulsado"
+    await repo.save_sync_binding(binding)
+
+    updated = await service.switch_binding_account(
+        source_channel_id=-1003954412662,
+        target_channel_id=-1004337257363,
+        new_account_id=2,
+    )
+
+    assert updated.source_account_id == 2
+    assert updated.status == "ACTIVE"
+    assert updated.is_active is True
+    assert updated.last_error is None
+
+    # Check persistence
+    persisted = await repo.get_sync_binding(-1003954412662, -1004337257363)
+    assert persisted is not None
+    assert persisted.source_account_id == 2
+    assert persisted.status == "ACTIVE"
+    assert persisted.is_active is True
+    assert persisted.last_error is None
+
+    await repo.close()
+
+
+@pytest.mark.asyncio
+async def test_live_sync_switch_binding_account_rejected_if_inaccessible():
+    repo = SQLiteJobRepository(db_path=":memory:")
+    await repo.initialize_schema()
+
+    mock_client2 = AsyncMock()
+    mock_client2.is_connected = MagicMock(return_value=True)
+    mock_client2.get_input_entity = AsyncMock(
+        side_effect=ValueError("Could not find the input entity for PeerChannel")
+    )
+
+    mock_pool = MagicMock()
+    mock_pool.get_client.return_value = mock_client2
+
+    service = LiveSyncService(
+        job_repository=repo,
+        client_pool=mock_pool,
+        migration_use_case=MagicMock(),
+        broadcaster=MagicMock(),
+    )
+
+    binding = ChannelSyncBinding(
+        source_channel_id=-1003954412662,
+        target_channel_id=-1004337257363,
+        source_channel_title="La aldea del cacique",
+        source_account_id=1,
+        is_active=False,
+    )
+    binding.status = "ACCESS_REVOKED"
+    binding.last_error = "Fuiste expulsado"
+    await repo.save_sync_binding(binding)
+
+    with pytest.raises(PermissionError) as exc_info:
+        await service.switch_binding_account(
+            source_channel_id=-1003954412662,
+            target_channel_id=-1004337257363,
+            new_account_id=2,
+        )
+
+    assert "no tiene acceso" in str(exc_info.value).lower()
+
+    # Verify original state wasn't overwritten
+    persisted = await repo.get_sync_binding(-1003954412662, -1004337257363)
+    assert persisted.source_account_id == 1
+    assert persisted.status == "ACCESS_REVOKED"
+
+    await repo.close()
+
