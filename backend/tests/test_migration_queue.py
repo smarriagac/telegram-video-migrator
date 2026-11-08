@@ -282,3 +282,108 @@ async def test_dlq_bulk_api_endpoints():
         data_skip = skip_res.json()
         assert data_skip["success"] is True
         assert data_skip["skipped_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_dlq_error_filtering_and_summary(repo: SQLiteJobRepository):
+    job_id = "test-job-filter-dlq"
+    await repo.create_job(MigrationJob(job_id=job_id, source_id=10, target_id=20))
+
+    items = [
+        QueueItem(job_id=job_id, source_message_id=1, media_type="video", caption="Cat 1", status=QueueItemStatus.FAILED, error_message="A wait of 42 seconds is required (FloodWaitError)"),
+        QueueItem(job_id=job_id, source_message_id=2, media_type="video", caption="Cat 2", status=QueueItemStatus.FAILED, error_message="Connection timed out (TimeoutError)"),
+        QueueItem(job_id=job_id, source_message_id=3, media_type="photo", caption="Cat 3", status=QueueItemStatus.FAILED, error_message="ChatAdminRequiredError: Need rights"),
+        QueueItem(job_id=job_id, source_message_id=4, media_type="video", caption="Cat 4", status=QueueItemStatus.FAILED, error_message="FFmpeg decoder corrupted bitstream"),
+        QueueItem(job_id=job_id, source_message_id=5, media_type="document", caption="Cat 5", status=QueueItemStatus.FAILED, error_message="Unexpected unknown failure"),
+    ]
+    await repo.add_queue_items(items)
+
+    # 1. Summary aggregation
+    summary = await repo.get_dead_letter_summary(job_id)
+    assert summary["total_failed"] == 5
+    assert summary["by_category"]["FLOOD_WAIT"] == 1
+    assert summary["by_category"]["TIMEOUT_NETWORK"] == 1
+    assert summary["by_category"]["PERMISSION_AUTH"] == 1
+    assert summary["by_category"]["MEDIA_CORRUPT"] == 1
+    assert summary["by_category"]["OTHER"] == 1
+    assert summary["by_media_type"]["video"] == 3
+    assert summary["by_media_type"]["photo"] == 1
+    assert summary["by_media_type"]["document"] == 1
+
+    # 2. Filtered list: FLOOD_WAIT only
+    flood_items, flood_total = await repo.list_dead_letter_items(error_category="FLOOD_WAIT", job_id=job_id)
+    assert flood_total == 1
+    assert flood_items[0].source_message_id == 1
+
+    # 3. Filtered list by search term
+    search_items, search_total = await repo.list_dead_letter_items(search="corrupted", job_id=job_id)
+    assert search_total == 1
+    assert search_items[0].source_message_id == 4
+
+    # 4. 1-Click retry by filter: FLOOD_WAIT
+    retried_count, affected_jobs = await repo.retry_filtered_queue_items(error_category="FLOOD_WAIT", job_id=job_id)
+    assert retried_count == 1
+    assert job_id in affected_jobs
+
+    q_items = await repo.get_queue_items(job_id)
+    retried_item = next(it for it in q_items if it.source_message_id == 1)
+    assert retried_item.status == QueueItemStatus.PENDING
+
+    # 5. 1-Click skip by filter: MEDIA_CORRUPT
+    skipped_count = await repo.skip_filtered_queue_items(error_category="MEDIA_CORRUPT", job_id=job_id)
+    assert skipped_count == 1
+    q_items_after = await repo.get_queue_items(job_id)
+    skipped_item = next(it for it in q_items_after if it.source_message_id == 4)
+    assert skipped_item.status == QueueItemStatus.SKIPPED
+
+
+@pytest.mark.asyncio
+async def test_dlq_filter_batch_api_endpoints():
+    from httpx import AsyncClient, ASGITransport
+    from backend.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create job
+        job_res = await client.post(
+            "/api/jobs",
+            json={"source_channel_id": 9905, "target_channel_id": 9906, "message_limit": 5},
+        )
+        assert job_res.status_code == 201
+        job_id = job_res.json()["job_id"]
+
+        from backend.presentation.dependencies import get_job_repository
+        repo = await get_job_repository()
+        await repo.add_queue_items([
+            QueueItem(job_id=job_id, source_message_id=701, media_type="video", caption="Fail 701", status=QueueItemStatus.FAILED, error_message="FloodWaitError: 15s"),
+            QueueItem(job_id=job_id, source_message_id=702, media_type="video", caption="Fail 702", status=QueueItemStatus.FAILED, error_message="FloodWaitError: 25s"),
+            QueueItem(job_id=job_id, source_message_id=703, media_type="photo", caption="Fail 703", status=QueueItemStatus.FAILED, error_message="TimeoutError: deadline reached"),
+        ])
+
+        # Test GET /api/jobs/dlq/summary
+        sum_res = await client.get("/api/jobs/dlq/summary")
+        assert sum_res.status_code == 200
+        sum_data = sum_res.json()
+        assert sum_data["total_failed"] >= 3
+        assert sum_data["by_category"]["FLOOD_WAIT"] >= 2
+
+        # Test GET /api/jobs/dlq with error_category filter
+        filter_res = await client.get(f"/api/jobs/dlq?job_id={job_id}&error_category=FLOOD_WAIT")
+        assert filter_res.status_code == 200
+        assert filter_res.json()["total"] == 2
+
+        # Test POST /api/jobs/dlq/retry-by-filter
+        retry_res = await client.post(
+            "/api/jobs/dlq/retry-by-filter",
+            json={"job_id": job_id, "error_category": "FLOOD_WAIT"},
+        )
+        assert retry_res.status_code == 200
+        assert retry_res.json()["retried_count"] == 2
+
+        # Test POST /api/jobs/dlq/skip-by-filter
+        skip_res = await client.post(
+            "/api/jobs/dlq/skip-by-filter",
+            json={"job_id": job_id, "error_category": "TIMEOUT_NETWORK"},
+        )
+        assert skip_res.status_code == 200
+        assert skip_res.json()["skipped_count"] == 1

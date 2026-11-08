@@ -10,6 +10,25 @@ const getAuthHeaders = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+export interface DLQSummary {
+  total_failed: number;
+  by_category: {
+    FLOOD_WAIT: number;
+    TIMEOUT_NETWORK: number;
+    PERMISSION_AUTH: number;
+    MEDIA_CORRUPT: number;
+    OTHER: number;
+  };
+  by_media_type: Record<string, number>;
+}
+
+export interface DLQFilter {
+  errorCategory?: string;
+  mediaType?: string;
+  jobId?: string;
+  search?: string;
+}
+
 export const jobsApi = {
   async fetchJobs(params?: {
     page?: number;
@@ -120,7 +139,14 @@ export const jobsApi = {
     return res.json();
   },
 
-  async fetchDLQ(params?: { limit?: number; offset?: number; jobId?: string }): Promise<{
+  async fetchDLQ(params?: {
+    limit?: number;
+    offset?: number;
+    jobId?: string;
+    errorCategory?: string;
+    mediaType?: string;
+    search?: string;
+  }): Promise<{
     items: QueueItem[];
     total: number;
     limit: number;
@@ -130,6 +156,15 @@ export const jobsApi = {
     if (params?.limit) searchParams.append("limit", params.limit.toString());
     if (params?.offset) searchParams.append("offset", params.offset.toString());
     if (params?.jobId) searchParams.append("job_id", params.jobId);
+    if (params?.errorCategory && params.errorCategory !== "ALL") {
+      searchParams.append("error_category", params.errorCategory);
+    }
+    if (params?.mediaType && params.mediaType !== "ALL") {
+      searchParams.append("media_type", params.mediaType);
+    }
+    if (params?.search && params.search.trim()) {
+      searchParams.append("search", params.search.trim());
+    }
 
     const res = await fetch(`${API_BASE_URL}/jobs/dlq?${searchParams.toString()}`, {
       headers: getAuthHeaders(),
@@ -137,6 +172,70 @@ export const jobsApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Error al obtener Dead-Letter Queue");
+    }
+    return res.json();
+  },
+
+  async fetchDLQSummary(jobId?: string): Promise<DLQSummary> {
+    const searchParams = new URLSearchParams();
+    if (jobId) searchParams.append("job_id", jobId);
+    const res = await fetch(`${API_BASE_URL}/jobs/dlq/summary?${searchParams.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al obtener resumen de la DLQ");
+    }
+    return res.json();
+  },
+
+  async retryByFilterDLQ(filter: DLQFilter): Promise<{
+    success: boolean;
+    retried_count: number;
+    resumed_jobs: string[];
+    filter: Record<string, any>;
+  }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/dlq/retry-by-filter`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        error_category: filter.errorCategory,
+        media_type: filter.mediaType,
+        job_id: filter.jobId,
+        search: filter.search,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al reintentar por filtro en la DLQ");
+    }
+    return res.json();
+  },
+
+  async skipByFilterDLQ(filter: DLQFilter): Promise<{
+    success: boolean;
+    skipped_count: number;
+    filter: Record<string, any>;
+  }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/dlq/skip-by-filter`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        error_category: filter.errorCategory,
+        media_type: filter.mediaType,
+        job_id: filter.jobId,
+        search: filter.search,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al omitir por filtro en la DLQ");
     }
     return res.json();
   },

@@ -76,9 +76,42 @@ class JobRepositoryPort(ABC):
 
     @abstractmethod
     async def list_dead_letter_items(
-        self, limit: int = 50, offset: int = 0, job_id: str | None = None
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        job_id: str | None = None,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        search: str | None = None,
     ) -> tuple[list[QueueItem], int]:
-        """Retrieve aggregated failed queue items (Dead-Letter Queue) across jobs."""
+        """Retrieve aggregated failed queue items (Dead-Letter Queue) across jobs with optional category and search filters."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_dead_letter_summary(self, job_id: str | None = None) -> dict[str, Any]:
+        """Return counts of failed queue items grouped by error category and media type."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def retry_filtered_queue_items(
+        self,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        job_id: str | None = None,
+        search: str | None = None,
+    ) -> tuple[int, list[str]]:
+        """Atomically reset matching failed items to PENDING. Returns (count_reset, affected_job_ids)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def skip_filtered_queue_items(
+        self,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        job_id: str | None = None,
+        search: str | None = None,
+    ) -> int:
+        """Atomically mark matching failed items as SKIPPED. Returns count_skipped."""
         raise NotImplementedError
 
     @abstractmethod

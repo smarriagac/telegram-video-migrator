@@ -1,17 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { DeadLetterQueueCard } from "../components/DeadLetterQueueCard";
-import { jobsApi } from "../../infrastructure/jobsApi";
+import { jobsApi, DLQSummary } from "../../infrastructure/jobsApi";
 import { QueueItem } from "../../domain/types";
 
 vi.mock("../../infrastructure/jobsApi", () => ({
   jobsApi: {
     fetchDLQ: vi.fn(),
+    fetchDLQSummary: vi.fn(),
     retrySingleItem: vi.fn(),
     skipSingleItem: vi.fn(),
     updateItemCaption: vi.fn(),
     bulkRetryDLQ: vi.fn(),
     bulkSkipDLQ: vi.fn(),
+    retryByFilterDLQ: vi.fn(),
+    skipByFilterDLQ: vi.fn(),
   },
 }));
 
@@ -42,9 +45,25 @@ const mockDLQItems: QueueItem[] = [
   },
 ];
 
+const mockSummary: DLQSummary = {
+  total_failed: 2,
+  by_category: {
+    FLOOD_WAIT: 1,
+    TIMEOUT_NETWORK: 0,
+    PERMISSION_AUTH: 1,
+    MEDIA_CORRUPT: 0,
+    OTHER: 0,
+  },
+  by_media_type: {
+    video: 1,
+    photo: 1,
+  },
+};
+
 describe("DeadLetterQueueCard Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (jobsApi.fetchDLQSummary as any).mockResolvedValue(mockSummary);
   });
 
   it("renders empty state when no items exist in DLQ", async () => {
@@ -54,18 +73,23 @@ describe("DeadLetterQueueCard Component", () => {
       limit: 50,
       offset: 0,
     });
+    (jobsApi.fetchDLQSummary as any).mockResolvedValue({
+      total_failed: 0,
+      by_category: { FLOOD_WAIT: 0, TIMEOUT_NETWORK: 0, PERMISSION_AUTH: 0, MEDIA_CORRUPT: 0, OTHER: 0 },
+      by_media_type: {},
+    });
 
     render(<DeadLetterQueueCard />);
 
     await waitFor(() => {
       expect(
-        screen.getByText("La Dead-Letter Queue está limpia.")
+        screen.getByText("No hay elementos fallidos con los filtros actuales")
       ).toBeInTheDocument();
     });
     expect(screen.getByText("0 fallos")).toBeInTheDocument();
   });
 
-  it("renders table with failed queue items and error details", async () => {
+  it("renders table with failed queue items and category pills", async () => {
     (jobsApi.fetchDLQ as any).mockResolvedValue({
       items: mockDLQItems,
       total: 2,
@@ -83,9 +107,11 @@ describe("DeadLetterQueueCard Component", () => {
     expect(screen.getByText("2 fallos")).toBeInTheDocument();
     expect(screen.getByText("FloodWait: 42 seconds remaining")).toBeInTheDocument();
     expect(screen.getByText("ChatWriteForbidden")).toBeInTheDocument();
-    expect(screen.getByText("Original caption with bad link")).toBeInTheDocument();
-    expect(screen.getByText("2 veces")).toBeInTheDocument();
-    expect(screen.getByText("1 vez")).toBeInTheDocument();
+    expect(screen.getByText("Caption: Original caption with bad link")).toBeInTheDocument();
+
+    // Verify category pills
+    expect(screen.getByText("FloodWait")).toBeInTheDocument();
+    expect(screen.getByText("Permisos")).toBeInTheDocument();
   });
 
   it("handles granular item retry on clicking Reintentar", async () => {
@@ -106,7 +132,7 @@ describe("DeadLetterQueueCard Component", () => {
       expect(screen.getByText("#101")).toBeInTheDocument();
     });
 
-    const retryButtons = screen.getAllByRole("button", { name: /reintentar/i });
+    const retryButtons = screen.getAllByRole("button", { name: /^reintentar$/i });
     fireEvent.click(retryButtons[0]);
 
     await waitFor(() => {
@@ -132,7 +158,7 @@ describe("DeadLetterQueueCard Component", () => {
       expect(screen.getByText("#101")).toBeInTheDocument();
     });
 
-    const skipButtons = screen.getAllByRole("button", { name: /omitir/i });
+    const skipButtons = screen.getAllByRole("button", { name: /^omitir$/i });
     fireEvent.click(skipButtons[0]);
 
     await waitFor(() => {
@@ -140,46 +166,31 @@ describe("DeadLetterQueueCard Component", () => {
     });
   });
 
-  it("opens caption edit dialog and updates item caption", async () => {
+  it("handles 1-Click retry by filter action", async () => {
     (jobsApi.fetchDLQ as any).mockResolvedValue({
       items: mockDLQItems,
       total: 2,
       limit: 50,
       offset: 0,
     });
-    (jobsApi.updateItemCaption as any).mockResolvedValue({
+    (jobsApi.retryByFilterDLQ as any).mockResolvedValue({
       success: true,
-      caption: "Fixed clean caption",
+      retried_count: 2,
+      resumed_jobs: ["job_dlq_test_12345"],
+      filter: {},
     });
 
     render(<DeadLetterQueueCard />);
 
     await waitFor(() => {
-      expect(screen.getByText("#101")).toBeInTheDocument();
+      expect(screen.getByText(/Reintentar Filtro \(2\)/)).toBeInTheDocument();
     });
 
-    // The edit button has an Edit3 icon inside a ghost button
-    const editButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.querySelector("svg.lucide-edit-3") !== null
-    );
-    fireEvent.click(editButtons[0]);
+    const oneClickBtn = screen.getByText(/Reintentar Filtro \(2\)/);
+    fireEvent.click(oneClickBtn);
 
     await waitFor(() => {
-      expect(screen.getByText("Editar Caption del Mensaje #101")).toBeInTheDocument();
-    });
-
-    const textarea = screen.getByDisplayValue("Original caption with bad link");
-    fireEvent.change(textarea, { target: { value: "Fixed clean caption" } });
-
-    const saveButton = screen.getByRole("button", { name: /guardar caption/i });
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
-      expect(jobsApi.updateItemCaption).toHaveBeenCalledWith(
-        "job_dlq_test_12345",
-        101,
-        "Fixed clean caption"
-      );
+      expect(jobsApi.retryByFilterDLQ).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -203,16 +214,14 @@ describe("DeadLetterQueueCard Component", () => {
       expect(screen.getByText("#101")).toBeInTheDocument();
     });
 
-    // Select master checkbox
     const masterCheckbox = screen.getByLabelText("Seleccionar todos los visibles");
     fireEvent.click(masterCheckbox);
 
-    // Verify toolbar appeared
     await waitFor(() => {
-      expect(screen.getByText("2 seleccionados")).toBeInTheDocument();
+      expect(screen.getByText("2 elementos seleccionados")).toBeInTheDocument();
     });
 
-    const bulkRetryBtn = screen.getByRole("button", { name: /reintentar seleccionados/i });
+    const bulkRetryBtn = screen.getByRole("button", { name: /reintentar \(2\)/i });
     fireEvent.click(bulkRetryBtn);
 
     await waitFor(() => {
@@ -242,12 +251,11 @@ describe("DeadLetterQueueCard Component", () => {
       expect(screen.getByText("#101")).toBeInTheDocument();
     });
 
-    // Select master checkbox
     const masterCheckbox = screen.getByLabelText("Seleccionar todos los visibles");
     fireEvent.click(masterCheckbox);
 
     await waitFor(() => {
-      expect(screen.getByText("2 seleccionados")).toBeInTheDocument();
+      expect(screen.getByText("2 elementos seleccionados")).toBeInTheDocument();
     });
 
     const bulkSkipBtn = screen.getByRole("button", { name: /omitir \(2\)/i });

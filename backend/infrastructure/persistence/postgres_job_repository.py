@@ -601,22 +601,74 @@ class PostgresJobRepository(JobRepositoryPort):
             except Exception:
                 return False
 
+    def _build_dlq_where_clause(
+        self,
+        job_id: str | None = None,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        search: str | None = None,
+    ) -> tuple[str, list[Any]]:
+        where_clauses = ["status = 'FAILED'"]
+        params: list[Any] = []
+
+        if job_id:
+            params.append(job_id)
+            where_clauses.append(f"job_id = ${len(params)}")
+
+        if media_type and media_type.upper() != "ALL":
+            params.append(media_type)
+            where_clauses.append(f"LOWER(media_type) = LOWER(${len(params)})")
+
+        if error_category and error_category.upper() != "ALL":
+            cat = error_category.upper()
+            if cat == "FLOOD_WAIT":
+                where_clauses.append("(error_message ILIKE '%flood%' OR error_message ILIKE '%wait of%')")
+            elif cat == "TIMEOUT_NETWORK":
+                where_clauses.append("(error_message ILIKE '%timeout%' OR error_message ILIKE '%connection%' OR error_message ILIKE '%network%' OR error_message ILIKE '%timed out%')")
+            elif cat == "PERMISSION_AUTH":
+                where_clauses.append("(error_message ILIKE '%admin%' OR error_message ILIKE '%private%' OR error_message ILIKE '%banned%' OR error_message ILIKE '%denied%' OR error_message ILIKE '%auth%')")
+            elif cat == "MEDIA_CORRUPT":
+                where_clauses.append("(error_message ILIKE '%ffmpeg%' OR error_message ILIKE '%corrupt%' OR error_message ILIKE '%format%' OR error_message ILIKE '%codec%' OR error_message ILIKE '%empty output%')")
+            elif cat == "OTHER":
+                where_clauses.append("""(
+                    COALESCE(error_message, '') NOT ILIKE '%flood%' AND COALESCE(error_message, '') NOT ILIKE '%wait of%'
+                    AND COALESCE(error_message, '') NOT ILIKE '%timeout%' AND COALESCE(error_message, '') NOT ILIKE '%connection%' AND COALESCE(error_message, '') NOT ILIKE '%network%' AND COALESCE(error_message, '') NOT ILIKE '%timed out%'
+                    AND COALESCE(error_message, '') NOT ILIKE '%admin%' AND COALESCE(error_message, '') NOT ILIKE '%private%' AND COALESCE(error_message, '') NOT ILIKE '%banned%' AND COALESCE(error_message, '') NOT ILIKE '%denied%' AND COALESCE(error_message, '') NOT ILIKE '%auth%'
+                    AND COALESCE(error_message, '') NOT ILIKE '%ffmpeg%' AND COALESCE(error_message, '') NOT ILIKE '%corrupt%' AND COALESCE(error_message, '') NOT ILIKE '%format%' AND COALESCE(error_message, '') NOT ILIKE '%codec%' AND COALESCE(error_message, '') NOT ILIKE '%empty output%'
+                )""")
+
+        if search and search.strip():
+            s_param = f"%{search.strip()}%"
+            params.append(s_param)
+            idx = len(params)
+            where_clauses.append(f"(error_message ILIKE ${idx} OR caption ILIKE ${idx} OR CAST(source_message_id AS TEXT) ILIKE ${idx})")
+
+        return "WHERE " + " AND ".join(where_clauses), params
+
     async def list_dead_letter_items(
-        self, limit: int = 50, offset: int = 0, job_id: str | None = None
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        job_id: str | None = None,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        search: str | None = None,
     ) -> tuple[list[QueueItem], int]:
         await self._ensure_initialized()
         if self._fallback_mode or self.pool is None:
             assert self._fallback_repo is not None
-            return await self._fallback_repo.list_dead_letter_items(limit, offset, job_id)
+            return await self._fallback_repo.list_dead_letter_items(
+                limit, offset, job_id, error_category, media_type, search
+            )
 
-        where_clause = "WHERE status = 'FAILED'"
-        params: list[Any] = []
-        if job_id:
-            where_clause += " AND job_id = $1"
-            params.append(job_id)
+        where_clause, params = self._build_dlq_where_clause(
+            job_id=job_id,
+            error_category=error_category,
+            media_type=media_type,
+            search=search,
+        )
 
         count_query = f"SELECT COUNT(*) FROM migration_queue {where_clause};"
-
         p_limit = f"${len(params) + 1}"
         p_offset = f"${len(params) + 2}"
         data_query = f"""
@@ -648,6 +700,115 @@ class PostgresJobRepository(JobRepositoryPort):
                 for r in rows
             ]
             return items, int(total)
+
+    async def get_dead_letter_summary(self, job_id: str | None = None) -> dict[str, Any]:
+        """Aggregate DLQ counts by error category and media type in PostgreSQL."""
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_dead_letter_summary(job_id)
+
+        where_clause = "WHERE status = 'FAILED'"
+        params: list[Any] = []
+        if job_id:
+            params.append(job_id)
+            where_clause += " AND job_id = $1"
+
+        query = f"SELECT error_message, media_type FROM migration_queue {where_clause};"
+        categories = {
+            "FLOOD_WAIT": 0,
+            "TIMEOUT_NETWORK": 0,
+            "PERMISSION_AUTH": 0,
+            "MEDIA_CORRUPT": 0,
+            "OTHER": 0,
+        }
+        media_types: dict[str, int] = {}
+        total = 0
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, *params)
+            for r in rows:
+                total += 1
+                err = (r["error_message"] or "").lower()
+                mtype = (r["media_type"] or "video").lower()
+                media_types[mtype] = media_types.get(mtype, 0) + 1
+
+                if "flood" in err or "wait of" in err:
+                    categories["FLOOD_WAIT"] += 1
+                elif any(t in err for t in ["timeout", "connection", "network", "timed out"]):
+                    categories["TIMEOUT_NETWORK"] += 1
+                elif any(p in err for p in ["admin", "private", "banned", "denied", "auth"]):
+                    categories["PERMISSION_AUTH"] += 1
+                elif any(m in err for m in ["ffmpeg", "corrupt", "format", "codec", "empty output"]):
+                    categories["MEDIA_CORRUPT"] += 1
+                else:
+                    categories["OTHER"] += 1
+
+        return {
+            "total_failed": total,
+            "by_category": categories,
+            "by_media_type": media_types,
+        }
+
+    async def retry_filtered_queue_items(
+        self,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        job_id: str | None = None,
+        search: str | None = None,
+    ) -> tuple[int, list[str]]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.retry_filtered_queue_items(
+                error_category, media_type, job_id, search
+            )
+
+        where_clause, params = self._build_dlq_where_clause(
+            job_id=job_id,
+            error_category=error_category,
+            media_type=media_type,
+            search=search,
+        )
+
+        select_query = f"SELECT DISTINCT job_id FROM migration_queue {where_clause};"
+        update_query = f"""
+            UPDATE migration_queue
+            SET status = 'PENDING', retry_count = retry_count + 1, updated_at = CURRENT_TIMESTAMP
+            {where_clause};
+        """
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(select_query, *params)
+            affected_jobs = [str(r["job_id"]) for r in rows]
+
+            res = await conn.execute(update_query, *params)
+            retried_count = int(res.split()[-1])
+            return retried_count, affected_jobs
+
+    async def skip_filtered_queue_items(
+        self,
+        error_category: str | None = None,
+        media_type: str | None = None,
+        job_id: str | None = None,
+        search: str | None = None,
+    ) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.skip_filtered_queue_items(
+                error_category, media_type, job_id, search
+            )
+
+        where_clause, params = self._build_dlq_where_clause(
+            job_id=job_id,
+            error_category=error_category,
+            media_type=media_type,
+            search=search,
+        )
+        update_query = f"UPDATE migration_queue SET status = 'SKIPPED', updated_at = CURRENT_TIMESTAMP {where_clause};"
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(update_query, *params)
+            return int(res.split()[-1])
 
     async def delete_job(self, job_id: str) -> bool:
         await self._ensure_initialized()
@@ -806,6 +967,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 item.media_type,
                 item.caption or "",
                 item.retry_count,
+                item.error_message,
             )
             for item in items
         ]
@@ -813,8 +975,8 @@ class PostgresJobRepository(JobRepositoryPort):
             await conn.executemany(
                 """
                 INSERT INTO migration_queue (
-                    job_id, source_message_id, status, media_type, caption, retry_count
-                ) VALUES ($1, $2, $3, $4, $5, $6)
+                    job_id, source_message_id, status, media_type, caption, retry_count, error_message
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7)
                 ON CONFLICT (job_id, source_message_id) DO NOTHING;
                 """,
                 records,

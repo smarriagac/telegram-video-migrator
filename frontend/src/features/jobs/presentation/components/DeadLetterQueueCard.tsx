@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  AlertTriangle,
   RotateCcw,
   XCircle,
   CheckCircle2,
@@ -8,6 +7,9 @@ import {
   RefreshCw,
   ShieldAlert,
   CheckSquare,
+  Search,
+  Zap,
+  X,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -25,81 +27,107 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
-import { jobsApi } from "../../infrastructure/jobsApi";
+import { jobsApi, DLQSummary } from "../../infrastructure/jobsApi";
 import { QueueItem } from "../../domain/types";
 import { cn } from "@/shared/lib/utils";
 
+type ErrorCategory = "ALL" | "FLOOD_WAIT" | "TIMEOUT_NETWORK" | "PERMISSION_AUTH" | "MEDIA_CORRUPT" | "OTHER";
+
 export const DeadLetterQueueCard: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: DLQ collection, loading, active action, bulk selection, and feedback
-  const [dlqState, setDlqState] = useState<{
+  // Hook 1: Core DLQ records, aggregated summary counters, and pagination
+  const [dataState, setDataState] = useState<{
     items: QueueItem[];
     total: number;
+    summary: DLQSummary | null;
     isLoading: boolean;
     page: number;
-    actionInProgressId: number | string | null;
-    feedback: { message: string; isError?: boolean } | null;
-    selectedKeys: string[];
-    isBulkActing: boolean;
   }>({
     items: [],
     total: 0,
+    summary: null,
     isLoading: true,
     page: 1,
-    actionInProgressId: null,
-    feedback: null,
-    selectedKeys: [],
-    isBulkActing: false,
   });
 
-  // Hook 2: Editing caption modal state
-  const [editState, setEditState] = useState<{
+  // Hook 2: UI interactive filters, selection keys, in-flight action flags, feedback, and editing modal
+  const [uiState, setUiState] = useState<{
+    category: ErrorCategory;
+    mediaType: string;
+    search: string;
+    selectedKeys: string[];
+    actionInProgressId: number | string | null;
+    isBulkActing: boolean;
+    feedback: { message: string; isError?: boolean } | null;
     editingItem: { jobId: string; sourceMsgId: number; caption: string } | null;
-    isSaving: boolean;
+    isSavingCaption: boolean;
   }>({
+    category: "ALL",
+    mediaType: "ALL",
+    search: "",
+    selectedKeys: [],
+    actionInProgressId: null,
+    isBulkActing: false,
+    feedback: null,
     editingItem: null,
-    isSaving: false,
+    isSavingCaption: false,
   });
 
   const itemKey = (jobId: string, msgId: number) => `${jobId}:${msgId}`;
 
-  const loadDlq = async (page = 1) => {
-    setDlqState((prev) => ({ ...prev, isLoading: true }));
+  const loadDlq = async (
+    page = dataState.page,
+    cat = uiState.category,
+    mType = uiState.mediaType,
+    searchQuery = uiState.search
+  ) => {
+    setDataState((prev) => ({ ...prev, isLoading: true }));
     try {
       const limit = 50;
       const offset = (page - 1) * limit;
-      const res = await jobsApi.fetchDLQ({ limit, offset });
-      setDlqState((prev) => ({
-        ...prev,
+
+      const [res, summaryRes] = await Promise.all([
+        jobsApi.fetchDLQ({
+          limit,
+          offset,
+          errorCategory: cat,
+          mediaType: mType,
+          search: searchQuery,
+        }),
+        jobsApi.fetchDLQSummary(),
+      ]);
+
+      setDataState({
         items: res.items,
         total: res.total,
+        summary: summaryRes,
         isLoading: false,
         page,
-        selectedKeys: [],
-      }));
+      });
+      setUiState((prev) => ({ ...prev, selectedKeys: [] }));
     } catch (err: any) {
-      setDlqState((prev) => ({
+      setDataState((prev) => ({ ...prev, isLoading: false }));
+      setUiState((prev) => ({
         ...prev,
-        isLoading: false,
-        feedback: { message: err.message || "Error al cargar DLQ", isError: true },
+        feedback: { message: err.message || "Error al cargar la DLQ", isError: true },
       }));
     }
   };
 
   useEffect(() => {
-    loadDlq();
-  }, []);
+    loadDlq(1, uiState.category, uiState.mediaType, uiState.search);
+  }, [uiState.category, uiState.mediaType]);
 
   const showFeedback = (message: string, isError = false) => {
-    setDlqState((prev) => ({ ...prev, feedback: { message, isError } }));
+    setUiState((prev) => ({ ...prev, feedback: { message, isError } }));
     setTimeout(() => {
-      setDlqState((prev) => ({ ...prev, feedback: null }));
-    }, 4000);
+      setUiState((prev) => ({ ...prev, feedback: null }));
+    }, 4500);
   };
 
   const handleToggleSelect = (jobId: string, sourceMsgId: number) => {
     const key = itemKey(jobId, sourceMsgId);
-    setDlqState((prev) => {
+    setUiState((prev) => {
       const isSelected = prev.selectedKeys.includes(key);
       return {
         ...prev,
@@ -111,8 +139,8 @@ export const DeadLetterQueueCard: React.FC = () => {
   };
 
   const handleSelectAllVisible = () => {
-    setDlqState((prev) => {
-      const allKeys = prev.items.map((it) => itemKey(it.job_id, it.source_message_id));
+    setUiState((prev) => {
+      const allKeys = dataState.items.map((it) => itemKey(it.job_id, it.source_message_id));
       const allSelected = allKeys.length > 0 && allKeys.every((k) => prev.selectedKeys.includes(k));
       return {
         ...prev,
@@ -121,141 +149,156 @@ export const DeadLetterQueueCard: React.FC = () => {
     });
   };
 
-  const handleBulkRetry = async () => {
-    const selectedItems = dlqState.items
-      .filter((it) => dlqState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)))
-      .map((it) => ({ job_id: it.job_id, source_message_id: it.source_message_id }));
-
-    if (selectedItems.length === 0) return;
-
-    setDlqState((prev) => ({ ...prev, isBulkActing: true }));
-    try {
-      const res = await jobsApi.bulkRetryDLQ(selectedItems);
-      showFeedback(`Se reencolaron ${res.retried_count} mensajes para reintento.`);
-      const retriedSet = new Set(selectedItems.map((s) => itemKey(s.job_id, s.source_message_id)));
-      setDlqState((prev) => ({
-        ...prev,
-        items: prev.items.filter((it) => !retriedSet.has(itemKey(it.job_id, it.source_message_id))),
-        total: Math.max(0, prev.total - res.retried_count),
-        selectedKeys: [],
-        isBulkActing: false,
-      }));
-    } catch (err: any) {
-      setDlqState((prev) => ({ ...prev, isBulkActing: false }));
-      showFeedback(err.message || "Error al reintentar lote", true);
-    }
-  };
-
-  const handleBulkSkip = async () => {
-    const selectedItems = dlqState.items
-      .filter((it) => dlqState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)))
-      .map((it) => ({ job_id: it.job_id, source_message_id: it.source_message_id }));
-
-    if (selectedItems.length === 0) return;
-
-    setDlqState((prev) => ({ ...prev, isBulkActing: true }));
-    try {
-      const res = await jobsApi.bulkSkipDLQ(selectedItems);
-      showFeedback(`Se omitieron ${res.skipped_count} mensajes.`);
-      const skippedSet = new Set(selectedItems.map((s) => itemKey(s.job_id, s.source_message_id)));
-      setDlqState((prev) => ({
-        ...prev,
-        items: prev.items.filter((it) => !skippedSet.has(itemKey(it.job_id, it.source_message_id))),
-        total: Math.max(0, prev.total - res.skipped_count),
-        selectedKeys: [],
-        isBulkActing: false,
-      }));
-    } catch (err: any) {
-      setDlqState((prev) => ({ ...prev, isBulkActing: false }));
-      showFeedback(err.message || "Error al omitir lote", true);
-    }
-  };
-
-  const handleRetrySingle = async (jobId: string, sourceMsgId: number) => {
-    setDlqState((prev) => ({ ...prev, actionInProgressId: sourceMsgId }));
+  const handleSingleRetry = async (jobId: string, sourceMsgId: number) => {
+    setUiState((prev) => ({ ...prev, actionInProgressId: sourceMsgId }));
     try {
       await jobsApi.retrySingleItem(jobId, sourceMsgId);
-      showFeedback(`Mensaje #${sourceMsgId} reencolado para reintento`);
-      setDlqState((prev) => ({
-        ...prev,
-        items: prev.items.filter(
-          (it) => !(it.job_id === jobId && it.source_message_id === sourceMsgId)
-        ),
-        total: Math.max(0, prev.total - 1),
-        selectedKeys: prev.selectedKeys.filter((k) => k !== itemKey(jobId, sourceMsgId)),
-      }));
+      showFeedback(`Mensaje #${sourceMsgId} re-encolado con éxito para procesamiento.`);
+      loadDlq();
     } catch (err: any) {
-      showFeedback(err.message || "Error al reintentar ítem", true);
+      showFeedback(err.message, true);
     } finally {
-      setDlqState((prev) => ({ ...prev, actionInProgressId: null }));
+      setUiState((prev) => ({ ...prev, actionInProgressId: null }));
     }
   };
 
-  const handleSkipSingle = async (jobId: string, sourceMsgId: number) => {
-    setDlqState((prev) => ({ ...prev, actionInProgressId: sourceMsgId }));
+  const handleSingleSkip = async (jobId: string, sourceMsgId: number) => {
+    setUiState((prev) => ({ ...prev, actionInProgressId: sourceMsgId }));
     try {
       await jobsApi.skipSingleItem(jobId, sourceMsgId);
-      showFeedback(`Mensaje #${sourceMsgId} marcado como OMITIDO`);
-      setDlqState((prev) => ({
-        ...prev,
-        items: prev.items.filter(
-          (it) => !(it.job_id === jobId && it.source_message_id === sourceMsgId)
-        ),
-        total: Math.max(0, prev.total - 1),
-        selectedKeys: prev.selectedKeys.filter((k) => k !== itemKey(jobId, sourceMsgId)),
-      }));
+      showFeedback(`Mensaje #${sourceMsgId} marcado como omitido.`);
+      loadDlq();
     } catch (err: any) {
-      showFeedback(err.message || "Error al omitir ítem", true);
+      showFeedback(err.message, true);
     } finally {
-      setDlqState((prev) => ({ ...prev, actionInProgressId: null }));
+      setUiState((prev) => ({ ...prev, actionInProgressId: null }));
     }
   };
 
   const handleSaveCaption = async () => {
-    if (!editState.editingItem) return;
-    setEditState((prev) => ({ ...prev, isSaving: true }));
+    if (!uiState.editingItem) return;
+    setUiState((prev) => ({ ...prev, isSavingCaption: true }));
     try {
-      const { jobId, sourceMsgId, caption } = editState.editingItem;
-      await jobsApi.updateItemCaption(jobId, sourceMsgId, caption);
-      showFeedback(`Caption del mensaje #${sourceMsgId} actualizado`);
-      setDlqState((prev) => ({
-        ...prev,
-        items: prev.items.map((it) =>
-          it.job_id === jobId && it.source_message_id === sourceMsgId
-            ? { ...it, caption }
-            : it
-        ),
-      }));
-      setEditState({ editingItem: null, isSaving: false });
+      await jobsApi.updateItemCaption(
+        uiState.editingItem.jobId,
+        uiState.editingItem.sourceMsgId,
+        uiState.editingItem.caption
+      );
+      showFeedback(`Caption del mensaje #${uiState.editingItem.sourceMsgId} actualizado.`);
+      setUiState((prev) => ({ ...prev, editingItem: null, isSavingCaption: false }));
+      loadDlq();
     } catch (err: any) {
-      setEditState((prev) => ({ ...prev, isSaving: false }));
-      showFeedback(err.message || "Error al actualizar caption", true);
+      showFeedback(err.message, true);
+      setUiState((prev) => ({ ...prev, isSavingCaption: false }));
     }
   };
 
-  const allVisibleSelected =
-    dlqState.items.length > 0 &&
-    dlqState.items.every((it) => dlqState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)));
+  const handleBulkRetry = async () => {
+    const selectedItems = dataState.items
+      .filter((it) => uiState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)))
+      .map((it) => ({ job_id: it.job_id, source_message_id: it.source_message_id }));
+
+    if (selectedItems.length === 0) return;
+
+    setUiState((prev) => ({ ...prev, isBulkActing: true }));
+    try {
+      const res = await jobsApi.bulkRetryDLQ(selectedItems);
+      showFeedback(`Se re-encolaron ${res.retried_count} elementos exitosamente.`);
+      setUiState((prev) => ({ ...prev, selectedKeys: [], isBulkActing: false }));
+      loadDlq();
+    } catch (err: any) {
+      showFeedback(err.message || "Error en el reintento por lote", true);
+      setUiState((prev) => ({ ...prev, isBulkActing: false }));
+    }
+  };
+
+  const handleBulkSkip = async () => {
+    const selectedItems = dataState.items
+      .filter((it) => uiState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)))
+      .map((it) => ({ job_id: it.job_id, source_message_id: it.source_message_id }));
+
+    if (selectedItems.length === 0) return;
+
+    setUiState((prev) => ({ ...prev, isBulkActing: true }));
+    try {
+      const res = await jobsApi.bulkSkipDLQ(selectedItems);
+      showFeedback(`Se omitieron ${res.skipped_count} elementos.`);
+      setUiState((prev) => ({ ...prev, selectedKeys: [], isBulkActing: false }));
+      loadDlq();
+    } catch (err: any) {
+      showFeedback(err.message || "Error al omitir por lote", true);
+      setUiState((prev) => ({ ...prev, isBulkActing: false }));
+    }
+  };
+
+  // 1-Click Action by Filter
+  const handle1ClickRetryFilter = async () => {
+    setUiState((prev) => ({ ...prev, isBulkActing: true }));
+    try {
+      const res = await jobsApi.retryByFilterDLQ({
+        errorCategory: uiState.category,
+        mediaType: uiState.mediaType,
+        search: uiState.search,
+      });
+      showFeedback(`Acción 1-Clic: ${res.retried_count} errores reintentados exitosamente.`);
+      setUiState((prev) => ({ ...prev, isBulkActing: false }));
+      loadDlq();
+    } catch (err: any) {
+      showFeedback(err.message || "Error en reintento 1-clic", true);
+      setUiState((prev) => ({ ...prev, isBulkActing: false }));
+    }
+  };
+
+  const handle1ClickSkipFilter = async () => {
+    setUiState((prev) => ({ ...prev, isBulkActing: true }));
+    try {
+      const res = await jobsApi.skipByFilterDLQ({
+        errorCategory: uiState.category,
+        mediaType: uiState.mediaType,
+        search: uiState.search,
+      });
+      showFeedback(`Acción 1-Clic: ${res.skipped_count} errores omitidos.`);
+      setUiState((prev) => ({ ...prev, isBulkActing: false }));
+      loadDlq();
+    } catch (err: any) {
+      showFeedback(err.message || "Error al omitir por filtro", true);
+      setUiState((prev) => ({ ...prev, isBulkActing: false }));
+    }
+  };
+
+  const allVisibleKeys = dataState.items.map((it) => itemKey(it.job_id, it.source_message_id));
+  const isAllSelected = allVisibleKeys.length > 0 && allVisibleKeys.every((k) => uiState.selectedKeys.includes(k));
+  const selectedCount = uiState.selectedKeys.length;
+  const summary = dataState.summary;
+
+  const categoryPills: { id: ErrorCategory; label: string; count: number; color: string }[] = [
+    { id: "ALL", label: "Todos", count: summary?.total_failed ?? dataState.total, color: "text-foreground" },
+    { id: "FLOOD_WAIT", label: "FloodWait", count: summary?.by_category.FLOOD_WAIT ?? 0, color: "text-amber-500" },
+    { id: "TIMEOUT_NETWORK", label: "Network / Timeout", count: summary?.by_category.TIMEOUT_NETWORK ?? 0, color: "text-blue-500" },
+    { id: "PERMISSION_AUTH", label: "Permisos", count: summary?.by_category.PERMISSION_AUTH ?? 0, color: "text-rose-500" },
+    { id: "MEDIA_CORRUPT", label: "Multimedia / Codec", count: summary?.by_category.MEDIA_CORRUPT ?? 0, color: "text-purple-500" },
+    { id: "OTHER", label: "Otros", count: summary?.by_category.OTHER ?? 0, color: "text-muted-foreground" },
+  ];
 
   return (
-    <div className="bg-card border border-border rounded-md p-4 sm:p-5 space-y-4">
-      {/* Header Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
-            <AlertTriangle className="w-4 h-4" />
+    <div className="space-y-4">
+      {/* Top Banner & Refresh */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card/50">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shrink-0">
+            <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-foreground font-mono">
-                Dead-Letter Queue (DLQ)
-              </h3>
-              <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/30 text-[10px] font-mono">
-                {dlqState.total} {dlqState.total === 1 ? "fallo" : "fallos"}
+              <h2 className="text-sm font-semibold text-foreground">
+                Dead-Letter Queue (DLQ) &amp; Filtros de Recuperación
+              </h2>
+              <Badge variant="outline" className="font-mono text-[10px] text-rose-500 border-rose-500/30">
+                {dataState.total} fallos
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Inspección y recuperación granular de posts fallidos sin reiniciar los jobs completos.
+              Diagnostica fallos clasificados por causa raíz y recupera lotes en 1-clic.
             </p>
           </div>
         </div>
@@ -263,54 +306,158 @@ export const DeadLetterQueueCard: React.FC = () => {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => loadDlq(dlqState.page)}
-          disabled={dlqState.isLoading}
-          className="h-8 text-xs font-mono flex items-center gap-1.5 self-start sm:self-auto"
+          onClick={() => loadDlq(dataState.page)}
+          disabled={dataState.isLoading || uiState.isBulkActing}
+          className="text-xs flex items-center gap-1.5 h-8"
         >
-          <RefreshCw className={cn("w-3.5 h-3.5", dlqState.isLoading && "animate-spin")} />
-          <span>Actualizar</span>
+          <RefreshCw className={cn("w-3.5 h-3.5", dataState.isLoading && "animate-spin")} />
+          Actualizar
         </Button>
       </div>
 
-      {/* Bulk Action Contextual Toolbar */}
-      {dlqState.selectedKeys.length > 0 && (
-        <div className="p-2.5 rounded-lg bg-secondary/80 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2 text-xs animate-in fade-in duration-200">
-          <div className="flex items-center gap-2">
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 font-mono text-[10px] flex items-center gap-1">
-              <CheckSquare className="w-3 h-3" />
-              <span>{dlqState.selectedKeys.length} seleccionados</span>
-            </Badge>
-            <span className="text-muted-foreground text-[11px] hidden sm:inline">
-              Operación masiva sobre los errores marcados
-            </span>
+      {/* Semantic Category Filter Pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
+        {categoryPills.map((pill) => {
+          const isActive = uiState.category === pill.id;
+          return (
+            <button
+              key={pill.id}
+              onClick={() => setUiState((prev) => ({ ...prev, category: pill.id }))}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 shrink-0",
+                isActive
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm font-semibold"
+                  : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70"
+              )}
+            >
+              <span>{pill.label}</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  isActive ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-foreground"
+                )}
+              >
+                {pill.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filter & Search Bar + 1-Click Action Strip */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-xl border border-border bg-secondary/20">
+        <div className="flex items-center gap-2 flex-1">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-sm">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={uiState.search}
+              onChange={(e) => setUiState((prev) => ({ ...prev, search: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") loadDlq(1, uiState.category, uiState.mediaType, uiState.search);
+              }}
+              placeholder="Buscar por error, caption o ID..."
+              className="w-full text-xs pl-8 pr-7 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+            />
+            {uiState.search && (
+              <button
+                onClick={() => {
+                  setUiState((prev) => ({ ...prev, search: "" }));
+                  loadDlq(1, uiState.category, uiState.mediaType, "");
+                }}
+                className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Media Type Select */}
+          <select
+            value={uiState.mediaType}
+            onChange={(e) => setUiState((prev) => ({ ...prev, mediaType: e.target.value }))}
+            className="text-xs px-2.5 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="ALL">Todo Tipo de Media</option>
+            <option value="video">Solo Videos</option>
+            <option value="photo">Solo Fotos</option>
+            <option value="document">Solo Documentos</option>
+          </select>
+
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => loadDlq(1, uiState.category, uiState.mediaType, uiState.search)}
+            className="text-xs h-8 px-2.5"
+          >
+            Filtrar
+          </Button>
+        </div>
+
+        {/* 1-Click Action Buttons for Active Filter */}
+        {dataState.total > 0 && (
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               size="sm"
-              disabled={dlqState.isBulkActing}
-              onClick={handleBulkRetry}
-              className="h-7 text-xs font-mono gap-1.5 bg-amber-500 text-black font-semibold hover:bg-amber-400"
+              variant="default"
+              onClick={handle1ClickRetryFilter}
+              disabled={uiState.isBulkActing}
+              className="text-xs h-8 flex items-center gap-1.5 bg-primary text-primary-foreground shadow-sm"
+              title="Reintentar todos los elementos que coinciden con los filtros actuales"
             >
-              <RotateCcw className={cn("w-3.5 h-3.5", dlqState.isBulkActing && "animate-spin")} />
-              <span>Reintentar Seleccionados ({dlqState.selectedKeys.length})</span>
+              <Zap className="w-3.5 h-3.5 text-amber-300" />
+              Reintentar Filtro ({dataState.total})
             </Button>
             <Button
               size="sm"
               variant="outline"
-              disabled={dlqState.isBulkActing}
-              onClick={handleBulkSkip}
-              className="h-7 text-xs font-mono gap-1 text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
+              onClick={handle1ClickSkipFilter}
+              disabled={uiState.isBulkActing}
+              className="text-xs h-8 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border-rose-500/30"
+              title="Omitir todos los elementos que coinciden con los filtros actuales"
             >
               <XCircle className="w-3.5 h-3.5" />
-              <span>Omitir ({dlqState.selectedKeys.length})</span>
+              Omitir Filtro ({dataState.total})
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Manual Selection Floating Action Toolbar */}
+      {selectedCount > 0 && (
+        <div className="flex items-center justify-between p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs">
+          <div className="flex items-center gap-2">
+            <CheckSquare className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-foreground">
+              {selectedCount} {selectedCount === 1 ? "elemento seleccionado" : "elementos seleccionados"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleBulkRetry}
+              disabled={uiState.isBulkActing}
+              className="text-xs h-7 flex items-center gap-1.5 bg-primary text-primary-foreground"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reintentar ({selectedCount})
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleBulkSkip}
+              disabled={uiState.isBulkActing}
+              className="text-xs h-7 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 border-rose-500/30"
+            >
+              <XCircle className="w-3 h-3" />
+              Omitir ({selectedCount})
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              disabled={dlqState.isBulkActing}
-              onClick={() => setDlqState((prev) => ({ ...prev, selectedKeys: [] }))}
-              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setUiState((prev) => ({ ...prev, selectedKeys: [] }))}
+              className="text-xs h-7 text-muted-foreground hover:text-foreground"
             >
               Deseleccionar
             </Button>
@@ -318,135 +465,142 @@ export const DeadLetterQueueCard: React.FC = () => {
         </div>
       )}
 
-      {/* Feedback Banner */}
-      {dlqState.feedback && (
+      {/* Global Feedback Banner */}
+      {uiState.feedback && (
         <div
           className={cn(
-            "p-3 rounded-lg text-xs font-medium flex items-center gap-2",
-            dlqState.feedback.isError
-              ? "bg-rose-500/10 border border-rose-500/30 text-rose-400"
-              : "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+            "p-3 rounded-lg text-xs flex items-center gap-2 transition-all",
+            uiState.feedback.isError
+              ? "bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400"
+              : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
           )}
         >
-          {dlqState.feedback.isError ? (
+          {uiState.feedback.isError ? (
             <XCircle className="w-4 h-4 shrink-0" />
           ) : (
             <CheckCircle2 className="w-4 h-4 shrink-0" />
           )}
-          <span>{dlqState.feedback.message}</span>
+          <span>{uiState.feedback.message}</span>
         </div>
       )}
 
-      {/* DLQ Table */}
-      <div className="border border-border rounded-lg overflow-x-auto min-h-40">
-        {dlqState.isLoading ? (
-          <div className="p-8 text-center text-xs text-muted-foreground font-mono flex items-center justify-center gap-2">
+      {/* Main DLQ Table */}
+      <div className="border border-border rounded-xl overflow-hidden bg-card/40">
+        {dataState.isLoading ? (
+          <div className="p-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin text-primary" />
-            <span>Cargando elementos de la Dead-Letter Queue...</span>
+            Cargando elementos de la DLQ...
           </div>
-        ) : dlqState.items.length === 0 ? (
-          <div className="p-8 text-center text-xs text-muted-foreground space-y-2">
-            <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
-            <p className="font-semibold text-foreground">La Dead-Letter Queue está limpia.</p>
-            <p className="text-[11px]">No hay mensajes o videos con errores pendientes de resolución.</p>
+        ) : dataState.items.length === 0 ? (
+          <div className="p-10 text-center space-y-2">
+            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
+            <h3 className="text-xs font-semibold text-foreground">
+              No hay elementos fallidos con los filtros actuales
+            </h3>
+            <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+              Todos los mensajes se han migrado con éxito o han sido resueltos.
+            </p>
           </div>
         ) : (
-          <Table className="w-full text-xs">
-            <TableHeader className="bg-secondary/40 font-mono text-muted-foreground border-b border-border">
-              <TableRow className="border-b border-border hover:bg-transparent">
-                <TableHead className="py-2.5 px-3 w-8">
+          <Table>
+            <TableHeader className="bg-secondary/40">
+              <TableRow>
+                <TableHead className="w-10 text-center">
                   <input
                     type="checkbox"
-                    checked={allVisibleSelected}
+                    checked={isAllSelected}
                     onChange={handleSelectAllVisible}
                     aria-label="Seleccionar todos los visibles"
-                    className="w-3.5 h-3.5 rounded border-border bg-secondary cursor-pointer accent-primary"
+                    className="rounded border-border text-primary focus:ring-primary cursor-pointer"
                   />
                 </TableHead>
-                <TableHead className="py-2.5 px-3">Job ID</TableHead>
-                <TableHead className="py-2.5 px-3">Msg ID</TableHead>
-                <TableHead className="py-2.5 px-3">Tipo</TableHead>
-                <TableHead className="py-2.5 px-3">Reintentos</TableHead>
-                <TableHead className="py-2.5 px-3">Motivo del Fallo</TableHead>
-                <TableHead className="py-2.5 px-3">Texto / Caption</TableHead>
-                <TableHead className="py-2.5 px-3 text-right">Acciones Granulares</TableHead>
+                <TableHead className="w-20 font-mono text-[11px]">Msg ID</TableHead>
+                <TableHead className="w-24 font-mono text-[11px]">Tipo</TableHead>
+                <TableHead className="font-mono text-[11px]">Causa del Error</TableHead>
+                <TableHead className="w-20 font-mono text-[11px] text-center">Reintentos</TableHead>
+                <TableHead className="w-44 font-mono text-[11px] text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-border font-mono text-xs">
-              {dlqState.items.map((it) => {
-                const key = itemKey(it.job_id, it.source_message_id);
-                const isSelected = dlqState.selectedKeys.includes(key);
+            <TableBody>
+              {dataState.items.map((item) => {
+                const key = itemKey(item.job_id, item.source_message_id);
+                const isSelected = uiState.selectedKeys.includes(key);
+                const inProgress = uiState.actionInProgressId === item.source_message_id;
+
                 return (
                   <TableRow
                     key={key}
-                    className={cn("hover:bg-muted/40", isSelected && "bg-primary/5")}
+                    className={cn(
+                      "transition-colors text-xs",
+                      isSelected && "bg-primary/5 dark:bg-primary/10"
+                    )}
                   >
-                    <TableCell className="py-2 px-3 w-8">
+                    <TableCell className="text-center py-2.5">
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => handleToggleSelect(it.job_id, it.source_message_id)}
-                        aria-label={`Seleccionar mensaje #${it.source_message_id}`}
-                        className="w-3.5 h-3.5 rounded border-border bg-secondary cursor-pointer accent-primary"
+                        onChange={() => handleToggleSelect(item.job_id, item.source_message_id)}
+                        aria-label={`Seleccionar mensaje ${item.source_message_id}`}
+                        className="rounded border-border text-primary focus:ring-primary cursor-pointer"
                       />
                     </TableCell>
-                    <TableCell className="py-2 px-3 text-muted-foreground">
-                      #{it.job_id.slice(0, 8)}
+                    <TableCell className="font-mono text-foreground font-semibold py-2.5">
+                      #{item.source_message_id}
                     </TableCell>
-                    <TableCell className="py-2 px-3 font-bold text-foreground">
-                      #{it.source_message_id}
+                    <TableCell className="py-2.5">
+                      <Badge variant="outline" className="text-[10px] uppercase font-mono px-1.5 py-0">
+                        {item.media_type}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="py-2 px-3 uppercase text-[10px] text-muted-foreground">
-                      {it.media_type}
+                    <TableCell className="py-2.5 max-w-md">
+                      <div className="space-y-0.5">
+                        <span className="text-rose-500 dark:text-rose-400 font-mono text-[11px] block truncate" title={item.error_message || ""}>
+                          {item.error_message || "Error desconocido"}
+                        </span>
+                        {item.caption && (
+                          <span className="text-muted-foreground text-[10px] block truncate" title={item.caption}>
+                            Caption: {item.caption}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="py-2 px-3">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
-                        {it.retry_count} {it.retry_count === 1 ? "vez" : "veces"}
-                      </span>
+                    <TableCell className="text-center font-mono py-2.5">
+                      {item.retry_count}
                     </TableCell>
-                    <TableCell className="py-2 px-3 max-w-[220px]">
-                      <span className="text-rose-400 flex items-center gap-1 truncate" title={it.error_message || ""}>
-                        <ShieldAlert className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{it.error_message || "Error desconocido"}</span>
-                      </span>
-                    </TableCell>
-                    <TableCell className="py-2 px-3 max-w-[180px] font-sans text-muted-foreground truncate" title={it.caption}>
-                      {it.caption || "-"}
-                    </TableCell>
-                    <TableCell className="py-2 px-3 text-right space-x-1 whitespace-nowrap">
+                    <TableCell className="text-right py-2.5 space-x-1">
                       <Button
-                        variant="outline"
                         size="sm"
-                        disabled={dlqState.actionInProgressId === it.source_message_id || dlqState.isBulkActing}
-                        onClick={() => handleRetrySingle(it.job_id, it.source_message_id)}
-                        className="h-7 text-[11px] px-2 font-mono gap-1 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                      >
-                        <RotateCcw className={cn("w-3 h-3", dlqState.actionInProgressId === it.source_message_id && "animate-spin")} />
-                        <span>Reintentar</span>
-                      </Button>
-                      <Button
                         variant="ghost"
-                        size="sm"
-                        disabled={dlqState.isBulkActing}
                         onClick={() =>
-                          setEditState({
+                          setUiState((prev) => ({
+                            ...prev,
                             editingItem: {
-                              jobId: it.job_id,
-                              sourceMsgId: it.source_message_id,
-                              caption: it.caption || "",
+                              jobId: item.job_id,
+                              sourceMsgId: item.source_message_id,
+                              caption: item.caption,
                             },
-                            isSaving: false,
-                          })
+                          }))
                         }
                         className="h-7 text-[11px] px-2 text-muted-foreground hover:text-foreground"
                       >
-                        <Edit3 className="w-3 h-3" />
+                        <Edit3 className="w-3 h-3 mr-1" />
+                        Caption
                       </Button>
                       <Button
-                        variant="ghost"
                         size="sm"
-                        disabled={dlqState.actionInProgressId === it.source_message_id || dlqState.isBulkActing}
-                        onClick={() => handleSkipSingle(it.job_id, it.source_message_id)}
+                        variant="outline"
+                        onClick={() => handleSingleRetry(item.job_id, item.source_message_id)}
+                        disabled={inProgress}
+                        className="h-7 text-[11px] px-2"
+                      >
+                        <RotateCcw className={cn("w-3 h-3 mr-1", inProgress && "animate-spin")} />
+                        Reintentar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleSingleSkip(item.job_id, item.source_message_id)}
+                        disabled={inProgress}
                         className="h-7 text-[11px] px-2 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
                       >
                         Omitir
@@ -461,15 +615,15 @@ export const DeadLetterQueueCard: React.FC = () => {
       </div>
 
       {/* Edit Caption Modal */}
-      {editState.editingItem && (
+      {uiState.editingItem && (
         <Dialog
-          open={Boolean(editState.editingItem)}
-          onOpenChange={(open) => !open && setEditState({ editingItem: null, isSaving: false })}
+          open={Boolean(uiState.editingItem)}
+          onOpenChange={(open) => !open && setUiState((prev) => ({ ...prev, editingItem: null, isSavingCaption: false }))}
         >
           <DialogContent className="max-w-md bg-card border-border text-foreground p-4">
             <DialogHeader className="border-b border-border pb-2">
               <DialogTitle className="text-sm font-semibold font-mono">
-                Editar Caption del Mensaje #{editState.editingItem.sourceMsgId}
+                Editar Caption del Mensaje #{uiState.editingItem.sourceMsgId}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-3 pt-2">
@@ -478,9 +632,9 @@ export const DeadLetterQueueCard: React.FC = () => {
               </p>
               <textarea
                 rows={4}
-                value={editState.editingItem.caption}
+                value={uiState.editingItem.caption}
                 onChange={(e) =>
-                  setEditState((prev) => ({
+                  setUiState((prev) => ({
                     ...prev,
                     editingItem: prev.editingItem
                       ? { ...prev.editingItem, caption: e.target.value }
@@ -493,7 +647,7 @@ export const DeadLetterQueueCard: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setEditState({ editingItem: null, isSaving: false })}
+                  onClick={() => setUiState((prev) => ({ ...prev, editingItem: null, isSavingCaption: false }))}
                   className="h-8 text-xs"
                 >
                   Cancelar
@@ -501,10 +655,10 @@ export const DeadLetterQueueCard: React.FC = () => {
                 <Button
                   size="sm"
                   onClick={handleSaveCaption}
-                  disabled={editState.isSaving}
+                  disabled={uiState.isSavingCaption}
                   className="h-8 text-xs bg-primary text-primary-foreground"
                 >
-                  {editState.isSaving ? "Guardando..." : "Guardar Caption"}
+                  {uiState.isSavingCaption ? "Guardando..." : "Guardar Caption"}
                 </Button>
               </div>
             </div>

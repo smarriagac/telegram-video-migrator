@@ -181,6 +181,19 @@ class DeadLetterQueueResponse(BaseModel):
     offset: int
 
 
+class DLQSummaryResponse(BaseModel):
+    total_failed: int
+    by_category: dict[str, int]
+    by_media_type: dict[str, int]
+
+
+class FilterBatchActionRequest(BaseModel):
+    error_category: str | None = None
+    media_type: str | None = None
+    job_id: str | None = None
+    search: str | None = None
+
+
 class UpdateQueueItemCaptionRequest(BaseModel):
     caption: str
 
@@ -306,10 +319,20 @@ async def list_dead_letter_queue(
     limit: int = 50,
     offset: int = 0,
     job_id: str | None = None,
+    error_category: str | None = None,
+    media_type: str | None = None,
+    search: str | None = None,
     repo: JobRepositoryPort = Depends(get_job_repository),
 ) -> DeadLetterQueueResponse:
-    """List failed queue items (Dead-Letter Queue) across all migration jobs."""
-    items, total = await repo.list_dead_letter_items(limit=limit, offset=offset, job_id=job_id)
+    """List failed queue items (Dead-Letter Queue) across all migration jobs with optional category and search filters."""
+    items, total = await repo.list_dead_letter_items(
+        limit=limit,
+        offset=offset,
+        job_id=job_id,
+        error_category=error_category,
+        media_type=media_type,
+        search=search,
+    )
     return DeadLetterQueueResponse(
         items=[
             QueueItemResponse(
@@ -330,6 +353,66 @@ async def list_dead_letter_queue(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/dlq/summary", response_model=DLQSummaryResponse)
+async def get_dead_letter_summary(
+    job_id: str | None = None,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> DLQSummaryResponse:
+    """Get aggregated counts of DLQ failures grouped by error category and media type."""
+    data = await repo.get_dead_letter_summary(job_id=job_id)
+    return DLQSummaryResponse(**data)
+
+
+@router.post("/dlq/retry-by-filter")
+async def retry_dead_letter_items_by_filter(
+    payload: FilterBatchActionRequest,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+) -> dict[str, Any]:
+    """1-Click batch retry all failed queue items matching an error category or search filter."""
+    retried_count, affected_jobs = await repo.retry_filtered_queue_items(
+        error_category=payload.error_category,
+        media_type=payload.media_type,
+        job_id=payload.job_id,
+        search=payload.search,
+    )
+
+    resumed_jobs = []
+    for jid in affected_jobs:
+        job = await repo.get_job(jid)
+        if job and job.status != JobStatus.RUNNING:
+            await repo.set_job_status(jid, JobStatus.RUNNING)
+            _dispatch_worker(jid, use_case, repo, broadcaster)
+            resumed_jobs.append(jid)
+
+    return {
+        "success": True,
+        "retried_count": retried_count,
+        "resumed_jobs": resumed_jobs,
+        "filter": payload.model_dump(),
+    }
+
+
+@router.post("/dlq/skip-by-filter")
+async def skip_dead_letter_items_by_filter(
+    payload: FilterBatchActionRequest,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> dict[str, Any]:
+    """1-Click batch skip all failed queue items matching an error category or search filter."""
+    skipped_count = await repo.skip_filtered_queue_items(
+        error_category=payload.error_category,
+        media_type=payload.media_type,
+        job_id=payload.job_id,
+        search=payload.search,
+    )
+    return {
+        "success": True,
+        "skipped_count": skipped_count,
+        "filter": payload.model_dump(),
+    }
 
 
 @router.post("/dlq/bulk-retry")
