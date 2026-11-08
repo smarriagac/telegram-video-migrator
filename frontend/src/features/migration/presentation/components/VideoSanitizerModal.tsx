@@ -41,6 +41,7 @@ interface FormState {
   sliceStories: boolean;
   burnSubtitles: boolean;
   subtitleStyle: "KINETIC_YELLOW" | "CLASSIC_WHITE" | "BOXED_BLACK";
+  generateThumbnail: boolean;
   customBox: { x: number; y: number; w: number; h: number };
   normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
@@ -84,6 +85,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       sliceStories: false,
       burnSubtitles: false,
       subtitleStyle: "KINETIC_YELLOW",
+      generateThumbnail: true,
       customBox: { x: 200, y: 300, w: 400, h: 200 },
       normalizedBox: null,
       caption: message?.text || "",
@@ -196,6 +198,9 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       if (formState.burnSubtitles) {
         filterParams.burn_subtitles = true;
         filterParams.subtitle_style = formState.subtitleStyle;
+      }
+      if (formState.generateThumbnail) {
+        filterParams.generate_thumbnail = true;
       }
       if (formState.preset === "dynamic") {
         filterParams.dynamic_delogo = true;
@@ -726,6 +731,29 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Smart Poster Frame Thumbnail Option */}
+          <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-foreground">
+                Portada Nítida (Anti-cuadro negro):
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Extrae un fotograma clave del video para el preview de Telegram
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFormState((prev) => ({ ...prev, generateThumbnail: !prev.generateThumbnail }))}
+              className={`text-[10px] font-mono px-2.5 py-1 rounded transition-colors cursor-pointer border ${
+                formState.generateThumbnail
+                  ? "bg-emerald-500 text-black font-semibold border-emerald-400"
+                  : "bg-secondary text-muted-foreground border-border hover:bg-secondary/70"
+              }`}
+            >
+              {formState.generateThumbnail ? "ACTIVADO" : "DESACTIVADO"}
+            </button>
           </div>
 
           {/* Optional Caption */}

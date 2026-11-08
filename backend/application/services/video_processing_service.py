@@ -607,6 +607,16 @@ class VideoProcessingService:
             except Exception:
                 target_entity = await client.get_entity(target_channel_id)
 
+            # Generate smart poster frame thumbnail for video to prevent black-screen previews
+            thumb_path: str | None = None
+            if not is_image:
+                try:
+                    from backend.application.services.thumbnail_engine import ThumbnailEngine
+                    thumb_candidate = os.path.join(tmp_dir, "video_thumb.jpg")
+                    thumb_path = await ThumbnailEngine.extract_poster_frame(output_path, thumb_candidate)
+                except Exception as t_err:
+                    logger.warning(f"VideoProcessing: Could not extract thumbnail: {t_err}")
+
             # Check if story 60s slicing is requested
             if not is_image and filter_params.get("slice_stories"):
                 from backend.application.services.story_slicer_engine import StorySlicerEngine
@@ -624,6 +634,7 @@ class VideoProcessingService:
                         file=[s.file_path for s in segments],
                         caption=caption,
                         supports_streaming=True,
+                        thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
                     )
                     sent_msg_id = getattr(sent_msgs[0] if isinstance(sent_msgs, list) else sent_msgs, "id", None)
                     await self._update_job_status(job_id, "COMPLETED", 100.0, target_message_id=sent_msg_id)
@@ -635,6 +646,7 @@ class VideoProcessingService:
                 file=output_path,
                 caption=caption,
                 supports_streaming=not is_image,
+                thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
             )
             sent_msg_id = getattr(sent_msg, "id", None)
 

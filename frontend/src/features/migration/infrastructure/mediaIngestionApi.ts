@@ -33,6 +33,7 @@ export interface StageIngestionPayload {
   max_slice_seconds?: number;
   burn_subtitles?: boolean;
   subtitle_style?: "KINETIC_YELLOW" | "CLASSIC_WHITE" | "BOXED_BLACK" | string;
+  generate_thumbnail?: boolean;
 }
 
 export interface IngestionResponse {

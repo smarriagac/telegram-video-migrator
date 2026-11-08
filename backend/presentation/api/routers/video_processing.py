@@ -81,6 +81,44 @@ class SubtitlesPreviewRequest(BaseModel):
     margin_v: int = 80
 
 
+class ThumbnailPreviewRequest(BaseModel):
+    duration_s: float = 60.0
+    candidate_count: int = 4
+    max_dim: int = 320
+
+
+@router.post("/thumbnail-preview")
+async def generate_thumbnail_preview_endpoint(
+    payload: ThumbnailPreviewRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Generates candidate timestamp intervals and recommended poster seek times for video preview."""
+    step = 1.0 / (payload.candidate_count + 1)
+    percentages = [round(step * (i + 1), 2) for i in range(payload.candidate_count)]
+    candidates = [
+        {
+            "index": i + 1,
+            "percent": int(pct * 100),
+            "timestamp_s": round(payload.duration_s * pct, 2),
+            "label": f"Fotograma {int(pct * 100)}% ({round(payload.duration_s * pct, 1)}s)",
+        }
+        for i, pct in enumerate(percentages)
+    ]
+    recommended_pct = 0.25
+    recommended_time = (
+        max(0.5, min(payload.duration_s * recommended_pct, payload.duration_s - 0.5))
+        if payload.duration_s > 1.0
+        else 0.0
+    )
+    return {
+        "success": True,
+        "duration_s": payload.duration_s,
+        "recommended_timestamp_s": round(recommended_time, 2),
+        "max_dim": payload.max_dim,
+        "candidates": candidates,
+    }
+
+
 @router.post("/subtitles-preview")
 async def generate_subtitles_preview_endpoint(
     payload: SubtitlesPreviewRequest,

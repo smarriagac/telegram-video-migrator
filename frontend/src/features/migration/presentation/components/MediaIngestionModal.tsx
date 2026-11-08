@@ -12,6 +12,7 @@ import {
   Clock,
   User as UserIcon,
   Scissors,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -51,6 +52,7 @@ interface IngestionModalState {
   sliceDispatchMode: "ALBUM" | "SEQUENTIAL";
   burnSubtitles: boolean;
   subtitleStyle: "KINETIC_YELLOW" | "CLASSIC_WHITE" | "BOXED_BLACK";
+  generateThumbnail: boolean;
   isInspecting: boolean;
   isSubmitting: boolean;
   metadata: IngestionMetadata | null;
@@ -89,6 +91,7 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
       sliceDispatchMode: "ALBUM",
       burnSubtitles: false,
       subtitleStyle: "KINETIC_YELLOW",
+      generateThumbnail: true,
       isInspecting: false,
       isSubmitting: false,
       metadata: null,
@@ -177,6 +180,7 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
         slice_dispatch_mode: state.sliceDispatchMode,
         burn_subtitles: state.burnSubtitles,
         subtitle_style: state.subtitleStyle,
+        generate_thumbnail: state.generateThumbnail,
       });
 
       setState((prev) => ({
@@ -523,6 +527,30 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Smart Poster Frame Thumbnail Option */}
+          <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+                Portada Nítida (Anti-cuadro negro):
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Extrae un fotograma clave del video para el preview de Telegram
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setState((prev) => ({ ...prev, generateThumbnail: !prev.generateThumbnail }))}
+              className={`text-[10px] font-mono px-2 py-0.5 rounded transition-colors cursor-pointer border ${
+                state.generateThumbnail
+                  ? "bg-emerald-500 text-black font-semibold border-emerald-400"
+                  : "bg-secondary text-muted-foreground border-border"
+              }`}
+            >
+              {state.generateThumbnail ? "ACTIVADO" : "DESACTIVADO"}
+            </button>
           </div>
 
           {/* Branding overlay */}

@@ -229,8 +229,9 @@ class MediaIngestionService:
         max_slice_seconds: float = 60.0,
         burn_subtitles: bool = False,
         subtitle_style: str = "KINETIC_YELLOW",
+        generate_thumbnail: bool = True,
     ) -> dict[str, Any]:
-        """Executes complete ingestion pipeline: download, optional 9:16 transcode, subtitles, 60s slicing, and posting."""
+        """Executes complete ingestion pipeline: download, optional 9:16 transcode, subtitles, 60s slicing, thumbnails, and posting."""
         tmp_dir = tempfile.mkdtemp(prefix="ingest_")
         try:
             # 1. Download source media
@@ -309,6 +310,16 @@ class MediaIngestionService:
             except Exception:
                 target_entity = await client.get_entity(target_channel_id)
 
+            # 5.5. Generate poster thumbnail to prevent black frame preview in Telegram
+            thumb_path: str | None = None
+            if generate_thumbnail:
+                try:
+                    from backend.application.services.thumbnail_engine import ThumbnailEngine
+                    thumb_candidate = os.path.join(tmp_dir, "ingest_poster_thumb.jpg")
+                    thumb_path = await ThumbnailEngine.extract_poster_frame(media_to_upload, thumb_candidate)
+                except Exception as th_err:
+                    logger.warning(f"Failed to generate thumbnail for ingestion: {th_err}")
+
             # 6. Upload / Stage
             has_multiple_slices = len(segments) > 1
 
@@ -321,6 +332,7 @@ class MediaIngestionService:
                         file=file_list,
                         caption=caption,
                         supports_streaming=True,
+                        thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
                     )
                     sent_ids = [getattr(m, "id", None) for m in sent_msgs] if isinstance(sent_msgs, list) else [getattr(sent_msgs, "id", None)]
                     return {
@@ -335,6 +347,7 @@ class MediaIngestionService:
                         "aspect_ratio_mode": aspect_ratio_mode,
                         "burn_subtitles": burn_subtitles,
                         "subtitle_style": subtitle_style,
+                        "thumbnail_generated": bool(thumb_path),
                     }
                 elif has_multiple_slices:
                     # Sequential dispatch with part-labeled captions
@@ -345,6 +358,7 @@ class MediaIngestionService:
                             file=seg.file_path,
                             caption=seg.caption,
                             supports_streaming=True,
+                            thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
                         )
                         sent_ids.append(getattr(s_msg, "id", None))
                         await asyncio.sleep(0.5)
@@ -361,6 +375,7 @@ class MediaIngestionService:
                         "aspect_ratio_mode": aspect_ratio_mode,
                         "burn_subtitles": burn_subtitles,
                         "subtitle_style": subtitle_style,
+                        "thumbnail_generated": bool(thumb_path),
                     }
                 else:
                     # Single video upload
@@ -369,6 +384,7 @@ class MediaIngestionService:
                         file=media_to_upload,
                         caption=caption,
                         supports_streaming=True,
+                        thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
                     )
                     sent_msg_id = getattr(sent_msg, "id", None)
                     return {
@@ -381,6 +397,7 @@ class MediaIngestionService:
                         "aspect_ratio_mode": aspect_ratio_mode,
                         "burn_subtitles": burn_subtitles,
                         "subtitle_style": subtitle_style,
+                        "thumbnail_generated": bool(thumb_path),
                     }
 
             elif mode.upper() == "RESERVOIR":
@@ -392,6 +409,7 @@ class MediaIngestionService:
                             file=seg.file_path,
                             caption=seg.caption,
                             supports_streaming=True,
+                            thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
                         )
                         sent_ids.append(getattr(s_msg, "id", None))
                         await asyncio.sleep(0.5)
@@ -408,6 +426,7 @@ class MediaIngestionService:
                         "aspect_ratio_mode": aspect_ratio_mode,
                         "burn_subtitles": burn_subtitles,
                         "subtitle_style": subtitle_style,
+                        "thumbnail_generated": bool(thumb_path),
                     }
                 else:
                     sent_msg = await client.send_file(
@@ -415,6 +434,7 @@ class MediaIngestionService:
                         file=media_to_upload,
                         caption=caption,
                         supports_streaming=True,
+                        thumb=thumb_path if thumb_path and os.path.exists(thumb_path) else None,
                     )
                     sent_msg_id = getattr(sent_msg, "id", None)
                     return {
@@ -427,6 +447,7 @@ class MediaIngestionService:
                         "aspect_ratio_mode": aspect_ratio_mode,
                         "burn_subtitles": burn_subtitles,
                         "subtitle_style": subtitle_style,
+                        "thumbnail_generated": bool(thumb_path),
                     }
             else:
                 raise ValueError(f"Unknown ingestion mode: {mode}")

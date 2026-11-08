@@ -34,6 +34,7 @@ class StageIngestionRequest(BaseModel):
     max_slice_seconds: float = 60.0
     burn_subtitles: bool = False
     subtitle_style: str = "KINETIC_YELLOW"  # "KINETIC_YELLOW", "CLASSIC_WHITE", "BOXED_BLACK"
+    generate_thumbnail: bool = True
 
 
 @router.post("/inspect")
@@ -81,6 +82,7 @@ async def stage_ingestion(
             max_slice_seconds=payload.max_slice_seconds,
             burn_subtitles=payload.burn_subtitles,
             subtitle_style=payload.subtitle_style,
+            generate_thumbnail=payload.generate_thumbnail,
         )
         return result
     except Exception as e:
