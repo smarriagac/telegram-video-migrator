@@ -25,11 +25,13 @@ class LiveSyncService:
         client_pool: TelegramClientPool,
         migration_use_case: CloneChannelVideosUseCase,
         broadcaster: EventBroadcaster,
+        alerting_service: Any | None = None,
     ) -> None:
         self.repo = job_repository
         self.pool = client_pool
         self.use_case = migration_use_case
         self.broadcaster = broadcaster
+        self.alerting_service = alerting_service
 
         self._bindings: dict[int, list[ChannelSyncBinding]] = {}
         self._queue: asyncio.Queue[tuple[ChannelSyncBinding, int, str, str]] = asyncio.Queue()
@@ -126,6 +128,19 @@ class LiveSyncService:
                     await self.reload_bindings()
                 except Exception as save_err:
                     logger.warning(f"Could not persist revoked binding status: {save_err}")
+
+                if self.alerting_service and hasattr(self.alerting_service, "notify_channel_eviction"):
+                    try:
+                        asyncio.create_task(
+                            self.alerting_service.notify_channel_eviction(
+                                source_title=binding.source_channel_title,
+                                source_channel_id=binding.source_channel_id,
+                                account_id=binding.source_account_id,
+                                error_details=str(e),
+                            )
+                        )
+                    except Exception as ae:
+                        logger.debug(f"LiveSync: Alerting suppressed: {ae}")
             else:
                 logger.warning(
                     f"LiveSync: Catch-up delta failed for {binding.source_channel_id} -> {binding.target_channel_id}: {e}"
@@ -169,6 +184,20 @@ class LiveSyncService:
                 binding.last_error = "Acceso revocado: Fuiste expulsado de este grupo en Telegram."
                 await self.repo.save_sync_binding(binding)
                 await self.reload_bindings()
+
+                if self.alerting_service and hasattr(self.alerting_service, "notify_channel_eviction"):
+                    try:
+                        asyncio.create_task(
+                            self.alerting_service.notify_channel_eviction(
+                                source_title=binding.source_channel_title,
+                                source_channel_id=binding.source_channel_id,
+                                account_id=binding.source_account_id,
+                                error_details=str(e),
+                            )
+                        )
+                    except Exception as ae:
+                        logger.debug(f"LiveSync: Alerting suppressed: {ae}")
+
                 return {"status": "ACCESS_REVOKED", "message": binding.last_error}
 
             return {"status": "ERROR", "message": str(e)}

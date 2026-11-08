@@ -259,11 +259,13 @@ async def get_live_sync_service():
         pool = await get_telegram_client_pool()
         use_case = await get_migration_use_case()
         bc = await get_broadcaster()
+        alerting = await get_alerting_service()
         _live_sync_service = LiveSyncService(
             job_repository=repo,
             client_pool=pool,
             migration_use_case=use_case,
             broadcaster=bc,
+            alerting_service=alerting,
         )
     return _live_sync_service
 
@@ -307,7 +309,8 @@ async def get_alerting_service():
     if _alerting_service_instance is None:
         from backend.application.services.alerting_service import AlertingService
         gateway = await get_telegram_gateway()
-        _alerting_service_instance = AlertingService(gateway=gateway)
+        pg_repo = await get_postgres_repository()
+        _alerting_service_instance = AlertingService(gateway=gateway, pg_repo=pg_repo)
     return _alerting_service_instance
 
 
@@ -321,11 +324,13 @@ async def get_broadcast_scheduler_service():
         gateway = await get_telegram_gateway()
         bc = await get_broadcaster()
         audit_repo = await get_audit_repository()
+        alerting = await get_alerting_service()
         _broadcast_scheduler_instance = BroadcastSchedulerService(
             job_repo=repo,
             telegram_gateway=gateway,
             broadcaster=bc,
             audit_repo=audit_repo,
+            alerting_service=alerting,
             poll_interval=10.0,
         )
     return _broadcast_scheduler_instance

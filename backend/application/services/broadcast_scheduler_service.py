@@ -24,12 +24,14 @@ class BroadcastSchedulerService:
         telegram_gateway: TelegramGatewayPort,
         broadcaster: EventBroadcaster | None = None,
         audit_repo: AuditRepositoryPort | None = None,
+        alerting_service: Any | None = None,
         poll_interval: float = 10.0,
     ) -> None:
         self.job_repo = job_repo
         self.gateway = telegram_gateway
         self.broadcaster = broadcaster
         self.audit_repo = audit_repo
+        self.alerting_service = alerting_service
         self.poll_interval = poll_interval
         self._task: asyncio.Task | None = None
         self._running = False
@@ -141,6 +143,19 @@ class BroadcastSchedulerService:
                 except Exception as ex:
                     logger.error(f"Failed to execute scheduled broadcast {item.id}: {ex}", exc_info=True)
                     item.last_error = str(ex)
+
+                    if self.alerting_service and hasattr(self.alerting_service, "notify_broadcast_failure"):
+                        try:
+                            asyncio.create_task(
+                                self.alerting_service.notify_broadcast_failure(
+                                    campaign_name=item.name,
+                                    campaign_id=item.id,
+                                    target_count=len(item.target_ids),
+                                    error_details=str(ex),
+                                )
+                            )
+                        except Exception as ae:
+                            logger.debug(f"Broadcast: Alerting suppressed: {ae}")
 
                 # Compute next schedule or mark completed
                 if item.recurrence == "ONCE":
