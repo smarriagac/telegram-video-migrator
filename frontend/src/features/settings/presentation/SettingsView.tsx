@@ -24,6 +24,7 @@ import { BackupManagerCard } from "./components/BackupManagerCard";
 import { WebhookManagerCard } from "./components/WebhookManagerCard";
 import { RateGovernorCard } from "./components/RateGovernorCard";
 import { SystemDoctorCard } from "./components/SystemDoctorCard";
+import { ObservabilityCard } from "./components/ObservabilityCard";
 import {
   Table,
   TableHeader,
@@ -49,8 +50,8 @@ import { cn } from "@/shared/lib/utils";
 
 export const SettingsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: Active tab navigation between Credentials, Users, Alerts, Backups, Rate Governor and System Doctor
-  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts" | "backups" | "governor" | "doctor">("credentials");
+  // Hook 1: Active tab navigation between Credentials, Users, Alerts, Backups, Rate Governor, System Doctor and Observability
+  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts" | "backups" | "governor" | "doctor" | "observability">("credentials");
   // Hook 2: Consolidated local UI, alerts configuration and temporary action feedback banner
   const [localState, setLocalState] = useState<{
     feedback: { message: string; isError?: boolean } | null;
@@ -378,6 +379,18 @@ export const SettingsView: React.FC = () => {
             >
               <Stethoscope className="w-3.5 h-3.5" />
               Doctor del Sistema
+            </button>
+            <button
+              onClick={() => setActiveTab("observability")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                activeTab === "observability"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
+              )}
+            >
+              <Activity className="w-3.5 h-3.5 text-orange-400" />
+              Observabilidad (Prometheus)
             </button>
           </div>
         )}
@@ -924,6 +937,11 @@ export const SettingsView: React.FC = () => {
       {/* TAB 6: System Doctor & Deep Diagnostics */}
       {activeTab === "doctor" && user?.role === "ADMIN" && (
         <SystemDoctorCard />
+      )}
+
+      {/* TAB 7: Enterprise Observability & Prometheus Exporter */}
+      {activeTab === "observability" && user?.role === "ADMIN" && (
+        <ObservabilityCard />
       )}
 
       {/* Confirmation Dialog (replaces browser window.confirm) */}

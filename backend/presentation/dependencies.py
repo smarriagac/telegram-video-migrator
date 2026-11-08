@@ -462,6 +462,26 @@ async def get_webhook_retry_engine():
     return _webhook_retry_engine_instance
 
 
+_observability_service_instance = None
+
+
+async def get_observability_service():
+    global _observability_service_instance
+    if _observability_service_instance is None:
+        from backend.application.services.observability_service import ObservabilityService
+        job_repo = await get_job_repository()
+        client_pool = await get_telegram_client_pool()
+        rate_gov = get_rate_governor()
+        alerting_svc = await get_alerting_service()
+        _observability_service_instance = ObservabilityService(
+            job_repository=job_repo,
+            client_pool=client_pool,
+            rate_governor=rate_gov,
+            alerting_service=alerting_svc,
+        )
+    return _observability_service_instance
+
+
 
 
 
