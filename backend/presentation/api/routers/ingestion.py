@@ -32,6 +32,8 @@ class StageIngestionRequest(BaseModel):
     slice_stories: bool = False
     slice_dispatch_mode: str = "ALBUM"  # "ALBUM" or "SEQUENTIAL"
     max_slice_seconds: float = 60.0
+    burn_subtitles: bool = False
+    subtitle_style: str = "KINETIC_YELLOW"  # "KINETIC_YELLOW", "CLASSIC_WHITE", "BOXED_BLACK"
 
 
 @router.post("/inspect")
@@ -77,6 +79,8 @@ async def stage_ingestion(
             slice_stories=payload.slice_stories,
             slice_dispatch_mode=payload.slice_dispatch_mode,
             max_slice_seconds=payload.max_slice_seconds,
+            burn_subtitles=payload.burn_subtitles,
+            subtitle_style=payload.subtitle_style,
         )
         return result
     except Exception as e:

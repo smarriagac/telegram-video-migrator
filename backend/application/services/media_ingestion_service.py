@@ -227,8 +227,10 @@ class MediaIngestionService:
         slice_stories: bool = False,
         slice_dispatch_mode: str = "ALBUM",  # "ALBUM" or "SEQUENTIAL"
         max_slice_seconds: float = 60.0,
+        burn_subtitles: bool = False,
+        subtitle_style: str = "KINETIC_YELLOW",
     ) -> dict[str, Any]:
-        """Executes complete ingestion pipeline: download, optional 9:16 transcode, 60s slicing, and posting."""
+        """Executes complete ingestion pipeline: download, optional 9:16 transcode, subtitles, 60s slicing, and posting."""
         tmp_dir = tempfile.mkdtemp(prefix="ingest_")
         try:
             # 1. Download source media
@@ -251,6 +253,23 @@ class MediaIngestionService:
                 orig_title = meta.get("title", "")
                 platform = meta.get("platform", "web")
                 caption = f"{orig_title}\n\n#{platform}"
+
+            # 3.5. Burn kinetic subtitles if requested
+            if burn_subtitles:
+                from backend.application.services.subtitle_engine import SubtitleEngine
+                srt_path = os.path.join(tmp_dir, "ingest_subs.srt")
+                await SubtitleEngine.generate_subtitles(
+                    video_path=media_to_upload,
+                    output_srt_path=srt_path,
+                    caption_hint=caption,
+                )
+                burned_output = os.path.join(tmp_dir, "media_with_subtitles.mp4")
+                media_to_upload = await SubtitleEngine.burn_subtitles_to_video(
+                    input_path=media_to_upload,
+                    output_path=burned_output,
+                    srt_path=srt_path,
+                    style=subtitle_style,
+                )
 
             # 4. 60-Second Story Slicing if requested or if duration exceeds limit
             segments: list[StorySegment] = []
@@ -314,6 +333,8 @@ class MediaIngestionService:
                         "segments_count": len(segments),
                         "meta": meta,
                         "aspect_ratio_mode": aspect_ratio_mode,
+                        "burn_subtitles": burn_subtitles,
+                        "subtitle_style": subtitle_style,
                     }
                 elif has_multiple_slices:
                     # Sequential dispatch with part-labeled captions
@@ -338,6 +359,8 @@ class MediaIngestionService:
                         "segments_count": len(segments),
                         "meta": meta,
                         "aspect_ratio_mode": aspect_ratio_mode,
+                        "burn_subtitles": burn_subtitles,
+                        "subtitle_style": subtitle_style,
                     }
                 else:
                     # Single video upload
@@ -356,6 +379,8 @@ class MediaIngestionService:
                         "message_id": sent_msg_id,
                         "meta": meta,
                         "aspect_ratio_mode": aspect_ratio_mode,
+                        "burn_subtitles": burn_subtitles,
+                        "subtitle_style": subtitle_style,
                     }
 
             elif mode.upper() == "RESERVOIR":
@@ -381,6 +406,8 @@ class MediaIngestionService:
                         "segments_count": len(segments),
                         "meta": meta,
                         "aspect_ratio_mode": aspect_ratio_mode,
+                        "burn_subtitles": burn_subtitles,
+                        "subtitle_style": subtitle_style,
                     }
                 else:
                     sent_msg = await client.send_file(
@@ -398,6 +425,8 @@ class MediaIngestionService:
                         "campaign_id": campaign_id,
                         "meta": meta,
                         "aspect_ratio_mode": aspect_ratio_mode,
+                        "burn_subtitles": burn_subtitles,
+                        "subtitle_style": subtitle_style,
                     }
             else:
                 raise ValueError(f"Unknown ingestion mode: {mode}")

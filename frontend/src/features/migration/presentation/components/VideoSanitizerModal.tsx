@@ -39,6 +39,8 @@ interface FormState {
   resolutionPreset: "AUTO_MOBILE" | "H265_720P" | "H265_1080P" | "ORIGINAL" | "1080p" | "720p" | "480p" | string;
   aspectRatioMode: "ORIGINAL" | "9:16_BLUR" | "9:16_CROP";
   sliceStories: boolean;
+  burnSubtitles: boolean;
+  subtitleStyle: "KINETIC_YELLOW" | "CLASSIC_WHITE" | "BOXED_BLACK";
   customBox: { x: number; y: number; w: number; h: number };
   normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
@@ -80,6 +82,8 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       resolutionPreset: "ORIGINAL",
       aspectRatioMode: "ORIGINAL",
       sliceStories: false,
+      burnSubtitles: false,
+      subtitleStyle: "KINETIC_YELLOW",
       customBox: { x: 200, y: 300, w: 400, h: 200 },
       normalizedBox: null,
       caption: message?.text || "",
@@ -188,6 +192,10 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       }
       if (formState.sliceStories) {
         filterParams.slice_stories = true;
+      }
+      if (formState.burnSubtitles) {
+        filterParams.burn_subtitles = true;
+        filterParams.subtitle_style = formState.subtitleStyle;
       }
       if (formState.preset === "dynamic") {
         filterParams.dynamic_delogo = true;
@@ -668,6 +676,56 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
             >
               {formState.sliceStories ? "ACTIVADO" : "DESACTIVADO"}
             </button>
+          </div>
+
+          {/* AI Subtitles Burn-in Option */}
+          <div className="p-2.5 rounded-lg border border-border bg-secondary/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-semibold text-foreground">
+                  Subtítulos Cinéticos (Auto Burn-in):
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Incrusta subtítulos de alto impacto para videos vistos en silencio
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormState((prev) => ({ ...prev, burnSubtitles: !prev.burnSubtitles }))}
+                className={`text-[10px] font-mono px-2.5 py-1 rounded transition-colors cursor-pointer border ${
+                  formState.burnSubtitles
+                    ? "bg-yellow-500 text-black font-semibold border-yellow-400"
+                    : "bg-secondary text-muted-foreground border-border hover:bg-secondary/70"
+                }`}
+              >
+                {formState.burnSubtitles ? "ACTIVADO" : "DESACTIVADO"}
+              </button>
+            </div>
+
+            {formState.burnSubtitles && (
+              <div className="grid grid-cols-3 gap-1.5 pt-1">
+                {(
+                  [
+                    { id: "KINETIC_YELLOW", label: "Amarillo Reel" },
+                    { id: "CLASSIC_WHITE", label: "Blanco Clásico" },
+                    { id: "BOXED_BLACK", label: "Caja Oscura" },
+                  ] as const
+                ).map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, subtitleStyle: st.id }))}
+                    className={`py-1 px-1.5 rounded text-[10px] font-mono border transition-colors ${
+                      formState.subtitleStyle === st.id
+                        ? "border-yellow-400 bg-yellow-500/10 text-foreground font-semibold"
+                        : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Optional Caption */}

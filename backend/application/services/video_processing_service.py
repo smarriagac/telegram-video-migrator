@@ -534,6 +534,36 @@ class VideoProcessingService:
                 else:
                     combined_filter = []
 
+            # Append kinetic subtitles filter if requested
+            if not is_image and filter_params.get("burn_subtitles"):
+                from backend.application.services.subtitle_engine import SubtitleEngine
+                srt_path = os.path.join(tmp_dir, "job_subs.srt")
+                sub_hint = caption or ""
+                await SubtitleEngine.generate_subtitles(
+                    video_path=downloaded,
+                    output_srt_path=srt_path,
+                    caption_hint=sub_hint,
+                    duration_s=probe.duration,
+                )
+                sub_style = filter_params.get("subtitle_style", "KINETIC_YELLOW")
+                sub_filter_str = SubtitleEngine.build_subtitles_filter(
+                    srt_path=srt_path,
+                    style=sub_style,
+                )
+
+                if combined_filter:
+                    if combined_filter[0] == "-vf":
+                        combined_filter = ["-vf", f"{combined_filter[1]},{sub_filter_str}"]
+                    elif combined_filter[0] == "-filter_complex":
+                        fc_val = combined_filter[1]
+                        if "[outv]" in fc_val:
+                            fc_val = fc_val.replace("[outv]", f"[v_pre];[v_pre]{sub_filter_str}[outv]")
+                        else:
+                            fc_val = f"{fc_val}[v_pre];[v_pre]{sub_filter_str}[outv]"
+                        combined_filter = ["-filter_complex", fc_val, "-map", "[outv]", "-map", "0:a?"]
+                else:
+                    combined_filter = ["-vf", sub_filter_str]
+
             logger.info(f"VideoProcessing: Applying filter: {combined_filter}")
 
             # 6. Run FFmpeg

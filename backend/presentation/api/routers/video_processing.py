@@ -74,6 +74,51 @@ class SlicePlanRequest(BaseModel):
     max_segment_seconds: float = 60.0
 
 
+class SubtitlesPreviewRequest(BaseModel):
+    sample_text: str = ""
+    duration_s: float = 15.0
+    style: str = "KINETIC_YELLOW"
+    margin_v: int = 80
+
+
+@router.post("/subtitles-preview")
+async def generate_subtitles_preview_endpoint(
+    payload: SubtitlesPreviewRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Generates kinetic subtitle cues and FFmpeg filter preview for given duration and text."""
+    from backend.application.services.subtitle_engine import SubtitleEngine
+
+    cues = SubtitleEngine.chunk_text_into_cues(
+        text=payload.sample_text or "¡Descubrí el mejor contenido de Telegram!",
+        total_duration_s=payload.duration_s,
+    )
+    srt_content = "".join(cue.to_srt_block() for cue in cues)
+    filter_preview = SubtitleEngine.build_subtitles_filter(
+        srt_path="subtitles.srt",
+        style=payload.style,
+        margin_v=payload.margin_v,
+    )
+    return {
+        "success": True,
+        "style": payload.style,
+        "duration_s": payload.duration_s,
+        "total_cues": len(cues),
+        "cues": [
+            {
+                "index": c.index,
+                "start_s": c.start_s,
+                "end_s": c.end_s,
+                "duration_s": c.duration_s,
+                "text": c.text,
+            }
+            for c in cues
+        ],
+        "srt_content": srt_content,
+        "filter_preview": filter_preview,
+    }
+
+
 @router.post("/slice-plan")
 async def calculate_slice_plan_endpoint(
     payload: SlicePlanRequest,

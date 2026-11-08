@@ -49,6 +49,8 @@ interface IngestionModalState {
   captionOverride: string;
   sliceStories: boolean;
   sliceDispatchMode: "ALBUM" | "SEQUENTIAL";
+  burnSubtitles: boolean;
+  subtitleStyle: "KINETIC_YELLOW" | "CLASSIC_WHITE" | "BOXED_BLACK";
   isInspecting: boolean;
   isSubmitting: boolean;
   metadata: IngestionMetadata | null;
@@ -85,6 +87,8 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
       captionOverride: "",
       sliceStories: true,
       sliceDispatchMode: "ALBUM",
+      burnSubtitles: false,
+      subtitleStyle: "KINETIC_YELLOW",
       isInspecting: false,
       isSubmitting: false,
       metadata: null,
@@ -171,6 +175,8 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
         account_id: resolvedAccountId,
         slice_stories: state.sliceStories,
         slice_dispatch_mode: state.sliceDispatchMode,
+        burn_subtitles: state.burnSubtitles,
+        subtitle_style: state.subtitleStyle,
       });
 
       setState((prev) => ({
@@ -448,6 +454,71 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
                   >
                     <span className="font-semibold text-xs text-foreground font-mono">Secuencial (Parte 1/N)</span>
                     <span className="text-[10px] text-muted-foreground">Mensajes consecutivos con etiquetas individuales</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* AI Subtitles & Kinetic Captions Burner */}
+          <div className="p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-yellow-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                Subtítulos Cinéticos (Auto Burn-in)
+              </span>
+              <button
+                type="button"
+                onClick={() => setState((prev) => ({ ...prev, burnSubtitles: !prev.burnSubtitles }))}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded transition-colors cursor-pointer border ${
+                  state.burnSubtitles
+                    ? "bg-yellow-500 text-black font-semibold border-yellow-400"
+                    : "bg-secondary text-muted-foreground border-border"
+                }`}
+              >
+                {state.burnSubtitles ? "ACTIVADO" : "DESACTIVADO"}
+              </button>
+            </div>
+
+            {state.burnSubtitles && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-muted-foreground">Estilo Visual de Subtítulos:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setState((prev) => ({ ...prev, subtitleStyle: "KINETIC_YELLOW" }))}
+                    className={`p-2 rounded border text-left transition-colors flex flex-col gap-0.5 ${
+                      state.subtitleStyle === "KINETIC_YELLOW"
+                        ? "border-yellow-400 bg-yellow-500/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-yellow-300 font-mono">Kinetic Yellow</span>
+                    <span className="text-[10px] text-muted-foreground">Amarillo Stories con contorno</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setState((prev) => ({ ...prev, subtitleStyle: "CLASSIC_WHITE" }))}
+                    className={`p-2 rounded border text-left transition-colors flex flex-col gap-0.5 ${
+                      state.subtitleStyle === "CLASSIC_WHITE"
+                        ? "border-white bg-white/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">Classic White</span>
+                    <span className="text-[10px] text-muted-foreground">Blanco nítido moderno</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setState((prev) => ({ ...prev, subtitleStyle: "BOXED_BLACK" }))}
+                    className={`p-2 rounded border text-left transition-colors flex flex-col gap-0.5 ${
+                      state.subtitleStyle === "BOXED_BLACK"
+                        ? "border-zinc-400 bg-zinc-500/20 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">Caja Oscura</span>
+                    <span className="text-[10px] text-muted-foreground">Fondo traslúcido legible</span>
                   </button>
                 </div>
               </div>

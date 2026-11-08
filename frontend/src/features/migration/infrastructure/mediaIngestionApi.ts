@@ -31,6 +31,8 @@ export interface StageIngestionPayload {
   slice_stories?: boolean;
   slice_dispatch_mode?: "ALBUM" | "SEQUENTIAL";
   max_slice_seconds?: number;
+  burn_subtitles?: boolean;
+  subtitle_style?: "KINETIC_YELLOW" | "CLASSIC_WHITE" | "BOXED_BLACK" | string;
 }
 
 export interface IngestionResponse {
