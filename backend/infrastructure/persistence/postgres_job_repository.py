@@ -455,6 +455,130 @@ class PostgresJobRepository(JobRepositoryPort):
                 )
             return count
 
+    async def retry_single_queue_item(self, job_id: str, source_msg_id: int) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.retry_single_queue_item(job_id, source_msg_id)
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'PENDING',
+                    error_message = NULL,
+                    retry_count = retry_count + 1,
+                    updated_at = NOW()
+                WHERE job_id = $1 AND source_message_id = $2;
+                """,
+                job_id,
+                source_msg_id,
+            )
+            count = 0
+            try:
+                count = int(result.split()[-1])
+            except Exception:
+                count = 0
+            if count > 0:
+                await conn.execute(
+                    "UPDATE migration_jobs SET status = 'PENDING', updated_at = NOW() WHERE id = $1;",
+                    job_id,
+                )
+            return count > 0
+
+    async def skip_queue_item(self, job_id: str, source_msg_id: int) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.skip_queue_item(job_id, source_msg_id)
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'SKIPPED',
+                    updated_at = NOW()
+                WHERE job_id = $1 AND source_message_id = $2;
+                """,
+                job_id,
+                source_msg_id,
+            )
+            try:
+                return int(result.split()[-1]) > 0
+            except Exception:
+                return False
+
+    async def update_queue_item_caption(self, job_id: str, source_msg_id: int, caption: str) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.update_queue_item_caption(job_id, source_msg_id, caption)
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET caption = $1,
+                    updated_at = NOW()
+                WHERE job_id = $2 AND source_message_id = $3;
+                """,
+                caption,
+                job_id,
+                source_msg_id,
+            )
+            try:
+                return int(result.split()[-1]) > 0
+            except Exception:
+                return False
+
+    async def list_dead_letter_items(
+        self, limit: int = 50, offset: int = 0, job_id: str | None = None
+    ) -> tuple[list[QueueItem], int]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_dead_letter_items(limit, offset, job_id)
+
+        where_clause = "WHERE status = 'FAILED'"
+        params: list[Any] = []
+        if job_id:
+            where_clause += " AND job_id = $1"
+            params.append(job_id)
+
+        count_query = f"SELECT COUNT(*) FROM migration_queue {where_clause};"
+
+        p_limit = f"${len(params) + 1}"
+        p_offset = f"${len(params) + 2}"
+        data_query = f"""
+            SELECT job_id, source_message_id, status, media_type, caption,
+                   target_message_id, error_message, retry_count, created_at, updated_at
+            FROM migration_queue
+            {where_clause}
+            ORDER BY updated_at DESC
+            LIMIT {p_limit} OFFSET {p_offset};
+        """
+        async with self.pool.acquire() as conn:
+            total = await conn.fetchval(count_query, *params) or 0
+            data_params = list(params) + [limit, offset]
+            rows = await conn.fetch(data_query, *data_params)
+
+            items = [
+                QueueItem(
+                    job_id=str(r["job_id"]),
+                    source_message_id=int(r["source_message_id"]),
+                    status=QueueItemStatus(r["status"]),
+                    media_type=str(r["media_type"]),
+                    caption=str(r["caption"] or ""),
+                    target_message_id=int(r["target_message_id"]) if r["target_message_id"] is not None else None,
+                    error_message=str(r["error_message"]) if r["error_message"] is not None else None,
+                    retry_count=int(r["retry_count"] or 0),
+                    created_at=r["created_at"].isoformat() if r["created_at"] else None,
+                    updated_at=r["updated_at"].isoformat() if r["updated_at"] else None,
+                )
+                for r in rows
+            ]
+            return items, int(total)
+
     async def delete_job(self, job_id: str) -> bool:
         await self._ensure_initialized()
         if self._fallback_mode or self.pool is None:

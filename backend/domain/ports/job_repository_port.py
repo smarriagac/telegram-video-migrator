@@ -50,6 +50,28 @@ class JobRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def retry_single_queue_item(self, job_id: str, source_msg_id: int) -> bool:
+        """Reset a specific failed queue item back to PENDING so it can be reprocessed."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def skip_queue_item(self, job_id: str, source_msg_id: int) -> bool:
+        """Mark a specific queue item as SKIPPED to bypass it."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def update_queue_item_caption(self, job_id: str, source_msg_id: int, caption: str) -> bool:
+        """Update caption for a specific queue item before retrying."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def list_dead_letter_items(
+        self, limit: int = 50, offset: int = 0, job_id: str | None = None
+    ) -> tuple[list[QueueItem], int]:
+        """Retrieve aggregated failed queue items (Dead-Letter Queue) across jobs."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def delete_job(self, job_id: str) -> bool:
         """Delete a migration job and its associated queue items."""
         raise NotImplementedError

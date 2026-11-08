@@ -17,6 +17,7 @@ import {
   TableCell,
 } from "@/shared/components/ui/table";
 import { JobItem, JobQueueStatus, QueueItem } from "../../domain/types";
+import { jobsApi } from "../../infrastructure/jobsApi";
 import {
   RotateCcw,
   AlertTriangle,
@@ -45,6 +46,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
   onRetryFailed,
 }) => {
   const [retrying, setRetrying] = React.useState(false);
+  const [retryingItem, setRetryingItem] = React.useState<number | null>(null);
 
   if (!job) return null;
 
@@ -193,6 +195,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
                   <TableHead className="py-2 px-3">Msg ID Destino</TableHead>
                   <TableHead className="py-2 px-3">Reintentos</TableHead>
                   <TableHead className="py-2 px-3">Detalle / Error</TableHead>
+                  <TableHead className="py-2 px-3 text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-border font-mono text-xs">
@@ -225,6 +228,32 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
                         </span>
                       ) : (
                         <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-2 px-3 text-right">
+                      {item.status === "FAILED" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={retryingItem === item.source_message_id}
+                          onClick={async () => {
+                            setRetryingItem(item.source_message_id);
+                            try {
+                              await jobsApi.retrySingleItem(job.job_id, item.source_message_id);
+                              item.status = "PENDING";
+                            } catch (e) {
+                              console.error(e);
+                            } finally {
+                              setRetryingItem(null);
+                            }
+                          }}
+                          className="h-6 text-[10px] px-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1"
+                        >
+                          <RotateCcw className={cn("w-2.5 h-2.5", retryingItem === item.source_message_id && "animate-spin")} />
+                          <span>Reintentar</span>
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-[10px]">-</span>
                       )}
                     </TableCell>
                   </TableRow>

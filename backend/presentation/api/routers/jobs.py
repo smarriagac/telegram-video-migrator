@@ -174,6 +174,17 @@ class JobQueueStatusResponse(BaseModel):
     items: list[QueueItemResponse]
 
 
+class DeadLetterQueueResponse(BaseModel):
+    items: list[QueueItemResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class UpdateQueueItemCaptionRequest(BaseModel):
+    caption: str
+
+
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def start_job(
     req: CreateJobRequest,
@@ -278,6 +289,37 @@ async def list_jobs(
         total=total,
         page=page,
         page_size=limit,
+    )
+
+
+@router.get("/dlq", response_model=DeadLetterQueueResponse)
+async def list_dead_letter_queue(
+    limit: int = 50,
+    offset: int = 0,
+    job_id: str | None = None,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> DeadLetterQueueResponse:
+    """List failed queue items (Dead-Letter Queue) across all migration jobs."""
+    items, total = await repo.list_dead_letter_items(limit=limit, offset=offset, job_id=job_id)
+    return DeadLetterQueueResponse(
+        items=[
+            QueueItemResponse(
+                job_id=it.job_id,
+                source_message_id=it.source_message_id,
+                status=it.status.value,
+                media_type=it.media_type,
+                caption=it.caption,
+                target_message_id=it.target_message_id,
+                error_message=it.error_message,
+                retry_count=it.retry_count,
+                created_at=it.created_at,
+                updated_at=it.updated_at,
+            )
+            for it in items
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -537,6 +579,82 @@ async def retry_failed_items(
         "job_id": job_id,
         "requeued_items": requeued,
         "status": JobStatus.RUNNING.value if requeued > 0 else job.status.value,
+    }
+
+
+@router.post("/{job_id}/queue/{source_msg_id}/retry")
+async def retry_single_item(
+    job_id: str,
+    source_msg_id: int,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+) -> dict[str, Any]:
+    """Granularly reset a single failed queue item to PENDING and resume worker."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+
+    retried = await repo.retry_single_queue_item(job_id, source_msg_id)
+    if not retried:
+        raise HTTPException(status_code=404, detail="Item no encontrado en la cola")
+
+    if job.status != JobStatus.RUNNING:
+        await repo.set_job_status(job_id, JobStatus.RUNNING)
+        _dispatch_worker(job_id, use_case, repo, broadcaster)
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "source_message_id": source_msg_id,
+        "status": "PENDING",
+    }
+
+
+@router.post("/{job_id}/queue/{source_msg_id}/skip")
+async def skip_single_item(
+    job_id: str,
+    source_msg_id: int,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> dict[str, Any]:
+    """Mark an individual queue item as SKIPPED to bypass it."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+
+    skipped = await repo.skip_queue_item(job_id, source_msg_id)
+    if not skipped:
+        raise HTTPException(status_code=404, detail="Item no encontrado en la cola")
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "source_message_id": source_msg_id,
+        "status": "SKIPPED",
+    }
+
+
+@router.patch("/{job_id}/queue/{source_msg_id}")
+async def update_queue_item_caption_endpoint(
+    job_id: str,
+    source_msg_id: int,
+    payload: UpdateQueueItemCaptionRequest,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> dict[str, Any]:
+    """Update caption for a queue item prior to retrying."""
+    job = await repo.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job no encontrado")
+
+    updated = await repo.update_queue_item_caption(job_id, source_msg_id, payload.caption)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Item no encontrado en la cola")
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "source_message_id": source_msg_id,
+        "caption": payload.caption,
     }
 
 

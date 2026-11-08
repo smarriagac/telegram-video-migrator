@@ -76,3 +76,115 @@ async def test_queue_lifecycle(repo: SQLiteJobRepository):
     failed_item = next(it for it in all_items if it.source_message_id == 2)
     assert failed_item.status == QueueItemStatus.FAILED
     assert failed_item.error_message == "Network timeout during upload"
+
+
+
+@pytest.mark.asyncio
+async def test_dead_letter_queue_and_granular_retries(repo: SQLiteJobRepository):
+    job_id = "test-job-dlq-1"
+    await repo.create_job(MigrationJob(job_id=job_id, source_id=10, target_id=20))
+
+    items = [
+        QueueItem(job_id=job_id, source_message_id=101, media_type="video", caption="Failed Video 101", status=QueueItemStatus.FAILED, error_message="FloodWait: 300s"),
+        QueueItem(job_id=job_id, source_message_id=102, media_type="video", caption="Failed Video 102", status=QueueItemStatus.FAILED, error_message="File too large > 2GB"),
+        QueueItem(job_id=job_id, source_message_id=103, media_type="photo", caption="Good Photo", status=QueueItemStatus.COMPLETED),
+    ]
+    await repo.add_queue_items(items)
+
+    # 1. Query DLQ items
+    dlq_items, total = await repo.list_dead_letter_items(limit=10, offset=0, job_id=job_id)
+    assert total == 2
+    assert len(dlq_items) == 2
+    assert all(it.status == QueueItemStatus.FAILED for it in dlq_items)
+
+    # 2. Granular single retry for item 101
+    retried = await repo.retry_single_queue_item(job_id, 101)
+    assert retried is True
+
+    # Verify 101 is now PENDING and retry_count is 1
+    items_after = await repo.get_queue_items(job_id)
+    item_101 = next(it for it in items_after if it.source_message_id == 101)
+    assert item_101.status == QueueItemStatus.PENDING
+    assert item_101.error_message is None
+    assert item_101.retry_count == 1
+
+    # Item 102 should still be FAILED
+    item_102 = next(it for it in items_after if it.source_message_id == 102)
+    assert item_102.status == QueueItemStatus.FAILED
+
+    # 3. Skip item 102
+    skipped = await repo.skip_queue_item(job_id, 102)
+    assert skipped is True
+    items_after_skip = await repo.get_queue_items(job_id)
+    item_102_skip = next(it for it in items_after_skip if it.source_message_id == 102)
+    assert item_102_skip.status == QueueItemStatus.SKIPPED
+
+    # 4. Update caption for item 101
+    updated_cap = await repo.update_queue_item_caption(job_id, 101, "Updated Caption 101")
+    assert updated_cap is True
+    items_after_cap = await repo.get_queue_items(job_id)
+    item_101_cap = next(it for it in items_after_cap if it.source_message_id == 101)
+    assert item_101_cap.caption == "Updated Caption 101"
+
+    # DLQ should now be empty for this job
+    dlq_empty, total_empty = await repo.list_dead_letter_items(limit=10, offset=0, job_id=job_id)
+    assert total_empty == 0
+    assert len(dlq_empty) == 0
+
+
+@pytest.mark.asyncio
+async def test_dlq_api_endpoints():
+    from httpx import AsyncClient, ASGITransport
+    from backend.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create a job first
+        job_res = await client.post(
+            "/api/jobs",
+            json={
+                "source_channel_id": 9901,
+                "target_channel_id": 9902,
+                "message_limit": 5,
+            },
+        )
+        assert job_res.status_code == 201
+        job_id = job_res.json()["job_id"]
+
+        # 1. Fetch DLQ list
+        dlq_res = await client.get("/api/jobs/dlq")
+        assert dlq_res.status_code == 200
+        assert "items" in dlq_res.json()
+        assert "total" in dlq_res.json()
+
+        # 2. Add a failed item manually to repository for testing endpoints
+        from backend.presentation.dependencies import get_job_repository
+        repo = await get_job_repository()
+        await repo.add_queue_items([
+            QueueItem(
+                job_id=job_id,
+                source_message_id=555,
+                media_type="video",
+                caption="Video Error 555",
+                status=QueueItemStatus.FAILED,
+                error_message="FLOOD_WAIT_180",
+            )
+        ])
+
+        # 3. Patch caption
+        patch_res = await client.patch(
+            f"/api/jobs/{job_id}/queue/555",
+            json={"caption": "Nuevo Caption Corregido"},
+        )
+        assert patch_res.status_code == 200
+        assert patch_res.json()["caption"] == "Nuevo Caption Corregido"
+
+        # 4. Granular retry
+        retry_res = await client.post(f"/api/jobs/{job_id}/queue/555/retry")
+        assert retry_res.status_code == 200
+        assert retry_res.json()["status"] == "PENDING"
+
+        # 5. Skip single item
+        skip_res = await client.post(f"/api/jobs/{job_id}/queue/555/skip")
+        assert skip_res.status_code == 200
+        assert skip_res.json()["status"] == "SKIPPED"

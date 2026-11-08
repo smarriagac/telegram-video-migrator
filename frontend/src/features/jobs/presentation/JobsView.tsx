@@ -46,6 +46,7 @@ import {
   TableCell,
 } from "@/shared/components/ui/table";
 import { JobQueueModal } from "./components/JobQueueModal";
+import { DeadLetterQueueCard } from "./components/DeadLetterQueueCard";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
@@ -54,8 +55,8 @@ import { useGlobalEventStream } from "@/shared/hooks/useGlobalEventStream";
 
 export const JobsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: Active tab navigation ("migrations" | "ffmpeg")
-  const [activeTab, setActiveTab] = useState<"migrations" | "ffmpeg">("migrations");
+  // Hook 1: Active tab navigation ("migrations" | "ffmpeg" | "dlq")
+  const [activeTab, setActiveTab] = useState<"migrations" | "ffmpeg" | "dlq">("migrations");
 
   // Hook 2: Consolidated local UI, confirmation dialog and async state for both views
   const [uiState, setUiState] = useState<{
@@ -481,6 +482,20 @@ export const JobsView: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Procesando video activamente" />
           )}
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("dlq")}
+          className={cn(
+            "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all",
+            activeTab === "dlq"
+              ? "bg-rose-600 text-white shadow-sm font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          )}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>Dead-Letter Queue (DLQ)</span>
+        </button>
       </div>
 
       {/* Feedback Banner */}
@@ -863,7 +878,7 @@ export const JobsView: React.FC = () => {
             </div>
           </Card>
         </>
-      ) : (
+      ) : activeTab === "ffmpeg" ? (
         /* VIEW 2: FFmpeg Video Sanitizer Queue */
         <>
           {/* Explanation Banner */}
@@ -1111,6 +1126,8 @@ export const JobsView: React.FC = () => {
             </div>
           </Card>
         </>
+      ) : (
+        <DeadLetterQueueCard />
       )}
 
       {/* Queue Modal for MTProto */}

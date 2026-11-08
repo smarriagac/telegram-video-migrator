@@ -419,6 +419,103 @@ class SQLiteJobRepository(JobRepositoryPort):
             await conn.commit()
             return count
 
+    async def retry_single_queue_item(self, job_id: str, source_msg_id: int) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'PENDING',
+                    error_message = NULL,
+                    retry_count = retry_count + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ? AND source_message_id = ?;
+                """,
+                (job_id, source_msg_id),
+            )
+            count = cursor.rowcount
+            if count > 0:
+                await conn.execute(
+                    "UPDATE migration_jobs SET status = 'PENDING', updated_at = CURRENT_TIMESTAMP WHERE id = ?;",
+                    (job_id,),
+                )
+            await conn.commit()
+            return count > 0
+
+    async def skip_queue_item(self, job_id: str, source_msg_id: int) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'SKIPPED',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ? AND source_message_id = ?;
+                """,
+                (job_id, source_msg_id),
+            )
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    async def update_queue_item_caption(self, job_id: str, source_msg_id: int, caption: str) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET caption = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE job_id = ? AND source_message_id = ?;
+                """,
+                (caption, job_id, source_msg_id),
+            )
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    async def list_dead_letter_items(
+        self, limit: int = 50, offset: int = 0, job_id: str | None = None
+    ) -> tuple[list[QueueItem], int]:
+        await self._ensure_initialized()
+        where_clause = "WHERE status = 'FAILED'"
+        params: list[Any] = []
+        if job_id:
+            where_clause += " AND job_id = ?"
+            params.append(job_id)
+
+        count_query = f"SELECT COUNT(*) FROM migration_queue {where_clause};"
+        data_query = f"""
+            SELECT job_id, source_message_id, status, media_type, caption,
+                   target_message_id, error_message, retry_count, created_at, updated_at
+            FROM migration_queue
+            {where_clause}
+            ORDER BY updated_at DESC
+            LIMIT ? OFFSET ?;
+        """
+        async with self._get_connection() as conn:
+            async with conn.execute(count_query, params) as cursor:
+                total_row = await cursor.fetchone()
+                total = int(total_row[0]) if total_row else 0
+
+            data_params = list(params) + [limit, offset]
+            async with conn.execute(data_query, data_params) as cursor:
+                rows = await cursor.fetchall()
+                items = [
+                    QueueItem(
+                        job_id=str(row[0]),
+                        source_message_id=int(row[1]),
+                        status=QueueItemStatus(row[2]),
+                        media_type=str(row[3]),
+                        caption=str(row[4] or ""),
+                        target_message_id=int(row[5]) if row[5] is not None else None,
+                        error_message=str(row[6]) if row[6] is not None else None,
+                        retry_count=int(row[7] or 0),
+                        created_at=str(row[8]) if row[8] is not None else None,
+                        updated_at=str(row[9]) if row[9] is not None else None,
+                    )
+                    for row in rows
+                ]
+                return items, total
+
     async def delete_job(self, job_id: str) -> bool:
         await self._ensure_initialized()
         async with self._get_connection() as conn:

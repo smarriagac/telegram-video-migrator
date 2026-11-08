@@ -1,4 +1,4 @@
-import { JobListResponse, JobQueueStatus, JobItem } from "../domain/types";
+import { JobListResponse, JobQueueStatus, JobItem, QueueItem } from "../domain/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -116,6 +116,71 @@ export const jobsApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Error al eliminar el trabajo");
+    }
+    return res.json();
+  },
+
+  async fetchDLQ(params?: { limit?: number; offset?: number; jobId?: string }): Promise<{
+    items: QueueItem[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append("limit", params.limit.toString());
+    if (params?.offset) searchParams.append("offset", params.offset.toString());
+    if (params?.jobId) searchParams.append("job_id", params.jobId);
+
+    const res = await fetch(`${API_BASE_URL}/jobs/dlq?${searchParams.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al obtener Dead-Letter Queue");
+    }
+    return res.json();
+  },
+
+  async retrySingleItem(jobId: string, sourceMsgId: number): Promise<{ success: boolean; status: string }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/${jobId}/queue/${sourceMsgId}/retry`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `Error al reintentar mensaje #${sourceMsgId}`);
+    }
+    return res.json();
+  },
+
+  async skipSingleItem(jobId: string, sourceMsgId: number): Promise<{ success: boolean; status: string }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/${jobId}/queue/${sourceMsgId}/skip`, {
+      method: "POST",
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `Error al omitir mensaje #${sourceMsgId}`);
+    }
+    return res.json();
+  },
+
+  async updateItemCaption(
+    jobId: string,
+    sourceMsgId: number,
+    caption: string
+  ): Promise<{ success: boolean; caption: string }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/${jobId}/queue/${sourceMsgId}`, {
+      method: "PATCH",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ caption }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `Error al actualizar caption del mensaje #${sourceMsgId}`);
     }
     return res.json();
   },
