@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DownloadCloud,
   Share2,
@@ -36,6 +36,7 @@ interface MediaIngestionModalProps {
   onClose: () => void;
   channels: Channel[];
   selectedTargetId: number | null;
+  defaultAccountId?: number | null;
   onSuccess?: () => void;
 }
 
@@ -56,6 +57,7 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
   onClose,
   channels,
   selectedTargetId,
+  defaultAccountId,
   onSuccess,
 }) => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
@@ -84,6 +86,15 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
       feedback: null,
     };
   });
+
+  useEffect(() => {
+    if (isOpen && selectedTargetId) {
+      setState((prev) => ({
+        ...prev,
+        targetChannelId: selectedTargetId,
+      }));
+    }
+  }, [isOpen, selectedTargetId]);
 
   if (!isOpen) return null;
 
@@ -142,6 +153,9 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
 
     setState((prev) => ({ ...prev, isSubmitting: true, feedback: null }));
     try {
+      const targetChan = channels.find((c) => c.id === state.targetChannelId);
+      const resolvedAccountId = targetChan?.account_id || defaultAccountId || undefined;
+
       const res = await mediaIngestionApi.stage({
         url: cleanUrl,
         target_channel_id: state.targetChannelId,
@@ -149,6 +163,7 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
         aspect_ratio_mode: state.aspectRatioMode,
         branding_text: state.brandingText.trim() || undefined,
         caption_override: state.captionOverride.trim() || undefined,
+        account_id: resolvedAccountId,
       });
 
       setState((prev) => ({

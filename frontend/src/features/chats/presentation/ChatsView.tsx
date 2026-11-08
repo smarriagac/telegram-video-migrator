@@ -30,6 +30,7 @@ import {
   Square,
   Tag,
   Crown,
+  DownloadCloud,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -41,7 +42,8 @@ import { ViewHeader } from "@/shared/components/ViewHeader";
 import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
 import { OrganizeChannelModal } from "@/features/migration/presentation/components/OrganizeChannelModal";
 import { BroadcastMessageModal } from "./components/BroadcastMessageModal";
-import { ChannelMessageItem } from "@/features/migration/domain/types";
+import { MediaIngestionModal } from "@/features/migration/presentation/components/MediaIngestionModal";
+import { ChannelMessageItem, Channel } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
 import {
   Dialog,
@@ -391,6 +393,7 @@ interface ExtraViewState {
   organizeModalOpen: boolean;
   previewModalMsg: Message | null;
   broadcastModalOpen: boolean;
+  isIngestionModalOpen: boolean;
 }
 
 export const ChatsView: React.FC = () => {
@@ -411,6 +414,7 @@ export const ChatsView: React.FC = () => {
     organizeModalOpen: false,
     previewModalMsg: null,
     broadcastModalOpen: false,
+    isIngestionModalOpen: false,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -461,6 +465,17 @@ export const ChatsView: React.FC = () => {
 
   const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
   const activeMessages = activeChat ? messages[activeChat.id] || [] : [];
+
+  const destinationChannels: Channel[] = useMemo(() => {
+    return chats.map((c) => ({
+      id: c.id,
+      title: c.title,
+      username: c.username || null,
+      can_post: c.can_post ?? true,
+      account_id: c.account_id,
+      type: c.type,
+    }));
+  }, [chats]);
 
   const chatSelectedMessagesList: ChannelMessageItem[] = useMemo(() => {
     const setIds = new Set(viewState.selectedMessageIds);
@@ -1121,6 +1136,20 @@ export const ChatsView: React.FC = () => {
                       <span>({activeChat.unread_count})</span>
                     </Button>
                   )}
+                  {/* Button: Ingestar TikTok/Reels */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setViewState((prev) => ({ ...prev, isIngestionModalOpen: true }))
+                    }
+                    className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-pink-500/30 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
+                    title="Descargar e ingestar clip de TikTok, Reels o Shorts directo a este chat"
+                  >
+                    <DownloadCloud className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">TikTok/Reels</span>
+                  </Button>
+
                   {/* Mode: Multi-Select for Self-Organization / Albums (Only for Own Channels/Groups or Admins) */}
                   {Boolean(activeChat.is_creator || activeChat.is_admin) && (
                     <Button
@@ -1560,6 +1589,20 @@ export const ChatsView: React.FC = () => {
                     title="Adjuntar video, foto o archivo local"
                   >
                     <Paperclip className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setViewState((prev) => ({ ...prev, isIngestionModalOpen: true }))
+                    }
+                    disabled={isUploading}
+                    className="h-8 px-2 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 shrink-0 flex items-center gap-1 font-mono text-[11px] cursor-pointer"
+                    title="Ingestar video desde TikTok, Instagram Reels o YouTube Shorts directo a este chat"
+                  >
+                    <DownloadCloud className="w-4 h-4" />
+                    <span className="hidden sm:inline">TikTok/Reels</span>
                   </Button>
                   <input
                     type="text"
@@ -2143,6 +2186,21 @@ export const ChatsView: React.FC = () => {
           }}
         />
       )}
+
+      {/* Multi-Platform Media Ingestor Modal (TikTok / Reels / Shorts) */}
+      <MediaIngestionModal
+        isOpen={viewState.isIngestionModalOpen}
+        onClose={() => setViewState((s) => ({ ...s, isIngestionModalOpen: false }))}
+        channels={destinationChannels}
+        selectedTargetId={activeChat?.id || null}
+        defaultAccountId={selectedAccountId || activeChat?.account_id || null}
+        onSuccess={() => {
+          if (activeChat) {
+            selectChat(activeChat.id);
+          }
+          loadDialogs(false);
+        }}
+      />
     </div>
   );
 };
