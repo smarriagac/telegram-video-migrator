@@ -25,3 +25,22 @@ This task implements an enterprise-grade **Caption & Message Template Manager**:
 5. **Automated Verification**:
    - Backend pytest suite testing CRUD, variable interpolation, multi-tenant isolation, and API endpoints.
    - Frontend Vitest suite testing template selection, rendering, and CRUD workflows.
+
+
+## Implementation & Verification Summary
+- **Commit**: `caa6395` (`feat(migration): caption and message template manager with variable tokens`)
+- **Backend Architecture**:
+  - Entity: [`CaptionTemplate`](file:///home/sm/proyectos/telegram-video-migrator/backend/domain/entities/caption_template.py)
+  - Port: [`TemplateRepositoryPort`](file:///home/sm/proyectos/telegram-video-migrator/backend/domain/ports/template_repository_port.py)
+  - Service: [`TemplateService`](file:///home/sm/proyectos/telegram-video-migrator/backend/application/services/template_service.py)
+  - Persistence: [`PostgresTemplateRepository`](file:///home/sm/proyectos/telegram-video-migrator/backend/infrastructure/persistence/postgres_template_repository.py) with database backup inclusion in [`DisasterRecoveryService`](file:///home/sm/proyectos/telegram-video-migrator/backend/application/services/disaster_recovery_service.py)
+  - API Router: [`backend/presentation/api/routers/templates.py`](file:///home/sm/proyectos/telegram-video-migrator/backend/presentation/api/routers/templates.py)
+  - Backend Tests: [`backend/tests/test_templates.py`](file:///home/sm/proyectos/telegram-video-migrator/backend/tests/test_templates.py) (170/170 passing)
+- **Frontend Architecture**:
+  - API Client: [`templatesApi.ts`](file:///home/sm/proyectos/telegram-video-migrator/frontend/src/features/migration/infrastructure/templatesApi.ts)
+  - Modal Component: [`TemplateManagerModal.tsx`](file:///home/sm/proyectos/telegram-video-migrator/frontend/src/features/migration/presentation/components/TemplateManagerModal.tsx) (Strictly 2 `useState` hooks)
+  - View Integration: [`PipelineModulesView.tsx`](file:///home/sm/proyectos/telegram-video-migrator/frontend/src/features/migration/presentation/PipelineModulesView.tsx)
+  - Frontend Tests: [`TemplateManagerModal.test.tsx`](file:///home/sm/proyectos/telegram-video-migrator/frontend/src/features/migration/presentation/__tests__/TemplateManagerModal.test.tsx) (10/10 test files, 29/29 tests passing)
+- **Production Bundle**:
+  - Vite build verified clean (`tsc -b && vite build` in 3.47s)
+  - Transferred and live in `telegram_migrator_frontend` container
