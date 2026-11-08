@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { RulesPlaygroundCard } from "./components/RulesPlaygroundCard";
+import { TemplateManagerModal } from "./components/TemplateManagerModal";
+import { CaptionTemplate } from "../infrastructure/templatesApi";
 import { Switch } from "@/shared/components/ui/switch";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -31,10 +33,22 @@ import { cn } from "@/shared/lib/utils";
 
 export const PipelineModulesView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
-  const [activeTab, setActiveTab] = useState<"captions" | "drip" | "dedup" | "quality" | "playground">("captions");
+  const [uiState, setUiState] = useState<{
+    activeTab: "captions" | "drip" | "dedup" | "quality" | "playground";
+    isTemplateModalOpen: boolean;
+    appliedTemplateName: string | null;
+  }>({
+    activeTab: "captions",
+    isTemplateModalOpen: false,
+    appliedTemplateName: null,
+  });
   const [testText, setTestText] = useState<string>(
     "¡Nuevo estreno en https://t.me/canal_spam! Sigan a @canal_spam para ganar bono gratis VIP."
   );
+
+  const activeTab = uiState.activeTab;
+  const setActiveTab = (tab: "captions" | "drip" | "dedup" | "quality" | "playground") =>
+    setUiState((prev) => ({ ...prev, activeTab: tab }));
 
   const captionRules = useMigrationStore((state) => state.captionRules);
   const setCaptionRules = useMigrationStore((state) => state.setCaptionRules);
@@ -75,6 +89,22 @@ export const PipelineModulesView: React.FC = () => {
   };
 
   const previewResult = computePreview(testText);
+
+  const handleApplyTemplate = (tpl: CaptionTemplate) => {
+    setCaptionRules({
+      prepend_header: tpl.header,
+      append_signature: tpl.signature,
+      ...(tpl.caption_rules || {}),
+    });
+    if (tpl.body_template) {
+      setTestText(tpl.body_template);
+    }
+    setUiState((prev) => ({
+      ...prev,
+      isTemplateModalOpen: false,
+      appliedTemplateName: tpl.name,
+    }));
+  };
 
   return (
     <div className="w-full h-full flex flex-col space-y-3 sm:space-y-4 min-h-0 overflow-y-auto pr-0 sm:pr-1">
@@ -169,8 +199,31 @@ export const PipelineModulesView: React.FC = () => {
                 <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" /> Reglas de Sanitización
                 </span>
-                <span className="text-[11px] text-muted-foreground font-mono">Aplicado en tiempo real</span>
+                <button
+                  type="button"
+                  onClick={() => setUiState((prev) => ({ ...prev, isTemplateModalOpen: true }))}
+                  className="h-7 px-2.5 rounded bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 text-xs font-medium flex items-center gap-1.5 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Plantillas Guardadas</span>
+                </button>
               </div>
+
+              {uiState.appliedTemplateName && (
+                <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-between text-xs text-primary font-mono">
+                  <div className="flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Plantilla activa: <strong>{uiState.appliedTemplateName}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setUiState((prev) => ({ ...prev, appliedTemplateName: null }))}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Descartar
+                  </button>
+                </div>
+              )}
 
               {/* Toggles */}
               <div className="space-y-2">
@@ -646,6 +699,13 @@ export const PipelineModulesView: React.FC = () => {
       {activeTab === "playground" && (
         <RulesPlaygroundCard />
       )}
+
+      {/* Reusable Caption & Message Template Manager Modal */}
+      <TemplateManagerModal
+        isOpen={uiState.isTemplateModalOpen}
+        onClose={() => setUiState((prev) => ({ ...prev, isTemplateModalOpen: false }))}
+        onSelectTemplate={handleApplyTemplate}
+      />
     </div>
   );
 };

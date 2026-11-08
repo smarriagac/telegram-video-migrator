@@ -19,6 +19,7 @@ from backend.presentation.api.routers.alerts import router as alerts_router
 from backend.presentation.api.routers.notifications import router as notifications_router
 from backend.presentation.api.routers.events import router as events_router
 from backend.presentation.api.routers.backups import router as backups_router
+from backend.presentation.api.routers.templates import router as templates_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
@@ -156,6 +157,7 @@ app.include_router(alerts_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(backups_router, prefix="/api")
+app.include_router(templates_router, prefix="/api")
 app.include_router(billing_router)
 
 

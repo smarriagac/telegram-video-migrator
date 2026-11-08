@@ -388,6 +388,30 @@ async def get_disaster_recovery_service():
     return _disaster_recovery_service_instance
 
 
+_template_repository_instance = None
+
+
+async def get_template_repository():
+    global _template_repository_instance
+    if _template_repository_instance is None:
+        from backend.infrastructure.persistence.postgres_template_repository import PostgresTemplateRepository
+        _template_repository_instance = PostgresTemplateRepository()
+        await _template_repository_instance.initialize_schema()
+    return _template_repository_instance
+
+
+_template_service_instance = None
+
+
+def get_template_service():
+    global _template_service_instance
+    if _template_service_instance is None:
+        from backend.application.services.template_service import TemplateService
+        _template_service_instance = TemplateService()
+    return _template_service_instance
+
+
+
 
 
 
