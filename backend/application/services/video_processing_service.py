@@ -238,16 +238,16 @@ class VideoProcessingService:
         progress: float,
         error_message: str | None = None,
         target_message_id: int | None = None,
-    ) -> None:
+    ) -> bool:
         try:
             async with self.pg_repo.pool.acquire() as conn:
-                await conn.execute(
+                res = await conn.execute(
                     """
                     UPDATE video_processing_jobs
                     SET status = $2, progress = $3, error_message = $4,
                         target_message_id = COALESCE($5, target_message_id),
                         updated_at = NOW()
-                    WHERE id = $1::uuid
+                    WHERE id = $1::uuid AND status != 'CANCELLED'
                     """,
                     job_id,
                     status,
@@ -255,8 +255,10 @@ class VideoProcessingService:
                     error_message,
                     target_message_id,
                 )
+                return "UPDATE 1" in res
         except Exception as ex:
             logger.warning(f"Error updating video job status: {ex}")
+            return False
 
     async def _execute_job(self, job: dict[str, Any]) -> None:
         job_id = job["id"]

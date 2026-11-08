@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import time
 from typing import Any, Awaitable, Callable
 
 from backend.domain.entities.migration_job import JobStatus, MigrationJob
@@ -29,11 +30,13 @@ class CloneChannelVideosUseCase:
         job_repository: JobRepositoryPort,
         min_delay_seconds: float = 1.5,
         max_delay_seconds: float = 2.0,
+        rate_governor: Any | None = None,
     ) -> None:
         self.gateway = telegram_gateway
         self.repo = job_repository
         self.min_delay = min_delay_seconds
         self.max_delay = max_delay_seconds
+        self.rate_governor = rate_governor
         self._cancelled_jobs: set[str] = set()
 
     def cancel_job(self, job_id: str) -> None:
@@ -284,6 +287,14 @@ class CloneChannelVideosUseCase:
                 and job.source_account_id != job.target_account_id
             )
 
+            target_account = getattr(job, "target_account_id", None) or getattr(job, "source_account_id", None)
+            drip_delay_sec = float(getattr(job, "drip_delay_seconds", 0) or 0)
+            if self.rate_governor:
+                await self.rate_governor.acquire(
+                    target_account, job.target_id, requested_delay=drip_delay_sec
+                )
+
+            t0 = time.monotonic()
             while target_msg_id is None and retry_count <= max_retries:
                 try:
                     if is_cross_account:
@@ -314,6 +325,13 @@ class CloneChannelVideosUseCase:
                     logger.warning(
                         f"Flood wait encountered on job {job_id}. Pausing for {wait_time}s..."
                     )
+                    if self.rate_governor:
+                        await self.rate_governor.report_feedback(
+                            target_account,
+                            job.target_id,
+                            success=False,
+                            flood_wait_seconds=fw.seconds,
+                        )
                     await self.repo.set_job_status(job_id, JobStatus.PAUSED_FLOOD_WAIT)
                     if on_progress:
                         await on_progress({
@@ -338,6 +356,14 @@ class CloneChannelVideosUseCase:
                     await asyncio.sleep(2.0)
 
             if target_msg_id is not None:
+                latency_ms = (time.monotonic() - t0) * 1000.0
+                if self.rate_governor:
+                    await self.rate_governor.report_feedback(
+                        target_account,
+                        job.target_id,
+                        success=True,
+                        latency_ms=latency_ms,
+                    )
                 await self.repo.record_migrated_item(job_id, item.source_message_id, target_msg_id)
                 if fp_hash and hasattr(self.repo, "record_media_fingerprint"):
                     record_call = self.repo.record_media_fingerprint(
@@ -383,28 +409,29 @@ class CloneChannelVideosUseCase:
                     "queue_stats": stats,
                 })
 
-            drip_delay = getattr(job, "drip_delay_seconds", 0) or 0
-            if drip_delay > 0:
-                if on_progress:
-                    await on_progress({
-                        "job_id": job_id,
-                        "status": JobStatus.RUNNING.value,
-                        "message": f"Drip Feed: esperando {drip_delay}s antes del próximo envío...",
-                        "processed_videos": processed_count,
-                        "total_videos": total_items,
-                        "percentage": percentage,
-                        "queue_stats": stats,
-                    })
-                waited = 0.0
-                while waited < drip_delay:
-                    if job_id in self._cancelled_jobs:
-                        break
-                    sleep_chunk = min(2.0, drip_delay - waited)
-                    await asyncio.sleep(sleep_chunk)
-                    waited += sleep_chunk
-            else:
-                delay = random.uniform(self.min_delay, self.max_delay)
-                await asyncio.sleep(delay)
+            if not self.rate_governor:
+                drip_delay = getattr(job, "drip_delay_seconds", 0) or 0
+                if drip_delay > 0:
+                    if on_progress:
+                        await on_progress({
+                            "job_id": job_id,
+                            "status": JobStatus.RUNNING.value,
+                            "message": f"Drip Feed: esperando {drip_delay}s antes del próximo envío...",
+                            "processed_videos": processed_count,
+                            "total_videos": total_items,
+                            "percentage": percentage,
+                            "queue_stats": stats,
+                        })
+                    waited = 0.0
+                    while waited < drip_delay:
+                        if job_id in self._cancelled_jobs:
+                            break
+                        sleep_chunk = min(2.0, drip_delay - waited)
+                        await asyncio.sleep(sleep_chunk)
+                        waited += sleep_chunk
+                else:
+                    delay = random.uniform(self.min_delay, self.max_delay)
+                    await asyncio.sleep(delay)
 
         final_stats = await self.repo.get_queue_stats(job_id)
         final_status = JobStatus.COMPLETED if final_stats["failed"] == 0 else JobStatus.COMPLETED

@@ -9,6 +9,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 logger = logging.getLogger(__name__)
 
 from backend.application.broadcaster import broadcaster, EventBroadcaster
+from backend.application.services.rate_governor_service import (
+    RateGovernorService,
+    get_rate_governor_service,
+)
 from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
 from backend.application.use_cases.get_dialogs_use_case import GetDialogsUseCase
 from backend.application.use_cases.get_chat_messages_use_case import GetChatMessagesUseCase
@@ -158,14 +162,20 @@ async def get_broadcaster() -> EventBroadcaster:
     return broadcaster
 
 
+def get_rate_governor() -> RateGovernorService:
+    return get_rate_governor_service()
+
+
 async def get_migration_use_case() -> CloneChannelVideosUseCase:
     global _use_case_instance
     if _use_case_instance is None:
         repo = await get_job_repository()
         gateway = await get_telegram_gateway()
+        governor = get_rate_governor()
         _use_case_instance = CloneChannelVideosUseCase(
             telegram_gateway=gateway,
             job_repository=repo,
+            rate_governor=governor,
         )
     return _use_case_instance
 
