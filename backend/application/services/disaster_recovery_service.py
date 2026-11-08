@@ -55,6 +55,7 @@ class DisasterRecoveryService:
         "scheduled_broadcasts",
         "app_notifications",
         "caption_templates",
+        "webhook_endpoints",
     ]
 
     SNAPSHOT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")

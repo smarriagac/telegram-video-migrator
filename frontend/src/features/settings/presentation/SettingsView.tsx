@@ -19,6 +19,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
 import { alertsApi } from "../infrastructure/alertsApi";
 import { BackupManagerCard } from "./components/BackupManagerCard";
+import { WebhookManagerCard } from "./components/WebhookManagerCard";
 import {
   Table,
   TableHeader,
@@ -873,6 +874,11 @@ export const SettingsView: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Card 3: Multichannel Webhook Dispatcher (Discord, Slack, HTTP) */}
+          <div className="lg:col-span-12">
+            <WebhookManagerCard />
           </div>
         </div>
       )}

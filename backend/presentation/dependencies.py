@@ -310,7 +310,12 @@ async def get_alerting_service():
         from backend.application.services.alerting_service import AlertingService
         gateway = await get_telegram_gateway()
         pg_repo = await get_postgres_repository()
-        _alerting_service_instance = AlertingService(gateway=gateway, pg_repo=pg_repo)
+        dispatcher = await get_webhook_dispatcher()
+        _alerting_service_instance = AlertingService(
+            gateway=gateway,
+            pg_repo=pg_repo,
+            webhook_dispatcher=dispatcher,
+        )
     return _alerting_service_instance
 
 
@@ -409,6 +414,30 @@ def get_template_service():
         from backend.application.services.template_service import TemplateService
         _template_service_instance = TemplateService()
     return _template_service_instance
+
+
+_webhook_repository_instance = None
+
+
+async def get_webhook_repository():
+    global _webhook_repository_instance
+    if _webhook_repository_instance is None:
+        from backend.infrastructure.persistence.postgres_webhook_repository import PostgresWebhookRepository
+        _webhook_repository_instance = PostgresWebhookRepository()
+        await _webhook_repository_instance.initialize_schema()
+    return _webhook_repository_instance
+
+
+_webhook_dispatcher_instance = None
+
+
+async def get_webhook_dispatcher():
+    global _webhook_dispatcher_instance
+    if _webhook_dispatcher_instance is None:
+        from backend.application.services.webhook_dispatcher_service import WebhookDispatcherService
+        repo = await get_webhook_repository()
+        _webhook_dispatcher_instance = WebhookDispatcherService(repository=repo)
+    return _webhook_dispatcher_instance
 
 
 

@@ -20,7 +20,8 @@ from backend.presentation.api.routers.notifications import router as notificatio
 from backend.presentation.api.routers.events import router as events_router
 from backend.presentation.api.routers.backups import router as backups_router
 from backend.presentation.api.routers.templates import router as templates_router
-from backend.presentation.dependencies import get_job_repository, get_postgres_repository
+from backend.presentation.api.routers.webhooks import router as webhooks_router
+from backend.presentation.dependencies import get_job_repository, get_postgres_repository, get_webhook_repository
 
 logging.basicConfig(
     level=logging.INFO,
@@ -71,6 +72,14 @@ async def lifespan(app: FastAPI):
         logger.info("LiveSyncService started successfully.")
     except Exception as e:
         logger.warning(f"Failed to start LiveSyncService during startup: {e}")
+
+    # Initialize Webhook Endpoints schema
+    try:
+        webhook_repo = await get_webhook_repository()
+        if hasattr(webhook_repo, "initialize_schema"):
+            await webhook_repo.initialize_schema()
+    except Exception as e:
+        logger.warning(f"Failed to initialize webhook schema: {e}")
 
     # Initialize FFmpeg Video Processing Queue Service
     from backend.presentation.dependencies import get_video_processing_service
@@ -158,6 +167,7 @@ app.include_router(notifications_router, prefix="/api")
 app.include_router(events_router, prefix="/api")
 app.include_router(backups_router, prefix="/api")
 app.include_router(templates_router, prefix="/api")
+app.include_router(webhooks_router, prefix="/api")
 app.include_router(billing_router)
 
 

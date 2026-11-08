@@ -140,7 +140,13 @@ class PostgresTemplateRepository(TemplateRepositoryPort):
             )
 
     async def _ensure_initialized(self) -> None:
-        if not self._initialized:
+        import asyncio
+        current_loop = asyncio.get_running_loop()
+        if self.pool is not None and getattr(self.pool, "_loop", None) is not current_loop:
+            self.pool = None
+            self._initialized = False
+
+        if not self._initialized or self.pool is None:
             await self.initialize_schema()
 
     async def create_template(self, template: CaptionTemplate) -> CaptionTemplate:

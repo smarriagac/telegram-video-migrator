@@ -20,10 +20,12 @@ class AlertingService:
         gateway: TelegramGatewayPort,
         pg_repo: Any = None,
         default_recipient: str | None = None,
+        webhook_dispatcher: Any = None,
     ) -> None:
         self.gateway = gateway
         self.pg_repo = pg_repo
         self.default_recipient = default_recipient or os.getenv("ALERT_TELEGRAM_RECIPIENT", "@Smpyt")
+        self.webhook_dispatcher = webhook_dispatcher
 
     async def get_alert_config(self, tenant_id: str = "00000000-0000-0000-0000-000000000001") -> dict[str, Any]:
         """Fetch alert configuration from database or fallback to environment defaults."""
@@ -59,13 +61,33 @@ class AlertingService:
         recipient: str | None = None,
         channel_id: int | None = None,
         link: str | None = None,
+        event_type: str = "operational.alert",
+        metadata: dict[str, Any] | None = None,
+        tenant_id: str = "00000000-0000-0000-0000-000000000001",
     ) -> bool:
-        """Send formatted alert to recipient or alert channel, and persist in-app notification."""
+        """Send formatted alert to recipient or alert channel, persist in-app notification, and broadcast to webhooks."""
+        clean_msg = message.replace("*", "").replace("_", "").replace("`", "")
+
+        # Broadcast to multichannel webhooks (Discord, Slack, Generic)
+        if self.webhook_dispatcher:
+            try:
+                asyncio.create_task(
+                    self.webhook_dispatcher.broadcast_event(
+                        event_type=event_type,
+                        title=title,
+                        message=clean_msg,
+                        severity=severity,
+                        metadata=metadata,
+                        tenant_id=tenant_id,
+                    )
+                )
+            except Exception as e:
+                logger.debug(f"Could not broadcast to webhooks: {e}")
+
         # Persist in-app notification for the dashboard header feed
         if self.pg_repo and hasattr(self.pg_repo, "save_notification"):
             try:
                 from backend.domain.entities.app_notification import AppNotification
-                clean_msg = message.replace("*", "").replace("_", "").replace("`", "")
                 in_app_notif = AppNotification.create(
                     title=title,
                     message=clean_msg,
@@ -135,6 +157,8 @@ class AlertingService:
                 recipient=recipient,
                 channel_id=channel_id,
                 link="/sync",
+                event_type="channel.eviction",
+                metadata={"channel_id": source_channel_id, "channel_name": channel_name, "account_id": account_id},
             )
         except Exception as e:
             logger.warning(f"Error dispatching eviction alert: {e}")
@@ -173,6 +197,8 @@ class AlertingService:
                 recipient=recipient,
                 channel_id=channel_id,
                 link="/chats",
+                event_type="job.failed",
+                metadata={"campaign_id": campaign_id, "campaign_name": name_str, "target_count": target_count},
             )
         except Exception as e:
             logger.warning(f"Error dispatching broadcast failure alert: {e}")
@@ -207,6 +233,8 @@ class AlertingService:
                 recipient=recipient,
                 channel_id=channel_id,
                 link="/channels",
+                event_type="flood_wait",
+                metadata={"seconds": seconds, "context": context, "account_id": account_id},
             )
         except Exception as e:
             logger.warning(f"Error dispatching FloodWait alert: {e}")
