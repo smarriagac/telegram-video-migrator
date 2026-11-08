@@ -1,4 +1,4 @@
-import { JobListResponse, JobQueueStatus, JobItem, QueueItem } from "../domain/types";
+import { JobListResponse, JobQueueStatus, JobItem, QueueItem, DeduplicationStats } from "../domain/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -316,6 +316,17 @@ export const jobsApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Error al omitir lote de elementos de la DLQ");
+    }
+    return res.json();
+  },
+
+  async getDeduplicationStats(): Promise<DeduplicationStats> {
+    const res = await fetch(`${API_BASE_URL}/jobs/deduplication/stats`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al obtener estadísticas de deduplicación");
     }
     return res.json();
   },

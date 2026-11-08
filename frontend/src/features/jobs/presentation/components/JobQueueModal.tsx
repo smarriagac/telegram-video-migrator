@@ -27,6 +27,7 @@ import {
   ArrowRight,
   ShieldAlert,
   Loader2,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -64,8 +65,15 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
     setRetrying(false);
   };
 
-  const getItemBadge = (status: QueueItem["status"]) => {
-    switch (status) {
+  const getItemBadge = (item: QueueItem) => {
+    if (item.is_deduplicated) {
+      return (
+        <Badge variant="outline" className="text-amber-500 dark:text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px] font-mono gap-1">
+          <Zap className="w-3 h-3 text-amber-400" /> Fast-Forward
+        </Badge>
+      );
+    }
+    switch (item.status) {
       case "COMPLETED":
         return (
           <Badge variant="outline" className="text-emerald-500 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10 text-[10px]">
@@ -144,7 +152,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
           </div>
 
           {/* Stats Bar */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-2 text-center text-xs font-mono">
+          <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-7 gap-2 pt-2 text-center text-xs font-mono">
             <div className="p-1.5 rounded bg-secondary/50 border border-border">
               <span className="text-[10px] text-muted-foreground block">Total</span>
               <span className="font-bold text-foreground">{stats.total || items.length}</span>
@@ -170,6 +178,12 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
             <div className="p-1.5 rounded bg-secondary/50 border border-border">
               <span className="text-[10px] text-muted-foreground block">Omitidos</span>
               <span className="font-bold text-amber-500 dark:text-amber-400">{stats.skipped || 0}</span>
+            </div>
+            <div className="p-1.5 rounded bg-amber-500/10 border border-amber-500/20 col-span-3 sm:col-span-1">
+              <span className="text-[10px] text-amber-400 block flex items-center justify-center gap-0.5">
+                <Zap className="w-2.5 h-2.5" /> Dedup
+              </span>
+              <span className="font-bold text-amber-400">{stats.deduplicated || 0}</span>
             </div>
           </div>
         </DialogHeader>
@@ -208,7 +222,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
                       {item.media_type}
                     </TableCell>
                     <TableCell className="py-2 px-3">
-                      {getItemBadge(item.status)}
+                      {getItemBadge(item)}
                     </TableCell>
                     <TableCell className="py-2 px-3 text-emerald-500 dark:text-emerald-400 font-mono">
                       {item.target_message_id ? `#${item.target_message_id}` : "-"}
@@ -217,7 +231,12 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
                       {item.retry_count}
                     </TableCell>
                     <TableCell className="py-2 px-3 text-xs max-w-xs truncate">
-                      {item.error_message ? (
+                      {item.is_deduplicated ? (
+                        <span className="text-amber-500 dark:text-amber-400 flex items-center gap-1 font-mono text-[11px]" title={item.error_message || item.caption}>
+                          <Zap className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{item.error_message || item.caption || "Deduplicado (Fast-Forward)"}</span>
+                        </span>
+                      ) : item.error_message ? (
                         <span className="text-rose-500 dark:text-rose-400 flex items-center gap-1" title={item.error_message}>
                           <ShieldAlert className="w-3 h-3 shrink-0" />
                           <span className="truncate">{item.error_message}</span>

@@ -39,6 +39,15 @@ export interface QueueItem {
   retry_count: number;
   created_at: string | null;
   updated_at: string | null;
+  is_deduplicated?: boolean;
+}
+
+export interface DeduplicationStats {
+  total_fingerprints: number;
+  total_deduplicated_items: number;
+  estimated_saved_bytes: number;
+  estimated_saved_mb: number;
+  engine_status: string;
 }
 
 export interface JobQueueStatus {
@@ -50,6 +59,7 @@ export interface JobQueueStatus {
     completed?: number;
     failed?: number;
     skipped?: number;
+    deduplicated?: number;
   };
   items: QueueItem[];
 }

@@ -166,6 +166,15 @@ class QueueItemResponse(BaseModel):
     retry_count: int = 0
     created_at: str | None = None
     updated_at: str | None = None
+    is_deduplicated: bool = False
+
+
+class DeduplicationStatsResponse(BaseModel):
+    total_fingerprints: int
+    total_deduplicated_items: int
+    estimated_saved_bytes: int
+    estimated_saved_mb: float
+    engine_status: str = "ACTIVE"
 
 
 class JobQueueStatusResponse(BaseModel):
@@ -346,6 +355,7 @@ async def list_dead_letter_queue(
                 retry_count=it.retry_count,
                 created_at=it.created_at,
                 updated_at=it.updated_at,
+                is_deduplicated=it.is_deduplicated,
             )
             for it in items
         ],
@@ -460,6 +470,21 @@ async def bulk_skip_dead_letter_items(
     }
 
 
+@router.get("/deduplication/stats", response_model=DeduplicationStatsResponse)
+async def get_deduplication_stats(
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> DeduplicationStatsResponse:
+    """Retrieve global cross-channel media deduplication and bandwidth savings metrics."""
+    stats = await repo.get_deduplication_stats()
+    return DeduplicationStatsResponse(
+        total_fingerprints=stats.get("total_fingerprints", 0),
+        total_deduplicated_items=stats.get("total_deduplicated_items", 0),
+        estimated_saved_bytes=stats.get("estimated_saved_bytes", 0),
+        estimated_saved_mb=stats.get("estimated_saved_mb", 0.0),
+        engine_status="ACTIVE",
+    )
+
+
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job(
     job_id: str,
@@ -523,6 +548,7 @@ async def get_job_queue(
                 retry_count=it.retry_count,
                 created_at=it.created_at,
                 updated_at=it.updated_at,
+                is_deduplicated=it.is_deduplicated,
             )
             for it in items
         ],

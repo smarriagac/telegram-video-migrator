@@ -387,3 +387,80 @@ async def test_dlq_filter_batch_api_endpoints():
         )
         assert skip_res.status_code == 200
         assert skip_res.json()["skipped_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_media_fingerprint_and_fast_forward_deduplication(repo: SQLiteJobRepository):
+    job_id = "test-dedup-job-1"
+    target_chan = -100555001
+    source_chan = -100555002
+
+    await repo.create_job(MigrationJob(job_id=job_id, source_id=source_chan, target_id=target_chan))
+
+    # Add items to queue
+    items = [
+        QueueItem(job_id=job_id, source_message_id=101, media_type="video", caption="Duplicate Clip"),
+        QueueItem(job_id=job_id, source_message_id=102, media_type="video", caption="Unique Clip"),
+    ]
+    await repo.add_queue_items(items)
+
+    fp_hash = "a1b2c3d4e5f678901234567890abcdef"
+    # Record fingerprint for item 101 on target_chan
+    await repo.record_media_fingerprint(
+        target_channel_id=target_chan,
+        fingerprint_hash=fp_hash,
+        source_channel_id=source_chan,
+        source_message_id=101,
+        target_message_id=9991,
+        media_type="video",
+    )
+
+    # 1. Lookup by target channel
+    matched = await repo.get_media_fingerprint(target_chan, fp_hash)
+    assert matched is not None
+    assert matched["target_channel_id"] == target_chan
+    assert matched["target_message_id"] == 9991
+    assert matched["fingerprint_hash"] == fp_hash
+
+    # 2. Lookup anywhere
+    anywhere = await repo.find_media_fingerprint_anywhere(fp_hash)
+    assert anywhere is not None
+    assert anywhere["target_channel_id"] == target_chan
+    assert anywhere["target_message_id"] == 9991
+
+    # 3. Simulate Fast-Forward: update queue item with is_deduplicated=True
+    await repo.update_queue_item_status(
+        job_id=job_id,
+        source_msg_id=101,
+        status=QueueItemStatus.COMPLETED,
+        target_msg_id=matched["target_message_id"],
+        error_message="Fast-Forward: Ya existe en destino",
+        is_deduplicated=True,
+    )
+
+    stats = await repo.get_queue_stats(job_id)
+    assert stats["completed"] == 1
+    assert stats["deduplicated"] == 1
+
+    # 4. Check global deduplication stats
+    dedup_summary = await repo.get_deduplication_stats()
+    assert dedup_summary["total_fingerprints"] >= 1
+    assert dedup_summary["total_deduplicated_items"] >= 1
+    assert dedup_summary["estimated_saved_mb"] >= 25.0
+
+
+@pytest.mark.asyncio
+async def test_deduplication_api_endpoint():
+    from httpx import AsyncClient, ASGITransport
+    from backend.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/api/jobs/deduplication/stats")
+        assert res.status_code == 200
+        data = res.json()
+        assert "total_fingerprints" in data
+        assert "total_deduplicated_items" in data
+        assert "estimated_saved_mb" in data
+        assert data["engine_status"] == "ACTIVE"
+

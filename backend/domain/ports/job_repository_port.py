@@ -176,6 +176,7 @@ class JobRepositoryPort(ABC):
         status: QueueItemStatus,
         target_msg_id: int | None = None,
         error_message: str | None = None,
+        is_deduplicated: bool = False,
     ) -> None:
         """Update individual queue item status and result."""
         raise NotImplementedError
@@ -236,6 +237,27 @@ class JobRepositoryPort(ABC):
     ) -> bool:
         """Check if media with the same fingerprint was already cloned to this target channel."""
         return False
+
+    async def get_media_fingerprint(
+        self, target_channel_id: int, fingerprint_hash: str
+    ) -> dict[str, Any] | None:
+        """Retrieve existing migrated fingerprint metadata for a target channel."""
+        return None
+
+    async def find_media_fingerprint_anywhere(
+        self, fingerprint_hash: str
+    ) -> dict[str, Any] | None:
+        """Find if a media fingerprint was already migrated to ANY channel."""
+        return None
+
+    async def get_deduplication_stats(self) -> dict[str, Any]:
+        """Aggregate total fingerprints, deduplicated items, and estimated bandwidth saved."""
+        return {
+            "total_fingerprints": 0,
+            "total_deduplicated_items": 0,
+            "estimated_saved_bytes": 0,
+            "estimated_saved_mb": 0.0,
+        }
 
     async def record_media_fingerprint(
         self,

@@ -158,6 +158,10 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE channel_sync_bindings ADD COLUMN last_error TEXT;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE migration_queue ADD COLUMN is_deduplicated INTEGER NOT NULL DEFAULT 0;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,6 +177,9 @@ class SQLiteJobRepository(JobRepositoryPort):
             """)
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_media_fingerprint ON migrated_media_fingerprints(target_channel_id, fingerprint_hash);
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_fp_hash_lookup ON migrated_media_fingerprints(fingerprint_hash);
             """)
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS scheduled_broadcasts (
@@ -587,7 +594,8 @@ class SQLiteJobRepository(JobRepositoryPort):
         count_query = f"SELECT COUNT(*) FROM migration_queue {where_clause};"
         data_query = f"""
             SELECT job_id, source_message_id, status, media_type, caption,
-                   target_message_id, error_message, retry_count, created_at, updated_at
+                   target_message_id, error_message, retry_count, created_at, updated_at,
+                   is_deduplicated
             FROM migration_queue
             {where_clause}
             ORDER BY updated_at DESC
@@ -613,6 +621,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                         retry_count=int(row[7] or 0),
                         created_at=str(row[8]) if row[8] is not None else None,
                         updated_at=str(row[9]) if row[9] is not None else None,
+                        is_deduplicated=bool(row[10]) if len(row) > 10 and row[10] is not None else False,
                     )
                     for row in rows
                 ]
@@ -840,7 +849,8 @@ class SQLiteJobRepository(JobRepositoryPort):
         await self._ensure_initialized()
         query = """
             SELECT job_id, source_message_id, status, media_type, caption,
-                   target_message_id, error_message, retry_count, created_at, updated_at
+                   target_message_id, error_message, retry_count, created_at, updated_at,
+                   is_deduplicated
             FROM migration_queue
             WHERE job_id = ?
         """
@@ -866,6 +876,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                         retry_count=int(row[7]),
                         created_at=str(row[8]) if row[8] is not None else None,
                         updated_at=str(row[9]) if row[9] is not None else None,
+                        is_deduplicated=bool(row[10]) if len(row) > 10 and row[10] is not None else False,
                     )
                     for row in rows
                 ]
@@ -876,7 +887,8 @@ class SQLiteJobRepository(JobRepositoryPort):
             async with conn.execute(
                 """
                 SELECT job_id, source_message_id, status, media_type, caption,
-                       target_message_id, error_message, retry_count, created_at, updated_at
+                       target_message_id, error_message, retry_count, created_at, updated_at,
+                       is_deduplicated
                 FROM migration_queue
                 WHERE job_id = ? AND status = 'PENDING'
                 ORDER BY source_message_id ASC
@@ -898,6 +910,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     retry_count=int(row[7]),
                     created_at=str(row[8]) if row[8] is not None else None,
                     updated_at=str(row[9]) if row[9] is not None else None,
+                    is_deduplicated=bool(row[10]) if len(row) > 10 and row[10] is not None else False,
                 )
 
     async def update_queue_item_status(
@@ -907,6 +920,7 @@ class SQLiteJobRepository(JobRepositoryPort):
         status: QueueItemStatus,
         target_msg_id: int | None = None,
         error_message: str | None = None,
+        is_deduplicated: bool = False,
     ) -> None:
         await self._ensure_initialized()
         status_val = status.value if isinstance(status, QueueItemStatus) else str(status)
@@ -917,10 +931,11 @@ class SQLiteJobRepository(JobRepositoryPort):
                 SET status = ?,
                     target_message_id = COALESCE(?, target_message_id),
                     error_message = ?,
+                    is_deduplicated = CASE WHEN ? THEN 1 ELSE is_deduplicated END,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE job_id = ? AND source_message_id = ?;
                 """,
-                (status_val, target_msg_id, error_message, job_id, source_msg_id),
+                (status_val, target_msg_id, error_message, 1 if is_deduplicated else 0, job_id, source_msg_id),
             )
             await conn.commit()
 
@@ -933,6 +948,7 @@ class SQLiteJobRepository(JobRepositoryPort):
             "completed": 0,
             "failed": 0,
             "skipped": 0,
+            "deduplicated": 0,
         }
         async with self._get_connection() as conn:
             async with conn.execute(
@@ -951,6 +967,17 @@ class SQLiteJobRepository(JobRepositoryPort):
                     if st in stats:
                         stats[st] = cnt
                     stats["total"] += cnt
+
+            async with conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM migration_queue
+                WHERE job_id = ? AND is_deduplicated = 1;
+                """,
+                (job_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                stats["deduplicated"] = int(row[0]) if row else 0
         return stats
 
     async def get_channel_cloning_history(self, channel_id: int) -> ChannelCloningHistory:
@@ -1314,6 +1341,90 @@ class SQLiteJobRepository(JobRepositoryPort):
             ) as cursor:
                 row = await cursor.fetchone()
                 return row is not None
+
+    async def get_media_fingerprint(
+        self, target_channel_id: int, fingerprint_hash: str
+    ) -> dict[str, Any] | None:
+        """Find matching fingerprint record for a specific target channel."""
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT target_channel_id, fingerprint_hash, source_channel_id,
+                       source_message_id, target_message_id, media_type, created_at
+                FROM migrated_media_fingerprints
+                WHERE target_channel_id = ? AND fingerprint_hash = ?
+                LIMIT 1;
+                """,
+                (target_channel_id, fingerprint_hash),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return None
+                return {
+                    "target_channel_id": row[0],
+                    "fingerprint_hash": row[1],
+                    "source_channel_id": row[2],
+                    "source_message_id": row[3],
+                    "target_message_id": row[4],
+                    "media_type": row[5],
+                    "created_at": str(row[6]) if row[6] else None,
+                }
+
+    async def find_media_fingerprint_anywhere(
+        self, fingerprint_hash: str
+    ) -> dict[str, Any] | None:
+        """Find if a media fingerprint was already migrated to ANY channel."""
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            async with conn.execute(
+                """
+                SELECT target_channel_id, fingerprint_hash, source_channel_id,
+                       source_message_id, target_message_id, media_type, created_at
+                FROM migrated_media_fingerprints
+                WHERE fingerprint_hash = ?
+                ORDER BY created_at DESC
+                LIMIT 1;
+                """,
+                (fingerprint_hash,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return None
+                return {
+                    "target_channel_id": row[0],
+                    "fingerprint_hash": row[1],
+                    "source_channel_id": row[2],
+                    "source_message_id": row[3],
+                    "target_message_id": row[4],
+                    "media_type": row[5],
+                    "created_at": str(row[6]) if row[6] else None,
+                }
+
+    async def get_deduplication_stats(self) -> dict[str, Any]:
+        """Aggregate total fingerprints, deduplicated items, and estimated saved bytes."""
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute("SELECT count(*) FROM migrated_media_fingerprints;")
+            row_fps = await cursor.fetchone()
+            total_fps = int(row_fps[0]) if row_fps else 0
+
+            cursor2 = await conn.execute(
+                "SELECT count(*) FROM migration_queue WHERE is_deduplicated = 1;"
+            )
+            row_dedup = await cursor2.fetchone()
+            total_dedup = int(row_dedup[0]) if row_dedup else 0
+
+            # Conservative estimate of 25 MB saved per avoided video duplicate
+            saved_bytes = total_dedup * 25 * 1024 * 1024
+            saved_mb = round(saved_bytes / (1024 * 1024), 2)
+
+            return {
+                "total_fingerprints": total_fps,
+                "total_deduplicated_items": total_dedup,
+                "estimated_saved_bytes": saved_bytes,
+                "estimated_saved_mb": saved_mb,
+            }
 
     async def record_media_fingerprint(
         self,

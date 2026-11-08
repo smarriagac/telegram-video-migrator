@@ -234,7 +234,7 @@ class CloneChannelVideosUseCase:
                 except Exception as ex:
                     logger.warning(f"Error evaluating media filter rules for #{item.source_message_id}: {ex}")
 
-            # Perceptual / structural duplicate guard
+            # Perceptual / structural duplicate guard & Fast-Forward Engine
             from backend.application.services.fingerprint_service import FingerprintService
             fp_svc = FingerprintService()
             fp_hash = fp_svc.compute_fingerprint(
@@ -246,20 +246,28 @@ class CloneChannelVideosUseCase:
                 height=getattr(video, "height", None),
                 caption=video.caption,
             )
-            is_dup = False
-            if fp_hash:
+            existing_target_record: dict[str, Any] | None = None
+            if fp_hash and hasattr(self.repo, "get_media_fingerprint"):
+                fp_res = self.repo.get_media_fingerprint(job.target_id, fp_hash)
+                existing_target_record = await fp_res if (asyncio.iscoroutine(fp_res) or hasattr(fp_res, "__await__")) else fp_res
+            elif fp_hash:
                 check_call = self.repo.is_media_fingerprint_duplicated(job.target_id, fp_hash)
-                if asyncio.iscoroutine(check_call) or hasattr(check_call, "__await__"):
-                    is_dup = await check_call
-                else:
-                    is_dup = bool(check_call)
+                is_dup = await check_call if (asyncio.iscoroutine(check_call) or hasattr(check_call, "__await__")) else bool(check_call)
+                if is_dup:
+                    existing_target_record = {"target_message_id": None}
 
-            if is_dup:
+            if existing_target_record:
+                matched_target_msg_id = existing_target_record.get("target_message_id")
                 logger.info(
-                    f"Duplicate guard: skipping duplicate media for message #{item.source_message_id} (hash {fp_hash[:10]})"
+                    f"Fast-Forward Engine: media already present in target #{job.target_id} for source msg #{item.source_message_id} (target_msg_id={matched_target_msg_id}, hash={fp_hash[:10]}). Skipping re-upload."
                 )
                 await self.repo.update_queue_item_status(
-                    job_id, item.source_message_id, QueueItemStatus.SKIPPED
+                    job_id,
+                    item.source_message_id,
+                    QueueItemStatus.COMPLETED,
+                    target_msg_id=matched_target_msg_id,
+                    error_message=f"Fast-Forward: Ya existe en destino #{job.target_id}" + (f" (msg #{matched_target_msg_id})" if matched_target_msg_id else ""),
+                    is_deduplicated=True,
                 )
                 stats = await self.repo.get_queue_stats(job_id)
                 processed_count = stats["completed"] + stats["failed"] + stats["skipped"]
@@ -268,7 +276,7 @@ class CloneChannelVideosUseCase:
                     await on_progress({
                         "job_id": job_id,
                         "status": JobStatus.RUNNING.value,
-                        "message": f"Duplicate Guard: Saltado mensaje #{item.source_message_id} (duplicado en canal destino)",
+                        "message": f"Fast-Forward: Mensaje #{item.source_message_id} deduplicado (0 bytes transferidos)",
                         "processed_videos": processed_count,
                         "total_videos": total_items,
                         "percentage": round((processed_count / total_items) * 100, 1) if total_items > 0 else 100.0,

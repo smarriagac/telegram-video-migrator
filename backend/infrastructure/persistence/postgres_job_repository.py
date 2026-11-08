@@ -128,6 +128,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS media_filter_rules JSONB;
                 ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'ACTIVE';
                 ALTER TABLE channel_sync_bindings ADD COLUMN IF NOT EXISTS last_error VARCHAR(500);
+                ALTER TABLE migration_queue ADD COLUMN IF NOT EXISTS is_deduplicated BOOLEAN NOT NULL DEFAULT FALSE;
 
                 CREATE TABLE IF NOT EXISTS migrated_media_fingerprints (
                     id SERIAL PRIMARY KEY,
@@ -141,6 +142,7 @@ class PostgresJobRepository(JobRepositoryPort):
                     UNIQUE(target_channel_id, fingerprint_hash)
                 );
                 CREATE INDEX IF NOT EXISTS idx_media_fingerprint ON migrated_media_fingerprints(target_channel_id, fingerprint_hash);
+                CREATE INDEX IF NOT EXISTS idx_pg_fp_hash_lookup ON migrated_media_fingerprints(fingerprint_hash);
 
                 CREATE TABLE IF NOT EXISTS video_processing_jobs (
                     id UUID PRIMARY KEY,
@@ -673,7 +675,8 @@ class PostgresJobRepository(JobRepositoryPort):
         p_offset = f"${len(params) + 2}"
         data_query = f"""
             SELECT job_id, source_message_id, status, media_type, caption,
-                   target_message_id, error_message, retry_count, created_at, updated_at
+                   target_message_id, error_message, retry_count, created_at, updated_at,
+                   is_deduplicated
             FROM migration_queue
             {where_clause}
             ORDER BY updated_at DESC
@@ -696,6 +699,7 @@ class PostgresJobRepository(JobRepositoryPort):
                     retry_count=int(r["retry_count"] or 0),
                     created_at=r["created_at"].isoformat() if r["created_at"] else None,
                     updated_at=r["updated_at"].isoformat() if r["updated_at"] else None,
+                    is_deduplicated=bool(r["is_deduplicated"]) if "is_deduplicated" in r and r["is_deduplicated"] is not None else False,
                 )
                 for r in rows
             ]
@@ -992,7 +996,8 @@ class PostgresJobRepository(JobRepositoryPort):
 
         query = """
             SELECT job_id, source_message_id, status, media_type, caption,
-                   target_message_id, error_message, retry_count, created_at, updated_at
+                   target_message_id, error_message, retry_count, created_at, updated_at,
+                   is_deduplicated
             FROM migration_queue
             WHERE job_id = $1
         """
@@ -1017,6 +1022,7 @@ class PostgresJobRepository(JobRepositoryPort):
                     retry_count=int(row["retry_count"]),
                     created_at=str(row["created_at"]) if row["created_at"] is not None else None,
                     updated_at=str(row["updated_at"]) if row["updated_at"] is not None else None,
+                    is_deduplicated=bool(row["is_deduplicated"]) if "is_deduplicated" in row and row["is_deduplicated"] is not None else False,
                 )
                 for row in rows
             ]
@@ -1031,7 +1037,8 @@ class PostgresJobRepository(JobRepositoryPort):
             row = await conn.fetchrow(
                 """
                 SELECT job_id, source_message_id, status, media_type, caption,
-                       target_message_id, error_message, retry_count, created_at, updated_at
+                       target_message_id, error_message, retry_count, created_at, updated_at,
+                       is_deduplicated
                 FROM migration_queue
                 WHERE job_id = $1 AND status = 'PENDING'
                 ORDER BY source_message_id ASC
@@ -1052,6 +1059,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 retry_count=int(row["retry_count"]),
                 created_at=str(row["created_at"]) if row["created_at"] is not None else None,
                 updated_at=str(row["updated_at"]) if row["updated_at"] is not None else None,
+                is_deduplicated=bool(row["is_deduplicated"]) if "is_deduplicated" in row and row["is_deduplicated"] is not None else False,
             )
 
     async def update_queue_item_status(
@@ -1061,12 +1069,13 @@ class PostgresJobRepository(JobRepositoryPort):
         status: QueueItemStatus,
         target_msg_id: int | None = None,
         error_message: str | None = None,
+        is_deduplicated: bool = False,
     ) -> None:
         await self._ensure_initialized()
         if self._fallback_mode or self.pool is None:
             assert self._fallback_repo is not None
             return await self._fallback_repo.update_queue_item_status(
-                job_id, source_msg_id, status, target_msg_id, error_message
+                job_id, source_msg_id, status, target_msg_id, error_message, is_deduplicated
             )
 
         status_val = status.value if isinstance(status, QueueItemStatus) else str(status)
@@ -1077,12 +1086,14 @@ class PostgresJobRepository(JobRepositoryPort):
                 SET status = $1,
                     target_message_id = COALESCE($2, target_message_id),
                     error_message = $3,
+                    is_deduplicated = CASE WHEN $4::boolean THEN TRUE ELSE is_deduplicated END,
                     updated_at = NOW()
-                WHERE job_id = $4 AND source_message_id = $5;
+                WHERE job_id = $5 AND source_message_id = $6;
                 """,
                 status_val,
                 target_msg_id,
                 error_message,
+                bool(is_deduplicated),
                 job_id,
                 source_msg_id,
             )
@@ -1100,6 +1111,7 @@ class PostgresJobRepository(JobRepositoryPort):
             "completed": 0,
             "failed": 0,
             "skipped": 0,
+            "deduplicated": 0,
         }
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
@@ -1117,6 +1129,12 @@ class PostgresJobRepository(JobRepositoryPort):
                 if st in stats:
                     stats[st] = cnt
                 stats["total"] += cnt
+
+            dedup_cnt = await conn.fetchval(
+                "SELECT COUNT(*) FROM migration_queue WHERE job_id = $1 AND is_deduplicated = TRUE;",
+                job_id,
+            )
+            stats["deduplicated"] = int(dedup_cnt or 0)
         return stats
 
     async def get_channel_cloning_history(self, channel_id: int) -> ChannelCloningHistory:
@@ -1551,6 +1569,103 @@ class PostgresJobRepository(JobRepositoryPort):
                 fingerprint_hash,
             )
             return row is not None
+
+    async def get_media_fingerprint(
+        self, target_channel_id: int, fingerprint_hash: str
+    ) -> dict[str, Any] | None:
+        """Find matching fingerprint record for a specific target channel."""
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.get_media_fingerprint(
+                    target_channel_id, fingerprint_hash
+                )
+            return None
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT target_channel_id, fingerprint_hash, source_channel_id,
+                       source_message_id, target_message_id, media_type, created_at
+                FROM migrated_media_fingerprints
+                WHERE target_channel_id = $1 AND fingerprint_hash = $2
+                LIMIT 1;
+                """,
+                target_channel_id,
+                fingerprint_hash,
+            )
+            if not row:
+                return None
+            return {
+                "target_channel_id": int(row["target_channel_id"]),
+                "fingerprint_hash": str(row["fingerprint_hash"]),
+                "source_channel_id": int(row["source_channel_id"]) if row["source_channel_id"] is not None else None,
+                "source_message_id": int(row["source_message_id"]) if row["source_message_id"] is not None else None,
+                "target_message_id": int(row["target_message_id"]) if row["target_message_id"] is not None else None,
+                "media_type": str(row["media_type"]),
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            }
+
+    async def find_media_fingerprint_anywhere(
+        self, fingerprint_hash: str
+    ) -> dict[str, Any] | None:
+        """Find if a media fingerprint was already migrated to ANY channel."""
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.find_media_fingerprint_anywhere(fingerprint_hash)
+            return None
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT target_channel_id, fingerprint_hash, source_channel_id,
+                       source_message_id, target_message_id, media_type, created_at
+                FROM migrated_media_fingerprints
+                WHERE fingerprint_hash = $1
+                ORDER BY created_at DESC
+                LIMIT 1;
+                """,
+                fingerprint_hash,
+            )
+            if not row:
+                return None
+            return {
+                "target_channel_id": int(row["target_channel_id"]),
+                "fingerprint_hash": str(row["fingerprint_hash"]),
+                "source_channel_id": int(row["source_channel_id"]) if row["source_channel_id"] is not None else None,
+                "source_message_id": int(row["source_message_id"]) if row["source_message_id"] is not None else None,
+                "target_message_id": int(row["target_message_id"]) if row["target_message_id"] is not None else None,
+                "media_type": str(row["media_type"]),
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            }
+
+    async def get_deduplication_stats(self) -> dict[str, Any]:
+        """Aggregate total fingerprints, deduplicated items, and estimated bandwidth saved."""
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            if self._fallback_repo:
+                return await self._fallback_repo.get_deduplication_stats()
+            return {
+                "total_fingerprints": 0,
+                "total_deduplicated_items": 0,
+                "estimated_saved_bytes": 0,
+                "estimated_saved_mb": 0.0,
+            }
+
+        async with self.pool.acquire() as conn:
+            total_fps = await conn.fetchval("SELECT count(*) FROM migrated_media_fingerprints;") or 0
+            total_dedup = await conn.fetchval(
+                "SELECT count(*) FROM migration_queue WHERE is_deduplicated = TRUE;"
+            ) or 0
+            saved_bytes = total_dedup * 25 * 1024 * 1024
+            saved_mb = round(saved_bytes / (1024 * 1024), 2)
+            return {
+                "total_fingerprints": total_fps,
+                "total_deduplicated_items": total_dedup,
+                "estimated_saved_bytes": saved_bytes,
+                "estimated_saved_mb": saved_mb,
+            }
 
     async def record_media_fingerprint(
         self,

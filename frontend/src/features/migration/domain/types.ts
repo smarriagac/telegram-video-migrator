@@ -68,6 +68,7 @@ export interface ProgressEventPayload {
     completed: number;
     failed: number;
     skipped: number;
+    deduplicated?: number;
   };
 }
 
@@ -93,6 +94,7 @@ export interface QueueItem {
   retry_count: number;
   created_at?: string;
   updated_at?: string;
+  is_deduplicated?: boolean;
 }
 
 export interface JobQueueStatus {
@@ -104,6 +106,7 @@ export interface JobQueueStatus {
     completed: number;
     failed: number;
     skipped: number;
+    deduplicated?: number;
   };
   items: QueueItem[];
 }

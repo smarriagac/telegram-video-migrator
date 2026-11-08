@@ -6,6 +6,7 @@ import {
   Layers,
   Loader2,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { QueueItem } from "../../domain/types";
@@ -36,6 +37,7 @@ export const QueueViewer: React.FC = () => {
     completed: activeJob.processed_videos,
     failed: 0,
     skipped: 0,
+    deduplicated: 0,
   };
 
   const getStatusIcon = (status: string) => {
@@ -83,7 +85,7 @@ export const QueueViewer: React.FC = () => {
       </div>
 
       {/* Metric Badges Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center font-mono">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center font-mono">
         <div className="p-2 rounded-lg bg-secondary/60 border border-border">
           <span className="text-[10px] text-muted-foreground block">Total</span>
           <span className="text-sm font-semibold text-foreground">{stats.total}</span>
@@ -104,6 +106,12 @@ export const QueueViewer: React.FC = () => {
           <span className="text-[10px] text-rose-500 dark:text-rose-400 block">Fallidos</span>
           <span className="text-sm font-semibold text-rose-500 dark:text-rose-300">{stats.failed}</span>
         </div>
+        <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <span className="text-[10px] text-amber-400 block flex items-center justify-center gap-0.5">
+            <Zap className="w-2.5 h-2.5" /> Dedup
+          </span>
+          <span className="text-sm font-semibold text-amber-400">{stats.deduplicated || 0}</span>
+        </div>
       </div>
 
       {/* Expanded Live Items View */}
@@ -121,6 +129,11 @@ export const QueueViewer: React.FC = () => {
               <span className="text-[10px] font-mono text-muted-foreground uppercase shrink-0 w-16">
                 {item.media_type}
               </span>
+              {item.is_deduplicated && (
+                <span className="text-[10px] font-mono text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 rounded shrink-0 flex items-center gap-1">
+                  <Zap className="w-2.5 h-2.5" /> Fast-Forward
+                </span>
+              )}
               <span className="flex-1 truncate text-[11px] text-foreground">
                 {item.caption || (
                   <span className="text-zinc-600 italic">[Sin texto]</span>
