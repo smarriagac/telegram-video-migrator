@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import AsyncIterator
 import aiosqlite
 
@@ -10,6 +11,7 @@ from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
+from backend.domain.entities.app_notification import AppNotification
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 
 
@@ -191,6 +193,21 @@ class SQLiteJobRepository(JobRepositoryPort):
             """)
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_sched_broadcast_status ON scheduled_broadcasts(status, scheduled_at);
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS app_notifications (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    severity TEXT NOT NULL DEFAULT 'INFO',
+                    is_read INTEGER NOT NULL DEFAULT 0,
+                    link TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_notifications_tenant_read ON app_notifications(tenant_id, is_read, created_at DESC);
             """)
             await conn.commit()
             self._initialized = True
@@ -1182,6 +1199,106 @@ class SQLiteJobRepository(JobRepositoryPort):
             cursor = await conn.execute("DELETE FROM scheduled_broadcasts WHERE id = ?", (id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    async def save_notification(
+        self, notification: AppNotification
+    ) -> AppNotification:
+        await self._ensure_initialized()
+        tid = notification.tenant_id or "default"
+        now_iso = notification.created_at or datetime.now(timezone.utc).isoformat()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO app_notifications (id, tenant_id, title, message, severity, is_read, link, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO UPDATE SET
+                    title = excluded.title,
+                    message = excluded.message,
+                    severity = excluded.severity,
+                    is_read = excluded.is_read,
+                    link = excluded.link
+                """,
+                (
+                    notification.id,
+                    tid,
+                    notification.title,
+                    notification.message,
+                    notification.severity,
+                    1 if notification.is_read else 0,
+                    notification.link,
+                    now_iso,
+                ),
+            )
+            await conn.commit()
+        return notification
+
+    async def list_notifications(
+        self, tenant_id: str = "default", limit: int = 30, unread_only: bool = False
+    ) -> list[AppNotification]:
+        await self._ensure_initialized()
+        tid = tenant_id or "default"
+        query = "SELECT id, tenant_id, title, message, severity, is_read, link, created_at FROM app_notifications WHERE tenant_id = ?"
+        params: list[Any] = [tid]
+        if unread_only:
+            query += " AND is_read = 0"
+        query += " ORDER BY created_at DESC, rowid DESC LIMIT ?"
+        params.append(limit)
+
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(query, tuple(params))
+            rows = await cursor.fetchall()
+            return [
+                AppNotification(
+                    id=row[0],
+                    tenant_id=row[1],
+                    title=row[2],
+                    message=row[3],
+                    severity=row[4],
+                    is_read=bool(row[5]),
+                    link=row[6],
+                    created_at=str(row[7]),
+                )
+                for row in rows
+            ]
+
+    async def mark_notification_as_read(
+        self, notification_id: str, tenant_id: str = "default"
+    ) -> bool:
+        await self._ensure_initialized()
+        tid = tenant_id or "default"
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "UPDATE app_notifications SET is_read = 1 WHERE id = ? AND tenant_id = ?",
+                (notification_id, tid),
+            )
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    async def mark_all_notifications_as_read(
+        self, tenant_id: str = "default"
+    ) -> int:
+        await self._ensure_initialized()
+        tid = tenant_id or "default"
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "UPDATE app_notifications SET is_read = 1 WHERE tenant_id = ? AND is_read = 0",
+                (tid,),
+            )
+            await conn.commit()
+            return cursor.rowcount
+
+    async def get_unread_notifications_count(
+        self, tenant_id: str = "default"
+    ) -> int:
+        await self._ensure_initialized()
+        tid = tenant_id or "default"
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "SELECT COUNT(*) FROM app_notifications WHERE tenant_id = ? AND is_read = 0",
+                (tid,),
+            )
+            row = await cursor.fetchone()
+            return int(row[0]) if row else 0
 
     def _row_to_scheduled_broadcast(self, row: tuple) -> ScheduledBroadcast:
         target_ids = json.loads(row[2]) if row[2] else []

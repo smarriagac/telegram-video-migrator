@@ -6,6 +6,7 @@ from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
+from backend.domain.entities.app_notification import AppNotification
 
 
 class JobRepositoryPort(ABC):
@@ -207,4 +208,34 @@ class JobRepositoryPort(ABC):
     async def delete_scheduled_broadcast(self, id: str) -> bool:
         """Delete a scheduled broadcast campaign by its ID."""
         return True
+
+    async def save_notification(
+        self, notification: AppNotification
+    ) -> AppNotification:
+        """Persist a new or updated in-app operational notification."""
+        return notification
+
+    async def list_notifications(
+        self, tenant_id: str = "default", limit: int = 30, unread_only: bool = False
+    ) -> list[AppNotification]:
+        """List recent in-app notifications for tenant, optionally filtered to unread."""
+        return []
+
+    async def mark_notification_as_read(
+        self, notification_id: str, tenant_id: str = "default"
+    ) -> bool:
+        """Mark a single notification as read."""
+        return True
+
+    async def mark_all_notifications_as_read(
+        self, tenant_id: str = "default"
+    ) -> int:
+        """Mark all unread notifications for tenant as read. Returns count updated."""
+        return 0
+
+    async def get_unread_notifications_count(
+        self, tenant_id: str = "default"
+    ) -> int:
+        """Fast count of unread notifications for a tenant."""
+        return 0
 

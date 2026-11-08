@@ -58,8 +58,24 @@ class AlertingService:
         severity: str = "INFO",  # INFO, WARNING, ERROR, CRITICAL
         recipient: str | None = None,
         channel_id: int | None = None,
+        link: str | None = None,
     ) -> bool:
-        """Send formatted alert to recipient or alert channel."""
+        """Send formatted alert to recipient or alert channel, and persist in-app notification."""
+        # Persist in-app notification for the dashboard header feed
+        if self.pg_repo and hasattr(self.pg_repo, "save_notification"):
+            try:
+                from backend.domain.entities.app_notification import AppNotification
+                clean_msg = message.replace("*", "").replace("_", "").replace("`", "")
+                in_app_notif = AppNotification.create(
+                    title=title,
+                    message=clean_msg,
+                    severity=severity,
+                    link=link,
+                )
+                asyncio.create_task(self.pg_repo.save_notification(in_app_notif))
+            except Exception as e:
+                logger.debug(f"Could not persist in-app notification: {e}")
+
         icon = "ℹ️" if severity == "INFO" else "⚠️" if severity == "WARNING" else "🚨"
         formatted_text = (
             f"{icon} *[TELEGRAM HUB ALERT]* {title}\n\n"
@@ -118,6 +134,7 @@ class AlertingService:
                 severity="WARNING",
                 recipient=recipient,
                 channel_id=channel_id,
+                link="/sync",
             )
         except Exception as e:
             logger.warning(f"Error dispatching eviction alert: {e}")
@@ -155,6 +172,7 @@ class AlertingService:
                 severity="ERROR",
                 recipient=recipient,
                 channel_id=channel_id,
+                link="/chats",
             )
         except Exception as e:
             logger.warning(f"Error dispatching broadcast failure alert: {e}")
@@ -188,6 +206,7 @@ class AlertingService:
                 severity="WARNING",
                 recipient=recipient,
                 channel_id=channel_id,
+                link="/channels",
             )
         except Exception as e:
             logger.warning(f"Error dispatching FloodWait alert: {e}")

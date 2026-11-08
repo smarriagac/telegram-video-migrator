@@ -18,6 +18,7 @@ import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { useThemeStore } from "@/shared/lib/useThemeStore";
 import { BrandLogo } from "@/shared/components/BrandLogo";
+import { NotificationBell } from "@/shared/components/NotificationBell";
 import { Separator } from "@/shared/components/ui/separator";
 import {
   Breadcrumb,
@@ -429,6 +430,7 @@ export const AppLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <button
                 type="button"
                 onClick={toggleTheme}

@@ -11,6 +11,7 @@ from backend.domain.entities.queue_item import QueueItem, QueueItemStatus
 from backend.domain.entities.cloning_history import ChannelCloningHistory, ClonedContentItem
 from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
+from backend.domain.entities.app_notification import AppNotification
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
 
@@ -179,6 +180,18 @@ class PostgresJobRepository(JobRepositoryPort):
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
                 CREATE INDEX IF NOT EXISTS idx_sched_broadcast_status ON scheduled_broadcasts(status, scheduled_at);
+
+                CREATE TABLE IF NOT EXISTS app_notifications (
+                    id VARCHAR(64) PRIMARY KEY,
+                    tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    severity VARCHAR(20) NOT NULL DEFAULT 'INFO',
+                    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+                    link TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_notifications_tenant_read ON app_notifications(tenant_id, is_read, created_at DESC);
             """)
         self._initialized = True
 
@@ -1451,6 +1464,134 @@ class PostgresJobRepository(JobRepositoryPort):
             last_error=row["last_error"],
             created_at=str(row["created_at"]),
         )
+
+    async def save_notification(
+        self, notification: AppNotification
+    ) -> AppNotification:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.save_notification(notification)
+
+        tid = notification.tenant_id or "default"
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO app_notifications (id, tenant_id, title, message, severity, is_read, link, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                ON CONFLICT (id) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    message = EXCLUDED.message,
+                    severity = EXCLUDED.severity,
+                    is_read = EXCLUDED.is_read,
+                    link = EXCLUDED.link
+                """,
+                notification.id,
+                tid,
+                notification.title,
+                notification.message,
+                notification.severity,
+                notification.is_read,
+                notification.link,
+            )
+        return notification
+
+    async def list_notifications(
+        self, tenant_id: str = "default", limit: int = 30, unread_only: bool = False
+    ) -> list[AppNotification]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_notifications(tenant_id, limit, unread_only)
+
+        tid = tenant_id or "default"
+        query = """
+            SELECT id, tenant_id, title, message, severity, is_read, link, created_at
+            FROM app_notifications
+            WHERE tenant_id = $1
+        """
+        if unread_only:
+            query += " AND is_read = FALSE"
+        query += " ORDER BY created_at DESC LIMIT $2"
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, tid, limit)
+            return [
+                AppNotification(
+                    id=row["id"],
+                    tenant_id=row["tenant_id"],
+                    title=row["title"],
+                    message=row["message"],
+                    severity=row["severity"],
+                    is_read=row["is_read"],
+                    link=row["link"],
+                    created_at=str(row["created_at"]),
+                )
+                for row in rows
+            ]
+
+    async def mark_notification_as_read(
+        self, notification_id: str, tenant_id: str = "default"
+    ) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.mark_notification_as_read(notification_id, tenant_id)
+
+        tid = tenant_id or "default"
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE app_notifications
+                SET is_read = TRUE
+                WHERE id = $1 AND tenant_id = $2
+                """,
+                notification_id,
+                tid,
+            )
+            return "UPDATE 1" in res
+
+    async def mark_all_notifications_as_read(
+        self, tenant_id: str = "default"
+    ) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.mark_all_notifications_as_read(tenant_id)
+
+        tid = tenant_id or "default"
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE app_notifications
+                SET is_read = TRUE
+                WHERE tenant_id = $1 AND is_read = FALSE
+                """,
+                tid,
+            )
+            try:
+                return int(res.split(" ")[-1])
+            except Exception:
+                return 0
+
+    async def get_unread_notifications_count(
+        self, tenant_id: str = "default"
+    ) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_unread_notifications_count(tenant_id)
+
+        tid = tenant_id or "default"
+        async with self.pool.acquire() as conn:
+            val = await conn.fetchval(
+                """
+                SELECT COUNT(*) FROM app_notifications
+                WHERE tenant_id = $1 AND is_read = FALSE
+                """,
+                tid,
+            )
+            return int(val or 0)
 
     async def close(self) -> None:
         if self.pool is not None:

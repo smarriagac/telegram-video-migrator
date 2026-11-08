@@ -16,6 +16,7 @@ from backend.presentation.api.routers.sync import router as sync_router
 from backend.presentation.api.routers.billing import router as billing_router
 from backend.presentation.api.routers.video_processing import router as video_processing_router
 from backend.presentation.api.routers.alerts import router as alerts_router
+from backend.presentation.api.routers.notifications import router as notifications_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository
 
 logging.basicConfig(
@@ -143,6 +144,7 @@ app.include_router(analytics_router, prefix="/api")
 app.include_router(sync_router, prefix="/api")
 app.include_router(video_processing_router, prefix="/api")
 app.include_router(alerts_router, prefix="/api")
+app.include_router(notifications_router, prefix="/api")
 app.include_router(billing_router)
 
 
