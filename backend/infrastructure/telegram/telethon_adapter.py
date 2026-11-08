@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -51,9 +52,15 @@ class TelethonAdapter(TelegramGatewayPort):
 
     async def _ensure_connected(self, client: TelegramClient | None = None) -> None:
         target = client or self.client
-        if not target.is_connected():
+        is_conn = target.is_connected()
+        if asyncio.iscoroutine(is_conn):
+            is_conn = await is_conn
+        if not is_conn:
             await target.connect()
-        if not await target.is_user_authorized():
+        auth = target.is_user_authorized()
+        if asyncio.iscoroutine(auth):
+            auth = await auth
+        if not auth:
             raise ChannelAccessDeniedException(
                 "La cuenta de Telegram no está autorizada. Por favor vinculá una sesión válida en Configuración o con el script."
             )
@@ -1319,42 +1326,50 @@ class TelethonAdapter(TelegramGatewayPort):
         account_id: int | None = None,
         delay_seconds: float = 1.0,
     ) -> dict[str, Any]:
-        """Broadcast a message (with optional media/album) to multiple channels/groups with rate-limiting pacing."""
-        client = self._get_client(account_id)
+        """
+        Broadcast a message (with optional media/album) to multiple channels/groups with rate-limiting pacing
+        and automated multi-account failover/rotation on FloodWaitError.
+        """
+        curr_account_id = account_id
+        client = self._get_client(curr_account_id)
         await self._ensure_connected(client)
+        if curr_account_id is None and self.pool:
+            curr_account_id = self.pool.get_account_id_for_client(client)
 
         results = []
         successful_count = 0
         failed_count = 0
 
+        async def _send_to_target(c: TelegramClient, tid: int) -> int | None:
+            try:
+                target_entity = await c.get_input_entity(tid)
+            except Exception:
+                target_entity = await c.get_entity(tid)
+
+            if media_paths and len(media_paths) > 1:
+                sent = await c.send_file(
+                    target_entity,
+                    file=media_paths,
+                    caption=text or "",
+                )
+                return sent[0].id if isinstance(sent, list) and sent else getattr(sent, "id", None)
+            elif media_paths and len(media_paths) == 1:
+                sent = await c.send_file(
+                    target_entity,
+                    file=media_paths[0],
+                    caption=text or "",
+                )
+                return getattr(sent, "id", None)
+            else:
+                sent = await c.send_message(
+                    target_entity,
+                    text or "",
+                )
+                return getattr(sent, "id", None)
+
         for i, target_id in enumerate(target_ids):
             try:
-                try:
-                    target_entity = await client.get_input_entity(target_id)
-                except Exception:
-                    target_entity = await client.get_entity(target_id)
-
-                if media_paths and len(media_paths) > 1:
-                    sent = await client.send_file(
-                        target_entity,
-                        file=media_paths,
-                        caption=text or "",
-                    )
-                    sent_id = sent[0].id if isinstance(sent, list) and sent else getattr(sent, "id", None)
-                elif media_paths and len(media_paths) == 1:
-                    sent = await client.send_file(
-                        target_entity,
-                        file=media_paths[0],
-                        caption=text or "",
-                    )
-                    sent_id = getattr(sent, "id", None)
-                else:
-                    sent = await client.send_message(
-                        target_entity,
-                        text or "",
-                    )
-                    sent_id = getattr(sent, "id", None)
-
+                sent_id = await _send_to_target(client, target_id)
                 results.append({
                     "target_id": target_id,
                     "message_id": sent_id,
@@ -1364,16 +1379,52 @@ class TelethonAdapter(TelegramGatewayPort):
                 successful_count += 1
 
             except FloodWaitError as fwe:
-                logger.warning(f"FloodWait while broadcasting to target {target_id}: {fwe.seconds}s")
-                results.append({
-                    "target_id": target_id,
-                    "message_id": None,
-                    "status": "failed",
-                    "error": f"FloodWait ({fwe.seconds}s)",
-                })
-                failed_count += 1
-                if fwe.seconds <= 10:
-                    await asyncio.sleep(fwe.seconds)
+                logger.warning(
+                    f"FloodWait on account #{curr_account_id} while broadcasting to target {target_id}: {fwe.seconds}s"
+                )
+                rotated = False
+                if self.pool and curr_account_id is not None:
+                    self.pool.mark_flood_wait(curr_account_id, fwe.seconds)
+                    alt = self.pool.get_available_client(
+                        tenant_id=self.tenant_id,
+                        exclude_account_id=curr_account_id,
+                    )
+                    if alt:
+                        new_acc_id, new_acc_name, new_client = alt
+                        logger.info(
+                            f"Smart Failover: Rotating broadcast from account #{curr_account_id} "
+                            f"to account #{new_acc_id} ('{new_acc_name}') due to FloodWait ({fwe.seconds}s)."
+                        )
+                        curr_account_id = new_acc_id
+                        client = new_client
+                        await self._ensure_connected(client)
+                        try:
+                            sent_id = await _send_to_target(client, target_id)
+                            results.append({
+                                "target_id": target_id,
+                                "message_id": sent_id,
+                                "status": "success",
+                                "error": None,
+                                "recovered_by_account": new_acc_id,
+                            })
+                            successful_count += 1
+                            rotated = True
+                        except Exception as retry_err:
+                            logger.warning(
+                                f"Retry failed with rotated account #{new_acc_id} for target {target_id}: {retry_err}"
+                            )
+
+                if not rotated:
+                    results.append({
+                        "target_id": target_id,
+                        "message_id": None,
+                        "status": "failed",
+                        "error": f"FloodWait ({fwe.seconds}s)",
+                    })
+                    failed_count += 1
+                    if fwe.seconds <= 10:
+                        await asyncio.sleep(fwe.seconds)
+
             except Exception as e:
                 logger.warning(f"Error broadcasting to target {target_id}: {e}")
                 results.append({

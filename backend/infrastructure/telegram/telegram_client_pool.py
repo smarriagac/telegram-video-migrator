@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 from telethon import TelegramClient
 
@@ -21,6 +22,9 @@ class TelegramClientPool:
         self._tenant_account_names: dict[str, dict[int, str]] = {}
         self._tenant_default_client: dict[str, TelegramClient] = {}
         self._account_tenant_map: dict[int, str] = {}
+
+        # FloodWait cooldown registry: account_id -> epoch_time_until
+        self._flood_wait_until: dict[int, float] = {}
 
     def register_client(
         self,
@@ -115,8 +119,56 @@ class TelegramClientPool:
             for acc_id, client in self._clients.items()
         ]
 
+    def mark_flood_wait(self, account_id: int, seconds: int) -> None:
+        """Mark an account as on cooldown due to Telegram FloodWait."""
+        until = time.time() + max(1.0, float(seconds))
+        self._flood_wait_until[account_id] = until
+        logger.warning(
+            f"Account #{account_id} placed on FloodWait cooldown for {seconds}s (until epoch {until:.1f})."
+        )
+
+    def is_account_on_cooldown(self, account_id: int) -> tuple[bool, int]:
+        """Check if an account is currently in cooldown. Returns (is_cooling, remaining_seconds)."""
+        until = self._flood_wait_until.get(account_id, 0.0)
+        remaining = int(until - time.time())
+        if remaining > 0:
+            return True, remaining
+        # Clean expired entry
+        if account_id in self._flood_wait_until:
+            del self._flood_wait_until[account_id]
+        return False, 0
+
+    def get_account_id_for_client(self, client: TelegramClient) -> int | None:
+        """Lookup account_id matching a given client instance."""
+        for acc_id, c in self._clients.items():
+            if c is client:
+                return acc_id
+        return None
+
+    def get_available_client(
+        self,
+        tenant_id: str | None = None,
+        exclude_account_id: int | None = None,
+    ) -> tuple[int, str, TelegramClient] | None:
+        """
+        Find an active connected client not currently constrained by FloodWait cooldown.
+        Supports strict tenant scoping and excluding a specific account (e.g. during failover).
+        """
+        candidates = self.list_clients(tenant_id=tenant_id)
+        for acc_id, name, client in candidates:
+            if exclude_account_id is not None and acc_id == exclude_account_id:
+                continue
+            is_cooling, remaining = self.is_account_on_cooldown(acc_id)
+            if not is_cooling:
+                return acc_id, name, client
+            logger.debug(
+                f"Candidate account #{acc_id} skipped: FloodWait cooldown active ({remaining}s remaining)."
+            )
+        return None
+
     def remove_client(self, account_id: int) -> None:
         """Remove a client from the pool across all global and tenant registries."""
+        self._flood_wait_until.pop(account_id, None)
         client = self._clients.pop(account_id, None)
         self._account_names.pop(account_id, None)
 
