@@ -20,6 +20,7 @@ from backend.presentation.dependencies import (
     get_job_repository,
     get_migration_use_case,
     get_audit_repository,
+    get_crash_recovery_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -521,3 +522,18 @@ async def delete_job(
     use_case.cancel_job(job_id)
     await repo.delete_job(job_id)
     return {"job_id": job_id, "deleted": "true"}
+
+
+@router.post("/recovery/sweep", response_model=dict[str, Any])
+async def run_recovery_sweep(
+    clean_temp_files: bool = True,
+    min_temp_age_seconds: int = 60,
+    recovery_service: Any = Depends(get_crash_recovery_service),
+) -> dict[str, Any]:
+    """Execute manual orphan sweep and crash recovery across database jobs and temp files."""
+    report = await recovery_service.run_recovery(
+        clean_temp_files=clean_temp_files,
+        min_temp_age_seconds=min_temp_age_seconds,
+    )
+    return report.to_dict()
+

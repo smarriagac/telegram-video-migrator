@@ -485,6 +485,67 @@ class PostgresJobRepository(JobRepositoryPort):
             except Exception:
                 return 0
 
+    async def reconcile_orphaned_queue_items(self) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.reconcile_orphaned_queue_items()
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE migration_queue
+                SET status = 'PENDING',
+                    updated_at = NOW()
+                WHERE status = 'IN_PROGRESS';
+                """
+            )
+            try:
+                return int(result.split()[-1])
+            except Exception:
+                return 0
+
+    async def reconcile_orphaned_broadcasts(self) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.reconcile_orphaned_broadcasts()
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE scheduled_broadcasts
+                SET status = 'SCHEDULED',
+                    last_error = 'Interrupted by system restart'
+                WHERE status = 'RUNNING';
+                """
+            )
+            try:
+                return int(result.split()[-1])
+            except Exception:
+                return 0
+
+    async def reconcile_orphaned_video_processing_jobs(self) -> int:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.reconcile_orphaned_video_processing_jobs()
+
+        async with self.pool.acquire() as conn:
+            result = await conn.execute(
+                """
+                UPDATE video_processing_jobs
+                SET status = 'FAILED',
+                    error_message = 'Interrupted by system restart',
+                    updated_at = NOW()
+                WHERE status = 'PROCESSING';
+                """
+            )
+            try:
+                return int(result.split()[-1])
+            except Exception:
+                return 0
+
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int
     ) -> None:

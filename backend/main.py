@@ -33,13 +33,20 @@ async def lifespan(app: FastAPI):
     if hasattr(repo, "initialize_schema"):
         await repo.initialize_schema()
 
-    # Reconcile orphaned jobs on startup (zombies from previous crashes or container restarts)
+    # Reconcile orphaned jobs, queue items, broadcasts, and disk files on startup
     try:
-        reconciled_count = await repo.reconcile_orphaned_jobs()
-        if reconciled_count > 0:
-            logger.info(f"Startup reconciliation: marked {reconciled_count} orphaned RUNNING jobs as PAUSED.")
+        from backend.presentation.dependencies import get_crash_recovery_service
+        recovery_service = await get_crash_recovery_service()
+        report = await recovery_service.run_recovery(clean_temp_files=True, min_temp_age_seconds=0)
+        if report.total_entities_rescued > 0 or report.temp_files_deleted > 0:
+            logger.info(
+                f"Startup Crash Recovery: {report.orphaned_jobs_count} jobs paused, "
+                f"{report.orphaned_queue_items_count} queue items reset, "
+                f"{report.orphaned_broadcasts_count} broadcasts rescheduled, "
+                f"{report.temp_files_deleted} temp files deleted ({report.megabytes_freed} MB freed)."
+            )
     except Exception as e:
-        logger.warning(f"Failed to reconcile orphaned jobs during startup: {e}")
+        logger.warning(f"Failed to execute startup crash recovery: {e}")
 
     # Initialize PostgreSQL schema for Users, Roles, and Accounts
     pg_repo = await get_postgres_repository()

@@ -60,6 +60,21 @@ class JobRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def reconcile_orphaned_queue_items(self) -> int:
+        """Reset orphaned queue items in IN_PROGRESS state back to PENDING on server startup."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def reconcile_orphaned_broadcasts(self) -> int:
+        """Reset orphaned broadcasts in RUNNING state back to SCHEDULED on server startup."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def reconcile_orphaned_video_processing_jobs(self) -> int:
+        """Mark orphaned video processing jobs in PROCESSING state as FAILED on server startup."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def record_migrated_item(
         self, job_id: str, source_msg_id: int, target_msg_id: int
     ) -> None:

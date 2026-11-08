@@ -336,3 +336,20 @@ async def get_broadcast_scheduler_service():
     return _broadcast_scheduler_instance
 
 
+_crash_recovery_service_instance = None
+
+
+async def get_crash_recovery_service():
+    global _crash_recovery_service_instance
+    if _crash_recovery_service_instance is None:
+        from backend.application.services.crash_recovery_service import CrashRecoveryService
+        repo = await get_job_repository()
+        alerting = await get_alerting_service()
+        _crash_recovery_service_instance = CrashRecoveryService(
+            job_repo=repo,
+            alerting_service=alerting,
+        )
+    return _crash_recovery_service_instance
+
+
+
