@@ -8,6 +8,8 @@ import {
   RefreshCw,
   Sparkles,
   Scan,
+  Type,
+  Stamp,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -31,11 +33,13 @@ interface VideoSanitizerModalProps {
 
 interface FormState {
   targetId: number;
-  filterType: "delogo" | "blur";
+  filterType: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom";
   customBox: { x: number; y: number; w: number; h: number };
   normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
+  watermarkText: string;
+  watermarkPosition: "bottom_right" | "top_right" | "bottom_left" | "top_left" | "center";
 }
 
 interface AsyncState {
@@ -56,14 +60,26 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
 }) => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
   // Hook 1: Form configuration state
-  const [formState, setFormState] = useState<FormState>(() => ({
-    targetId: selectedTargetId || channels[0]?.id || 0,
-    filterType: "delogo",
-    preset: "center",
-    customBox: { x: 200, y: 300, w: 400, h: 200 },
-    normalizedBox: null,
-    caption: message?.text || "",
-  }));
+  const [formState, setFormState] = useState<FormState>(() => {
+    const initTargetId = selectedTargetId || channels[0]?.id || 0;
+    const defaultTarget = channels.find((c) => c.id === initTargetId);
+    const defaultTag = defaultTarget?.username
+      ? `@${defaultTarget.username}`
+      : defaultTarget?.title
+      ? `@${defaultTarget.title.replace(/\s+/g, "")}`
+      : "@CanalVIP";
+
+    return {
+      targetId: initTargetId,
+      filterType: "delogo",
+      preset: "center",
+      customBox: { x: 200, y: 300, w: 400, h: 200 },
+      normalizedBox: null,
+      caption: message?.text || "",
+      watermarkText: defaultTag,
+      watermarkPosition: "bottom_right",
+    };
+  });
 
   // Hook 2: Submission and async detection state
   const [asyncState, setAsyncState] = useState<AsyncState>({
@@ -149,6 +165,13 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       }
       if (formState.normalizedBox) {
         filterParams.normalized_box = formState.normalizedBox;
+      }
+      if (
+        formState.filterType === "watermark_text" ||
+        formState.filterType === "delogo_and_watermark"
+      ) {
+        filterParams.watermark_text = formState.watermarkText.trim();
+        filterParams.watermark_position = formState.watermarkPosition;
       }
 
       await videoProcessingApi.enqueue({
@@ -398,7 +421,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
 
           {/* Filter method */}
           <div className="space-y-1.5">
-            <label className="font-semibold text-foreground">Método de Filtro FFmpeg:</label>
+            <label className="font-semibold text-foreground">Acción de Procesamiento / Branding:</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -409,11 +432,45 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                     : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
                 }`}
               >
-                <span className="font-semibold flex items-center gap-1.5 text-primary">
-                  <Sparkles className="w-3.5 h-3.5" /> Delogo Inteligente
+                <span className="font-semibold flex items-center gap-1.5 text-primary text-xs">
+                  <Sparkles className="w-3.5 h-3.5" /> Quitar Marca (Delogo)
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Interpola bordes circundantes para remover el texto o logotipo.
+                  Interpola bordes para eliminar el logotipo original.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormState((prev) => ({ ...prev, filterType: "delogo_and_watermark" }))}
+                className={`p-2.5 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
+                  formState.filterType === "delogo_and_watermark"
+                    ? "border-purple-500 bg-purple-500/10 text-foreground"
+                    : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                }`}
+              >
+                <span className="font-semibold flex items-center gap-1.5 text-purple-400 text-xs">
+                  <Stamp className="w-3.5 h-3.5" /> Limpiar + Branding
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Borra el logo previo y estampa tu @Canal en 1 paso.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFormState((prev) => ({ ...prev, filterType: "watermark_text" }))}
+                className={`p-2.5 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
+                  formState.filterType === "watermark_text"
+                    ? "border-emerald-500 bg-emerald-500/10 text-foreground"
+                    : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                }`}
+              >
+                <span className="font-semibold flex items-center gap-1.5 text-emerald-400 text-xs">
+                  <Type className="w-3.5 h-3.5" /> Solo Estampar Branding
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Inyecta tu marca de agua / @Canal sin modificar el video base.
                 </span>
               </button>
 
@@ -426,7 +483,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                     : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
                 }`}
               >
-                <span className="font-semibold flex items-center gap-1.5 text-amber-400">
+                <span className="font-semibold flex items-center gap-1.5 text-amber-400 text-xs">
                   <Layers className="w-3.5 h-3.5" /> Desenfoque (BoxBlur)
                 </span>
                 <span className="text-[10px] text-muted-foreground">
@@ -435,6 +492,57 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Branding Options when watermark_text or delogo_and_watermark */}
+          {(formState.filterType === "watermark_text" || formState.filterType === "delogo_and_watermark") && (
+            <div className="p-3 rounded-lg border border-purple-500/30 bg-purple-500/5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-purple-300 flex items-center gap-1.5">
+                  <Stamp className="w-3.5 h-3.5 text-purple-400" />
+                  Configuración de Marca / Branding
+                </span>
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  FFmpeg drawtext
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-muted-foreground">Texto de Marca (@Canal / Firma):</label>
+                  <Input
+                    type="text"
+                    value={formState.watermarkText}
+                    onChange={(e) =>
+                      setFormState((prev) => ({ ...prev, watermarkText: e.target.value }))
+                    }
+                    placeholder="@MiCanalVIP"
+                    className="h-7 text-xs font-mono bg-secondary/60"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono text-muted-foreground">Posición en Pantalla:</label>
+                  <Select
+                    value={formState.watermarkPosition}
+                    onValueChange={(val: any) =>
+                      setFormState((prev) => ({ ...prev, watermarkPosition: val }))
+                    }
+                  >
+                    <SelectTrigger className="h-7 text-xs bg-secondary/60 border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bottom_right">↘️ Inferior Derecha (Estándar)</SelectItem>
+                      <SelectItem value="top_right">↗️ Superior Derecha</SelectItem>
+                      <SelectItem value="bottom_left">↙️ Inferior Izquierda</SelectItem>
+                      <SelectItem value="top_left">↖️ Superior Izquierda</SelectItem>
+                      <SelectItem value="center">🎯 Centro de Pantalla</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Optional Caption */}
           <div className="space-y-1.5">

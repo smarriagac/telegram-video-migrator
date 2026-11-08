@@ -428,9 +428,75 @@ class VideoProcessingService:
 
         return 1080, 1920
 
+    def _build_drawtext_filter_str(
+        self, params: dict[str, Any], width: int, height: int
+    ) -> str:
+        """Construct a robust FFmpeg drawtext filter string for branding overlay."""
+        raw_text = str(
+            params.get("watermark_text")
+            or params.get("text")
+            or params.get("branding_text")
+            or "@Canal"
+        ).strip()
+
+        # Escape special characters for FFmpeg drawtext filter syntax
+        safe_text = (
+            raw_text.replace("\\", "\\\\")
+            .replace("'", "'\\\\\\''")
+            .replace(":", "\\:")
+            .replace("%", "\\%")
+        )
+
+        position = params.get("watermark_position", params.get("position", "bottom_right"))
+        margin = max(10, int(params.get("margin", 20)))
+
+        if position == "bottom_right":
+            x_expr = f"w-tw-{margin}"
+            y_expr = f"h-th-{margin}"
+        elif position == "top_right":
+            x_expr = f"w-tw-{margin}"
+            y_expr = f"{margin}"
+        elif position == "bottom_left":
+            x_expr = f"{margin}"
+            y_expr = f"h-th-{margin}"
+        elif position == "top_left":
+            x_expr = f"{margin}"
+            y_expr = f"{margin}"
+        elif position == "center":
+            x_expr = "(w-tw)/2"
+            y_expr = "(h-th)/2"
+        else:
+            x_expr = f"w-tw-{margin}"
+            y_expr = f"h-th-{margin}"
+
+        # Proportional font size if not explicitly specified
+        font_size = int(params.get("watermark_font_size", params.get("font_size", 0)))
+        if font_size <= 0:
+            font_size = max(18, min(48, int(height * 0.035)))
+
+        font_color = str(params.get("font_color", "white@0.85"))
+        with_box = params.get("with_box", True)
+
+        box_opts = ":box=1:boxcolor=black@0.45:boxborderw=5" if with_box else ""
+        font_file_opt = ""
+        for font_candidate in (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        ):
+            if os.path.exists(font_candidate):
+                font_file_opt = f":fontfile='{font_candidate}'"
+                break
+
+        return f"drawtext=text='{safe_text}'{font_file_opt}:fontsize={font_size}:fontcolor={font_color}:x={x_expr}:y={y_expr}{box_opts}"
+
     def _build_delogo_filter(
         self, filter_type: str, params: dict[str, Any], width: int, height: int
     ) -> list[str]:
+        if filter_type in ("watermark_text", "watermark", "branding"):
+            drawtext_str = self._build_drawtext_filter_str(params, width, height)
+            return ["-vf", drawtext_str]
+
         preset = params.get("preset", "center")
         norm = params.get("normalized_box")
 
@@ -489,6 +555,17 @@ class VideoProcessingService:
             filter_str = f"[0:v]crop={w}:{h}:{x}:{y},boxblur=15[fg];[0:v][fg]overlay={x}:{y}"
             return ["-filter_complex", filter_str]
 
+        # Check if caller requested both delogo AND watermark branding overlay
+        has_branding = bool(
+            filter_type == "delogo_and_watermark"
+            or params.get("watermark_text")
+            or params.get("branding_text")
+        )
+
+        delogo_str = f"delogo=x={x}:y={y}:w={w}:h={h}:show=0"
+        if has_branding:
+            drawtext_str = self._build_drawtext_filter_str(params, width, height)
+            return ["-vf", f"{delogo_str},{drawtext_str}"]
+
         # Default: delogo (intelligent gradient interpolation)
-        filter_str = f"delogo=x={x}:y={y}:w={w}:h={h}:show=0"
-        return ["-vf", filter_str]
+        return ["-vf", delogo_str]

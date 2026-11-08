@@ -8,7 +8,7 @@ export interface VideoProcessingJob {
   source_message_id: number;
   target_channel_id: number;
   target_channel_title?: string | null;
-  filter_type: "delogo" | "blur";
+  filter_type: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   filter_params: {
     preset?: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom";
     x?: number;
@@ -31,7 +31,7 @@ export interface EnqueueVideoPayload {
   source_channel_id: number;
   source_message_id: number;
   target_channel_id: number;
-  filter_type?: "delogo" | "blur";
+  filter_type?: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   filter_params?: Record<string, any>;
   source_channel_title?: string;
   target_channel_title?: string;
@@ -43,7 +43,7 @@ export interface EnqueueBatchPayload {
   source_channel_id: number;
   source_message_ids: number[];
   target_channel_id: number;
-  filter_type?: "delogo" | "blur";
+  filter_type?: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   filter_params?: Record<string, any>;
   source_channel_title?: string;
   target_channel_title?: string;
