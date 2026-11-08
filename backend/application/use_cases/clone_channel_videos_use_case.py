@@ -195,7 +195,11 @@ class CloneChannelVideosUseCase:
                         if isinstance(job.caption_rules, dict)
                         else job.caption_rules
                     )
-                    video.caption = CaptionTransformerService().transform(video.caption or "", rules_entity)
+                    transformer = CaptionTransformerService()
+                    if getattr(rules_entity, "ai_enabled", False):
+                        video.caption = await transformer.transform_async(video.caption or "", rules_entity)
+                    else:
+                        video.caption = transformer.transform(video.caption or "", rules_entity)
                 except Exception as ex:
                     logger.warning(f"Failed to transform caption for item #{item.source_message_id}: {ex}")
 

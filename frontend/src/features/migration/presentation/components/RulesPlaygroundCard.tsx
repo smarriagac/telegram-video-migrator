@@ -8,6 +8,7 @@ import {
   Sliders,
   ShieldCheck,
   Ratio,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -38,6 +39,11 @@ export const RulesPlaygroundCard: React.FC = () => {
     withBox: boolean;
     delogoPreset: "none" | "center" | "top_right" | "bottom_right" | "bottom_bar";
     filterType: "watermark_text" | "delogo" | "delogo_and_watermark";
+    aiEnabled: boolean;
+    aiTargetLang: "es" | "en" | "pt" | "ru" | "none";
+    aiTone: "NEUTRAL" | "ENGAGING" | "PROFESSIONAL" | "CONCISE" | "VIRAL";
+    aiAutoHashtags: boolean;
+    aiCleanSpam: boolean;
   }>({
     caption:
       "¡Estreno exclusivo! Miralo en https://t.me/canal_spam y seguinos en @canal_antiguo para promos VIP.",
@@ -47,6 +53,11 @@ export const RulesPlaygroundCard: React.FC = () => {
     withBox: true,
     delogoPreset: "top_right",
     filterType: "delogo_and_watermark",
+    aiEnabled: false,
+    aiTargetLang: "es",
+    aiTone: "ENGAGING",
+    aiAutoHashtags: true,
+    aiCleanSpam: true,
   });
 
   // Hook 2: Simulation Response & UI Execution State
@@ -83,10 +94,19 @@ export const RulesPlaygroundCard: React.FC = () => {
     const actualFilterType =
       config.delogoPreset === "none" ? "watermark_text" : config.filterType;
 
+    const effectiveCaptionRules = {
+      ...(captionRules || {}),
+      ai_enabled: config.aiEnabled,
+      ai_target_lang: config.aiTargetLang !== "none" ? config.aiTargetLang : null,
+      ai_tone: config.aiTone,
+      ai_auto_hashtags: config.aiAutoHashtags,
+      ai_clean_spam: config.aiCleanSpam,
+    };
+
     try {
       const res = await rulesPlaygroundApi.simulateRules({
         sample_caption: config.caption,
-        caption_rules: captionRules,
+        caption_rules: effectiveCaptionRules,
         video_width: dims.width,
         video_height: dims.height,
         filter_type: actualFilterType,
@@ -256,6 +276,88 @@ export const RulesPlaygroundCard: React.FC = () => {
               className="w-full text-xs font-sans p-2.5 rounded-md bg-secondary/40 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
+
+          {/* AI Semantic Transformation Controls */}
+          <div className="space-y-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Wand2 className="w-3.5 h-3.5 text-purple-400" />
+                <span>IA Semántica & Traductor</span>
+              </label>
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="font-mono text-[10px]">Activar:</span>
+                <Switch
+                  checked={config.aiEnabled}
+                  onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, aiEnabled: checked }))}
+                />
+              </div>
+            </div>
+
+            {config.aiEnabled && (
+              <div className="p-2.5 rounded-lg bg-purple-500/5 border border-purple-500/20 space-y-2.5">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Idioma Destino:</span>
+                    <Select
+                      value={config.aiTargetLang}
+                      onValueChange={(val: any) => setConfig((prev) => ({ ...prev, aiTargetLang: val }))}
+                    >
+                      <SelectTrigger className="h-7 text-xs font-mono bg-secondary/40 border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs font-mono">
+                        <SelectItem value="es">Español (es)</SelectItem>
+                        <SelectItem value="en">English (en)</SelectItem>
+                        <SelectItem value="pt">Português (pt)</SelectItem>
+                        <SelectItem value="ru">Русский (ru)</SelectItem>
+                        <SelectItem value="none">Sin Traducir</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block mb-1">Tono Editorial:</span>
+                    <Select
+                      value={config.aiTone}
+                      onValueChange={(val: any) => setConfig((prev) => ({ ...prev, aiTone: val }))}
+                    >
+                      <SelectTrigger className="h-7 text-xs font-mono bg-secondary/40 border-border">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs font-mono">
+                        <SelectItem value="ENGAGING">🔥 Imperdible</SelectItem>
+                        <SelectItem value="VIRAL">🚨 Viral / BOOM</SelectItem>
+                        <SelectItem value="CONCISE">⚡ Ultra Conciso</SelectItem>
+                        <SelectItem value="PROFESSIONAL">📌 Profesional</SelectItem>
+                        <SelectItem value="NEUTRAL">Neutro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.aiAutoHashtags}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, aiAutoHashtags: e.target.checked }))}
+                      className="rounded border-border"
+                    />
+                    <span>Hashtags automáticos (#)</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.aiCleanSpam}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, aiCleanSpam: e.target.checked }))}
+                      className="rounded border-border"
+                    />
+                    <span>Limpiar spam / apuestas</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Live Canvas & Simulation Results (7 cols) */}
@@ -351,6 +453,12 @@ export const RulesPlaygroundCard: React.FC = () => {
               </div>
               {result?.caption && (
                 <div className="flex items-center gap-2">
+                  {(result as any)?.caption?.ai_details?.enabled && (
+                    <Badge variant="outline" className="text-[10px] text-purple-400 border-purple-500/30 bg-purple-500/10 font-mono flex items-center gap-1">
+                      <Wand2 className="w-2.5 h-2.5" />
+                      <span>IA Activa</span>
+                    </Badge>
+                  )}
                   <Badge
                     variant="outline"
                     className={cn(

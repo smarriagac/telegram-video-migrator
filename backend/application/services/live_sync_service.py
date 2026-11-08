@@ -485,7 +485,11 @@ class LiveSyncService:
                                 if isinstance(binding.caption_rules, dict)
                                 else binding.caption_rules
                             )
-                            processed_caption = CaptionTransformerService().transform(caption, rules_entity)
+                            transformer = CaptionTransformerService()
+                            if getattr(rules_entity, "ai_enabled", False):
+                                processed_caption = await transformer.transform_async(caption, rules_entity)
+                            else:
+                                processed_caption = transformer.transform(caption, rules_entity)
                         except Exception as ex:
                             logger.warning(f"LiveSync: Failed to transform caption for msg #{msg_id}: {ex}")
 

@@ -24,6 +24,12 @@ export interface CaptionRules {
   remove_words?: string[];
   prepend_header?: string | null;
   append_signature?: string | null;
+  ai_enabled?: boolean;
+  ai_target_lang?: string | null;
+  ai_tone?: "NEUTRAL" | "ENGAGING" | "PROFESSIONAL" | "CONCISE" | "VIRAL" | null;
+  ai_auto_hashtags?: boolean;
+  ai_clean_spam?: boolean;
+  ai_summarize?: boolean;
 }
 
 export interface MediaFilterRules {

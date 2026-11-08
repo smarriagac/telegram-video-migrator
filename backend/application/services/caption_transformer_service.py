@@ -67,3 +67,18 @@ class CaptionTransformerService:
                 cleaned_text = signature
 
         return cleaned_text
+
+    async def transform_async(self, caption: str | None, rules: CaptionRules | None) -> str:
+        """Applies configured sanitization, regex transformations, and async AI semantic processing."""
+        base_transformed = self.transform(caption, rules)
+        if not rules or not rules.ai_enabled:
+            return base_transformed
+
+        try:
+            from backend.application.services.ai_caption_engine import AICaptionEngine
+            engine = AICaptionEngine()
+            return await engine.transform(base_transformed, rules)
+        except Exception as ex:
+            import logging
+            logging.getLogger(__name__).warning(f"AI caption transform error: {ex}")
+            return base_transformed

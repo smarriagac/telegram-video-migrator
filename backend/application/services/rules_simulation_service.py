@@ -40,6 +40,34 @@ class RulesSimulationService:
 
         transformed_caption = self.transformer.transform(raw_caption, rules_entity)
 
+        ai_details = None
+        if rules_entity.ai_enabled:
+            from backend.application.services.ai_caption_engine import AICaptionEngine
+            engine = AICaptionEngine()
+            ai_step = transformed_caption
+            if rules_entity.ai_clean_spam:
+                ai_step = engine._clean_spam(ai_step)
+            if rules_entity.ai_target_lang:
+                ai_step = engine._heuristic_translate(ai_step, rules_entity.ai_target_lang.lower())
+            if rules_entity.ai_summarize:
+                ai_step = engine._summarize(ai_step)
+            if rules_entity.ai_tone:
+                ai_step = engine._apply_tone(ai_step, rules_entity.ai_tone.upper())
+            hashtags: list[str] = []
+            if rules_entity.ai_auto_hashtags:
+                hashtags = engine._extract_hashtags(ai_step)
+                if hashtags:
+                    ai_step = f"{ai_step}\n\n{' '.join(hashtags)}"
+
+            transformed_caption = ai_step
+            ai_details = {
+                "enabled": True,
+                "target_lang": rules_entity.ai_target_lang,
+                "tone": rules_entity.ai_tone,
+                "hashtags_generated": hashtags,
+                "spam_cleaned": rules_entity.ai_clean_spam,
+            }
+
         caption_result = {
             "original_caption": raw_caption,
             "transformed_caption": transformed_caption,
@@ -49,6 +77,7 @@ class RulesSimulationService:
             "urls_detected": len(urls_found),
             "mentions_detected": len(mentions_found),
             "words_removed_count": words_removed_count,
+            "ai_details": ai_details,
         }
 
         # 2. Delogo Region Calculations

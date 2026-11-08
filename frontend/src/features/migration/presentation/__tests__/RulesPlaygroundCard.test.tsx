@@ -133,4 +133,40 @@ describe("RulesPlaygroundCard Component", () => {
       );
     });
   });
+
+  it("renders AI semantic transformer controls and badge", async () => {
+    (rulesPlaygroundApi.simulateRules as any).mockResolvedValue({
+      success: true,
+      caption: {
+        original_caption: "Exclusive video",
+        transformed_caption: "🔥 ¡Imperdible! Video exclusivo #Viral",
+        original_length: 15,
+        transformed_length: 38,
+        delta_length: 23,
+        urls_detected: 0,
+        mentions_detected: 0,
+        words_removed_count: 0,
+        ai_details: {
+          enabled: true,
+          target_lang: "es",
+          tone: "ENGAGING",
+          hashtags_generated: ["#Viral"],
+          spam_cleaned: true,
+        },
+      },
+      delogo: { preset: "center", x: 0, y: 0, w: 100, h: 50 },
+      watermark: { text: "@VIP", position: "bottom_right" },
+      video_dimensions: { width: 1920, height: 1080 },
+      filter_type: "watermark_text",
+      ffmpeg_args: [],
+    });
+
+    render(<RulesPlaygroundCard />);
+
+    expect(screen.getByText("IA Semántica & Traductor")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("IA Activa")).toBeInTheDocument();
+    });
+  });
 });
