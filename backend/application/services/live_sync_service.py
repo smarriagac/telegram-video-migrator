@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections import OrderedDict
 import logging
 from typing import Any
 from telethon import events, TelegramClient
@@ -14,6 +15,48 @@ from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.telegram.telegram_client_pool import TelegramClientPool
 
 logger = logging.getLogger(__name__)
+
+
+class MessageDedupCache:
+    """Bounded in-memory LRU cache to check cloned message IDs in O(1) without DB trips."""
+
+    def __init__(self, max_size_per_binding: int = 5000) -> None:
+        self.max_size = max_size_per_binding
+        self._cache: dict[tuple[int, int], OrderedDict[int, None]] = {}
+
+    def is_cloned(self, source_id: int, target_id: int, msg_id: int) -> bool:
+        key = (source_id, target_id)
+        bucket = self._cache.get(key)
+        if bucket is not None and msg_id in bucket:
+            bucket.move_to_end(msg_id)
+            return True
+        return False
+
+    def mark_cloned(self, source_id: int, target_id: int, msg_id: int) -> None:
+        key = (source_id, target_id)
+        if key not in self._cache:
+            self._cache[key] = OrderedDict()
+        bucket = self._cache[key]
+        bucket[msg_id] = None
+        bucket.move_to_end(msg_id)
+        if len(bucket) > self.max_size:
+            bucket.popitem(last=False)
+
+    def populate(self, source_id: int, target_id: int, ids: list[int] | set[int]) -> None:
+        key = (source_id, target_id)
+        if key not in self._cache:
+            self._cache[key] = OrderedDict()
+        bucket = self._cache[key]
+        for mid in sorted(ids)[-self.max_size:]:
+            bucket[mid] = None
+            if len(bucket) > self.max_size:
+                bucket.popitem(last=False)
+
+    def is_initialized(self, source_id: int, target_id: int) -> bool:
+        return (source_id, target_id) in self._cache
+
+    def invalidate(self, source_id: int, target_id: int) -> None:
+        self._cache.pop((source_id, target_id), None)
 
 
 class LiveSyncService:
@@ -32,6 +75,7 @@ class LiveSyncService:
         self.use_case = migration_use_case
         self.broadcaster = broadcaster
         self.alerting_service = alerting_service
+        self.dedup_cache = MessageDedupCache()
 
         self._bindings: dict[int, list[ChannelSyncBinding]] = {}
         self._queue: asyncio.Queue[tuple[ChannelSyncBinding, int, str, str]] = asyncio.Queue()
@@ -59,11 +103,26 @@ class LiveSyncService:
             for b in bindings:
                 asyncio.create_task(self.catch_up_delta(b))
 
+    async def is_message_already_cloned(
+        self, source_channel_id: int, target_channel_id: int, message_id: int
+    ) -> bool:
+        """Fast O(1) in-memory check with lazy one-time warm-up from repository."""
+        if not self.dedup_cache.is_initialized(source_channel_id, target_channel_id):
+            cloned_ids = await self.repo.get_cloned_source_message_ids(
+                source_channel_id, target_channel_id
+            )
+            self.dedup_cache.populate(source_channel_id, target_channel_id, cloned_ids)
+
+        return self.dedup_cache.is_cloned(source_channel_id, target_channel_id, message_id)
+
     async def catch_up_delta(self, binding: ChannelSyncBinding) -> int:
         """Scan source channel for any messages newer than last sync or missing from target and enqueue them."""
         try:
             cloned_ids = await self.repo.get_cloned_source_message_ids(
                 binding.source_channel_id, binding.target_channel_id
+            )
+            self.dedup_cache.populate(
+                binding.source_channel_id, binding.target_channel_id, cloned_ids
             )
             max_cloned = max(cloned_ids) if cloned_ids else 0
 
@@ -372,15 +431,19 @@ class LiveSyncService:
                     except Exception as ex:
                         logger.warning(f"LiveSync: Error evaluating filter rules for #{msg_id}: {ex}")
 
-                # Idempotency check: verify not already cloned
-                cloned_ids = await self.repo.get_cloned_source_message_ids(
-                    binding.source_channel_id, binding.target_channel_id
-                )
-                if msg_id in cloned_ids:
+                # Idempotency check: verify not already cloned via in-memory LRU cache
+                if await self.is_message_already_cloned(
+                    binding.source_channel_id, binding.target_channel_id, msg_id
+                ):
                     logger.debug(
-                        f"LiveSync: Message {msg_id} already cloned for binding {binding.source_channel_id} -> {binding.target_channel_id}."
+                        f"LiveSync: Message {msg_id} already cloned for binding {binding.source_channel_id} -> {binding.target_channel_id} (cache hit)."
                     )
                     continue
+
+                # Mark in cache immediately to deduplicate rapid duplicate/edited push events
+                self.dedup_cache.mark_cloned(
+                    binding.source_channel_id, binding.target_channel_id, msg_id
+                )
 
                 # Enqueue message for persistent queued processing
                 await self._queue.put((binding, msg_id, media_type, caption))
