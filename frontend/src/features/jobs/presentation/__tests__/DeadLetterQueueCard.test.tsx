@@ -10,6 +10,8 @@ vi.mock("../../infrastructure/jobsApi", () => ({
     retrySingleItem: vi.fn(),
     skipSingleItem: vi.fn(),
     updateItemCaption: vi.fn(),
+    bulkRetryDLQ: vi.fn(),
+    bulkSkipDLQ: vi.fn(),
   },
 }));
 
@@ -178,6 +180,84 @@ describe("DeadLetterQueueCard Component", () => {
         101,
         "Fixed clean caption"
       );
+    });
+  });
+
+  it("handles bulk selection and bulk retry of selected items", async () => {
+    (jobsApi.fetchDLQ as any).mockResolvedValue({
+      items: mockDLQItems,
+      total: 2,
+      limit: 50,
+      offset: 0,
+    });
+    (jobsApi.bulkRetryDLQ as any).mockResolvedValue({
+      success: true,
+      retried_count: 2,
+      total_requested: 2,
+      resumed_jobs: ["job_dlq_test_12345", "job_dlq_test_67890"],
+    });
+
+    render(<DeadLetterQueueCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("#101")).toBeInTheDocument();
+    });
+
+    // Select master checkbox
+    const masterCheckbox = screen.getByLabelText("Seleccionar todos los visibles");
+    fireEvent.click(masterCheckbox);
+
+    // Verify toolbar appeared
+    await waitFor(() => {
+      expect(screen.getByText("2 seleccionados")).toBeInTheDocument();
+    });
+
+    const bulkRetryBtn = screen.getByRole("button", { name: /reintentar seleccionados/i });
+    fireEvent.click(bulkRetryBtn);
+
+    await waitFor(() => {
+      expect(jobsApi.bulkRetryDLQ).toHaveBeenCalledWith([
+        { job_id: "job_dlq_test_12345", source_message_id: 101 },
+        { job_id: "job_dlq_test_67890", source_message_id: 102 },
+      ]);
+    });
+  });
+
+  it("handles bulk skip of selected items", async () => {
+    (jobsApi.fetchDLQ as any).mockResolvedValue({
+      items: mockDLQItems,
+      total: 2,
+      limit: 50,
+      offset: 0,
+    });
+    (jobsApi.bulkSkipDLQ as any).mockResolvedValue({
+      success: true,
+      skipped_count: 2,
+      total_requested: 2,
+    });
+
+    render(<DeadLetterQueueCard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("#101")).toBeInTheDocument();
+    });
+
+    // Select master checkbox
+    const masterCheckbox = screen.getByLabelText("Seleccionar todos los visibles");
+    fireEvent.click(masterCheckbox);
+
+    await waitFor(() => {
+      expect(screen.getByText("2 seleccionados")).toBeInTheDocument();
+    });
+
+    const bulkSkipBtn = screen.getByRole("button", { name: /omitir \(2\)/i });
+    fireEvent.click(bulkSkipBtn);
+
+    await waitFor(() => {
+      expect(jobsApi.bulkSkipDLQ).toHaveBeenCalledWith([
+        { job_id: "job_dlq_test_12345", source_message_id: 101 },
+        { job_id: "job_dlq_test_67890", source_message_id: 102 },
+      ]);
     });
   });
 });

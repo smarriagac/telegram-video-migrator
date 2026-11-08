@@ -7,6 +7,7 @@ import {
   Edit3,
   RefreshCw,
   ShieldAlert,
+  CheckSquare,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -30,14 +31,16 @@ import { cn } from "@/shared/lib/utils";
 
 export const DeadLetterQueueCard: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: DLQ collection, loading, active action, and feedback
+  // Hook 1: DLQ collection, loading, active action, bulk selection, and feedback
   const [dlqState, setDlqState] = useState<{
     items: QueueItem[];
     total: number;
     isLoading: boolean;
     page: number;
-    actionInProgressId: number | null;
+    actionInProgressId: number | string | null;
     feedback: { message: string; isError?: boolean } | null;
+    selectedKeys: string[];
+    isBulkActing: boolean;
   }>({
     items: [],
     total: 0,
@@ -45,6 +48,8 @@ export const DeadLetterQueueCard: React.FC = () => {
     page: 1,
     actionInProgressId: null,
     feedback: null,
+    selectedKeys: [],
+    isBulkActing: false,
   });
 
   // Hook 2: Editing caption modal state
@@ -55,6 +60,8 @@ export const DeadLetterQueueCard: React.FC = () => {
     editingItem: null,
     isSaving: false,
   });
+
+  const itemKey = (jobId: string, msgId: number) => `${jobId}:${msgId}`;
 
   const loadDlq = async (page = 1) => {
     setDlqState((prev) => ({ ...prev, isLoading: true }));
@@ -68,6 +75,7 @@ export const DeadLetterQueueCard: React.FC = () => {
         total: res.total,
         isLoading: false,
         page,
+        selectedKeys: [],
       }));
     } catch (err: any) {
       setDlqState((prev) => ({
@@ -89,6 +97,80 @@ export const DeadLetterQueueCard: React.FC = () => {
     }, 4000);
   };
 
+  const handleToggleSelect = (jobId: string, sourceMsgId: number) => {
+    const key = itemKey(jobId, sourceMsgId);
+    setDlqState((prev) => {
+      const isSelected = prev.selectedKeys.includes(key);
+      return {
+        ...prev,
+        selectedKeys: isSelected
+          ? prev.selectedKeys.filter((k) => k !== key)
+          : [...prev.selectedKeys, key],
+      };
+    });
+  };
+
+  const handleSelectAllVisible = () => {
+    setDlqState((prev) => {
+      const allKeys = prev.items.map((it) => itemKey(it.job_id, it.source_message_id));
+      const allSelected = allKeys.length > 0 && allKeys.every((k) => prev.selectedKeys.includes(k));
+      return {
+        ...prev,
+        selectedKeys: allSelected ? [] : allKeys,
+      };
+    });
+  };
+
+  const handleBulkRetry = async () => {
+    const selectedItems = dlqState.items
+      .filter((it) => dlqState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)))
+      .map((it) => ({ job_id: it.job_id, source_message_id: it.source_message_id }));
+
+    if (selectedItems.length === 0) return;
+
+    setDlqState((prev) => ({ ...prev, isBulkActing: true }));
+    try {
+      const res = await jobsApi.bulkRetryDLQ(selectedItems);
+      showFeedback(`Se reencolaron ${res.retried_count} mensajes para reintento.`);
+      const retriedSet = new Set(selectedItems.map((s) => itemKey(s.job_id, s.source_message_id)));
+      setDlqState((prev) => ({
+        ...prev,
+        items: prev.items.filter((it) => !retriedSet.has(itemKey(it.job_id, it.source_message_id))),
+        total: Math.max(0, prev.total - res.retried_count),
+        selectedKeys: [],
+        isBulkActing: false,
+      }));
+    } catch (err: any) {
+      setDlqState((prev) => ({ ...prev, isBulkActing: false }));
+      showFeedback(err.message || "Error al reintentar lote", true);
+    }
+  };
+
+  const handleBulkSkip = async () => {
+    const selectedItems = dlqState.items
+      .filter((it) => dlqState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)))
+      .map((it) => ({ job_id: it.job_id, source_message_id: it.source_message_id }));
+
+    if (selectedItems.length === 0) return;
+
+    setDlqState((prev) => ({ ...prev, isBulkActing: true }));
+    try {
+      const res = await jobsApi.bulkSkipDLQ(selectedItems);
+      showFeedback(`Se omitieron ${res.skipped_count} mensajes.`);
+      const skippedSet = new Set(selectedItems.map((s) => itemKey(s.job_id, s.source_message_id)));
+      setDlqState((prev) => ({
+        ...prev,
+        items: prev.items.filter((it) => !skippedSet.has(itemKey(it.job_id, it.source_message_id))),
+        total: Math.max(0, prev.total - res.skipped_count),
+        selectedKeys: [],
+        isBulkActing: false,
+      }));
+    } catch (err: any) {
+      setDlqState((prev) => ({ ...prev, isBulkActing: false }));
+      showFeedback(err.message || "Error al omitir lote", true);
+    }
+  };
+
   const handleRetrySingle = async (jobId: string, sourceMsgId: number) => {
     setDlqState((prev) => ({ ...prev, actionInProgressId: sourceMsgId }));
     try {
@@ -100,6 +182,7 @@ export const DeadLetterQueueCard: React.FC = () => {
           (it) => !(it.job_id === jobId && it.source_message_id === sourceMsgId)
         ),
         total: Math.max(0, prev.total - 1),
+        selectedKeys: prev.selectedKeys.filter((k) => k !== itemKey(jobId, sourceMsgId)),
       }));
     } catch (err: any) {
       showFeedback(err.message || "Error al reintentar ítem", true);
@@ -119,6 +202,7 @@ export const DeadLetterQueueCard: React.FC = () => {
           (it) => !(it.job_id === jobId && it.source_message_id === sourceMsgId)
         ),
         total: Math.max(0, prev.total - 1),
+        selectedKeys: prev.selectedKeys.filter((k) => k !== itemKey(jobId, sourceMsgId)),
       }));
     } catch (err: any) {
       showFeedback(err.message || "Error al omitir ítem", true);
@@ -148,6 +232,10 @@ export const DeadLetterQueueCard: React.FC = () => {
       showFeedback(err.message || "Error al actualizar caption", true);
     }
   };
+
+  const allVisibleSelected =
+    dlqState.items.length > 0 &&
+    dlqState.items.every((it) => dlqState.selectedKeys.includes(itemKey(it.job_id, it.source_message_id)));
 
   return (
     <div className="bg-card border border-border rounded-md p-4 sm:p-5 space-y-4">
@@ -183,6 +271,52 @@ export const DeadLetterQueueCard: React.FC = () => {
           <span>Actualizar</span>
         </Button>
       </div>
+
+      {/* Bulk Action Contextual Toolbar */}
+      {dlqState.selectedKeys.length > 0 && (
+        <div className="p-2.5 rounded-lg bg-secondary/80 border border-amber-500/30 flex flex-wrap items-center justify-between gap-2 text-xs animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 font-mono text-[10px] flex items-center gap-1">
+              <CheckSquare className="w-3 h-3" />
+              <span>{dlqState.selectedKeys.length} seleccionados</span>
+            </Badge>
+            <span className="text-muted-foreground text-[11px] hidden sm:inline">
+              Operación masiva sobre los errores marcados
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              disabled={dlqState.isBulkActing}
+              onClick={handleBulkRetry}
+              className="h-7 text-xs font-mono gap-1.5 bg-amber-500 text-black font-semibold hover:bg-amber-400"
+            >
+              <RotateCcw className={cn("w-3.5 h-3.5", dlqState.isBulkActing && "animate-spin")} />
+              <span>Reintentar Seleccionados ({dlqState.selectedKeys.length})</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={dlqState.isBulkActing}
+              onClick={handleBulkSkip}
+              className="h-7 text-xs font-mono gap-1 text-rose-400 border-rose-500/30 hover:bg-rose-500/10"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Omitir ({dlqState.selectedKeys.length})</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={dlqState.isBulkActing}
+              onClick={() => setDlqState((prev) => ({ ...prev, selectedKeys: [] }))}
+              className="h-7 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Deseleccionar
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Feedback Banner */}
       {dlqState.feedback && (
@@ -220,6 +354,15 @@ export const DeadLetterQueueCard: React.FC = () => {
           <Table className="w-full text-xs">
             <TableHeader className="bg-secondary/40 font-mono text-muted-foreground border-b border-border">
               <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="py-2.5 px-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={handleSelectAllVisible}
+                    aria-label="Seleccionar todos los visibles"
+                    className="w-3.5 h-3.5 rounded border-border bg-secondary cursor-pointer accent-primary"
+                  />
+                </TableHead>
                 <TableHead className="py-2.5 px-3">Job ID</TableHead>
                 <TableHead className="py-2.5 px-3">Msg ID</TableHead>
                 <TableHead className="py-2.5 px-3">Tipo</TableHead>
@@ -230,71 +373,88 @@ export const DeadLetterQueueCard: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-border font-mono text-xs">
-              {dlqState.items.map((it) => (
-                <TableRow key={`${it.job_id}-${it.source_message_id}`} className="hover:bg-muted/40">
-                  <TableCell className="py-2 px-3 text-muted-foreground">
-                    #{it.job_id.slice(0, 8)}
-                  </TableCell>
-                  <TableCell className="py-2 px-3 font-bold text-foreground">
-                    #{it.source_message_id}
-                  </TableCell>
-                  <TableCell className="py-2 px-3 uppercase text-[10px] text-muted-foreground">
-                    {it.media_type}
-                  </TableCell>
-                  <TableCell className="py-2 px-3">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
-                      {it.retry_count} {it.retry_count === 1 ? "vez" : "veces"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2 px-3 max-w-[220px]">
-                    <span className="text-rose-400 flex items-center gap-1 truncate" title={it.error_message || ""}>
-                      <ShieldAlert className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{it.error_message || "Error desconocido"}</span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2 px-3 max-w-[180px] font-sans text-muted-foreground truncate" title={it.caption}>
-                    {it.caption || "-"}
-                  </TableCell>
-                  <TableCell className="py-2 px-3 text-right space-x-1 whitespace-nowrap">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={dlqState.actionInProgressId === it.source_message_id}
-                      onClick={() => handleRetrySingle(it.job_id, it.source_message_id)}
-                      className="h-7 text-[11px] px-2 font-mono gap-1 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
-                    >
-                      <RotateCcw className={cn("w-3 h-3", dlqState.actionInProgressId === it.source_message_id && "animate-spin")} />
-                      <span>Reintentar</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setEditState({
-                          editingItem: {
-                            jobId: it.job_id,
-                            sourceMsgId: it.source_message_id,
-                            caption: it.caption || "",
-                          },
-                          isSaving: false,
-                        })
-                      }
-                      className="h-7 text-[11px] px-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={dlqState.actionInProgressId === it.source_message_id}
-                      onClick={() => handleSkipSingle(it.job_id, it.source_message_id)}
-                      className="h-7 text-[11px] px-2 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
-                    >
-                      Omitir
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {dlqState.items.map((it) => {
+                const key = itemKey(it.job_id, it.source_message_id);
+                const isSelected = dlqState.selectedKeys.includes(key);
+                return (
+                  <TableRow
+                    key={key}
+                    className={cn("hover:bg-muted/40", isSelected && "bg-primary/5")}
+                  >
+                    <TableCell className="py-2 px-3 w-8">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleSelect(it.job_id, it.source_message_id)}
+                        aria-label={`Seleccionar mensaje #${it.source_message_id}`}
+                        className="w-3.5 h-3.5 rounded border-border bg-secondary cursor-pointer accent-primary"
+                      />
+                    </TableCell>
+                    <TableCell className="py-2 px-3 text-muted-foreground">
+                      #{it.job_id.slice(0, 8)}
+                    </TableCell>
+                    <TableCell className="py-2 px-3 font-bold text-foreground">
+                      #{it.source_message_id}
+                    </TableCell>
+                    <TableCell className="py-2 px-3 uppercase text-[10px] text-muted-foreground">
+                      {it.media_type}
+                    </TableCell>
+                    <TableCell className="py-2 px-3">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary border border-border">
+                        {it.retry_count} {it.retry_count === 1 ? "vez" : "veces"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2 px-3 max-w-[220px]">
+                      <span className="text-rose-400 flex items-center gap-1 truncate" title={it.error_message || ""}>
+                        <ShieldAlert className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{it.error_message || "Error desconocido"}</span>
+                      </span>
+                    </TableCell>
+                    <TableCell className="py-2 px-3 max-w-[180px] font-sans text-muted-foreground truncate" title={it.caption}>
+                      {it.caption || "-"}
+                    </TableCell>
+                    <TableCell className="py-2 px-3 text-right space-x-1 whitespace-nowrap">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={dlqState.actionInProgressId === it.source_message_id || dlqState.isBulkActing}
+                        onClick={() => handleRetrySingle(it.job_id, it.source_message_id)}
+                        className="h-7 text-[11px] px-2 font-mono gap-1 text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                      >
+                        <RotateCcw className={cn("w-3 h-3", dlqState.actionInProgressId === it.source_message_id && "animate-spin")} />
+                        <span>Reintentar</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={dlqState.isBulkActing}
+                        onClick={() =>
+                          setEditState({
+                            editingItem: {
+                              jobId: it.job_id,
+                              sourceMsgId: it.source_message_id,
+                              caption: it.caption || "",
+                            },
+                            isSaving: false,
+                          })
+                        }
+                        className="h-7 text-[11px] px-2 text-muted-foreground hover:text-foreground"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={dlqState.actionInProgressId === it.source_message_id || dlqState.isBulkActing}
+                        onClick={() => handleSkipSingle(it.job_id, it.source_message_id)}
+                        className="h-7 text-[11px] px-2 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10"
+                      >
+                        Omitir
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

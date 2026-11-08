@@ -55,8 +55,18 @@ class JobRepositoryPort(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def retry_bulk_queue_items(self, items: list[tuple[str, int]]) -> int:
+        """Atomically reset a collection of failed queue items (job_id, source_msg_id) back to PENDING. Returns count reset."""
+        raise NotImplementedError
+
+    @abstractmethod
     async def skip_queue_item(self, job_id: str, source_msg_id: int) -> bool:
         """Mark a specific queue item as SKIPPED to bypass it."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def skip_bulk_queue_items(self, items: list[tuple[str, int]]) -> int:
+        """Atomically mark a collection of queue items (job_id, source_msg_id) as SKIPPED. Returns count skipped."""
         raise NotImplementedError
 
     @abstractmethod

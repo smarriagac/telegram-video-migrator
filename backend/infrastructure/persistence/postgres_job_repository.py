@@ -486,6 +486,47 @@ class PostgresJobRepository(JobRepositoryPort):
                 )
             return count > 0
 
+    async def retry_bulk_queue_items(self, items: list[tuple[str, int]]) -> int:
+        if not items:
+            return 0
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.retry_bulk_queue_items(items)
+
+        total_retried = 0
+        affected_job_ids = set()
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                for job_id, source_msg_id in items:
+                    result = await conn.execute(
+                        """
+                        UPDATE migration_queue
+                        SET status = 'PENDING',
+                            error_message = NULL,
+                            retry_count = retry_count + 1,
+                            updated_at = NOW()
+                        WHERE job_id = $1 AND source_message_id = $2;
+                        """,
+                        job_id,
+                        source_msg_id,
+                    )
+                    count = 0
+                    try:
+                        count = int(result.split()[-1])
+                    except Exception:
+                        count = 0
+                    if count > 0:
+                        total_retried += count
+                        affected_job_ids.add(job_id)
+
+                for jid in affected_job_ids:
+                    await conn.execute(
+                        "UPDATE migration_jobs SET status = 'PENDING', updated_at = NOW() WHERE id = $1;",
+                        jid,
+                    )
+        return total_retried
+
     async def skip_queue_item(self, job_id: str, source_msg_id: int) -> bool:
         await self._ensure_initialized()
         if self._fallback_mode or self.pool is None:
@@ -507,6 +548,35 @@ class PostgresJobRepository(JobRepositoryPort):
                 return int(result.split()[-1]) > 0
             except Exception:
                 return False
+
+    async def skip_bulk_queue_items(self, items: list[tuple[str, int]]) -> int:
+        if not items:
+            return 0
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.skip_bulk_queue_items(items)
+
+        total_skipped = 0
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                for job_id, source_msg_id in items:
+                    result = await conn.execute(
+                        """
+                        UPDATE migration_queue
+                        SET status = 'SKIPPED',
+                            updated_at = NOW()
+                        WHERE job_id = $1 AND source_message_id = $2;
+                        """,
+                        job_id,
+                        source_msg_id,
+                    )
+                    try:
+                        count = int(result.split()[-1])
+                        total_skipped += count
+                    except Exception:
+                        pass
+        return total_skipped
 
     async def update_queue_item_caption(self, job_id: str, source_msg_id: int, caption: str) -> bool:
         await self._ensure_initialized()

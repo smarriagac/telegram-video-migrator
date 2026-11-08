@@ -184,4 +184,40 @@ export const jobsApi = {
     }
     return res.json();
   },
+
+  async bulkRetryDLQ(
+    items: { job_id: string; source_message_id: number }[]
+  ): Promise<{ success: boolean; retried_count: number; total_requested: number; resumed_jobs: string[] }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/dlq/bulk-retry`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al reintentar lote de elementos de la DLQ");
+    }
+    return res.json();
+  },
+
+  async bulkSkipDLQ(
+    items: { job_id: string; source_message_id: number }[]
+  ): Promise<{ success: boolean; skipped_count: number; total_requested: number }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/dlq/bulk-skip`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ items }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al omitir lote de elementos de la DLQ");
+    }
+    return res.json();
+  },
 };

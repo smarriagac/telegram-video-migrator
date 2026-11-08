@@ -185,6 +185,15 @@ class UpdateQueueItemCaptionRequest(BaseModel):
     caption: str
 
 
+class BulkQueueItemRequest(BaseModel):
+    job_id: str
+    source_message_id: int
+
+
+class BulkQueueActionRequest(BaseModel):
+    items: list[BulkQueueItemRequest]
+
+
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 async def start_job(
     req: CreateJobRequest,
@@ -321,6 +330,51 @@ async def list_dead_letter_queue(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/dlq/bulk-retry")
+async def bulk_retry_dead_letter_items(
+    payload: BulkQueueActionRequest,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+    use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
+) -> dict[str, Any]:
+    """Bulk reset multiple failed queue items to PENDING and resume their jobs."""
+    tuples = [(it.job_id, it.source_message_id) for it in payload.items]
+    retried_count = await repo.retry_bulk_queue_items(tuples)
+
+    # Resume any affected jobs that are not RUNNING
+    distinct_job_ids = list({it.job_id for it in payload.items})
+    resumed_jobs = []
+    for jid in distinct_job_ids:
+        job = await repo.get_job(jid)
+        if job and job.status != JobStatus.RUNNING:
+            await repo.set_job_status(jid, JobStatus.RUNNING)
+            _dispatch_worker(jid, use_case, repo, broadcaster)
+            resumed_jobs.append(jid)
+
+    return {
+        "success": True,
+        "retried_count": retried_count,
+        "total_requested": len(payload.items),
+        "resumed_jobs": resumed_jobs,
+    }
+
+
+@router.post("/dlq/bulk-skip")
+async def bulk_skip_dead_letter_items(
+    payload: BulkQueueActionRequest,
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> dict[str, Any]:
+    """Bulk mark multiple failed queue items as SKIPPED to clear them from DLQ."""
+    tuples = [(it.job_id, it.source_message_id) for it in payload.items]
+    skipped_count = await repo.skip_bulk_queue_items(tuples)
+
+    return {
+        "success": True,
+        "skipped_count": skipped_count,
+        "total_requested": len(payload.items),
+    }
 
 
 @router.get("/{job_id}", response_model=JobResponse)

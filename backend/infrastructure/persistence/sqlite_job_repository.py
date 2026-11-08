@@ -442,6 +442,37 @@ class SQLiteJobRepository(JobRepositoryPort):
             await conn.commit()
             return count > 0
 
+    async def retry_bulk_queue_items(self, items: list[tuple[str, int]]) -> int:
+        if not items:
+            return 0
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            total_retried = 0
+            affected_job_ids = set()
+            for job_id, source_msg_id in items:
+                cursor = await conn.execute(
+                    """
+                    UPDATE migration_queue
+                    SET status = 'PENDING',
+                        error_message = NULL,
+                        retry_count = retry_count + 1,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE job_id = ? AND source_message_id = ?;
+                    """,
+                    (job_id, source_msg_id),
+                )
+                if cursor.rowcount > 0:
+                    total_retried += cursor.rowcount
+                    affected_job_ids.add(job_id)
+
+            for jid in affected_job_ids:
+                await conn.execute(
+                    "UPDATE migration_jobs SET status = 'PENDING', updated_at = CURRENT_TIMESTAMP WHERE id = ?;",
+                    (jid,),
+                )
+            await conn.commit()
+            return total_retried
+
     async def skip_queue_item(self, job_id: str, source_msg_id: int) -> bool:
         await self._ensure_initialized()
         async with self._get_connection() as conn:
@@ -456,6 +487,27 @@ class SQLiteJobRepository(JobRepositoryPort):
             )
             await conn.commit()
             return cursor.rowcount > 0
+
+    async def skip_bulk_queue_items(self, items: list[tuple[str, int]]) -> int:
+        if not items:
+            return 0
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            total_skipped = 0
+            for job_id, source_msg_id in items:
+                cursor = await conn.execute(
+                    """
+                    UPDATE migration_queue
+                    SET status = 'SKIPPED',
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE job_id = ? AND source_message_id = ?;
+                    """,
+                    (job_id, source_msg_id),
+                )
+                if cursor.rowcount > 0:
+                    total_skipped += cursor.rowcount
+            await conn.commit()
+            return total_skipped
 
     async def update_queue_item_caption(self, job_id: str, source_msg_id: int, caption: str) -> bool:
         await self._ensure_initialized()

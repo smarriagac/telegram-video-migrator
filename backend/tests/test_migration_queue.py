@@ -188,3 +188,97 @@ async def test_dlq_api_endpoints():
         skip_res = await client.post(f"/api/jobs/{job_id}/queue/555/skip")
         assert skip_res.status_code == 200
         assert skip_res.json()["status"] == "SKIPPED"
+
+
+@pytest.mark.asyncio
+async def test_dlq_bulk_operations(repo: SQLiteJobRepository):
+    job_id = "test-job-dlq-bulk"
+    await repo.create_job(MigrationJob(job_id=job_id, source_id=10, target_id=20))
+
+    items = [
+        QueueItem(job_id=job_id, source_message_id=201, media_type="video", caption="Fail 201", status=QueueItemStatus.FAILED, error_message="FloodWait"),
+        QueueItem(job_id=job_id, source_message_id=202, media_type="video", caption="Fail 202", status=QueueItemStatus.FAILED, error_message="Timeout"),
+        QueueItem(job_id=job_id, source_message_id=203, media_type="photo", caption="Fail 203", status=QueueItemStatus.FAILED, error_message="Network"),
+        QueueItem(job_id=job_id, source_message_id=204, media_type="photo", caption="Fail 204", status=QueueItemStatus.FAILED, error_message="Media"),
+    ]
+    await repo.add_queue_items(items)
+
+    # 1. Bulk retry items 201 and 202
+    retried_count = await repo.retry_bulk_queue_items([(job_id, 201), (job_id, 202)])
+    assert retried_count == 2
+
+    q_items = await repo.get_queue_items(job_id)
+    item_201 = next(it for it in q_items if it.source_message_id == 201)
+    item_202 = next(it for it in q_items if it.source_message_id == 202)
+    assert item_201.status == QueueItemStatus.PENDING
+    assert item_201.retry_count == 1
+    assert item_201.error_message is None
+    assert item_202.status == QueueItemStatus.PENDING
+    assert item_202.retry_count == 1
+
+    # 2. Bulk skip items 203 and 204
+    skipped_count = await repo.skip_bulk_queue_items([(job_id, 203), (job_id, 204)])
+    assert skipped_count == 2
+
+    q_items_after = await repo.get_queue_items(job_id)
+    item_203 = next(it for it in q_items_after if it.source_message_id == 203)
+    item_204 = next(it for it in q_items_after if it.source_message_id == 204)
+    assert item_203.status == QueueItemStatus.SKIPPED
+    assert item_204.status == QueueItemStatus.SKIPPED
+
+
+@pytest.mark.asyncio
+async def test_dlq_bulk_api_endpoints():
+    from httpx import AsyncClient, ASGITransport
+    from backend.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Create a job first
+        job_res = await client.post(
+            "/api/jobs",
+            json={
+                "source_channel_id": 9903,
+                "target_channel_id": 9904,
+                "message_limit": 5,
+            },
+        )
+        assert job_res.status_code == 201
+        job_id = job_res.json()["job_id"]
+
+        from backend.presentation.dependencies import get_job_repository
+        repo = await get_job_repository()
+        await repo.add_queue_items([
+            QueueItem(job_id=job_id, source_message_id=601, media_type="video", caption="Fail 601", status=QueueItemStatus.FAILED, error_message="RPC_ERR"),
+            QueueItem(job_id=job_id, source_message_id=602, media_type="video", caption="Fail 602", status=QueueItemStatus.FAILED, error_message="RPC_ERR"),
+            QueueItem(job_id=job_id, source_message_id=603, media_type="photo", caption="Fail 603", status=QueueItemStatus.FAILED, error_message="RPC_ERR"),
+        ])
+
+        # Test POST /api/jobs/dlq/bulk-retry
+        retry_res = await client.post(
+            "/api/jobs/dlq/bulk-retry",
+            json={
+                "items": [
+                    {"job_id": job_id, "source_message_id": 601},
+                    {"job_id": job_id, "source_message_id": 602},
+                ]
+            },
+        )
+        assert retry_res.status_code == 200
+        data_retry = retry_res.json()
+        assert data_retry["success"] is True
+        assert data_retry["retried_count"] == 2
+
+        # Test POST /api/jobs/dlq/bulk-skip
+        skip_res = await client.post(
+            "/api/jobs/dlq/bulk-skip",
+            json={
+                "items": [
+                    {"job_id": job_id, "source_message_id": 603},
+                ]
+            },
+        )
+        assert skip_res.status_code == 200
+        data_skip = skip_res.json()
+        assert data_skip["success"] is True
+        assert data_skip["skipped_count"] == 1
