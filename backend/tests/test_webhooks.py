@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import pytest
+import uuid
 from httpx import AsyncClient, ASGITransport, Response
 from unittest.mock import AsyncMock, patch
 
+from backend.domain.entities.user import User, Role
 from backend.domain.entities.webhook_endpoint import WebhookEndpoint
 from backend.application.services.webhook_dispatcher_service import WebhookDispatcherService
 from backend.infrastructure.persistence.postgres_webhook_repository import PostgresWebhookRepository
@@ -224,3 +226,190 @@ async def test_webhooks_api_endpoints():
         del_res = await client.delete(f"/api/webhooks/{webhook_id}", headers=headers)
         assert del_res.status_code == 200
         assert del_res.json()["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_webhook_delivery_entity_and_backoff():
+    from backend.domain.entities.webhook_delivery import WebhookDelivery, WebhookDeliveryStatus
+
+    deliv = WebhookDelivery(
+        webhook_id="whk_unit_1",
+        event_type="job.failed",
+        url="https://example.com/webhook",
+        payload={"job_id": "test-123", "error": "rate limited"},
+        max_attempts=3,
+    )
+    assert deliv.status == WebhookDeliveryStatus.PENDING.value
+    assert deliv.attempts == 0
+
+    # 1. Mark first failure -> increments attempt and sets next_retry_at
+    deliv.mark_failure(status_code=500, error="Internal error")
+    assert deliv.attempts == 1
+    assert deliv.status == WebhookDeliveryStatus.PENDING.value
+    assert deliv.next_retry_at is not None
+    assert deliv.last_status_code == 500
+
+    # 2. Mark second failure
+    deliv.mark_failure(status_code=502, error="Bad gateway")
+    assert deliv.attempts == 2
+    assert deliv.status == WebhookDeliveryStatus.PENDING.value
+
+    # 3. Mark third failure -> exhausts max_attempts (3) -> transitions to DLQ
+    deliv.mark_failure(status_code=503, error="Service unavailable")
+    assert deliv.attempts == 3
+    assert deliv.status == WebhookDeliveryStatus.DLQ.value
+    assert deliv.next_retry_at is None
+
+    # 4. Success resets error and transitions to DELIVERED
+    deliv.mark_success(status_code=200)
+    assert deliv.status == WebhookDeliveryStatus.DELIVERED.value
+    assert deliv.last_status_code == 200
+    assert deliv.last_error is None
+
+
+@pytest.mark.asyncio
+async def test_webhook_repository_delivery_crud_and_dlq():
+    from backend.domain.entities.webhook_delivery import WebhookDelivery, WebhookDeliveryStatus
+
+    repo = PostgresWebhookRepository()
+    await repo.initialize_schema()
+    tenant_id = f"tenant_{uuid.uuid4().hex[:8]}"
+    whk_id = f"whk_{uuid.uuid4().hex[:8]}"
+
+    # 1. Create delivery
+    deliv1 = WebhookDelivery(
+        webhook_id=whk_id,
+        tenant_id=tenant_id,
+        event_type="flood_wait",
+        url="https://test.local/hook1",
+        payload={"seconds": 60},
+        status=WebhookDeliveryStatus.PENDING.value,
+        attempts=1,
+    )
+    saved1 = await repo.create_delivery(deliv1)
+    assert saved1.id == deliv1.id
+
+    # 2. Create DLQ delivery
+    deliv2 = WebhookDelivery(
+        webhook_id=whk_id,
+        tenant_id=tenant_id,
+        event_type="job.failed",
+        url="https://test.local/hook2",
+        payload={"job_id": "job-dlq-1"},
+        status=WebhookDeliveryStatus.DLQ.value,
+        attempts=5,
+        last_error="HTTP 500: Server Error",
+    )
+    await repo.create_delivery(deliv2)
+
+    # 3. Get delivery
+    fetched = await repo.get_delivery(deliv1.id, tenant_id=tenant_id)
+    assert fetched is not None
+    assert fetched.event_type == "flood_wait"
+
+    # 4. List deliveries
+    all_delivs, count = await repo.list_deliveries(tenant_id=tenant_id)
+    assert count == 2
+    assert len(all_delivs) == 2
+
+    # 5. List DLQ only
+    dlq_items, dlq_count = await repo.get_dead_letter_deliveries(tenant_id=tenant_id)
+    assert dlq_count == 1
+    assert dlq_items[0].id == deliv2.id
+
+    # 6. Summary metrics
+    summary = await repo.get_dlq_summary(tenant_id=tenant_id)
+    assert summary["total"] == 2
+    assert summary["dlq"] == 1
+    assert summary["pending"] == 1
+
+    # 7. Delete delivery
+    deleted = await repo.delete_delivery(deliv1.id, tenant_id=tenant_id)
+    assert deleted is True
+    assert await repo.get_delivery(deliv1.id, tenant_id=tenant_id) is None
+
+
+@pytest.mark.asyncio
+async def test_webhook_retry_engine_and_api():
+    from backend.domain.entities.webhook_delivery import WebhookDelivery, WebhookDeliveryStatus
+    from backend.application.services.webhook_retry_engine import WebhookRetryEngine
+    from backend.main import app
+    from backend.presentation.dependencies import get_current_user
+
+    repo = PostgresWebhookRepository()
+    await repo.initialize_schema()
+    tenant_id = f"tenant_{uuid.uuid4().hex[:8]}"
+    whk_id = f"whk_{uuid.uuid4().hex[:8]}"
+
+    # Setup endpoint and failed delivery
+    ep = WebhookEndpoint(
+        id=whk_id,
+        name="Engine Hook",
+        target_type="GENERIC",
+        url="https://retry.mock.test/hook",
+        tenant_id=tenant_id,
+    )
+    await repo.create_webhook(ep)
+
+    deliv = WebhookDelivery(
+        webhook_id=ep.id,
+        tenant_id=tenant_id,
+        event_type="channel.eviction",
+        url=ep.url,
+        payload={"channel_id": 999},
+        status=WebhookDeliveryStatus.DLQ.value,
+        attempts=5,
+        last_error="Network timeout",
+    )
+    await repo.create_delivery(deliv)
+
+    retry_engine = WebhookRetryEngine(repository=repo)
+
+    # Mock post to simulate successful retry
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = Response(status_code=200, text='{"success":true}')
+
+        ok, status_code, err = await retry_engine.retry_single_delivery(
+            delivery_id=deliv.id,
+            tenant_id=tenant_id,
+        )
+        assert ok is True
+        assert status_code == 200
+
+        # Delivery should now be DELIVERED
+        refetched = await repo.get_delivery(deliv.id, tenant_id=tenant_id)
+        assert refetched.status == WebhookDeliveryStatus.DELIVERED.value
+
+    # Test API endpoints
+    mock_admin = User(
+        id=str(uuid.uuid4()),
+        email="admin_dlq@example.com",
+        password_hash="hashed_pw_test",
+        role=Role.ADMIN,
+        tenant_id=tenant_id,
+    )
+    app.dependency_overrides[get_current_user] = lambda: mock_admin
+    headers = {"Authorization": "Bearer fake_token"}
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            # Deliveries summary
+            sum_res = await client.get("/api/webhooks/deliveries/summary", headers=headers)
+            assert sum_res.status_code == 200
+            assert "dlq" in sum_res.json()
+            assert "delivered" in sum_res.json()
+
+            # Deliveries list
+            list_res = await client.get("/api/webhooks/deliveries", headers=headers)
+            assert list_res.status_code == 200
+            assert "items" in list_res.json()
+
+            # Retry all DLQ
+            batch_res = await client.post("/api/webhooks/deliveries/dlq/retry-all", headers=headers)
+            assert batch_res.status_code == 200
+            assert "total_retried" in batch_res.json()
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+        await repo.delete_webhook(whk_id, tenant_id=tenant_id)
+        await repo.delete_delivery(deliv.id, tenant_id=tenant_id)
+

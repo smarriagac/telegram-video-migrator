@@ -9,11 +9,13 @@ from backend.domain.entities.user import User, Role
 from backend.domain.entities.webhook_endpoint import WebhookEndpoint
 from backend.domain.ports.webhook_repository_port import WebhookRepositoryPort
 from backend.application.services.webhook_dispatcher_service import WebhookDispatcherService
+from backend.application.services.webhook_retry_engine import WebhookRetryEngine
 from backend.presentation.dependencies import (
     get_current_user,
     require_roles,
     get_webhook_repository,
     get_webhook_dispatcher,
+    get_webhook_retry_engine,
 )
 
 logger = logging.getLogger(__name__)
@@ -105,6 +107,120 @@ async def test_webhook_url(
         "status_code": status_code,
         "error": err,
     }
+
+
+# --- Delivery Audit & Dead-Letter Queue (DLQ) Endpoints ---
+
+
+@router.get("/deliveries/summary")
+async def get_deliveries_summary(
+    current_user: User = Depends(get_current_user),
+    repo: WebhookRepositoryPort = Depends(get_webhook_repository),
+) -> dict[str, Any]:
+    """Retrieve count summaries of deliveries, pending retries, and DLQ entries."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    return await repo.get_dlq_summary(tenant_id=tenant_id)
+
+
+@router.get("/deliveries/dlq")
+async def list_dead_letter_deliveries(
+    webhook_id: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    repo: WebhookRepositoryPort = Depends(get_webhook_repository),
+) -> dict[str, Any]:
+    """List all dead-letter deliveries that exhausted automated retries."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    items, total = await repo.get_dead_letter_deliveries(
+        tenant_id=tenant_id,
+        webhook_id=webhook_id,
+        limit=limit,
+        offset=offset,
+    )
+    return {
+        "items": [d.to_dict() for d in items],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/deliveries")
+async def list_deliveries(
+    webhook_id: str | None = None,
+    status: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    repo: WebhookRepositoryPort = Depends(get_webhook_repository),
+) -> dict[str, Any]:
+    """List webhook delivery audit records with filtering and pagination."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    items, total = await repo.list_deliveries(
+        tenant_id=tenant_id,
+        webhook_id=webhook_id,
+        status=status,
+        limit=limit,
+        offset=offset,
+    )
+    return {
+        "items": [d.to_dict() for d in items],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.post("/deliveries/{delivery_id}/retry")
+async def retry_delivery(
+    delivery_id: str,
+    current_user: User = Depends(require_roles([Role.ADMIN])),
+    retry_engine: WebhookRetryEngine = Depends(get_webhook_retry_engine),
+) -> dict[str, Any]:
+    """Force an immediate re-dispatch attempt for a failed or dead-letter delivery."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    success, status_code, err = await retry_engine.retry_single_delivery(
+        delivery_id=delivery_id,
+        tenant_id=tenant_id,
+    )
+    return {
+        "success": success,
+        "status_code": status_code,
+        "error": err,
+        "delivery_id": delivery_id,
+    }
+
+
+@router.post("/deliveries/dlq/retry-all")
+async def retry_all_dlq_deliveries(
+    webhook_id: str | None = None,
+    limit: int = 100,
+    current_user: User = Depends(require_roles([Role.ADMIN])),
+    retry_engine: WebhookRetryEngine = Depends(get_webhook_retry_engine),
+) -> dict[str, Any]:
+    """1-Click batch redelivery of all dead-letter webhooks."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    res = await retry_engine.retry_all_dlq(
+        tenant_id=tenant_id,
+        webhook_id=webhook_id,
+        limit=limit,
+    )
+    return res
+
+
+@router.delete("/deliveries/{delivery_id}")
+async def dismiss_delivery(
+    delivery_id: str,
+    current_user: User = Depends(require_roles([Role.ADMIN])),
+    repo: WebhookRepositoryPort = Depends(get_webhook_repository),
+) -> dict[str, Any]:
+    """Dismiss or delete a delivery record from DLQ."""
+    tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    deleted = await repo.delete_delivery(delivery_id=delivery_id, tenant_id=tenant_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Entrega no encontrada")
+    return {"success": True, "deleted_id": delivery_id}
 
 
 @router.get("/{webhook_id}")

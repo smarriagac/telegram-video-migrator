@@ -111,8 +111,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to start BroadcastSchedulerService during startup: {e}")
 
+    # Initialize Webhook Retry Engine & DLQ Dispatcher
+    from backend.presentation.dependencies import get_webhook_retry_engine
+    try:
+        webhook_retry_engine = await get_webhook_retry_engine()
+        await webhook_retry_engine.start_worker()
+        logger.info("WebhookRetryEngine started successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to start WebhookRetryEngine during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
+
+    try:
+        webhook_retry_engine = await get_webhook_retry_engine()
+        await webhook_retry_engine.stop_worker()
+    except Exception:
+        pass
 
     try:
         broadcast_scheduler = await get_broadcast_scheduler_service()

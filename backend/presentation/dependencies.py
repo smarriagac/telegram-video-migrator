@@ -450,6 +450,19 @@ async def get_webhook_dispatcher():
     return _webhook_dispatcher_instance
 
 
+_webhook_retry_engine_instance = None
+
+
+async def get_webhook_retry_engine():
+    global _webhook_retry_engine_instance
+    if _webhook_retry_engine_instance is None:
+        from backend.application.services.webhook_retry_engine import WebhookRetryEngine
+        repo = await get_webhook_repository()
+        _webhook_retry_engine_instance = WebhookRetryEngine(repository=repo)
+    return _webhook_retry_engine_instance
+
+
+
 
 
 

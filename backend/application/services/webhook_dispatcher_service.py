@@ -11,6 +11,7 @@ from typing import Any
 import httpx
 
 from backend.domain.entities.webhook_endpoint import WebhookEndpoint
+from backend.domain.entities.webhook_delivery import WebhookDelivery
 from backend.domain.ports.webhook_repository_port import WebhookRepositoryPort
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,8 @@ class WebhookDispatcherService:
                 "data": meta,
             }
 
-    def generate_signature(self, payload_bytes: bytes, secret: str) -> str:
+    @staticmethod
+    def generate_signature(payload_bytes: bytes, secret: str) -> str:
         """Generate HMAC-SHA256 signature for generic webhooks."""
         return hmac.new(secret.encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
 
@@ -175,6 +177,21 @@ class WebhookDispatcherService:
                 status_code=last_status,
                 error=last_error,
             )
+
+            # Persist failed delivery into retry DLQ pipeline (unless test ping)
+            if not success and event_type != "test.ping" and hasattr(self.repository, "create_delivery"):
+                delivery = WebhookDelivery(
+                    webhook_id=endpoint.id,
+                    tenant_id=endpoint.tenant_id,
+                    event_type=event_type,
+                    url=endpoint.url,
+                    payload=payload_dict,
+                    attempts=1,
+                    last_status_code=last_status,
+                    last_error=last_error,
+                    next_retry_at=WebhookDelivery.compute_next_retry(1),
+                )
+                await self.repository.create_delivery(delivery)
         except Exception as repo_err:
             logger.debug(f"Could not record dispatch result: {repo_err}")
 

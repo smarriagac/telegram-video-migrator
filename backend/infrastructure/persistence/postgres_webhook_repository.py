@@ -8,13 +8,14 @@ from typing import Any
 import asyncpg
 
 from backend.domain.entities.webhook_endpoint import WebhookEndpoint
+from backend.domain.entities.webhook_delivery import WebhookDelivery, WebhookDeliveryStatus
 from backend.domain.ports.webhook_repository_port import WebhookRepositoryPort
 
 logger = logging.getLogger(__name__)
 
 
 class PostgresWebhookRepository(WebhookRepositoryPort):
-    """PostgreSQL repository for webhook endpoints with memory fallback."""
+    """PostgreSQL repository for webhook endpoints and deliveries with memory fallback."""
 
     def __init__(self, db_url: str | None = None) -> None:
         self.db_url = db_url or os.getenv(
@@ -23,6 +24,7 @@ class PostgresWebhookRepository(WebhookRepositoryPort):
         self.pool: asyncpg.Pool | None = None
         self._fallback_mode = False
         self._memory_webhooks: dict[str, WebhookEndpoint] = {}
+        self._memory_deliveries: dict[str, WebhookDelivery] = {}
         self._initialized = False
 
     async def connect(self) -> None:
@@ -64,6 +66,26 @@ class PostgresWebhookRepository(WebhookRepositoryPort):
                     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
                 CREATE INDEX IF NOT EXISTS idx_webhook_tenant ON webhook_endpoints(tenant_id);
+
+                CREATE TABLE IF NOT EXISTS webhook_deliveries (
+                    id VARCHAR(64) PRIMARY KEY,
+                    webhook_id VARCHAR(64) NOT NULL,
+                    tenant_id VARCHAR(64) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
+                    event_type VARCHAR(64) NOT NULL,
+                    url TEXT NOT NULL,
+                    payload JSONB NOT NULL,
+                    status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+                    attempts INT NOT NULL DEFAULT 0,
+                    max_attempts INT NOT NULL DEFAULT 5,
+                    next_retry_at TIMESTAMP WITH TIME ZONE,
+                    last_status_code INT,
+                    last_error TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_webhook_deliv_status ON webhook_deliveries(status, next_retry_at);
+                CREATE INDEX IF NOT EXISTS idx_webhook_deliv_tenant ON webhook_deliveries(tenant_id);
+                CREATE INDEX IF NOT EXISTS idx_webhook_deliv_webhook ON webhook_deliveries(webhook_id);
             """)
         self._initialized = True
 
@@ -112,6 +134,35 @@ class PostgresWebhookRepository(WebhookRepositoryPort):
             created_at=self._ensure_datetime(row.get("created_at")) or datetime.now(timezone.utc),
             updated_at=self._ensure_datetime(row.get("updated_at")) or datetime.now(timezone.utc),
         )
+
+    def _row_to_delivery(self, row: dict[str, Any]) -> WebhookDelivery:
+        payload = row.get("payload")
+        if isinstance(payload, str):
+            try:
+                payload = json.loads(payload)
+            except Exception:
+                payload = {}
+        elif not isinstance(payload, dict):
+            payload = {}
+
+        return WebhookDelivery(
+            id=row["id"],
+            webhook_id=row["webhook_id"],
+            tenant_id=str(row["tenant_id"]),
+            event_type=row.get("event_type", "unknown"),
+            url=row.get("url", ""),
+            payload=payload,
+            status=row.get("status", WebhookDeliveryStatus.PENDING.value),
+            attempts=int(row.get("attempts", 0)),
+            max_attempts=int(row.get("max_attempts", 5)),
+            next_retry_at=self._ensure_datetime(row.get("next_retry_at")),
+            last_status_code=row.get("last_status_code"),
+            last_error=row.get("last_error"),
+            created_at=self._ensure_datetime(row.get("created_at")) or datetime.now(timezone.utc),
+            updated_at=self._ensure_datetime(row.get("updated_at")) or datetime.now(timezone.utc),
+        )
+
+    # --- Webhook Endpoint CRUD ---
 
     async def list_webhooks(
         self,
@@ -304,3 +355,265 @@ class PostgresWebhookRepository(WebhookRepositoryPort):
                 webhook_id,
                 tenant_id,
             )
+
+    # --- Webhook Deliveries & DLQ Implementation ---
+
+    async def create_delivery(
+        self,
+        delivery: WebhookDelivery,
+    ) -> WebhookDelivery:
+        await self._ensure_connection()
+        delivery.updated_at = datetime.now(timezone.utc)
+
+        if self._fallback_mode or self.pool is None:
+            self._memory_deliveries[delivery.id] = delivery
+            return delivery
+
+        created_at_dt = self._ensure_datetime(delivery.created_at) or datetime.now(timezone.utc)
+        updated_at_dt = self._ensure_datetime(delivery.updated_at) or datetime.now(timezone.utc)
+        next_retry_dt = self._ensure_datetime(delivery.next_retry_at)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO webhook_deliveries (
+                    id, webhook_id, tenant_id, event_type, url, payload, status,
+                    attempts, max_attempts, next_retry_at, last_status_code, last_error,
+                    created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13, $14)
+                """,
+                delivery.id,
+                delivery.webhook_id,
+                delivery.tenant_id,
+                delivery.event_type,
+                delivery.url,
+                json.dumps(delivery.payload),
+                delivery.status,
+                delivery.attempts,
+                delivery.max_attempts,
+                next_retry_dt,
+                delivery.last_status_code,
+                delivery.last_error,
+                created_at_dt,
+                updated_at_dt,
+            )
+        return delivery
+
+    async def get_delivery(
+        self,
+        delivery_id: str,
+        tenant_id: str = "00000000-0000-0000-0000-000000000001",
+    ) -> WebhookDelivery | None:
+        await self._ensure_connection()
+
+        if self._fallback_mode or self.pool is None:
+            deliv = self._memory_deliveries.get(delivery_id)
+            if deliv and deliv.tenant_id == tenant_id:
+                return deliv
+            return None
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT * FROM webhook_deliveries WHERE id = $1 AND tenant_id = $2",
+                delivery_id,
+                tenant_id,
+            )
+            return self._row_to_delivery(dict(row)) if row else None
+
+    async def update_delivery(
+        self,
+        delivery: WebhookDelivery,
+    ) -> WebhookDelivery | None:
+        await self._ensure_connection()
+        delivery.updated_at = datetime.now(timezone.utc)
+
+        if self._fallback_mode or self.pool is None:
+            if delivery.id in self._memory_deliveries:
+                self._memory_deliveries[delivery.id] = delivery
+                return delivery
+            return None
+
+        updated_at_dt = self._ensure_datetime(delivery.updated_at) or datetime.now(timezone.utc)
+        next_retry_dt = self._ensure_datetime(delivery.next_retry_at)
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE webhook_deliveries SET
+                    status = $1,
+                    attempts = $2,
+                    next_retry_at = $3,
+                    last_status_code = $4,
+                    last_error = $5,
+                    updated_at = $6
+                WHERE id = $7 AND tenant_id = $8
+                """,
+                delivery.status,
+                delivery.attempts,
+                next_retry_dt,
+                delivery.last_status_code,
+                delivery.last_error,
+                updated_at_dt,
+                delivery.id,
+                delivery.tenant_id,
+            )
+            if res == "UPDATE 0":
+                return None
+        return delivery
+
+    async def list_deliveries(
+        self,
+        tenant_id: str = "00000000-0000-0000-0000-000000000001",
+        webhook_id: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[WebhookDelivery], int]:
+        await self._ensure_connection()
+
+        if self._fallback_mode or self.pool is None:
+            matches = [d for d in self._memory_deliveries.values() if d.tenant_id == tenant_id]
+            if webhook_id:
+                matches = [d for d in matches if d.webhook_id == webhook_id]
+            if status:
+                matches = [d for d in matches if d.status == status]
+            sorted_items = sorted(matches, key=lambda d: d.created_at, reverse=True)
+            total = len(sorted_items)
+            paged = sorted_items[offset : offset + limit]
+            return paged, total
+
+        async with self.pool.acquire() as conn:
+            where_clauses = ["tenant_id = $1"]
+            params: list[Any] = [tenant_id]
+
+            if webhook_id:
+                params.append(webhook_id)
+                where_clauses.append(f"webhook_id = ${len(params)}")
+            if status:
+                params.append(status)
+                where_clauses.append(f"status = ${len(params)}")
+
+            where_str = " AND ".join(where_clauses)
+            count_row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM webhook_deliveries WHERE {where_str}", *params)
+            total = int(count_row["count"]) if count_row else 0
+
+            params.append(limit)
+            params.append(offset)
+            query = f"""
+                SELECT * FROM webhook_deliveries
+                WHERE {where_str}
+                ORDER BY created_at DESC
+                LIMIT ${len(params) - 1} OFFSET ${len(params)}
+            """
+            rows = await conn.fetch(query, *params)
+            return [self._row_to_delivery(dict(r)) for r in rows], total
+
+    async def get_pending_retries(
+        self,
+        limit: int = 20,
+    ) -> list[WebhookDelivery]:
+        await self._ensure_connection()
+        now = datetime.now(timezone.utc)
+
+        if self._fallback_mode or self.pool is None:
+            pending = [
+                d for d in self._memory_deliveries.values()
+                if d.status == WebhookDeliveryStatus.PENDING.value
+                and (d.next_retry_at is None or d.next_retry_at <= now)
+            ]
+            sorted_pending = sorted(pending, key=lambda d: d.next_retry_at or d.created_at)
+            return sorted_pending[:limit]
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT * FROM webhook_deliveries
+                WHERE status = $1 AND (next_retry_at IS NULL OR next_retry_at <= $2)
+                ORDER BY next_retry_at ASC NULLS FIRST
+                LIMIT $3
+                """,
+                WebhookDeliveryStatus.PENDING.value,
+                now,
+                limit,
+            )
+            return [self._row_to_delivery(dict(r)) for r in rows]
+
+    async def get_dead_letter_deliveries(
+        self,
+        tenant_id: str = "00000000-0000-0000-0000-000000000001",
+        webhook_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[WebhookDelivery], int]:
+        return await self.list_deliveries(
+            tenant_id=tenant_id,
+            webhook_id=webhook_id,
+            status=WebhookDeliveryStatus.DLQ.value,
+            limit=limit,
+            offset=offset,
+        )
+
+    async def get_dlq_summary(
+        self,
+        tenant_id: str = "00000000-0000-0000-0000-000000000001",
+    ) -> dict[str, Any]:
+        await self._ensure_connection()
+
+        if self._fallback_mode or self.pool is None:
+            deliveries = [d for d in self._memory_deliveries.values() if d.tenant_id == tenant_id]
+            dlq_count = sum(1 for d in deliveries if d.status == WebhookDeliveryStatus.DLQ.value)
+            pending_count = sum(1 for d in deliveries if d.status == WebhookDeliveryStatus.PENDING.value)
+            delivered_count = sum(1 for d in deliveries if d.status == WebhookDeliveryStatus.DELIVERED.value)
+            failed_count = sum(1 for d in deliveries if d.status == WebhookDeliveryStatus.FAILED.value)
+            return {
+                "total": len(deliveries),
+                "dlq": dlq_count,
+                "pending": pending_count,
+                "delivered": delivered_count,
+                "failed": failed_count,
+            }
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT
+                    COUNT(*) as total,
+                    COUNT(*) FILTER (WHERE status = 'DLQ') as dlq,
+                    COUNT(*) FILTER (WHERE status = 'PENDING') as pending,
+                    COUNT(*) FILTER (WHERE status = 'DELIVERED') as delivered,
+                    COUNT(*) FILTER (WHERE status = 'FAILED') as failed
+                FROM webhook_deliveries
+                WHERE tenant_id = $1
+                """,
+                tenant_id,
+            )
+            if not row:
+                return {"total": 0, "dlq": 0, "pending": 0, "delivered": 0, "failed": 0}
+            return {
+                "total": int(row["total"] or 0),
+                "dlq": int(row["dlq"] or 0),
+                "pending": int(row["pending"] or 0),
+                "delivered": int(row["delivered"] or 0),
+                "failed": int(row["failed"] or 0),
+            }
+
+    async def delete_delivery(
+        self,
+        delivery_id: str,
+        tenant_id: str = "00000000-0000-0000-0000-000000000001",
+    ) -> bool:
+        await self._ensure_connection()
+
+        if self._fallback_mode or self.pool is None:
+            if delivery_id in self._memory_deliveries:
+                del self._memory_deliveries[delivery_id]
+                return True
+            return False
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                "DELETE FROM webhook_deliveries WHERE id = $1 AND tenant_id = $2",
+                delivery_id,
+                tenant_id,
+            )
+            return res != "DELETE 0"

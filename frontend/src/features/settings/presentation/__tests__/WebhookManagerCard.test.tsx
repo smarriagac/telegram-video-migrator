@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { WebhookManagerCard } from "../components/WebhookManagerCard";
-import { webhooksApi, WebhookEndpoint } from "../../infrastructure/webhooksApi";
+import {
+  webhooksApi,
+  WebhookEndpoint,
+  WebhookDelivery,
+  WebhookDeliveriesSummary,
+} from "../../infrastructure/webhooksApi";
 
 vi.mock("../../infrastructure/webhooksApi", () => ({
   webhooksApi: {
@@ -10,6 +15,12 @@ vi.mock("../../infrastructure/webhooksApi", () => ({
     updateWebhook: vi.fn(),
     deleteWebhook: vi.fn(),
     testWebhook: vi.fn(),
+    fetchDeliveriesSummary: vi.fn(),
+    listDeliveries: vi.fn(),
+    listDLQDeliveries: vi.fn(),
+    retryDelivery: vi.fn(),
+    retryAllDLQ: vi.fn(),
+    dismissDelivery: vi.fn(),
   },
 }));
 
@@ -46,10 +57,59 @@ const mockWebhooks: WebhookEndpoint[] = [
   },
 ];
 
+const mockDeliveries: WebhookDelivery[] = [
+  {
+    id: "deliv_101",
+    webhook_id: "whk_discord_1",
+    tenant_id: "00000000-0000-0000-0000-000000000001",
+    event_type: "job.failed",
+    url: "https://discord.com/api/webhooks/123/abc",
+    payload: { job_id: "job-failed-99" },
+    status: "DLQ",
+    attempts: 5,
+    max_attempts: 5,
+    last_status_code: 504,
+    last_error: "Gateway Timeout after 10.0s",
+    created_at: "2026-11-08T01:00:00Z",
+    updated_at: "2026-11-08T01:10:00Z",
+  },
+  {
+    id: "deliv_102",
+    webhook_id: "whk_slack_2",
+    tenant_id: "00000000-0000-0000-0000-000000000001",
+    event_type: "flood_wait",
+    url: "https://hooks.slack.com/services/T00/B00/xyz",
+    payload: { seconds: 120 },
+    status: "PENDING",
+    attempts: 1,
+    max_attempts: 5,
+    last_status_code: 502,
+    last_error: "Bad Gateway",
+    next_retry_at: "2026-11-08T02:00:00Z",
+    created_at: "2026-11-08T01:05:00Z",
+    updated_at: "2026-11-08T01:05:00Z",
+  },
+];
+
+const mockSummary: WebhookDeliveriesSummary = {
+  total: 5,
+  dlq: 1,
+  pending: 1,
+  delivered: 3,
+  failed: 0,
+};
+
 describe("WebhookManagerCard Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (webhooksApi.listWebhooks as any).mockResolvedValue(mockWebhooks);
+    (webhooksApi.fetchDeliveriesSummary as any).mockResolvedValue(mockSummary);
+    (webhooksApi.listDeliveries as any).mockResolvedValue({
+      items: mockDeliveries,
+      total: 2,
+      limit: 50,
+      offset: 0,
+    });
   });
 
   it("renders webhooks list with targets and status", async () => {
@@ -135,24 +195,68 @@ describe("WebhookManagerCard Component", () => {
     });
   });
 
-  it("deletes a webhook endpoint when trash icon clicked", async () => {
-    (webhooksApi.deleteWebhook as any).mockResolvedValue({ success: true, deleted_id: "whk_discord_1" });
-
+  it("switches to Dead-Letter Queue tab and renders delivery audit items", async () => {
     render(<WebhookManagerCard />);
 
     await waitFor(() => {
-      expect(screen.getByText("Canal Discord Incidentes")).toBeInTheDocument();
+      expect(screen.getByText("Dead-Letter Queue")).toBeInTheDocument();
     });
 
-    const trashIcons = document.querySelectorAll("button svg.lucide-trash-2");
-    expect(trashIcons.length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByText("Dead-Letter Queue"));
 
-    const buttonWithTrash = trashIcons[0].closest("button");
-    if (buttonWithTrash) {
-      fireEvent.click(buttonWithTrash);
-      await waitFor(() => {
-        expect(webhooksApi.deleteWebhook).toHaveBeenCalledWith("whk_discord_1");
-      });
-    }
+    await waitFor(() => {
+      expect(screen.getByText("job.failed")).toBeInTheDocument();
+      expect(screen.getByText("DLQ Caído")).toBeInTheDocument();
+      expect(screen.getByText("Reintentando")).toBeInTheDocument();
+      expect(screen.getByText(/Intentos: 5\/5/i)).toBeInTheDocument();
+    });
+  });
+
+  it("triggers individual delivery retry on DLQ item", async () => {
+    (webhooksApi.retryDelivery as any).mockResolvedValue({
+      success: true,
+      status_code: 200,
+    });
+
+    render(<WebhookManagerCard />);
+
+    fireEvent.click(screen.getByText("Dead-Letter Queue"));
+
+    await waitFor(() => {
+      expect(screen.getByText("job.failed")).toBeInTheDocument();
+    });
+
+    const retryBtns = screen.getAllByRole("button", { name: /^reintentar$/i });
+    expect(retryBtns.length).toBeGreaterThan(0);
+
+    fireEvent.click(retryBtns[0]);
+
+    await waitFor(() => {
+      expect(webhooksApi.retryDelivery).toHaveBeenCalledWith("deliv_101");
+      expect(screen.getByText(/Entrega reintentada con éxito/i)).toBeInTheDocument();
+    });
+  });
+
+  it("triggers 1-Click batch redelivery for all DLQ items", async () => {
+    (webhooksApi.retryAllDLQ as any).mockResolvedValue({
+      total_retried: 1,
+      succeeded: 1,
+      failed: 0,
+    });
+
+    render(<WebhookManagerCard />);
+
+    fireEvent.click(screen.getByText("Dead-Letter Queue"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Reintentar Todo DLQ \(1\)/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/Reintentar Todo DLQ \(1\)/i));
+
+    await waitFor(() => {
+      expect(webhooksApi.retryAllDLQ).toHaveBeenCalled();
+      expect(screen.getByText(/Reintento masivo completado: 1 exitosos/i)).toBeInTheDocument();
+    });
   });
 });
