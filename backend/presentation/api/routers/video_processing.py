@@ -24,6 +24,8 @@ class EnqueueVideoJobRequest(BaseModel):
     target_channel_id: int
     filter_type: str = "delogo"
     filter_params: dict[str, Any] = {"preset": "center"}
+    resolution_preset: str | None = None
+    crf: int | None = None
     source_channel_title: str | None = None
     target_channel_title: str | None = None
     account_id: int | None = None
@@ -36,6 +38,8 @@ class EnqueueBatchJobRequest(BaseModel):
     target_channel_id: int
     filter_type: str = "delogo"
     filter_params: dict[str, Any] = {"preset": "center"}
+    resolution_preset: str | None = None
+    crf: int | None = None
     source_channel_title: str | None = None
     target_channel_title: str | None = None
     account_id: int | None = None
@@ -112,6 +116,16 @@ async def detect_watermark_endpoint(
         }
 
 
+@router.get("/presets")
+async def list_transcoding_presets(
+    current_user: User = Depends(get_current_user),
+    service: Any = Depends(get_video_processing_service),
+) -> dict[str, Any]:
+    """Retrieve available video transcoding and downsampling resolution presets."""
+    presets = service.get_presets()
+    return {"presets": presets}
+
+
 @router.post("/enqueue")
 async def enqueue_video_processing(
     payload: EnqueueVideoJobRequest,
@@ -120,6 +134,12 @@ async def enqueue_video_processing(
 ) -> dict[str, Any]:
     """Enqueue a video from a channel for asynchronous FFmpeg watermark removal / delogo processing."""
     tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    params = dict(payload.filter_params)
+    if payload.resolution_preset:
+        params["resolution_preset"] = payload.resolution_preset
+    if payload.crf is not None:
+        params["crf"] = payload.crf
+
     try:
         res = await service.enqueue_job(
             tenant_id=tenant_id,
@@ -127,7 +147,7 @@ async def enqueue_video_processing(
             source_message_id=payload.source_message_id,
             target_channel_id=payload.target_channel_id,
             filter_type=payload.filter_type,
-            filter_params=payload.filter_params,
+            filter_params=params,
             source_channel_title=payload.source_channel_title,
             target_channel_title=payload.target_channel_title,
             account_id=payload.account_id,
@@ -150,6 +170,12 @@ async def enqueue_batch_video_processing(
 ) -> dict[str, Any]:
     """Enqueue multiple messages (videos/photos) in bulk for FFmpeg watermark removal."""
     tenant_id = current_user.tenant_id or "00000000-0000-0000-0000-000000000001"
+    params = dict(payload.filter_params)
+    if payload.resolution_preset:
+        params["resolution_preset"] = payload.resolution_preset
+    if payload.crf is not None:
+        params["crf"] = payload.crf
+
     enqueued_jobs = []
     for msg_id in payload.source_message_ids:
         try:
@@ -159,7 +185,7 @@ async def enqueue_batch_video_processing(
                 source_message_id=msg_id,
                 target_channel_id=payload.target_channel_id,
                 filter_type=payload.filter_type,
-                filter_params=payload.filter_params,
+                filter_params=params,
                 source_channel_title=payload.source_channel_title,
                 target_channel_title=payload.target_channel_title,
                 account_id=payload.account_id,

@@ -12,6 +12,48 @@ from typing import Any
 
 logger = logging.getLogger("telegram_migrator.video_processing")
 
+TRANSCODING_PRESETS: dict[str, dict[str, Any]] = {
+    "ORIGINAL": {
+        "id": "ORIGINAL",
+        "label": "Original (Sin Escalar)",
+        "description": "Mantiene resolución original del archivo fuente.",
+        "max_width": None,
+        "default_crf": 23,
+        "max_bitrate_k": None,
+        "audio_codec": "copy",
+    },
+    "1080p": {
+        "id": "1080p",
+        "label": "1080p Full HD",
+        "description": "Ideal para contenido de alta fidelidad. Downsampling inteligente si supera 1920px.",
+        "max_width": 1920,
+        "default_crf": 22,
+        "max_bitrate_k": 4500,
+        "audio_codec": "aac",
+        "audio_bitrate": "160k",
+    },
+    "720p": {
+        "id": "720p",
+        "label": "720p HD (Recomendado)",
+        "description": "Equilibrio óptimo entre velocidad de migración, consumo de ancho de banda y nitidez en móviles.",
+        "max_width": 1280,
+        "default_crf": 24,
+        "max_bitrate_k": 2500,
+        "audio_codec": "aac",
+        "audio_bitrate": "128k",
+    },
+    "480p": {
+        "id": "480p",
+        "label": "480p SD (Ahorro Máximo)",
+        "description": "Reduce drásticamente el peso y el tiempo de carga para canales masivos o redes lentas.",
+        "max_width": 854,
+        "default_crf": 26,
+        "max_bitrate_k": 1200,
+        "audio_codec": "aac",
+        "audio_bitrate": "96k",
+    },
+}
+
 
 class VideoProcessingService:
     def __init__(self, pg_repo: Any, gateway_provider: Any) -> None:
@@ -333,9 +375,33 @@ class VideoProcessingService:
             width, height = await self._probe_video_dimensions(downloaded)
             logger.info(f"VideoProcessing: Probed media dimensions: {width}x{height} (is_image={is_image})")
 
-            # 5. Compute filter coordinates
+            # 5. Compute filter coordinates & transcoding parameters
+            resolution_preset = filter_params.get("resolution_preset")
+            custom_crf = filter_params.get("crf")
+            scale_filter_str, transcode_codec_args = self._build_transcoding_args(
+                resolution_preset=resolution_preset,
+                source_width=width,
+                source_height=height,
+                crf=custom_crf,
+            )
+
             delogo_filter = self._build_delogo_filter(filter_type, filter_params, width, height)
-            logger.info(f"VideoProcessing: Applying filter: {delogo_filter}")
+
+            # Combine video filters (delogo / watermark / scaling)
+            if delogo_filter and len(delogo_filter) >= 2 and delogo_filter[0] == "-vf":
+                base_vf = delogo_filter[1]
+                combined_filter = ["-vf", f"{base_vf},{scale_filter_str}"] if scale_filter_str else ["-vf", base_vf]
+            elif delogo_filter and len(delogo_filter) >= 2 and delogo_filter[0] == "-filter_complex":
+                combined_filter = [
+                    "-filter_complex",
+                    f"{delogo_filter[1]}[v_out];[v_out]{scale_filter_str}",
+                ] if scale_filter_str else delogo_filter
+            elif scale_filter_str:
+                combined_filter = ["-vf", scale_filter_str]
+            else:
+                combined_filter = []
+
+            logger.info(f"VideoProcessing: Applying filter: {combined_filter}")
 
             # 6. Run FFmpeg
             if is_image:
@@ -343,7 +409,7 @@ class VideoProcessingService:
                     "ffmpeg",
                     "-y",
                     "-i", downloaded,
-                    *delogo_filter,
+                    *combined_filter,
                     output_path,
                 ]
             else:
@@ -351,11 +417,8 @@ class VideoProcessingService:
                     "ffmpeg",
                     "-y",
                     "-i", downloaded,
-                    *delogo_filter,
-                    "-c:v", "libx264",
-                    "-preset", "fast",
-                    "-crf", "23",
-                    "-c:a", "copy",
+                    *combined_filter,
+                    *transcode_codec_args,
                     output_path,
                 ]
 
@@ -429,6 +492,53 @@ class VideoProcessingService:
             logger.warning(f"Could not probe video dimensions with ffprobe: {e}. Defaulting to 1080x1920.")
 
         return 1080, 1920
+
+    @classmethod
+    def get_presets(cls) -> list[dict[str, Any]]:
+        """List available transcoding resolution presets."""
+        return list(TRANSCODING_PRESETS.values())
+
+    def _build_transcoding_args(
+        self,
+        resolution_preset: str | None,
+        source_width: int,
+        source_height: int,
+        crf: int | None = None,
+    ) -> tuple[str | None, list[str]]:
+        """Build downsampling scale filter and FFmpeg video/audio encoding parameters."""
+        raw_key = str(resolution_preset or "ORIGINAL").strip()
+        matched_key = "ORIGINAL"
+
+        for k in TRANSCODING_PRESETS:
+            if k.upper() == raw_key.upper() or k.lower() == raw_key.lower():
+                matched_key = k
+                break
+
+        cfg = TRANSCODING_PRESETS[matched_key]
+        max_w = cfg.get("max_width")
+        scale_filter: str | None = None
+
+        if max_w is not None:
+            # Intelligent downsampling guard: only downscale, never upscale smaller content
+            scale_filter = f"scale='min({max_w},iw)':-2"
+
+        active_crf = crf if crf is not None else cfg.get("default_crf", 23)
+        codec_args = [
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", str(active_crf),
+        ]
+
+        max_bitrate = cfg.get("max_bitrate_k")
+        if max_bitrate:
+            codec_args.extend(["-maxrate", f"{max_bitrate}k", "-bufsize", f"{max_bitrate * 2}k"])
+
+        if cfg.get("audio_codec") == "aac":
+            codec_args.extend(["-c:a", "aac", "-b:a", cfg.get("audio_bitrate", "128k")])
+        else:
+            codec_args.extend(["-c:a", "copy"])
+
+        return scale_filter, codec_args
 
     def _build_drawtext_filter_str(
         self, params: dict[str, Any], width: int, height: int

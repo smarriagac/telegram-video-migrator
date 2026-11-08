@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Sparkles,
   Layers2,
+  SlidersVertical,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -30,6 +31,7 @@ interface FormState {
   targetId: number;
   filterType: "delogo" | "blur";
   preset: "auto" | "center" | "top_right" | "bottom_right" | "bottom_bar";
+  resolutionPreset: "ORIGINAL" | "1080p" | "720p" | "480p";
 }
 
 interface AsyncState {
@@ -52,6 +54,7 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
     targetId: selectedTargetId || channels[0]?.id || 0,
     filterType: "delogo",
     preset: "auto",
+    resolutionPreset: "ORIGINAL",
   }));
 
   // Hook 2: Async execution and feedback state
@@ -84,7 +87,9 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
         filter_params: {
           preset: formState.preset,
           auto_detect: formState.preset === "auto",
+          resolution_preset: formState.resolutionPreset,
         },
+        resolution_preset: formState.resolutionPreset,
         source_channel_title: sourceChannel?.title,
         target_channel_title: targetChannel?.title,
       });
@@ -246,6 +251,44 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
                   Aplica un filtro gaussiano difuso sobre la marca de agua.
                 </span>
               </button>
+            </div>
+          </div>
+
+          {/* Transcoding & Resolution Downsampling Preset */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                <SlidersVertical className="w-3.5 h-3.5 text-primary" />
+                <span>Resolución y Transcodificación (Lote):</span>
+              </label>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                H.264 / AAC
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: "ORIGINAL", label: "Original", desc: "Sin escalar" },
+                { id: "1080p", label: "1080p FHD", desc: "Max 1920px" },
+                { id: "720p", label: "720p HD", desc: "Recomendado" },
+                { id: "480p", label: "480p SD", desc: "Ahorro red" },
+              ].map((res) => {
+                const selected = formState.resolutionPreset === res.id;
+                return (
+                  <button
+                    key={res.id}
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, resolutionPreset: res.id as any }))}
+                    className={`p-2 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
+                      selected
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">{res.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{res.desc}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 

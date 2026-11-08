@@ -1,5 +1,16 @@
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 
+export interface TranscodingPreset {
+  id: "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+  label: string;
+  description: string;
+  max_width?: number | null;
+  default_crf: number;
+  max_bitrate_k?: number | null;
+  audio_codec: string;
+  audio_bitrate?: string;
+}
+
 export interface VideoProcessingJob {
   id: string;
   tenant_id: string;
@@ -11,6 +22,8 @@ export interface VideoProcessingJob {
   filter_type: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   filter_params: {
     preset?: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom";
+    resolution_preset?: "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+    crf?: number;
     x?: number;
     y?: number;
     w?: number;
@@ -33,6 +46,8 @@ export interface EnqueueVideoPayload {
   target_channel_id: number;
   filter_type?: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   filter_params?: Record<string, any>;
+  resolution_preset?: "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+  crf?: number;
   source_channel_title?: string;
   target_channel_title?: string;
   account_id?: number | null;
@@ -45,6 +60,8 @@ export interface EnqueueBatchPayload {
   target_channel_id: number;
   filter_type?: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   filter_params?: Record<string, any>;
+  resolution_preset?: "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+  crf?: number;
   source_channel_title?: string;
   target_channel_title?: string;
   account_id?: number | null;
@@ -151,5 +168,30 @@ export const videoProcessingApi = {
       throw new Error("Error ejecutando auto-detección de marca de agua");
     }
     return await res.json();
+  },
+
+  async fetchPresets(): Promise<TranscodingPreset[]> {
+    try {
+      const res = await fetch("/api/video-processing/presets", {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        return [
+          { id: "ORIGINAL", label: "Original (Sin Escalar)", description: "Mantiene resolución original", default_crf: 23, audio_codec: "copy" },
+          { id: "1080p", label: "1080p Full HD", description: "Downsampling si supera 1920px", max_width: 1920, default_crf: 22, audio_codec: "aac" },
+          { id: "720p", label: "720p HD (Recomendado)", description: "Equilibrio óptimo calidad/peso", max_width: 1280, default_crf: 24, audio_codec: "aac" },
+          { id: "480p", label: "480p SD (Ahorro)", description: "Reduce drásticamente el peso", max_width: 854, default_crf: 26, audio_codec: "aac" },
+        ];
+      }
+      const data = await res.json();
+      return data.presets || [];
+    } catch {
+      return [
+        { id: "ORIGINAL", label: "Original (Sin Escalar)", description: "Mantiene resolución original", default_crf: 23, audio_codec: "copy" },
+        { id: "1080p", label: "1080p Full HD", description: "Downsampling si supera 1920px", max_width: 1920, default_crf: 22, audio_codec: "aac" },
+        { id: "720p", label: "720p HD (Recomendado)", description: "Equilibrio óptimo calidad/peso", max_width: 1280, default_crf: 24, audio_codec: "aac" },
+        { id: "480p", label: "480p SD (Ahorro)", description: "Reduce drásticamente el peso", max_width: 854, default_crf: 26, audio_codec: "aac" },
+      ];
+    }
   },
 };

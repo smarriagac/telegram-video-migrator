@@ -1038,6 +1038,14 @@ export const JobsView: React.FC = () => {
                             <span className="text-[10px] text-muted-foreground font-mono">
                               ({fjob.filter_params?.preset || "custom"})
                             </span>
+                            {fjob.filter_params?.resolution_preset && fjob.filter_params.resolution_preset !== "ORIGINAL" && (
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] font-mono border-sky-500/30 text-sky-400 bg-sky-500/10"
+                              >
+                                {fjob.filter_params.resolution_preset}
+                              </Badge>
+                            )}
                           </div>
                           {fjob.new_caption && (
                             <p className="text-[11px] text-muted-foreground truncate max-w-xs mt-1">

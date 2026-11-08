@@ -10,6 +10,7 @@ import {
   Scan,
   Type,
   Stamp,
+  SlidersVertical,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/shared/components/ui/dialog";
 import { Button } from "@/shared/components/ui/button";
@@ -35,6 +36,7 @@ interface FormState {
   targetId: number;
   filterType: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
   preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom";
+  resolutionPreset: "ORIGINAL" | "1080p" | "720p" | "480p";
   customBox: { x: number; y: number; w: number; h: number };
   normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
@@ -73,6 +75,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       targetId: initTargetId,
       filterType: "delogo",
       preset: "center",
+      resolutionPreset: "ORIGINAL",
       customBox: { x: 200, y: 300, w: 400, h: 200 },
       normalizedBox: null,
       caption: message?.text || "",
@@ -173,6 +176,9 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
         filterParams.watermark_text = formState.watermarkText.trim();
         filterParams.watermark_position = formState.watermarkPosition;
       }
+      if (formState.resolutionPreset) {
+        filterParams.resolution_preset = formState.resolutionPreset;
+      }
 
       await videoProcessingApi.enqueue({
         source_channel_id: sourceChannelId,
@@ -180,6 +186,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
         target_channel_id: formState.targetId,
         filter_type: formState.filterType,
         filter_params: filterParams,
+        resolution_preset: formState.resolutionPreset,
         source_channel_title: sourceChannel?.title,
         target_channel_title: targetChannel?.title,
         new_caption: formState.caption.trim() || undefined,
@@ -543,6 +550,44 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* Transcoding & Resolution Downsampling Preset */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground flex items-center gap-1.5">
+                <SlidersVertical className="w-3.5 h-3.5 text-primary" />
+                <span>Resolución y Transcodificación:</span>
+              </label>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                H.264 / AAC Adaptativo
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: "ORIGINAL", label: "Original", desc: "Sin escalar" },
+                { id: "1080p", label: "1080p FHD", desc: "Max 1920px" },
+                { id: "720p", label: "720p HD", desc: "Recomendado" },
+                { id: "480p", label: "480p SD", desc: "Ahorro red" },
+              ].map((res) => {
+                const selected = formState.resolutionPreset === res.id;
+                return (
+                  <button
+                    key={res.id}
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, resolutionPreset: res.id as any }))}
+                    className={`p-2 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
+                      selected
+                        ? "border-primary bg-primary/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">{res.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{res.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Optional Caption */}
           <div className="space-y-1.5">
