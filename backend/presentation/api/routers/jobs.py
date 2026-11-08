@@ -101,6 +101,7 @@ def _dispatch_worker(
 
     async def on_progress(event: dict[str, Any]):
         await broadcaster.publish(job_id, event)
+        await broadcaster.publish("global_events", {"type": "JOB_PROGRESS", "data": event})
 
     async def run_worker():
         try:
@@ -108,6 +109,13 @@ def _dispatch_worker(
                 job_id=job_id,
                 on_progress=on_progress,
                 selected_message_ids=selected_message_ids,
+            )
+            await broadcaster.publish(
+                "global_events",
+                {
+                    "type": "JOB_STATUS_CHANGE",
+                    "data": {"job_id": job_id, "status": JobStatus.COMPLETED.value},
+                },
             )
         except Exception as e:
             logger.error(f"Migration worker failed for job {job_id}: {e}")
@@ -118,6 +126,17 @@ def _dispatch_worker(
                     "job_id": job_id,
                     "status": JobStatus.FAILED.value,
                     "message": f"Worker error: {str(e)}",
+                },
+            )
+            await broadcaster.publish(
+                "global_events",
+                {
+                    "type": "JOB_STATUS_CHANGE",
+                    "data": {
+                        "job_id": job_id,
+                        "status": JobStatus.FAILED.value,
+                        "error": str(e),
+                    },
                 },
             )
             try:
@@ -377,6 +396,7 @@ async def cancel_job(
     repo: JobRepositoryPort = Depends(get_job_repository),
     use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
     audit_repo: AuditRepositoryPort = Depends(get_audit_repository),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
 ) -> dict[str, str]:
     """Request graceful cancellation of an active migration job."""
     job = await repo.get_job(job_id)
@@ -388,6 +408,10 @@ async def cancel_job(
 
     use_case.cancel_job(job_id)
     await repo.set_job_status(job_id, JobStatus.CANCELLED)
+    await broadcaster.publish(
+        "global_events",
+        {"type": "JOB_STATUS_CHANGE", "data": {"job_id": job_id, "status": JobStatus.CANCELLED.value}},
+    )
     try:
         await audit_repo.record_audit_log(
             AuditLog(
@@ -408,6 +432,7 @@ async def pause_job(
     job_id: str,
     repo: JobRepositoryPort = Depends(get_job_repository),
     use_case: CloneChannelVideosUseCase = Depends(get_migration_use_case),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
 ) -> dict[str, str]:
     """Pause an active migration job."""
     job = await repo.get_job(job_id)
@@ -418,6 +443,10 @@ async def pause_job(
         )
     use_case.cancel_job(job_id)
     await repo.set_job_status(job_id, JobStatus.PAUSED)
+    await broadcaster.publish(
+        "global_events",
+        {"type": "JOB_STATUS_CHANGE", "data": {"job_id": job_id, "status": JobStatus.PAUSED.value}},
+    )
     return {"job_id": job_id, "status": JobStatus.PAUSED.value}
 
 
@@ -436,6 +465,10 @@ async def resume_job(
             detail=f"Job '{job_id}' not found.",
         )
     await repo.set_job_status(job_id, JobStatus.RUNNING)
+    await broadcaster.publish(
+        "global_events",
+        {"type": "JOB_STATUS_CHANGE", "data": {"job_id": job_id, "status": JobStatus.RUNNING.value}},
+    )
     selected_ids = None
     if job.media_filter_rules and isinstance(job.media_filter_rules, dict):
         selected_ids = job.media_filter_rules.get("selected_message_ids")

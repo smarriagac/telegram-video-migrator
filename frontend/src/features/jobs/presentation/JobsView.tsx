@@ -50,6 +50,7 @@ import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
 import { videoProcessingApi, VideoProcessingJob } from "../../migration/infrastructure/videoProcessingApi";
+import { useGlobalEventStream } from "@/shared/hooks/useGlobalEventStream";
 
 export const JobsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
@@ -110,14 +111,17 @@ export const JobsView: React.FC = () => {
     }
   };
 
+  // Real-time reactive updates via SSE (eliminating 5s polling interval)
+  useGlobalEventStream((event) => {
+    if (event.type === "JOB_PROGRESS" || event.type === "JOB_STATUS_CHANGE") {
+      fetchJobs();
+      fetchFfmpegJobs();
+    }
+  });
+
   useEffect(() => {
     fetchJobs();
     fetchFfmpegJobs();
-    const interval = setInterval(() => {
-      fetchJobs();
-      fetchFfmpegJobs();
-    }, 5000);
-    return () => clearInterval(interval);
   }, [fetchJobs]);
 
   const showFeedback = (message: string, isError = false) => {

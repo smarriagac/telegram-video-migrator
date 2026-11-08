@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { notificationApi, AppNotification } from "@/shared/infrastructure/notificationApi";
+import { useGlobalEventStream } from "@/shared/hooks/useGlobalEventStream";
 
 interface NotificationsState {
   isOpen: boolean;
@@ -52,11 +53,19 @@ export const NotificationBell: React.FC = () => {
     }));
   }, [filter]);
 
-  // Periodic unread count polling every 20 seconds
+  // Real-time reactive updates via SSE (eliminating 20s polling interval)
+  useGlobalEventStream((event) => {
+    if (event.type === "NOTIFICATION_UPDATE") {
+      loadUnreadCount();
+      if (notificationsState.isOpen) {
+        loadItems();
+      }
+    }
+  });
+
+  // Initial unread count load on mount
   useEffect(() => {
     loadUnreadCount();
-    const interval = setInterval(loadUnreadCount, 20000);
-    return () => clearInterval(interval);
   }, [loadUnreadCount]);
 
   // Reload items when popover opens or filter changes

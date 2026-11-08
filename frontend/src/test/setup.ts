@@ -32,5 +32,24 @@ class MockResizeObserver {
 }
 globalThis.ResizeObserver = MockResizeObserver as any;
 
+// Mock EventSource for SSE streaming
+class MockEventSource {
+  static instances: MockEventSource[] = [];
+  url: string;
+  onmessage: ((e: any) => void) | null = null;
+  onerror: ((e: any) => void) | null = null;
+  closed = false;
+
+  constructor(url: string) {
+    this.url = url;
+    MockEventSource.instances.push(this);
+  }
+
+  close() {
+    this.closed = true;
+  }
+}
+globalThis.EventSource = MockEventSource as any;
+
 // Mock window.scrollTo
 window.scrollTo = vi.fn();

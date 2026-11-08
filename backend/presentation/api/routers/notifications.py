@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from backend.domain.entities.app_notification import AppNotification
 from backend.domain.entities.user import User
 from backend.domain.ports.job_repository_port import JobRepositoryPort
-from backend.presentation.dependencies import get_current_user, get_job_repository
+from backend.application.broadcaster import EventBroadcaster
+from backend.presentation.dependencies import get_current_user, get_job_repository, get_broadcaster
 
 logger = logging.getLogger("telegram_migrator.notifications_api")
 router = APIRouter(prefix="/notifications", tags=["In-App Notifications"])
@@ -81,6 +82,7 @@ async def mark_notification_read_endpoint(
     notification_id: str,
     repo: JobRepositoryPort = Depends(get_job_repository),
     current_user: User = Depends(get_current_user),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
 ) -> dict[str, Any]:
     """Mark a single notification as read."""
     tenant_id = getattr(current_user, "tenant_id", "default") or "default"
@@ -92,6 +94,10 @@ async def mark_notification_read_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Notificación no encontrada.",
         )
+    await broadcaster.publish(
+        "global_events",
+        {"type": "NOTIFICATION_UPDATE", "data": {"action": "READ", "notification_id": notification_id}},
+    )
     return {"status": "SUCCESS", "notification_id": notification_id}
 
 
@@ -99,10 +105,15 @@ async def mark_notification_read_endpoint(
 async def mark_all_notifications_read_endpoint(
     repo: JobRepositoryPort = Depends(get_job_repository),
     current_user: User = Depends(get_current_user),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
 ) -> dict[str, Any]:
     """Mark all unread notifications for tenant as read."""
     tenant_id = getattr(current_user, "tenant_id", "default") or "default"
     count = await repo.mark_all_notifications_as_read(tenant_id=tenant_id)
+    await broadcaster.publish(
+        "global_events",
+        {"type": "NOTIFICATION_UPDATE", "data": {"action": "READ_ALL", "count": count}},
+    )
     return {"status": "SUCCESS", "marked_read_count": count}
 
 
@@ -111,6 +122,7 @@ async def create_notification_endpoint(
     payload: CreateNotificationRequest,
     repo: JobRepositoryPort = Depends(get_job_repository),
     current_user: User = Depends(get_current_user),
+    broadcaster: EventBroadcaster = Depends(get_broadcaster),
 ) -> AppNotificationItem:
     """Create a new manual or system notification for the current tenant."""
     tenant_id = getattr(current_user, "tenant_id", "default") or "default"
@@ -122,6 +134,18 @@ async def create_notification_endpoint(
         link=payload.link,
     )
     saved = await repo.save_notification(notif)
+    await broadcaster.publish(
+        "global_events",
+        {
+            "type": "NOTIFICATION_UPDATE",
+            "data": {
+                "action": "NEW",
+                "notification_id": saved.id,
+                "title": saved.title,
+                "severity": saved.severity,
+            },
+        },
+    )
     return AppNotificationItem(
         id=saved.id,
         tenant_id=saved.tenant_id,

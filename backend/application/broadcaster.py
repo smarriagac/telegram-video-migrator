@@ -15,26 +15,28 @@ class EventBroadcaster:
         self._subscribers: dict[str, set[asyncio.Queue[dict[str, Any]]]] = {}
         self._lock = asyncio.Lock()
 
-    async def subscribe(self, job_id: str) -> AsyncIterator[dict[str, Any]]:
-        """Subscribe to events for a specific job ID as an async generator."""
-        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    async def subscribe(
+        self, topic: str, auto_close: bool = True
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Subscribe to events for a specific topic or job ID as an async generator."""
+        queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=100)
         async with self._lock:
-            if job_id not in self._subscribers:
-                self._subscribers[job_id] = set()
-            self._subscribers[job_id].add(queue)
+            if topic not in self._subscribers:
+                self._subscribers[topic] = set()
+            self._subscribers[topic].add(queue)
 
         try:
             while True:
                 event = await queue.get()
                 yield event
-                if event.get("status") in {"COMPLETED", "FAILED", "CANCELLED"}:
+                if auto_close and event.get("status") in {"COMPLETED", "FAILED", "CANCELLED"}:
                     break
         finally:
             async with self._lock:
-                if job_id in self._subscribers:
-                    self._subscribers[job_id].discard(queue)
-                    if not self._subscribers[job_id]:
-                        del self._subscribers[job_id]
+                if topic in self._subscribers:
+                    self._subscribers[topic].discard(queue)
+                    if not self._subscribers[topic]:
+                        del self._subscribers[topic]
 
     async def publish(self, job_id: str, event: dict[str, Any]) -> None:
         """Broadcast an event payload to all active subscribers of the job."""
