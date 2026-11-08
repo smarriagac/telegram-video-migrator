@@ -16,11 +16,13 @@ import {
   Terminal,
   Tv,
   UploadCloud,
+  Zap,
 } from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
 import { SearchableChannelSelect } from "./SearchableChannelSelect";
 import { ChannelCloningHistoryModal } from "./ChannelCloningHistoryModal";
 import { DirectUploadModal } from "./DirectUploadModal";
+import { BigMediaUploadModal } from "./BigMediaUploadModal";
 import { CaptionRulesModal } from "./CaptionRulesModal";
 import { Button } from "@/shared/components/ui/button";
 import { Progress } from "@/shared/components/ui/progress";
@@ -70,7 +72,7 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
 
   // STRICT ARCHITECTURAL CONSTRAINT: Exactly 1 useState hook (consolidated UI state)
   const [panelState, setPanelState] = useState<{
-    activeModal: "none" | "history" | "upload" | "caption_rules";
+    activeModal: "none" | "history" | "upload" | "caption_rules" | "big_upload";
     showLogs: boolean;
     isAdvancedOpen: boolean;
   }>({
@@ -198,15 +200,27 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
                 <span>Canal Destino (A dónde enviar)</span>
               </label>
               {selectedTargetId && (
-                <button
-                  type="button"
-                  onClick={() => setPanelState((prev) => ({ ...prev, activeModal: "upload" }))}
-                  className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
-                  title="Publicar archivo local directamente a este canal"
-                >
-                  <UploadCloud className="w-3 h-3" />
-                  <span>+ Subir de mi PC</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPanelState((prev) => ({ ...prev, activeModal: "upload" }))}
+                    className="text-[10px] font-mono text-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    title="Publicar archivo local directamente a este canal"
+                  >
+                    <UploadCloud className="w-3 h-3" />
+                    <span>+ Subir de mi PC</span>
+                  </button>
+                  <span className="text-muted-foreground/40 text-[10px]">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setPanelState((prev) => ({ ...prev, activeModal: "big_upload" }))}
+                    className="text-[10px] font-mono text-purple-400 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
+                    title="Subir archivo pesado (>2GB) en bloques de 5MB con tolerancia a caídas"
+                  >
+                    <Zap className="w-3 h-3 text-purple-400" />
+                    <span>+ Subida Pesada (&gt;2GB)</span>
+                  </button>
+                </div>
               )}
             </div>
             <SearchableChannelSelect
@@ -580,6 +594,14 @@ export const MigrationControlPanel: React.FC<MigrationControlPanelProps> = ({
       {/* Direct Local Media Upload Modal */}
       <DirectUploadModal
         isOpen={panelState.activeModal === "upload"}
+        onClose={() => setPanelState((prev) => ({ ...prev, activeModal: "none" }))}
+        targetChannelId={selectedTargetId}
+        targetChannelTitle={targetChannel?.title}
+      />
+
+      {/* Resumable Chunked Big Media Upload (>2GB MTProto) Modal */}
+      <BigMediaUploadModal
+        isOpen={panelState.activeModal === "big_upload"}
         onClose={() => setPanelState((prev) => ({ ...prev, activeModal: "none" }))}
         targetChannelId={selectedTargetId}
         targetChannelTitle={targetChannel?.title}
