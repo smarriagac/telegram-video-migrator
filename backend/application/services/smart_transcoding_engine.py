@@ -135,6 +135,53 @@ class SmartTranscodingEngine:
             return VideoProbeResult(size_bytes=size_bytes)
 
     @classmethod
+    def build_aspect_ratio_filter(
+        cls,
+        mode: str | None,
+        src_width: int,
+        src_height: int,
+        target_height: int = 1920,
+    ) -> tuple[str | None, str | None]:
+        """Builds FFmpeg filter for Telegram Stories (9:16 vertical video conversion).
+
+        Modes:
+          - "ORIGINAL" or None: No modification (returns None, None).
+          - "9:16_CROP": Center-crops the video directly to 9:16 canvas.
+          - "9:16_BLUR": Places video on a 9:16 canvas with blurred background wings/bars.
+        Returns:
+          tuple (filter_type, filter_string) where filter_type is "-vf" or "-filter_complex",
+          or (None, None) if not applicable.
+        """
+        if not mode or mode.upper() in ("ORIGINAL", "NONE", ""):
+            return None, None
+
+        mode_upper = mode.upper()
+        # Compute 9:16 dimensions (ensure even numbers for encoder compatibility)
+        target_h = target_height if target_height % 2 == 0 else target_height + 1
+        target_w = int(round(target_h * 9 / 16))
+        if target_w % 2 != 0:
+            target_w += 1
+
+        if mode_upper in ("9:16_CROP", "CROP_9_16", "9_16_CROP"):
+            crop_filter = (
+                f"crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)':x='(iw-ow)/2':y='(ih-oh)/2',"
+                f"scale={target_w}:{target_h}:flags=lanczos"
+            )
+            return "-vf", crop_filter
+
+        if mode_upper in ("9:16_BLUR", "BLUR_9_16", "9_16_BLUR_BG", "STORIES"):
+            complex_filter = (
+                f"[0:v]split=2[bg_in][fg_in];"
+                f"[bg_in]scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
+                f"crop={target_w}:{target_h},boxblur=20:10[bg];"
+                f"[fg_in]scale={target_w}:-2[fg];"
+                f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
+            )
+            return "-filter_complex", complex_filter
+
+        return None, None
+
+    @classmethod
     def decide_strategy(
         cls,
         probe: VideoProbeResult,

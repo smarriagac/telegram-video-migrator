@@ -11,6 +11,7 @@ import {
   StopCircle,
   Terminal,
   UploadCloud,
+  DownloadCloud,
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
 import { useMigrationStream } from "../application/useMigrationStream";
@@ -20,6 +21,7 @@ import { InlineCaptionRules } from "./components/InlineCaptionRules";
 import { InlineCloningHistory } from "./components/InlineCloningHistory";
 import { InlineDirectUpload } from "./components/InlineDirectUpload";
 import { ScheduledSuccessModal } from "./components/ScheduledSuccessModal";
+import { MediaIngestionModal } from "./components/MediaIngestionModal";
 import { DateTimePicker } from "@/shared/components/ui/date-time-picker";
 import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
 import { Button } from "@/shared/components/ui/button";
@@ -39,7 +41,7 @@ type WizardStep = "channels" | "content" | "review";
 
 interface WizardViewState {
   currentStep: WizardStep;
-  workbenchTab: "none" | "rules" | "history" | "upload";
+  workbenchTab: "none" | "rules" | "history" | "upload" | "ingest";
   isScheduleEnabled: boolean;
   scheduledSuccess: {
     jobId: string;
@@ -483,24 +485,45 @@ export const MigrationView: React.FC = () => {
                         Canal Destino
                       </span>
                       {selectedTargetId && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setWizardState((s) => ({
-                              ...s,
-                              workbenchTab: s.workbenchTab === "upload" ? "none" : "upload",
-                            }))
-                          }
-                          className={cn(
-                            "text-[11px] font-mono px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer",
-                            wizardState.workbenchTab === "upload"
-                              ? "bg-primary text-primary-foreground font-semibold"
-                              : "text-primary hover:underline hover:bg-primary/10"
-                          )}
-                        >
-                          <UploadCloud className="w-3 h-3" />
-                          <span>Publicar desde PC</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setWizardState((s) => ({
+                                ...s,
+                                workbenchTab: s.workbenchTab === "ingest" ? "none" : "ingest",
+                              }))
+                            }
+                            className={cn(
+                              "text-[11px] font-mono px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer",
+                              wizardState.workbenchTab === "ingest"
+                                ? "bg-pink-600 text-white font-semibold"
+                                : "text-pink-400 hover:underline hover:bg-pink-500/10"
+                            )}
+                          >
+                            <DownloadCloud className="w-3 h-3" />
+                            <span>TikTok/Reels</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setWizardState((s) => ({
+                                ...s,
+                                workbenchTab: s.workbenchTab === "upload" ? "none" : "upload",
+                              }))
+                            }
+                            className={cn(
+                              "text-[11px] font-mono px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer",
+                              wizardState.workbenchTab === "upload"
+                                ? "bg-primary text-primary-foreground font-semibold"
+                                : "text-primary hover:underline hover:bg-primary/10"
+                            )}
+                          >
+                            <UploadCloud className="w-3 h-3" />
+                            <span>Desde PC</span>
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -621,6 +644,16 @@ export const MigrationView: React.FC = () => {
                     onClose={() => setWizardState((s) => ({ ...s, workbenchTab: "none" }))}
                   />
                 )}
+
+                <MediaIngestionModal
+                  isOpen={wizardState.workbenchTab === "ingest"}
+                  onClose={() => setWizardState((s) => ({ ...s, workbenchTab: "none" }))}
+                  channels={channels}
+                  selectedTargetId={selectedTargetId}
+                  onSuccess={() => {
+                    fetchChannels();
+                  }}
+                />
 
                 {wizardState.workbenchTab === "none" && (
                   <div className="p-4 rounded-xl border border-dashed border-border/80 bg-secondary/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground select-none">

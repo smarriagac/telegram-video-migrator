@@ -32,6 +32,7 @@ interface FormState {
   filterType: "delogo" | "blur";
   preset: "auto" | "center" | "top_right" | "bottom_right" | "bottom_bar";
   resolutionPreset: "AUTO_MOBILE" | "H265_720P" | "H265_1080P" | "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+  aspectRatioMode: "ORIGINAL" | "9:16_BLUR" | "9:16_CROP";
 }
 
 interface AsyncState {
@@ -55,6 +56,7 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
     filterType: "delogo",
     preset: "auto",
     resolutionPreset: "ORIGINAL",
+    aspectRatioMode: "ORIGINAL",
   }));
 
   // Hook 2: Async execution and feedback state
@@ -88,6 +90,7 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
           preset: formState.preset,
           auto_detect: formState.preset === "auto",
           resolution_preset: formState.resolutionPreset,
+          ...(formState.aspectRatioMode !== "ORIGINAL" ? { aspect_ratio_mode: formState.aspectRatioMode } : {}),
         },
         resolution_preset: formState.resolutionPreset,
         source_channel_title: sourceChannel?.title,
@@ -293,6 +296,43 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground">{res.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Aspect Ratio / Telegram Stories 9:16 Selector (Batch) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground flex items-center gap-1.5 text-xs">
+                <Layers className="w-3.5 h-3.5 text-primary" />
+                <span>Formato / Stories 9:16 (Lote):</span>
+              </label>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                Vertical 9:16
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "ORIGINAL", label: "Original", desc: "Sin alterar" },
+                { id: "9:16_BLUR", label: "Stories (Blur)", desc: "Lienzo 9:16 con fondo borroso" },
+                { id: "9:16_CROP", label: "Stories (Crop)", desc: "Recorte 9:16 centrado" },
+              ].map((ar) => {
+                const selected = formState.aspectRatioMode === ar.id;
+                return (
+                  <button
+                    key={ar.id}
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, aspectRatioMode: ar.id as any }))}
+                    className={`p-2 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
+                      selected
+                        ? "border-sky-500 bg-sky-500/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">{ar.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{ar.desc}</span>
                   </button>
                 );
               })}

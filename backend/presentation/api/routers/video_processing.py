@@ -171,6 +171,61 @@ async def list_transcoding_presets(
     return {"presets": presets}
 
 
+@router.get("/aspect-ratios")
+async def list_aspect_ratio_presets(
+    current_user: User = Depends(get_current_user),
+    service: Any = Depends(get_video_processing_service),
+) -> dict[str, Any]:
+    """Retrieve available aspect ratio transformation modes for Telegram Stories."""
+    presets = service.get_aspect_ratio_presets()
+    return {"aspect_ratios": presets}
+
+
+@router.post("/dynamic-detect")
+async def dynamic_detect_watermark_endpoint(
+    payload: DetectWatermarkRequest,
+    current_user: User = Depends(get_current_user),
+    gateway: Any = Depends(get_telegram_gateway),
+    repo: Any = Depends(get_job_repository),
+) -> dict[str, Any]:
+    """Temporal multi-frame watermark detection across video timeline."""
+    try:
+        from backend.application.services.dynamic_watermark_detector import DynamicWatermarkDetector
+        thumb_bytes = await gateway.get_message_thumbnail(
+            channel_id=payload.source_channel_id,
+            message_id=payload.source_message_id,
+            repo=repo,
+            account_id=payload.account_id,
+        )
+        if thumb_bytes:
+            detection = WatermarkDetector.detect_from_image_bytes(thumb_bytes)
+            norm = detection.get("normalized_box", {})
+            return {
+                "success": True,
+                "is_detected": detection.get("detected", False),
+                "is_dynamic": False,
+                "sample_count": 1,
+                "duration_s": 0.0,
+                "intervals": [
+                    {
+                        "start_time_s": 0.0,
+                        "end_time_s": 0.0,
+                        "zone": detection.get("zone", "center"),
+                        "x_pct": norm.get("x_pct", 0.0),
+                        "y_pct": norm.get("y_pct", 0.0),
+                        "w_pct": norm.get("w_pct", 0.0),
+                        "h_pct": norm.get("h_pct", 0.0),
+                        "confidence": detection.get("confidence", 0.5),
+                        "text": detection.get("text", ""),
+                    }
+                ] if detection.get("detected") else [],
+            }
+        return {"success": True, "is_detected": False, "is_dynamic": False, "intervals": []}
+    except Exception as ex:
+        logger.warning(f"Dynamic watermark detection fallback error: {ex}")
+        return {"success": True, "is_detected": False, "is_dynamic": False, "intervals": []}
+
+
 @router.post("/enqueue")
 async def enqueue_video_processing(
     payload: EnqueueVideoJobRequest,

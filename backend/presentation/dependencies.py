@@ -506,6 +506,23 @@ async def get_drip_campaign_service():
     return _drip_campaign_service_instance
 
 
+_media_ingestion_service_instance = None
+
+
+async def get_media_ingestion_service():
+    global _media_ingestion_service_instance
+    if _media_ingestion_service_instance is None:
+        from backend.application.services.media_ingestion_service import MediaIngestionService
+        gateway_provider = get_telegram_gateway
+        drip_svc = await get_drip_campaign_service()
+        _media_ingestion_service_instance = MediaIngestionService(
+            gateway_provider=gateway_provider,
+            drip_service=drip_svc,
+        )
+    return _media_ingestion_service_instance
+
+
+
 
 
 

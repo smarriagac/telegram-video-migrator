@@ -35,8 +35,9 @@ interface VideoSanitizerModalProps {
 interface FormState {
   targetId: number;
   filterType: "delogo" | "blur" | "watermark_text" | "delogo_and_watermark";
-  preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom";
+  preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom" | "dynamic";
   resolutionPreset: "AUTO_MOBILE" | "H265_720P" | "H265_1080P" | "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+  aspectRatioMode: "ORIGINAL" | "9:16_BLUR" | "9:16_CROP";
   customBox: { x: number; y: number; w: number; h: number };
   normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
@@ -76,6 +77,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       filterType: "delogo",
       preset: "center",
       resolutionPreset: "ORIGINAL",
+      aspectRatioMode: "ORIGINAL",
       customBox: { x: 200, y: 300, w: 400, h: 200 },
       normalizedBox: null,
       caption: message?.text || "",
@@ -178,6 +180,12 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       }
       if (formState.resolutionPreset) {
         filterParams.resolution_preset = formState.resolutionPreset;
+      }
+      if (formState.aspectRatioMode && formState.aspectRatioMode !== "ORIGINAL") {
+        filterParams.aspect_ratio_mode = formState.aspectRatioMode;
+      }
+      if (formState.preset === "dynamic") {
+        filterParams.dynamic_delogo = true;
       }
 
       await videoProcessingApi.enqueue({
@@ -359,6 +367,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                 <SelectItem value="top_right">↗️ Esquina superior derecha</SelectItem>
                 <SelectItem value="bottom_right">↘️ Esquina inferior derecha</SelectItem>
                 <SelectItem value="bottom_bar">➖ Banda inferior horizontal</SelectItem>
+                <SelectItem value="dynamic">⚡ Tracking Dinámico Multi-Frame (TikTok / Movimiento)</SelectItem>
                 <SelectItem value="custom">⚙️ Coordenadas personalizadas (o detectadas por IA)</SelectItem>
               </SelectContent>
             </Select>
@@ -590,6 +599,43 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground">{res.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Aspect Ratio / Telegram Stories 9:16 Selector */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="font-semibold text-foreground flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-primary" />
+                <span>Formato / Telegram Stories (9:16):</span>
+              </label>
+              <span className="text-[10px] font-mono text-muted-foreground">
+                Vertical 9:16
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: "ORIGINAL", label: "Original", desc: "Sin alterar relación" },
+                { id: "9:16_BLUR", label: "Stories (Blur)", desc: "Lienzo 9:16 con fondo borroso" },
+                { id: "9:16_CROP", label: "Stories (Crop)", desc: "Recorte 9:16 centrado" },
+              ].map((ar) => {
+                const selected = formState.aspectRatioMode === ar.id;
+                return (
+                  <button
+                    key={ar.id}
+                    type="button"
+                    onClick={() => setFormState((prev) => ({ ...prev, aspectRatioMode: ar.id as any }))}
+                    className={`p-2 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
+                      selected
+                        ? "border-sky-500 bg-sky-500/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">{ar.label}</span>
+                    <span className="text-[10px] text-muted-foreground">{ar.desc}</span>
                   </button>
                 );
               })}

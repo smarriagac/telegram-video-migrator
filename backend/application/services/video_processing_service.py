@@ -103,6 +103,24 @@ TRANSCODING_PRESETS: dict[str, dict[str, Any]] = {
     },
 }
 
+ASPECT_RATIO_PRESETS = [
+    {
+        "id": "ORIGINAL",
+        "label": "Original (Sin Recorte)",
+        "description": "Conserva la relación de aspecto original del video sin alterar márgenes.",
+    },
+    {
+        "id": "9:16_BLUR",
+        "label": "Telegram Stories 9:16 (Fondo Borroso)",
+        "description": "Formato vertical 9:16 cinematográfico con fondo difuminado dinámico. Ideal para Stories y Shorts.",
+    },
+    {
+        "id": "9:16_CROP",
+        "label": "Telegram Stories 9:16 (Recorte Centrado)",
+        "description": "Recorte centrado directo a 9:16 llenando la pantalla vertical completa sin márgenes.",
+    },
+]
+
 
 class VideoProcessingService:
     def __init__(self, pg_repo: Any, gateway_provider: Any) -> None:
@@ -410,13 +428,20 @@ class VideoProcessingService:
             await self._update_job_status(job_id, "PROCESSING", 35.0)
 
             # 3. Dynamic Auto-Detection pass if requested
-            if filter_params.get("preset") == "auto" or filter_params.get("auto_detect", False):
+            if filter_params.get("preset") in ("auto", "dynamic") or filter_params.get("auto_detect", False) or filter_params.get("dynamic_delogo", False):
                 try:
-                    from backend.application.services.watermark_detector import WatermarkDetector
-                    detection = WatermarkDetector.detect_from_file(downloaded)
-                    if detection.get("detected") and detection.get("normalized_box"):
-                        filter_params = {**filter_params, "normalized_box": detection["normalized_box"]}
-                        logger.info(f"VideoProcessing: Auto-detected watermark box: {detection['normalized_box']}")
+                    if filter_params.get("preset") == "dynamic" or filter_params.get("dynamic_delogo", False):
+                        from backend.application.services.dynamic_watermark_detector import DynamicWatermarkDetector
+                        dyn_result = DynamicWatermarkDetector.detect_video(downloaded)
+                        if dyn_result.is_detected and dyn_result.ffmpeg_filter:
+                            filter_params = {**filter_params, "custom_delogo_filter": dyn_result.ffmpeg_filter}
+                            logger.info(f"VideoProcessing: Dynamic watermark detected (dynamic={dyn_result.is_dynamic}): {dyn_result.ffmpeg_filter}")
+                    else:
+                        from backend.application.services.watermark_detector import WatermarkDetector
+                        detection = WatermarkDetector.detect_from_file(downloaded)
+                        if detection.get("detected") and detection.get("normalized_box"):
+                            filter_params = {**filter_params, "normalized_box": detection["normalized_box"]}
+                            logger.info(f"VideoProcessing: Auto-detected watermark box: {detection['normalized_box']}")
                 except Exception as det_err:
                     logger.warning(f"Auto-detection during job execution failed: {det_err}")
 
@@ -440,21 +465,74 @@ class VideoProcessingService:
                 probe=probe,
             )
 
-            delogo_filter = self._build_delogo_filter(filter_type, filter_params, width, height)
+            aspect_ratio_mode = filter_params.get("aspect_ratio_mode") or filter_params.get("story_mode")
+            custom_delogo_expr = filter_params.get("custom_delogo_filter")
 
-            # Combine video filters (delogo / watermark / scaling)
-            if delogo_filter and len(delogo_filter) >= 2 and delogo_filter[0] == "-vf":
-                base_vf = delogo_filter[1]
-                combined_filter = ["-vf", f"{base_vf},{scale_filter_str}"] if scale_filter_str else ["-vf", base_vf]
-            elif delogo_filter and len(delogo_filter) >= 2 and delogo_filter[0] == "-filter_complex":
-                combined_filter = [
-                    "-filter_complex",
-                    f"{delogo_filter[1]}[v_out];[v_out]{scale_filter_str}",
-                ] if scale_filter_str else delogo_filter
-            elif scale_filter_str:
-                combined_filter = ["-vf", scale_filter_str]
+            # Check for 9:16 Telegram Story modes
+            if not is_image and aspect_ratio_mode and aspect_ratio_mode.upper() in ("9:16_BLUR", "9:16_CROP"):
+                target_height_val = 1920 if (resolution_preset or "").upper() in ("H265_1080P", "1080P", "AUTO_MOBILE", "ORIGINAL") else 1280
+                target_w = int(round(target_height_val * 9 / 16))
+                if target_w % 2 != 0:
+                    target_w += 1
+                target_h = target_height_val
+
+                delogo_expr = custom_delogo_expr
+                if not delogo_expr and filter_type in ("delogo", "delogo_and_watermark"):
+                    delogo_res = self._build_delogo_filter(filter_type, filter_params, width, height)
+                    if delogo_res and len(delogo_res) >= 2 and delogo_res[0] == "-vf":
+                        delogo_expr = delogo_res[1].split(",")[0]
+
+                has_branding = bool(filter_params.get("watermark_text") or filter_params.get("branding_text"))
+                drawtext_str = self._build_drawtext_filter_str(filter_params, target_w, target_h) if has_branding else ""
+
+                if aspect_ratio_mode.upper() == "9:16_BLUR":
+                    if delogo_expr:
+                        fc = f"[0:v]{delogo_expr}[cleaned];[cleaned]split=2[bg_in][fg_in];"
+                    else:
+                        fc = "[0:v]split=2[bg_in][fg_in];"
+
+                    fc += (
+                        f"[bg_in]scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
+                        f"crop={target_w}:{target_h},boxblur=20:10[bg];"
+                        f"[fg_in]scale={target_w}:-2[fg];"
+                        f"[bg][fg]overlay=(W-w)/2:(H-h)/2"
+                    )
+                    if drawtext_str:
+                        fc += f"[merged];[merged]{drawtext_str}[outv]"
+                    else:
+                        fc += "[outv]"
+
+                    combined_filter = ["-filter_complex", fc, "-map", "[outv]", "-map", "0:a?"]
+                else:
+                    # 9:16_CROP
+                    crop_vf = f"crop=w='min(iw,ih*9/16)':h='min(ih,iw*16/9)':x='(iw-ow)/2':y='(ih-oh)/2',scale={target_w}:{target_h}:flags=lanczos"
+                    vf_parts = []
+                    if delogo_expr:
+                        vf_parts.append(delogo_expr)
+                    vf_parts.append(crop_vf)
+                    if drawtext_str:
+                        vf_parts.append(drawtext_str)
+                    combined_filter = ["-vf", ",".join(vf_parts)]
             else:
-                combined_filter = []
+                # Standard workflow
+                if custom_delogo_expr:
+                    delogo_filter = ["-vf", custom_delogo_expr]
+                else:
+                    delogo_filter = self._build_delogo_filter(filter_type, filter_params, width, height)
+
+                # Combine video filters (delogo / watermark / scaling)
+                if delogo_filter and len(delogo_filter) >= 2 and delogo_filter[0] == "-vf":
+                    base_vf = delogo_filter[1]
+                    combined_filter = ["-vf", f"{base_vf},{scale_filter_str}"] if scale_filter_str else ["-vf", base_vf]
+                elif delogo_filter and len(delogo_filter) >= 2 and delogo_filter[0] == "-filter_complex":
+                    combined_filter = [
+                        "-filter_complex",
+                        f"{delogo_filter[1]}[v_out];[v_out]{scale_filter_str}",
+                    ] if scale_filter_str else delogo_filter
+                elif scale_filter_str:
+                    combined_filter = ["-vf", scale_filter_str]
+                else:
+                    combined_filter = []
 
             logger.info(f"VideoProcessing: Applying filter: {combined_filter}")
 
@@ -552,6 +630,11 @@ class VideoProcessingService:
     def get_presets(cls) -> list[dict[str, Any]]:
         """List available transcoding resolution presets."""
         return list(TRANSCODING_PRESETS.values())
+
+    @classmethod
+    def get_aspect_ratio_presets(cls) -> list[dict[str, Any]]:
+        """List available aspect ratio transformation modes for Telegram Stories."""
+        return list(ASPECT_RATIO_PRESETS)
 
     def _build_transcoding_args(
         self,
