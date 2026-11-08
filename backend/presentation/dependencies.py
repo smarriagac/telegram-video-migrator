@@ -370,5 +370,24 @@ async def get_pre_flight_service():
     return _pre_flight_service_instance
 
 
+_disaster_recovery_service_instance = None
+
+
+async def get_disaster_recovery_service():
+    global _disaster_recovery_service_instance
+    if _disaster_recovery_service_instance is None:
+        from backend.application.services.disaster_recovery_service import DisasterRecoveryService
+        job_repo = await get_job_repository()
+        pg_repo = await get_postgres_repository()
+        alerting = await get_alerting_service()
+        _disaster_recovery_service_instance = DisasterRecoveryService(
+            job_repo=job_repo,
+            postgres_repo=pg_repo,
+            alerting_service=alerting,
+        )
+    return _disaster_recovery_service_instance
+
+
+
 
 

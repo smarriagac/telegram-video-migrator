@@ -13,10 +13,12 @@ import {
   Bell,
   Send,
   ShieldAlert,
+  Database,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
 import { alertsApi } from "../infrastructure/alertsApi";
+import { BackupManagerCard } from "./components/BackupManagerCard";
 import {
   Table,
   TableHeader,
@@ -42,8 +44,8 @@ import { cn } from "@/shared/lib/utils";
 
 export const SettingsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: Active tab navigation between Credentials, Users and Alerts
-  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts">("credentials");
+  // Hook 1: Active tab navigation between Credentials, Users, Alerts and Backups
+  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts" | "backups">("credentials");
   // Hook 2: Consolidated local UI, alerts configuration and temporary action feedback banner
   const [localState, setLocalState] = useState<{
     feedback: { message: string; isError?: boolean } | null;
@@ -335,6 +337,18 @@ export const SettingsView: React.FC = () => {
             >
               <Bell className="w-3.5 h-3.5" />
               Alertas y Monitoreo MTProto
+            </button>
+            <button
+              onClick={() => setActiveTab("backups")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                activeTab === "backups"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
+              )}
+            >
+              <Database className="w-3.5 h-3.5" />
+              Copias de Seguridad (DR)
             </button>
           </div>
         )}
@@ -861,6 +875,11 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB 4: Disaster Recovery Snapshots and Backups */}
+      {activeTab === "backups" && user?.role === "ADMIN" && (
+        <BackupManagerCard />
       )}
 
       {/* Confirmation Dialog (replaces browser window.confirm) */}
