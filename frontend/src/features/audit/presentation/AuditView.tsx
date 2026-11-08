@@ -15,8 +15,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  FileSpreadsheet,
+  FileCode,
+  Printer,
 } from "lucide-react";
 import { useAuditStore } from "../application/useAuditStore";
+import { auditApi } from "../infrastructure/auditApi";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Input } from "@/shared/components/ui/input";
@@ -43,8 +47,13 @@ import { ViewHeader } from "@/shared/components/ViewHeader";
 
 export const AuditView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  const [filterCategory, setFilterCategory] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  // Hook 1: Active filters (category & search query)
+  const [filters, setFilters] = useState<{ category: string; query: string }>({
+    category: "ALL",
+    query: "",
+  });
+  // Hook 2: Exporting format loading state
+  const [exportingFormat, setExportingFormat] = useState<"csv" | "json" | "html" | null>(null);
 
   const logs = useAuditStore((state) => state.logs);
   const total = useAuditStore((state) => state.total);
@@ -63,16 +72,44 @@ export const AuditView: React.FC = () => {
     fetchLogs();
   }, [fetchLogs]);
 
+  const handleExport = async (format: "csv" | "json" | "html") => {
+    setExportingFormat(format);
+    try {
+      const actionParam = filters.category !== "ALL" ? filters.category : undefined;
+      const blob = await auditApi.exportAuditLogs({
+        format,
+        action: actionParam,
+        limit: 5000,
+      });
+      const url = window.URL.createObjectURL(blob);
+      if (format === "html") {
+        window.open(url, "_blank");
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "_");
+        link.download = `audit_report_${timestamp}.${format}`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (err) {
+      console.error("Export audit failed:", err);
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
   const filteredLogs = logs.filter((log) => {
     // Category filter
     let matchesCategory = true;
-    if (filterCategory === "AUTH") {
+    if (filters.category === "AUTH") {
       matchesCategory = log.action === "LOGIN" || log.action === "LOGIN_FAILED";
-    } else if (filterCategory === "MIGRATION") {
+    } else if (filters.category === "MIGRATION") {
       matchesCategory = log.action === "MIGRATION_START" || log.action === "MIGRATION_CANCEL";
-    } else if (filterCategory === "SYNC") {
+    } else if (filters.category === "SYNC") {
       matchesCategory = log.action === "AUTO_SYNC_TOGGLE";
-    } else if (filterCategory === "USERS") {
+    } else if (filters.category === "USERS") {
       matchesCategory =
         log.action === "USER_CREATE" ||
         log.action === "USER_UPDATE" ||
@@ -82,8 +119,8 @@ export const AuditView: React.FC = () => {
     if (!matchesCategory) return false;
 
     // Search query filter
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
+    if (!filters.query.trim()) return true;
+    const q = filters.query.toLowerCase();
     const emailMatch = log.user_email ? log.user_email.toLowerCase().includes(q) : false;
     const actionMatch = log.action.toLowerCase().includes(q);
     const resourceMatch = log.resource ? log.resource.toLowerCase().includes(q) : false;
@@ -177,16 +214,54 @@ export const AuditView: React.FC = () => {
           </Badge>
         }
       >
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => fetchLogs()}
-          disabled={isLoading}
-          className="text-xs text-foreground flex items-center gap-1.5 h-8 border-border bg-secondary/80 hover:bg-secondary"
-        >
-          <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-primary")} />
-          Actualizar
-        </Button>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("csv")}
+            disabled={exportingFormat !== null}
+            title="Exportar a archivo CSV (RFC 4180)"
+            className="text-xs text-foreground flex items-center gap-1 h-8 border-border bg-secondary/80 hover:bg-secondary"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+            <span className="hidden sm:inline">CSV</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("json")}
+            disabled={exportingFormat !== null}
+            title="Exportar registros a JSON estructurado"
+            className="text-xs text-foreground flex items-center gap-1 h-8 border-border bg-secondary/80 hover:bg-secondary"
+          >
+            <FileCode className="w-3.5 h-3.5 text-blue-500" />
+            <span className="hidden sm:inline">JSON</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExport("html")}
+            disabled={exportingFormat !== null}
+            title="Generar vista imprimible o PDF"
+            className="text-xs text-foreground flex items-center gap-1 h-8 border-border bg-secondary/80 hover:bg-secondary"
+          >
+            <Printer className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">Imprimir / PDF</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchLogs()}
+            disabled={isLoading}
+            className="text-xs text-foreground flex items-center gap-1.5 h-8 border-border bg-secondary/80 hover:bg-secondary ml-1"
+          >
+            <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin text-primary")} />
+            Actualizar
+          </Button>
+        </div>
       </ViewHeader>
 
       {/* KPI Cards */}
@@ -261,12 +336,12 @@ export const AuditView: React.FC = () => {
           ].map((cat) => (
             <Button
               key={cat.id}
-              variant={filterCategory === cat.id ? "secondary" : "ghost"}
+              variant={filters.category === cat.id ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setFilterCategory(cat.id)}
+              onClick={() => setFilters((prev) => ({ ...prev, category: cat.id }))}
               className={cn(
                 "h-8 px-3 text-xs whitespace-nowrap",
-                filterCategory === cat.id
+                filters.category === cat.id
                   ? "bg-primary/10 text-primary border border-primary/30 font-semibold shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               )}
@@ -282,8 +357,8 @@ export const AuditView: React.FC = () => {
           <Input
             type="text"
             placeholder="Buscar por usuario, acción o detalle..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={filters.query}
+            onChange={(e) => setFilters((prev) => ({ ...prev, query: e.target.value }))}
             className="pl-8 h-8 text-xs bg-secondary/60 border-border text-foreground placeholder:text-muted-foreground w-full sm:w-64"
           />
         </div>

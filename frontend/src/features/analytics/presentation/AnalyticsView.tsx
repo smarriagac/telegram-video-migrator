@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   HardDrive,
@@ -16,6 +16,8 @@ import {
   Zap,
   Clock,
   Sparkles,
+  FileSpreadsheet,
+  FileCode,
 } from "lucide-react";
 import {
   Card,
@@ -31,14 +33,35 @@ import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
 import { StatGridSkeleton } from "@/shared/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import { useAnalyticsStore } from "../application/useAnalyticsStore";
+import { analyticsApi } from "../infrastructure/analyticsApi";
 
 export const AnalyticsView: React.FC = () => {
-  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (0 used, all in Zustand)
+  // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks (1 used)
+  const [exportingFormat, setExportingFormat] = useState<"csv" | "json" | null>(null);
   const { data, isLoading, error, fetchOverview } = useAnalyticsStore();
 
   useEffect(() => {
     fetchOverview();
   }, [fetchOverview]);
+
+  const handleExport = async (format: "csv" | "json") => {
+    setExportingFormat(format);
+    try {
+      const blob = await analyticsApi.exportAnalytics(format);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "_");
+      link.download = `analytics_report_${timestamp}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Failed to export analytics:", err);
+    } finally {
+      setExportingFormat(null);
+    }
+  };
 
   const totalMediaInQueue = useMemo(() => {
     if (!data?.media_type_distribution) return 0;
@@ -78,6 +101,28 @@ export const AnalyticsView: React.FC = () => {
             <span className="text-[10px] text-muted-foreground font-mono hidden md:inline">
               Actualizado: {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("csv")}
+              disabled={exportingFormat !== null}
+              title="Exportar métricas a formato CSV"
+              className="h-8 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="hidden sm:inline">Exportar CSV</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleExport("json")}
+              disabled={exportingFormat !== null}
+              title="Exportar telemetría a formato JSON"
+              className="h-8 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1 cursor-pointer"
+            >
+              <FileCode className="h-3.5 w-3.5 text-blue-500" />
+              <span className="hidden sm:inline">Exportar JSON</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"

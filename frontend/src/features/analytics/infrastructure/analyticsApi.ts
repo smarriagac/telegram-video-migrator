@@ -21,4 +21,15 @@ export const analyticsApi = {
     }
     return res.json();
   },
+
+  async exportAnalytics(format: "csv" | "json" = "csv"): Promise<Blob> {
+    const res = await fetch(`${API_BASE_URL}/analytics/export?format=${format}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al exportar métricas del sistema");
+    }
+    return res.blob();
+  },
 };

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import logging
 from typing import Any
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel
 
 from backend.domain.ports.job_repository_port import JobRepositoryPort
+from backend.application.services.report_exporter_service import ReportExporterService
 from backend.presentation.dependencies import get_job_repository
 
 logger = logging.getLogger(__name__)
@@ -119,3 +121,34 @@ async def get_analytics_overview(
         top_channels=top_channels,
         pipeline_health=health,
     )
+
+
+@router.get("/export")
+async def export_analytics(
+    format: str = Query("csv", pattern="^(csv|json)$"),
+    repo: JobRepositoryPort = Depends(get_job_repository),
+) -> Response:
+    """Export executive throughput and migration analytics in CSV or JSON format."""
+    overview = await get_analytics_overview(repo=repo)
+    data = overview.model_dump()
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+    if format == "csv":
+        csv_content = ReportExporterService.generate_analytics_csv(data)
+        return Response(
+            content=csv_content,
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="analytics_report_{timestamp}.csv"'
+            },
+        )
+    else:  # json
+        json_content = ReportExporterService.generate_analytics_json(data)
+        return Response(
+            content=json_content,
+            media_type="application/json; charset=utf-8",
+            headers={
+                "Content-Disposition": f'attachment; filename="analytics_report_{timestamp}.json"'
+            },
+        )
+
