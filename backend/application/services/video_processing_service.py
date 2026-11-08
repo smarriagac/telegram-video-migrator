@@ -577,6 +577,29 @@ class VideoProcessingService:
             except Exception:
                 target_entity = await client.get_entity(target_channel_id)
 
+            # Check if story 60s slicing is requested
+            if not is_image and filter_params.get("slice_stories"):
+                from backend.application.services.story_slicer_engine import StorySlicerEngine
+                slices_dir = os.path.join(tmp_dir, "story_slices")
+                segments = await StorySlicerEngine.slice_video(
+                    input_path=output_path,
+                    output_dir=slices_dir,
+                    max_segment_seconds=float(filter_params.get("max_slice_seconds", 60.0)),
+                    base_caption=caption,
+                )
+                if len(segments) > 1:
+                    logger.info(f"VideoProcessing: Sliced into {len(segments)} story parts. Dispatching as album...")
+                    sent_msgs = await client.send_file(
+                        target_entity,
+                        file=[s.file_path for s in segments],
+                        caption=caption,
+                        supports_streaming=True,
+                    )
+                    sent_msg_id = getattr(sent_msgs[0] if isinstance(sent_msgs, list) else sent_msgs, "id", None)
+                    await self._update_job_status(job_id, "COMPLETED", 100.0, target_message_id=sent_msg_id)
+                    logger.info(f"VideoProcessing: Job {job_id} COMPLETED (sliced {len(segments)} parts)! Sent msg #{sent_msg_id}")
+                    return
+
             sent_msg = await client.send_file(
                 target_entity,
                 file=output_path,
@@ -586,7 +609,6 @@ class VideoProcessingService:
             sent_msg_id = getattr(sent_msg, "id", None)
 
             await self._update_job_status(job_id, "COMPLETED", 100.0, target_message_id=sent_msg_id)
-            logger.info(f"VideoProcessing: Job {job_id} COMPLETED successfully! Sent msg #{sent_msg_id}")
             logger.info(f"VideoProcessing: Job {job_id} COMPLETED successfully! Sent msg #{sent_msg_id}")
 
         except Exception as ex:

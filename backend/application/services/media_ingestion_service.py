@@ -14,6 +14,7 @@ from typing import Any, Callable
 import yt_dlp
 
 from backend.application.services.smart_transcoding_engine import SmartTranscodingEngine
+from backend.application.services.story_slicer_engine import StorySlicerEngine, StorySegment
 
 logger = logging.getLogger("telegram_migrator.media_ingestion")
 
@@ -223,8 +224,11 @@ class MediaIngestionService:
         branding_text: str | None = None,
         account_id: int | None = None,
         campaign_id: str | None = None,
+        slice_stories: bool = False,
+        slice_dispatch_mode: str = "ALBUM",  # "ALBUM" or "SEQUENTIAL"
+        max_slice_seconds: float = 60.0,
     ) -> dict[str, Any]:
-        """Executes complete ingestion pipeline: download, optional 9:16 transcode, and posting."""
+        """Executes complete ingestion pipeline: download, optional 9:16 transcode, 60s slicing, and posting."""
         tmp_dir = tempfile.mkdtemp(prefix="ingest_")
         try:
             # 1. Download source media
@@ -248,7 +252,18 @@ class MediaIngestionService:
                 platform = meta.get("platform", "web")
                 caption = f"{orig_title}\n\n#{platform}"
 
-            # 4. Resolve Telegram Client
+            # 4. 60-Second Story Slicing if requested or if duration exceeds limit
+            segments: list[StorySegment] = []
+            if slice_stories:
+                slices_dir = os.path.join(tmp_dir, "story_slices")
+                segments = await StorySlicerEngine.slice_video(
+                    input_path=media_to_upload,
+                    output_dir=slices_dir,
+                    max_segment_seconds=max_slice_seconds,
+                    base_caption=caption,
+                )
+
+            # 5. Resolve Telegram Client
             if not self.gateway_provider:
                 raise RuntimeError("Telegram gateway provider is not configured")
 
@@ -275,41 +290,115 @@ class MediaIngestionService:
             except Exception:
                 target_entity = await client.get_entity(target_channel_id)
 
-            # 5. Upload / Stage
+            # 6. Upload / Stage
+            has_multiple_slices = len(segments) > 1
+
             if mode.upper() == "DIRECT":
-                sent_msg = await client.send_file(
-                    target_entity,
-                    file=media_to_upload,
-                    caption=caption,
-                    supports_streaming=True,
-                )
-                sent_msg_id = getattr(sent_msg, "id", None)
-                return {
-                    "success": True,
-                    "mode": "DIRECT",
-                    "target_channel_id": target_channel_id,
-                    "message_id": sent_msg_id,
-                    "meta": meta,
-                    "aspect_ratio_mode": aspect_ratio_mode,
-                }
+                if has_multiple_slices and slice_dispatch_mode.upper() == "ALBUM":
+                    # Send as unified Telegram Media Group (Album)
+                    file_list = [s.file_path for s in segments]
+                    sent_msgs = await client.send_file(
+                        target_entity,
+                        file=file_list,
+                        caption=caption,
+                        supports_streaming=True,
+                    )
+                    sent_ids = [getattr(m, "id", None) for m in sent_msgs] if isinstance(sent_msgs, list) else [getattr(sent_msgs, "id", None)]
+                    return {
+                        "success": True,
+                        "mode": "DIRECT",
+                        "dispatch": "ALBUM",
+                        "target_channel_id": target_channel_id,
+                        "message_ids": sent_ids,
+                        "message_id": sent_ids[0] if sent_ids else None,
+                        "segments_count": len(segments),
+                        "meta": meta,
+                        "aspect_ratio_mode": aspect_ratio_mode,
+                    }
+                elif has_multiple_slices:
+                    # Sequential dispatch with part-labeled captions
+                    sent_ids = []
+                    for seg in segments:
+                        s_msg = await client.send_file(
+                            target_entity,
+                            file=seg.file_path,
+                            caption=seg.caption,
+                            supports_streaming=True,
+                        )
+                        sent_ids.append(getattr(s_msg, "id", None))
+                        await asyncio.sleep(0.5)
+
+                    return {
+                        "success": True,
+                        "mode": "DIRECT",
+                        "dispatch": "SEQUENTIAL",
+                        "target_channel_id": target_channel_id,
+                        "message_ids": sent_ids,
+                        "message_id": sent_ids[0] if sent_ids else None,
+                        "segments_count": len(segments),
+                        "meta": meta,
+                        "aspect_ratio_mode": aspect_ratio_mode,
+                    }
+                else:
+                    # Single video upload
+                    sent_msg = await client.send_file(
+                        target_entity,
+                        file=media_to_upload,
+                        caption=caption,
+                        supports_streaming=True,
+                    )
+                    sent_msg_id = getattr(sent_msg, "id", None)
+                    return {
+                        "success": True,
+                        "mode": "DIRECT",
+                        "dispatch": "SINGLE",
+                        "target_channel_id": target_channel_id,
+                        "message_id": sent_msg_id,
+                        "meta": meta,
+                        "aspect_ratio_mode": aspect_ratio_mode,
+                    }
+
             elif mode.upper() == "RESERVOIR":
-                # Upload media and post into drip reservoir staging
-                sent_msg = await client.send_file(
-                    target_entity,
-                    file=media_to_upload,
-                    caption=caption,
-                    supports_streaming=True,
-                )
-                sent_msg_id = getattr(sent_msg, "id", None)
-                return {
-                    "success": True,
-                    "mode": "RESERVOIR",
-                    "target_channel_id": target_channel_id,
-                    "message_id": sent_msg_id,
-                    "campaign_id": campaign_id,
-                    "meta": meta,
-                    "aspect_ratio_mode": aspect_ratio_mode,
-                }
+                if has_multiple_slices:
+                    sent_ids = []
+                    for seg in segments:
+                        s_msg = await client.send_file(
+                            target_entity,
+                            file=seg.file_path,
+                            caption=seg.caption,
+                            supports_streaming=True,
+                        )
+                        sent_ids.append(getattr(s_msg, "id", None))
+                        await asyncio.sleep(0.5)
+
+                    return {
+                        "success": True,
+                        "mode": "RESERVOIR",
+                        "target_channel_id": target_channel_id,
+                        "message_ids": sent_ids,
+                        "message_id": sent_ids[0] if sent_ids else None,
+                        "campaign_id": campaign_id,
+                        "segments_count": len(segments),
+                        "meta": meta,
+                        "aspect_ratio_mode": aspect_ratio_mode,
+                    }
+                else:
+                    sent_msg = await client.send_file(
+                        target_entity,
+                        file=media_to_upload,
+                        caption=caption,
+                        supports_streaming=True,
+                    )
+                    sent_msg_id = getattr(sent_msg, "id", None)
+                    return {
+                        "success": True,
+                        "mode": "RESERVOIR",
+                        "target_channel_id": target_channel_id,
+                        "message_id": sent_msg_id,
+                        "campaign_id": campaign_id,
+                        "meta": meta,
+                        "aspect_ratio_mode": aspect_ratio_mode,
+                    }
             else:
                 raise ValueError(f"Unknown ingestion mode: {mode}")
 

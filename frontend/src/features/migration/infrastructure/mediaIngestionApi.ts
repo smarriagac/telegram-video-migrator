@@ -28,6 +28,9 @@ export interface StageIngestionPayload {
   branding_text?: string | null;
   account_id?: number | null;
   campaign_id?: string | null;
+  slice_stories?: boolean;
+  slice_dispatch_mode?: "ALBUM" | "SEQUENTIAL";
+  max_slice_seconds?: number;
 }
 
 export interface IngestionResponse {
@@ -92,5 +95,20 @@ export const mediaIngestionApi = {
     }
     const data = await res.json();
     return data.aspect_ratios || [];
+  },
+
+  async getSlicePlan(
+    duration_s: number,
+    max_segment_seconds: number = 60.0
+  ): Promise<{ success: boolean; total_segments: number; intervals: any[] }> {
+    const res = await fetch("/api/video-processing/slice-plan", {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ duration_s, max_segment_seconds }),
+    });
+    if (!res.ok) {
+      return { success: false, total_segments: 1, intervals: [] };
+    }
+    return res.json();
   },
 };

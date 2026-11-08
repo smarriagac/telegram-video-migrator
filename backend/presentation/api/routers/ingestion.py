@@ -29,6 +29,9 @@ class StageIngestionRequest(BaseModel):
     branding_text: str | None = None
     account_id: int | None = None
     campaign_id: str | None = None
+    slice_stories: bool = False
+    slice_dispatch_mode: str = "ALBUM"  # "ALBUM" or "SEQUENTIAL"
+    max_slice_seconds: float = 60.0
 
 
 @router.post("/inspect")
@@ -71,6 +74,9 @@ async def stage_ingestion(
             branding_text=payload.branding_text,
             account_id=payload.account_id,
             campaign_id=payload.campaign_id,
+            slice_stories=payload.slice_stories,
+            slice_dispatch_mode=payload.slice_dispatch_mode,
+            max_slice_seconds=payload.max_slice_seconds,
         )
         return result
     except Exception as e:

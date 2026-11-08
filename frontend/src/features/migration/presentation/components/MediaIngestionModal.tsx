@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Clock,
   User as UserIcon,
+  Scissors,
 } from "lucide-react";
 import {
   Dialog,
@@ -46,6 +47,8 @@ interface IngestionModalState {
   aspectRatioMode: "ORIGINAL" | "9:16_BLUR" | "9:16_CROP";
   brandingText: string;
   captionOverride: string;
+  sliceStories: boolean;
+  sliceDispatchMode: "ALBUM" | "SEQUENTIAL";
   isInspecting: boolean;
   isSubmitting: boolean;
   metadata: IngestionMetadata | null;
@@ -80,6 +83,8 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
       aspectRatioMode: "9:16_BLUR",
       brandingText: tag,
       captionOverride: "",
+      sliceStories: true,
+      sliceDispatchMode: "ALBUM",
       isInspecting: false,
       isSubmitting: false,
       metadata: null,
@@ -164,6 +169,8 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
         branding_text: state.brandingText.trim() || undefined,
         caption_override: state.captionOverride.trim() || undefined,
         account_id: resolvedAccountId,
+        slice_stories: state.sliceStories,
+        slice_dispatch_mode: state.sliceDispatchMode,
       });
 
       setState((prev) => ({
@@ -384,6 +391,67 @@ export const MediaIngestionModal: React.FC<MediaIngestionModalProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* Story Slicer 60s & Media Group Sequencer */}
+          <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                <Scissors className="w-3.5 h-3.5 text-amber-400" />
+                Story Slicer 60s (Segmentación Inteligente)
+              </span>
+              <button
+                type="button"
+                onClick={() => setState((prev) => ({ ...prev, sliceStories: !prev.sliceStories }))}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded transition-colors cursor-pointer border ${
+                  state.sliceStories
+                    ? "bg-amber-500 text-black font-semibold border-amber-400"
+                    : "bg-secondary text-muted-foreground border-border"
+                }`}
+              >
+                {state.sliceStories ? "ACTIVADO (60s)" : "DESACTIVADO"}
+              </button>
+            </div>
+
+            {state.metadata && state.metadata.duration > 60 && (
+              <div className="text-[11px] text-amber-300/90 font-mono bg-amber-500/10 p-2 rounded border border-amber-500/30 flex items-center justify-between">
+                <span>⏱️ Duración: {state.metadata.duration}s</span>
+                <span>Dividido en {Math.ceil(state.metadata.duration / 60)} partes de 60s</span>
+              </div>
+            )}
+
+            {state.sliceStories && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono text-muted-foreground">Forma de Despacho:</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setState((prev) => ({ ...prev, sliceDispatchMode: "ALBUM" }))}
+                    className={`p-2 rounded border text-left transition-colors flex flex-col gap-0.5 ${
+                      state.sliceDispatchMode === "ALBUM"
+                        ? "border-amber-400 bg-amber-500/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">Álbum (Media Group)</span>
+                    <span className="text-[10px] text-muted-foreground">Envía todas las partes juntas en un solo post</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setState((prev) => ({ ...prev, sliceDispatchMode: "SEQUENTIAL" }))}
+                    className={`p-2 rounded border text-left transition-colors flex flex-col gap-0.5 ${
+                      state.sliceDispatchMode === "SEQUENTIAL"
+                        ? "border-amber-400 bg-amber-500/10 text-foreground"
+                        : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                    }`}
+                  >
+                    <span className="font-semibold text-xs text-foreground font-mono">Secuencial (Parte 1/N)</span>
+                    <span className="text-[10px] text-muted-foreground">Mensajes consecutivos con etiquetas individuales</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Branding overlay */}

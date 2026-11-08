@@ -38,6 +38,7 @@ interface FormState {
   preset: "center" | "top_right" | "bottom_right" | "bottom_bar" | "custom" | "dynamic";
   resolutionPreset: "AUTO_MOBILE" | "H265_720P" | "H265_1080P" | "ORIGINAL" | "1080p" | "720p" | "480p" | string;
   aspectRatioMode: "ORIGINAL" | "9:16_BLUR" | "9:16_CROP";
+  sliceStories: boolean;
   customBox: { x: number; y: number; w: number; h: number };
   normalizedBox?: { x_pct: number; y_pct: number; w_pct: number; h_pct: number } | null;
   caption: string;
@@ -78,6 +79,7 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       preset: "center",
       resolutionPreset: "ORIGINAL",
       aspectRatioMode: "ORIGINAL",
+      sliceStories: false,
       customBox: { x: 200, y: 300, w: 400, h: 200 },
       normalizedBox: null,
       caption: message?.text || "",
@@ -183,6 +185,9 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
       }
       if (formState.aspectRatioMode && formState.aspectRatioMode !== "ORIGINAL") {
         filterParams.aspect_ratio_mode = formState.aspectRatioMode;
+      }
+      if (formState.sliceStories) {
+        filterParams.slice_stories = true;
       }
       if (formState.preset === "dynamic") {
         filterParams.dynamic_delogo = true;
@@ -640,6 +645,29 @@ export const VideoSanitizerModal: React.FC<VideoSanitizerModalProps> = ({
                 );
               })}
             </div>
+          </div>
+
+          {/* Story Slicer 60s Option */}
+          <div className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-secondary/30">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-semibold text-foreground">
+                Story Slicer 60s (Telegram Stories):
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Divide videos largos en partes de 60s y los envía como álbum
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFormState((prev) => ({ ...prev, sliceStories: !prev.sliceStories }))}
+              className={`text-[10px] font-mono px-2.5 py-1 rounded transition-colors cursor-pointer border ${
+                formState.sliceStories
+                  ? "bg-amber-500 text-black font-semibold border-amber-400"
+                  : "bg-secondary text-muted-foreground border-border hover:bg-secondary/70"
+              }`}
+            >
+              {formState.sliceStories ? "ACTIVADO" : "DESACTIVADO"}
+            </button>
           </div>
 
           {/* Optional Caption */}

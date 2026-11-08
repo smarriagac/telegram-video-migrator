@@ -69,6 +69,35 @@ class EvaluateStrategyRequest(BaseModel):
     crf: int | None = None
 
 
+class SlicePlanRequest(BaseModel):
+    duration_s: float
+    max_segment_seconds: float = 60.0
+
+
+@router.post("/slice-plan")
+async def calculate_slice_plan_endpoint(
+    payload: SlicePlanRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Calculates temporal start and end timestamps to slice video into <=60s story parts."""
+    from backend.application.services.story_slicer_engine import StorySlicerEngine
+
+    intervals = StorySlicerEngine.compute_slice_plan(
+        duration_s=payload.duration_s,
+        max_segment_seconds=payload.max_segment_seconds,
+    )
+    return {
+        "success": True,
+        "duration_s": payload.duration_s,
+        "max_segment_seconds": payload.max_segment_seconds,
+        "total_segments": len(intervals),
+        "intervals": [
+            {"part": i, "start_s": s, "end_s": e, "duration_s": round(e - s, 2)}
+            for i, (s, e) in enumerate(intervals, start=1)
+        ],
+    }
+
+
 @router.post("/strategy")
 async def evaluate_strategy_endpoint(
     payload: EvaluateStrategyRequest,
