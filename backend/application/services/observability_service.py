@@ -229,3 +229,24 @@ class ObservabilityService:
                     logger.warning(f"Failed to dispatch anomaly alert for {anom['code']}: {e}")
 
         return anomalies
+
+    def get_grafana_dashboard(self) -> dict[str, Any]:
+        """Return the pre-configured Grafana dashboard JSON specification."""
+        import json
+        from pathlib import Path
+
+        resource_path = Path(__file__).resolve().parent.parent.parent / "resources" / "grafana_dashboard.json"
+        if resource_path.exists():
+            try:
+                with open(resource_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Could not read grafana_dashboard.json from {resource_path}: {e}")
+
+        # Fallback minimal schema
+        return {
+            "title": "Telegram Video Migrator - Enterprise Observability",
+            "uid": "tg-migrator-overview",
+            "schemaVersion": 38,
+            "panels": [],
+        }

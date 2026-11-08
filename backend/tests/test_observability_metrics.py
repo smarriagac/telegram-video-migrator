@@ -176,3 +176,24 @@ async def test_metrics_api_endpoints():
         anom_data = anom_res.json()
         assert "anomalies" in anom_data
         assert "count" in anom_data
+
+        # 4. Grafana Dashboard Export
+        grafana_res = await client.get("/api/system/metrics/grafana-dashboard?download=true")
+        assert grafana_res.status_code == 200
+        assert "attachment; filename=\"grafana-telegram-migrator.json\"" in grafana_res.headers.get("Content-Disposition", "")
+        g_data = grafana_res.json()
+        assert g_data["uid"] == "tg-migrator-overview"
+        assert len(g_data["panels"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_grafana_dashboard_provisioning(mock_job_repo):
+    service = ObservabilityService(job_repository=mock_job_repo)
+    dashboard = service.get_grafana_dashboard()
+    assert dashboard["title"] == "Telegram Video Migrator - Enterprise Observability"
+    assert dashboard["uid"] == "tg-migrator-overview"
+    # Ensure key panels exist
+    panel_titles = [p.get("title") for p in dashboard.get("panels", [])]
+    assert "MTProto Accounts Online" in panel_titles
+    assert "Bandwidth Saved (Dedup)" in panel_titles
+    assert "Hot-Failover Rotations" in panel_titles

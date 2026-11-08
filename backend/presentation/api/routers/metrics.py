@@ -53,3 +53,22 @@ async def evaluate_anomalies(
         count=len(anomalies),
         has_critical=has_critical,
     )
+
+
+@router.get("/api/system/metrics/grafana-dashboard")
+async def get_grafana_dashboard(
+    download: bool = False,
+    observability_svc: ObservabilityService = Depends(get_observability_service),
+) -> Response:
+    """Download or retrieve pre-configured Grafana Dashboard JSON."""
+    import json
+    dashboard = observability_svc.get_grafana_dashboard()
+    content = json.dumps(dashboard, indent=2)
+    headers = {}
+    if download:
+        headers["Content-Disposition"] = 'attachment; filename="grafana-telegram-migrator.json"'
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers=headers,
+    )

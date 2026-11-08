@@ -8,6 +8,8 @@ vi.mock("../../infrastructure/observabilityApi", () => ({
     getMetrics: vi.fn(),
     getPrometheusText: vi.fn(),
     evaluateAnomalies: vi.fn(),
+    getGrafanaDashboard: vi.fn(),
+    getGrafanaDashboardDownloadUrl: vi.fn().mockReturnValue("/api/system/metrics/grafana-dashboard?download=true"),
   },
 }));
 
@@ -46,6 +48,11 @@ describe("ObservabilityCard Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(observabilityApi.getMetrics).mockResolvedValue(mockMetrics);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn().mockResolvedValue(undefined),
+      },
+    });
   });
 
   it("renders metrics overview, MTProto pool stats and failover counters", async () => {
@@ -117,6 +124,27 @@ describe("ObservabilityCard Component", () => {
     await waitFor(() => {
       expect(screen.getByText("Anomalías Detectadas (1)")).toBeInTheDocument();
       expect(screen.getByText("Aviso: Cuentas en Cooldown:")).toBeInTheDocument();
+    });
+  });
+
+  it("renders Grafana dashboard exporter and triggers copy", async () => {
+    vi.mocked(observabilityApi.getGrafanaDashboard).mockResolvedValue({
+      title: "Telegram Video Migrator - Enterprise Observability",
+      uid: "tg-migrator-overview",
+      panels: [],
+    });
+
+    render(<ObservabilityCard />);
+
+    expect(screen.getByText("Dashboard Grafana Preconfigurado")).toBeInTheDocument();
+    expect(screen.getByText("Descargar .json")).toBeInTheDocument();
+    expect(screen.getByText("Copiar JSON")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Copiar JSON"));
+
+    await waitFor(() => {
+      expect(observabilityApi.getGrafanaDashboard).toHaveBeenCalled();
+      expect(screen.getByText("JSON de Grafana copiado al portapapeles.")).toBeInTheDocument();
     });
   });
 });

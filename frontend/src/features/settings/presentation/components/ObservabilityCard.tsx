@@ -13,6 +13,8 @@ import {
   Clock,
   Layers,
   Terminal,
+  Download,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -45,10 +47,12 @@ export const ObservabilityCard: React.FC = () => {
   const [uiState, setUiState] = useState<{
     copiedEndpoint: boolean;
     copiedSnippet: boolean;
+    copiedGrafanaJson: boolean;
     showSnippet: boolean;
   }>({
     copiedEndpoint: false,
     copiedSnippet: false,
+    copiedGrafanaJson: false,
     showSnippet: false,
   });
 
@@ -108,7 +112,9 @@ export const ObservabilityCard: React.FC = () => {
 
   const copyEndpointUrl = () => {
     const fullUrl = `${window.location.origin}/metrics`;
-    navigator.clipboard.writeText(fullUrl);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(fullUrl);
+    }
     setUiState((prev) => ({ ...prev, copiedEndpoint: true }));
     setTimeout(() => {
       setUiState((prev) => ({ ...prev, copiedEndpoint: false }));
@@ -123,11 +129,29 @@ export const ObservabilityCard: React.FC = () => {
       - targets: ['${window.location.hostname}:7901']`;
 
   const copyConfigSnippet = () => {
-    navigator.clipboard.writeText(prometheusSnippet);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(prometheusSnippet);
+    }
     setUiState((prev) => ({ ...prev, copiedSnippet: true }));
     setTimeout(() => {
       setUiState((prev) => ({ ...prev, copiedSnippet: false }));
     }, 2500);
+  };
+
+  const copyGrafanaJson = async () => {
+    try {
+      const dashboard = await observabilityApi.getGrafanaDashboard();
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(JSON.stringify(dashboard, null, 2));
+      }
+      setUiState((prev) => ({ ...prev, copiedGrafanaJson: true }));
+      setTimeout(() => {
+        setUiState((prev) => ({ ...prev, copiedGrafanaJson: false }));
+      }, 2500);
+      showFeedback("JSON de Grafana copiado al portapapeles.");
+    } catch (err: any) {
+      showFeedback(err?.message || "Error al obtener JSON de Grafana", true);
+    }
   };
 
   const metrics = telemetryState.metrics;
@@ -377,6 +401,43 @@ export const ObservabilityCard: React.FC = () => {
                 </pre>
               </div>
             )}
+          </div>
+
+          {/* Grafana Pre-configured Dashboard Box */}
+          <div className="p-3 rounded-lg bg-orange-500/5 border border-orange-500/20 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <LayoutDashboard className="w-4 h-4 text-orange-400 shrink-0" />
+                <div>
+                  <span className="text-xs font-semibold text-foreground">Dashboard Grafana Preconfigurado</span>
+                  <p className="text-[11px] text-muted-foreground">
+                    10 paneles listos para importar (Pool MTProto, Failovers, Ahorro Dedup, Jobs, Throughput).
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={copyGrafanaJson}
+                  className="h-7 text-xs gap-1 border-orange-500/30 text-orange-400 hover:bg-orange-500/10"
+                >
+                  {uiState.copiedGrafanaJson ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {uiState.copiedGrafanaJson ? "JSON Copiado" : "Copiar JSON"}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  asChild
+                  className="h-7 text-xs gap-1 bg-orange-600 hover:bg-orange-500 text-white"
+                >
+                  <a href={observabilityApi.getGrafanaDashboardDownloadUrl()} download="grafana-telegram-migrator.json">
+                    <Download className="w-3 h-3" />
+                    Descargar .json
+                  </a>
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

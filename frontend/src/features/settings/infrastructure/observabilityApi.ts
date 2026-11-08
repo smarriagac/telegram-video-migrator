@@ -64,4 +64,16 @@ export const observabilityApi = {
     }
     return res.json();
   },
+
+  async getGrafanaDashboard(): Promise<any> {
+    const res = await fetch("/api/system/metrics/grafana-dashboard");
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Grafana dashboard: HTTP ${res.status}`);
+    }
+    return res.json();
+  },
+
+  getGrafanaDashboardDownloadUrl(): string {
+    return "/api/system/metrics/grafana-dashboard?download=true";
+  },
 };
