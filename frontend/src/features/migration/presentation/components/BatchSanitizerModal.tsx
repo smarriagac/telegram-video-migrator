@@ -31,7 +31,7 @@ interface FormState {
   targetId: number;
   filterType: "delogo" | "blur";
   preset: "auto" | "center" | "top_right" | "bottom_right" | "bottom_bar";
-  resolutionPreset: "ORIGINAL" | "1080p" | "720p" | "480p";
+  resolutionPreset: "AUTO_MOBILE" | "H265_720P" | "H265_1080P" | "ORIGINAL" | "1080p" | "720p" | "480p" | string;
 }
 
 interface AsyncState {
@@ -267,10 +267,10 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
+                { id: "AUTO_MOBILE", label: "Auto H.265", desc: "-50% peso (Óptimo)", isH265: true },
+                { id: "H265_720P", label: "720p H.265", desc: "Móvil ultrarrápido", isH265: true },
                 { id: "ORIGINAL", label: "Original", desc: "Sin escalar" },
-                { id: "1080p", label: "1080p FHD", desc: "Max 1920px" },
-                { id: "720p", label: "720p HD", desc: "Recomendado" },
-                { id: "480p", label: "480p SD", desc: "Ahorro red" },
+                { id: "720p", label: "720p H.264", desc: "Compatibilidad" },
               ].map((res) => {
                 const selected = formState.resolutionPreset === res.id;
                 return (
@@ -280,11 +280,18 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
                     onClick={() => setFormState((prev) => ({ ...prev, resolutionPreset: res.id as any }))}
                     className={`p-2 rounded-lg border text-left transition-colors flex flex-col gap-0.5 ${
                       selected
-                        ? "border-primary bg-primary/10 text-foreground"
+                        ? "border-emerald-500 bg-emerald-500/10 text-foreground"
                         : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
                     }`}
                   >
-                    <span className="font-semibold text-xs text-foreground font-mono">{res.label}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs text-foreground font-mono">{res.label}</span>
+                      {res.isH265 && (
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
+                          HEVC
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-[10px] text-muted-foreground">{res.desc}</span>
                   </button>
                 );

@@ -10,9 +10,58 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from backend.application.services.smart_transcoding_engine import (
+    SmartTranscodingEngine,
+    VideoProbeResult,
+)
+
 logger = logging.getLogger("telegram_migrator.video_processing")
 
 TRANSCODING_PRESETS: dict[str, dict[str, Any]] = {
+    "AUTO_MOBILE": {
+        "id": "AUTO_MOBILE",
+        "label": "Auto-Mobile H.265 (Recomendado)",
+        "description": "Auto-escala inteligente a 720p/1080p H.265 con tag hvc1. Reduce el peso un 50-60% sin pérdida visual.",
+        "codec": "libx265",
+        "tag": "hvc1",
+        "default_crf": 27,
+    },
+    "H265_1080P": {
+        "id": "H265_1080P",
+        "label": "1080p H.265 (Alta Fidelidad)",
+        "description": "Full HD con compresión HEVC avanzada. Ideal para clips nítidos en dispositivos modernos.",
+        "max_width": 1920,
+        "codec": "libx265",
+        "tag": "hvc1",
+        "default_crf": 25,
+        "max_bitrate_k": 4000,
+        "audio_codec": "aac",
+        "audio_bitrate": "160k",
+    },
+    "H265_720P": {
+        "id": "H265_720P",
+        "label": "720p H.265 (Ultra Rápido)",
+        "description": "Equilibrio supremo para Telegram móvil: carga instantánea y streaming fluido.",
+        "max_width": 1280,
+        "codec": "libx265",
+        "tag": "hvc1",
+        "default_crf": 27,
+        "max_bitrate_k": 2200,
+        "audio_codec": "aac",
+        "audio_bitrate": "128k",
+    },
+    "H265_480P": {
+        "id": "H265_480P",
+        "label": "480p H.265 (Ahorro Extremo)",
+        "description": "Máxima ligereza para redes lentas o canales masivos de noticias.",
+        "max_width": 854,
+        "codec": "libx265",
+        "tag": "hvc1",
+        "default_crf": 29,
+        "max_bitrate_k": 1000,
+        "audio_codec": "aac",
+        "audio_bitrate": "96k",
+    },
     "ORIGINAL": {
         "id": "ORIGINAL",
         "label": "Original (Sin Escalar)",
@@ -24,7 +73,7 @@ TRANSCODING_PRESETS: dict[str, dict[str, Any]] = {
     },
     "1080p": {
         "id": "1080p",
-        "label": "1080p Full HD",
+        "label": "1080p Full HD (H.264)",
         "description": "Ideal para contenido de alta fidelidad. Downsampling inteligente si supera 1920px.",
         "max_width": 1920,
         "default_crf": 22,
@@ -34,7 +83,7 @@ TRANSCODING_PRESETS: dict[str, dict[str, Any]] = {
     },
     "720p": {
         "id": "720p",
-        "label": "720p HD (Recomendado)",
+        "label": "720p HD (H.264)",
         "description": "Equilibrio óptimo entre velocidad de migración, consumo de ancho de banda y nitidez en móviles.",
         "max_width": 1280,
         "default_crf": 24,
@@ -44,7 +93,7 @@ TRANSCODING_PRESETS: dict[str, dict[str, Any]] = {
     },
     "480p": {
         "id": "480p",
-        "label": "480p SD (Ahorro Máximo)",
+        "label": "480p SD (H.264)",
         "description": "Reduce drásticamente el peso y el tiempo de carga para canales masivos o redes lentas.",
         "max_width": 854,
         "default_crf": 26,
@@ -371,9 +420,14 @@ class VideoProcessingService:
                 except Exception as det_err:
                     logger.warning(f"Auto-detection during job execution failed: {det_err}")
 
-            # 4. Probe video/image width and height
-            width, height = await self._probe_video_dimensions(downloaded)
-            logger.info(f"VideoProcessing: Probed media dimensions: {width}x{height} (is_image={is_image})")
+            # 4. Probe video/image width and height with SmartTranscodingEngine
+            probe = await SmartTranscodingEngine.probe_video(downloaded) if not is_image else VideoProbeResult()
+            width, height = (probe.width, probe.height) if probe.width > 0 else await self._probe_video_dimensions(downloaded)
+            original_size = os.path.getsize(downloaded)
+            logger.info(
+                f"VideoProcessing: Probed media: {width}x{height}, codec={probe.video_codec}, "
+                f"bitrate={probe.bitrate_kbps}kbps, size={original_size}B (is_image={is_image})"
+            )
 
             # 5. Compute filter coordinates & transcoding parameters
             resolution_preset = filter_params.get("resolution_preset")
@@ -383,6 +437,7 @@ class VideoProcessingService:
                 source_width=width,
                 source_height=height,
                 crf=custom_crf,
+                probe=probe,
             )
 
             delogo_filter = self._build_delogo_filter(filter_type, filter_params, width, height)
@@ -504,6 +559,7 @@ class VideoProcessingService:
         source_width: int,
         source_height: int,
         crf: int | None = None,
+        probe: VideoProbeResult | None = None,
     ) -> tuple[str | None, list[str]]:
         """Build downsampling scale filter and FFmpeg video/audio encoding parameters."""
         raw_key = str(resolution_preset or "ORIGINAL").strip()
@@ -514,7 +570,19 @@ class VideoProcessingService:
                 matched_key = k
                 break
 
-        cfg = TRANSCODING_PRESETS[matched_key]
+        cfg = TRANSCODING_PRESETS.get(matched_key, TRANSCODING_PRESETS["ORIGINAL"])
+
+        # If H.265 / AUTO_MOBILE is requested, leverage SmartTranscodingEngine
+        if matched_key in ("AUTO_MOBILE", "H265_1080P", "H265_720P", "H265_480P"):
+            p = probe or VideoProbeResult(width=source_width, height=source_height)
+            strategy = SmartTranscodingEngine.decide_strategy(
+                probe=p,
+                preset=matched_key,
+                custom_crf=crf,
+            )
+            return strategy.scale_filter, strategy.codec_args
+
+        # Legacy H.264 / ORIGINAL catalog behavior
         max_w = cfg.get("max_width")
         scale_filter: str | None = None
 

@@ -1070,9 +1070,13 @@ export const JobsView: React.FC = () => {
                             {fjob.filter_params?.resolution_preset && fjob.filter_params.resolution_preset !== "ORIGINAL" && (
                               <Badge
                                 variant="outline"
-                                className="text-[9px] font-mono border-sky-500/30 text-sky-400 bg-sky-500/10"
+                                className={`text-[9px] font-mono ${
+                                  String(fjob.filter_params.resolution_preset).includes("H265") || fjob.filter_params.resolution_preset === "AUTO_MOBILE"
+                                    ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                                    : "border-sky-500/30 text-sky-400 bg-sky-500/10"
+                                }`}
                               >
-                                {fjob.filter_params.resolution_preset}
+                                {fjob.filter_params.resolution_preset === "AUTO_MOBILE" ? "Auto H.265" : fjob.filter_params.resolution_preset}
                               </Badge>
                             )}
                           </div>

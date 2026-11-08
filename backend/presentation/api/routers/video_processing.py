@@ -60,6 +60,51 @@ class SimulateRulesRequest(BaseModel):
     filter_params: dict[str, Any] = {}
 
 
+class EvaluateStrategyRequest(BaseModel):
+    width: int
+    height: int
+    video_codec: str = "h264"
+    bitrate_kbps: int = 2500
+    preset: str = "AUTO_MOBILE"
+    crf: int | None = None
+
+
+@router.post("/strategy")
+async def evaluate_strategy_endpoint(
+    payload: EvaluateStrategyRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Simulates smart transcoding decision matrix for given media attributes."""
+    from backend.application.services.smart_transcoding_engine import (
+        SmartTranscodingEngine,
+        VideoProbeResult,
+    )
+    probe = VideoProbeResult(
+        width=payload.width,
+        height=payload.height,
+        video_codec=payload.video_codec,
+        bitrate_kbps=payload.bitrate_kbps,
+    )
+    strategy = SmartTranscodingEngine.decide_strategy(
+        probe=probe,
+        preset=payload.preset,
+        custom_crf=payload.crf,
+    )
+    return {
+        "success": True,
+        "strategy": {
+            "action": strategy.action,
+            "target_codec": strategy.target_codec,
+            "target_width": strategy.target_width,
+            "crf": strategy.crf,
+            "bitrate_cap_k": strategy.bitrate_cap_k,
+            "scale_filter": strategy.scale_filter,
+            "reason": strategy.reason,
+            "codec_args": strategy.codec_args,
+        },
+    }
+
+
 @router.post("/simulate")
 async def simulate_rules_endpoint(
     payload: SimulateRulesRequest,

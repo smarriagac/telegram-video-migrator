@@ -1,13 +1,15 @@
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 
 export interface TranscodingPreset {
-  id: "ORIGINAL" | "1080p" | "720p" | "480p" | string;
+  id: "AUTO_MOBILE" | "H265_1080P" | "H265_720P" | "H265_480P" | "ORIGINAL" | "1080p" | "720p" | "480p" | string;
   label: string;
   description: string;
   max_width?: number | null;
+  codec?: string;
+  tag?: string;
   default_crf: number;
   max_bitrate_k?: number | null;
-  audio_codec: string;
+  audio_codec?: string;
   audio_bitrate?: string;
 }
 
@@ -177,20 +179,22 @@ export const videoProcessingApi = {
       });
       if (!res.ok) {
         return [
+          { id: "AUTO_MOBILE", label: "Auto-Mobile H.265 (Recomendado)", description: "Auto-escala a 720p/1080p H.265. 50% menos peso.", default_crf: 27, codec: "libx265", tag: "hvc1" },
+          { id: "H265_720P", label: "720p H.265 (Ultra Rápido)", description: "Streaming móvil instantáneo", max_width: 1280, default_crf: 27, codec: "libx265", tag: "hvc1" },
+          { id: "H265_1080P", label: "1080p H.265 (Alta Fidelidad)", description: "Full HD HEVC para clips nítidos", max_width: 1920, default_crf: 25, codec: "libx265", tag: "hvc1" },
           { id: "ORIGINAL", label: "Original (Sin Escalar)", description: "Mantiene resolución original", default_crf: 23, audio_codec: "copy" },
-          { id: "1080p", label: "1080p Full HD", description: "Downsampling si supera 1920px", max_width: 1920, default_crf: 22, audio_codec: "aac" },
-          { id: "720p", label: "720p HD (Recomendado)", description: "Equilibrio óptimo calidad/peso", max_width: 1280, default_crf: 24, audio_codec: "aac" },
-          { id: "480p", label: "480p SD (Ahorro)", description: "Reduce drásticamente el peso", max_width: 854, default_crf: 26, audio_codec: "aac" },
+          { id: "720p", label: "720p HD (H.264)", description: "Compresión tradicional", max_width: 1280, default_crf: 24, audio_codec: "aac" },
         ];
       }
       const data = await res.json();
       return data.presets || [];
     } catch {
       return [
+        { id: "AUTO_MOBILE", label: "Auto-Mobile H.265 (Recomendado)", description: "Auto-escala a 720p/1080p H.265. 50% menos peso.", default_crf: 27, codec: "libx265", tag: "hvc1" },
+        { id: "H265_720P", label: "720p H.265 (Ultra Rápido)", description: "Streaming móvil instantáneo", max_width: 1280, default_crf: 27, codec: "libx265", tag: "hvc1" },
+        { id: "H265_1080P", label: "1080p H.265 (Alta Fidelidad)", description: "Full HD HEVC para clips nítidos", max_width: 1920, default_crf: 25, codec: "libx265", tag: "hvc1" },
         { id: "ORIGINAL", label: "Original (Sin Escalar)", description: "Mantiene resolución original", default_crf: 23, audio_codec: "copy" },
-        { id: "1080p", label: "1080p Full HD", description: "Downsampling si supera 1920px", max_width: 1920, default_crf: 22, audio_codec: "aac" },
-        { id: "720p", label: "720p HD (Recomendado)", description: "Equilibrio óptimo calidad/peso", max_width: 1280, default_crf: 24, audio_codec: "aac" },
-        { id: "480p", label: "480p SD (Ahorro)", description: "Reduce drásticamente el peso", max_width: 854, default_crf: 26, audio_codec: "aac" },
+        { id: "720p", label: "720p HD (H.264)", description: "Compresión tradicional", max_width: 1280, default_crf: 24, audio_codec: "aac" },
       ];
     }
   },
