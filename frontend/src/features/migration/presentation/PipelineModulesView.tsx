@@ -13,8 +13,10 @@ import {
   Film,
   FileText,
   Image,
+  Play,
 } from "lucide-react";
 import { useMigrationStore } from "../application/useMigrationStore";
+import { RulesPlaygroundCard } from "./components/RulesPlaygroundCard";
 import { Switch } from "@/shared/components/ui/switch";
 import { Input } from "@/shared/components/ui/input";
 import {
@@ -29,7 +31,7 @@ import { cn } from "@/shared/lib/utils";
 
 export const PipelineModulesView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: Max 2 useState hooks
-  const [activeTab, setActiveTab] = useState<"captions" | "drip" | "dedup" | "quality">("captions");
+  const [activeTab, setActiveTab] = useState<"captions" | "drip" | "dedup" | "quality" | "playground">("captions");
   const [testText, setTestText] = useState<string>(
     "¡Nuevo estreno en https://t.me/canal_spam! Sigan a @canal_spam para ganar bono gratis VIP."
   );
@@ -139,6 +141,20 @@ export const PipelineModulesView: React.FC = () => {
             <Filter className="w-3.5 h-3.5 shrink-0" />
             <span className="hidden xs:inline">Filtros Calidad</span>
             <span className="xs:hidden">Calidad</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("playground")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
+              activeTab === "playground"
+                ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
+            )}
+          >
+            <Play className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden xs:inline">Simulador / Playground</span>
+            <span className="xs:hidden">Simulador</span>
           </button>
         </div>
       </ViewHeader>
@@ -624,6 +640,11 @@ export const PipelineModulesView: React.FC = () => {
             Los metadatos se validan directamente vía MTProto (<code className="text-foreground">DocumentAttributeVideo</code>) antes de encolar o transferir, manteniendo la velocidad de 0.5s por post.
           </div>
         </div>
+      )}
+
+      {/* Module 5: Interactive Rules & Watermark Simulation Playground */}
+      {activeTab === "playground" && (
+        <RulesPlaygroundCard />
       )}
     </div>
   );

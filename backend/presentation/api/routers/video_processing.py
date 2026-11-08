@@ -47,6 +47,34 @@ class DetectWatermarkRequest(BaseModel):
     account_id: int | None = None
 
 
+class SimulateRulesRequest(BaseModel):
+    sample_caption: str = ""
+    caption_rules: dict[str, Any] | None = None
+    video_width: int = 1920
+    video_height: int = 1080
+    filter_type: str = "watermark_text"
+    filter_params: dict[str, Any] = {}
+
+
+@router.post("/simulate")
+async def simulate_rules_endpoint(
+    payload: SimulateRulesRequest,
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Evaluates caption transformation and video branding rules in real time without executing live jobs."""
+    from backend.application.services.rules_simulation_service import RulesSimulationService
+    service = RulesSimulationService()
+    result = service.simulate(
+        sample_caption=payload.sample_caption,
+        caption_rules=payload.caption_rules,
+        video_width=payload.video_width,
+        video_height=payload.video_height,
+        filter_type=payload.filter_type,
+        filter_params=payload.filter_params,
+    )
+    return {"success": True, **result}
+
+
 @router.post("/detect")
 async def detect_watermark_endpoint(
     payload: DetectWatermarkRequest,
