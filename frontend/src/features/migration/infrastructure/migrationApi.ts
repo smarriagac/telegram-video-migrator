@@ -346,4 +346,42 @@ export const migrationApi = {
     }
     return res.json();
   },
+
+  async checkPreFlight(payload: {
+    source_channel_id: number;
+    target_channel_id: number;
+    selected_message_ids?: number[];
+    source_account_id?: number | null;
+    target_account_id?: number | null;
+    watermark_enabled?: boolean;
+    drip_delay_seconds?: number;
+  }): Promise<{
+    can_proceed: boolean;
+    source_channel_id: number;
+    target_channel_id: number;
+    source_title: string | null;
+    target_title: string | null;
+    total_requested_items: number;
+    already_cloned_items: number;
+    new_items_to_migrate: number;
+    target_writable: boolean;
+    account_ready: boolean;
+    cooldown_seconds: number;
+    estimated_disk_required_mb: number;
+    disk_space_available_mb: number;
+    estimated_duration_seconds: number;
+    warnings: string[];
+    errors: string[];
+  }> {
+    const res = await fetch(`${API_BASE_URL}/jobs/pre-flight`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Error al ejecutar el pre-flight check");
+    }
+    return res.json();
+  },
 };

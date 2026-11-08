@@ -352,4 +352,23 @@ async def get_crash_recovery_service():
     return _crash_recovery_service_instance
 
 
+_pre_flight_service_instance = None
+
+
+async def get_pre_flight_service():
+    global _pre_flight_service_instance
+    if _pre_flight_service_instance is None:
+        from backend.application.services.pre_flight_service import PreFlightService
+        repo = await get_job_repository()
+        gateway = await get_telegram_gateway()
+        pool = await get_telegram_client_pool()
+        _pre_flight_service_instance = PreFlightService(
+            job_repo=repo,
+            gateway=gateway,
+            client_pool=pool,
+        )
+    return _pre_flight_service_instance
+
+
+
 

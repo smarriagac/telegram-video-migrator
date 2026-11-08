@@ -21,6 +21,7 @@ from backend.presentation.dependencies import (
     get_migration_use_case,
     get_audit_repository,
     get_crash_recovery_service,
+    get_pre_flight_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -567,6 +568,38 @@ async def run_recovery_sweep(
     report = await recovery_service.run_recovery(
         clean_temp_files=clean_temp_files,
         min_temp_age_seconds=min_temp_age_seconds,
+    )
+    return report.to_dict()
+
+
+class PreFlightCheckRequest(BaseModel):
+    source_channel_id: int
+    target_channel_id: int
+    selected_message_ids: list[int] | None = None
+    source_account_id: int | None = None
+    target_account_id: int | None = None
+    watermark_enabled: bool = False
+    drip_delay_seconds: int = 0
+
+
+@router.post("/pre-flight", response_model=dict[str, Any])
+async def check_migration_pre_flight(
+    req: PreFlightCheckRequest,
+    pre_flight_service: Any = Depends(get_pre_flight_service),
+) -> dict[str, Any]:
+    """Execute pre-flight checks and dry-run validation for a proposed migration."""
+    from backend.application.services.pre_flight_service import PreFlightRequest
+
+    report = await pre_flight_service.validate(
+        PreFlightRequest(
+            source_channel_id=req.source_channel_id,
+            target_channel_id=req.target_channel_id,
+            selected_message_ids=req.selected_message_ids,
+            source_account_id=req.source_account_id,
+            target_account_id=req.target_account_id,
+            watermark_enabled=req.watermark_enabled,
+            drip_delay_seconds=req.drip_delay_seconds,
+        )
     )
     return report.to_dict()
 

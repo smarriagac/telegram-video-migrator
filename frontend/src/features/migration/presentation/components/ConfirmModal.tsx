@@ -1,6 +1,15 @@
-import React from "react";
-import { AlertTriangle, ArrowRight, ShieldCheck, Clock } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  ShieldCheck,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+} from "lucide-react";
 import { useMigrationStore } from "../../application/useMigrationStore";
+import { migrationApi } from "../../infrastructure/migrationApi";
 import {
   Dialog,
   DialogContent,
@@ -27,9 +36,56 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
   const isStarting = useMigrationStore((state) => state.isStartingJob);
   const scheduledAt = useMigrationStore((state) => state.scheduledAt);
   const setScheduledAt = useMigrationStore((state) => state.setScheduledAt);
+  const dripDelaySeconds = useMigrationStore((state) => state.dripDelaySeconds);
+
+  // STRICT ARCHITECTURAL CONSTRAINT: Exactly 1 useState hook for pre-flight state
+  const [preFlight, setPreFlight] = useState<{
+    isLoading: boolean;
+    report: any | null;
+    error: string | null;
+  }>({
+    isLoading: false,
+    report: null,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!isOpen || !selectedSourceId || !selectedTargetId) {
+      setPreFlight({ isLoading: false, report: null, error: null });
+      return;
+    }
+
+    let isMounted = true;
+    setPreFlight({ isLoading: true, report: null, error: null });
+
+    migrationApi
+      .checkPreFlight({
+        source_channel_id: selectedSourceId,
+        target_channel_id: selectedTargetId,
+        selected_message_ids: selectedMessageIds.length > 0 ? selectedMessageIds : undefined,
+        drip_delay_seconds: dripDelaySeconds,
+      })
+      .then((res) => {
+        if (isMounted) {
+          setPreFlight({ isLoading: false, report: res, error: null });
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          setPreFlight({ isLoading: false, report: null, error: err.message });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, selectedSourceId, selectedTargetId, selectedMessageIds, dripDelaySeconds]);
 
   const sourceChannel = channels.find((c) => c.id === selectedSourceId);
   const targetChannel = channels.find((c) => c.id === selectedTargetId);
+
+  const report = preFlight.report;
+  const isBlocked = report && !report.can_proceed;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -42,7 +98,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
             <div>
               <DialogTitle className="text-sm">Confirmar Migración</DialogTitle>
               <DialogDescription className="text-xs">
-                Verificá los canales y la planificación antes de confirmar.
+                Verificá la simulación de pre-flight y la planificación antes de confirmar.
               </DialogDescription>
             </div>
           </div>
@@ -59,7 +115,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground font-mono text-[11px]">DESTINO:</span>
-            <span className="text-emerald-500 dark:text-emerald-400 font-semibold">{targetChannel?.title || selectedTargetId}</span>
+            <span className="text-emerald-500 dark:text-emerald-400 font-semibold">
+              {targetChannel?.title || selectedTargetId}
+            </span>
           </div>
           <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border">
             <span className="text-muted-foreground font-mono text-[11px]">ALCANCE:</span>
@@ -71,7 +129,80 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
           </div>
         </div>
 
-        {/* Smart Scheduler Section with Canonical Shadcn DateTimePicker */}
+        {/* Pre-Flight Simulation Panel */}
+        <div className="p-3 rounded-lg bg-card border border-border space-y-2 text-xs">
+          <div className="flex items-center justify-between font-semibold">
+            <span className="flex items-center gap-1.5 text-foreground">
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+              Pre-Flight Check (Simulación)
+            </span>
+            {preFlight.isLoading ? (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin text-primary" /> Verificando...
+              </span>
+            ) : isBlocked ? (
+              <span className="text-rose-500 font-semibold text-[11px] flex items-center gap-1">
+                <XCircle className="w-3.5 h-3.5" /> Bloqueado
+              </span>
+            ) : report ? (
+              <span className="text-emerald-500 font-semibold text-[11px] flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Listo para Iniciar
+              </span>
+            ) : null}
+          </div>
+
+          {report && (
+            <>
+              {/* Quick metrics grid */}
+              <div className="grid grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
+                <div className="p-1.5 rounded bg-secondary/50 border border-border text-center">
+                  <span className="text-[10px] text-muted-foreground block">Nuevos</span>
+                  <span className="text-foreground font-semibold">
+                    {report.new_items_to_migrate || report.total_requested_items || 0}
+                  </span>
+                </div>
+                <div className="p-1.5 rounded bg-secondary/50 border border-border text-center">
+                  <span className="text-[10px] text-muted-foreground block">Duplicados</span>
+                  <span className="text-amber-500 font-semibold">{report.already_cloned_items}</span>
+                </div>
+                <div className="p-1.5 rounded bg-secondary/50 border border-border text-center">
+                  <span className="text-[10px] text-muted-foreground block">Est. Tiempo</span>
+                  <span className="text-primary font-semibold">
+                    {report.estimated_duration_seconds > 60
+                      ? `${Math.round(report.estimated_duration_seconds / 60)} min`
+                      : `${report.estimated_duration_seconds}s`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Errors Block */}
+              {report.errors.length > 0 && (
+                <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-400 space-y-1">
+                  {report.errors.map((err: string, i: number) => (
+                    <div key={i} className="flex items-start gap-1.5 text-[11px] leading-tight">
+                      <XCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>{err}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Warnings Block */}
+              {report.warnings.length > 0 && (
+                <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 space-y-1">
+                  {report.warnings.map((warn: string, i: number) => (
+                    <div key={i} className="flex items-start gap-1.5 text-[11px] leading-tight">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>{warn}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Smart Scheduler Section */}
         <div className="p-3 rounded-lg bg-secondary/40 border border-border space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 text-xs font-semibold text-foreground">
@@ -79,39 +210,16 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
               <span>Smart Scheduler (Programar Publicación)</span>
             </div>
             {scheduledAt && (
-              <span className="text-[10px] text-cyan-400 font-mono font-medium">
+              <span className="text-[10px] text-cyan-400 font-mono bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
                 Programado
               </span>
             )}
           </div>
-
           <DateTimePicker
-            value={scheduledAt}
+            value={scheduledAt ? new Date(scheduledAt) : undefined}
             onChange={(date) => setScheduledAt(date ? date.toISOString() : null)}
-            placeholder="Seleccionar fecha y horario..."
+            placeholder="Ejecutar inmediatamente (o elegir fecha y hora futura)"
           />
-
-          <p className="text-[10px] text-muted-foreground">
-            {scheduledAt
-              ? `Se iniciará automáticamente el ${new Date(scheduledAt).toLocaleString()}.`
-              : "Si lo dejás vacío, la migración arrancará de forma inmediata al confirmar."}
-          </p>
-        </div>
-
-        {/* Technical Safeguards */}
-        <div className="space-y-1.5 text-[11px] text-muted-foreground py-0.5">
-          <div className="flex items-start space-x-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <span>Los mensajes y archivos se clonan directamente por referencia interna o fallback resiliente.</span>
-          </div>
-          <div className="flex items-start space-x-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <span>Se preservan descripciones originales, etiquetas y formato sin etiqueta de reenvío.</span>
-          </div>
-          <div className="flex items-start space-x-2">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-            <span>Se aplica un delay seguro de 1.5–2.0s por elemento para proteger la cuenta contra spam.</span>
-          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0 pt-1">
@@ -130,7 +238,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
             variant="default"
             size="sm"
             onClick={onConfirm}
-            disabled={isStarting}
+            disabled={isStarting || Boolean(isBlocked)}
             className={cn(
               "h-8 text-xs",
               scheduledAt ? "bg-cyan-600 hover:bg-cyan-700 text-white" : ""
@@ -138,6 +246,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
           >
             {isStarting
               ? "Procesando..."
+              : isBlocked
+              ? "Bloqueado por Pre-Flight"
               : scheduledAt
               ? "Programar Migración"
               : "Iniciar Migración"}
