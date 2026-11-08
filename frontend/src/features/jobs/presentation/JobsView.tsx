@@ -22,6 +22,7 @@ import {
   Film,
   Sparkles,
   Shuffle,
+  Droplets,
 } from "lucide-react";
 import { useJobsStore } from "../application/useJobsStore";
 import { JobStatus } from "../domain/types";
@@ -48,6 +49,7 @@ import {
 } from "@/shared/components/ui/table";
 import { JobQueueModal } from "./components/JobQueueModal";
 import { DeadLetterQueueCard } from "./components/DeadLetterQueueCard";
+import { DripCampaignsCard } from "./components/DripCampaignsCard";
 import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { ViewHeader } from "@/shared/components/ViewHeader";
 import { cn } from "@/shared/lib/utils";
@@ -56,8 +58,8 @@ import { useGlobalEventStream } from "@/shared/hooks/useGlobalEventStream";
 
 export const JobsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: Active tab navigation ("migrations" | "ffmpeg" | "dlq")
-  const [activeTab, setActiveTab] = useState<"migrations" | "ffmpeg" | "dlq">("migrations");
+  // Hook 1: Active tab navigation ("migrations" | "ffmpeg" | "dlq" | "drip")
+  const [activeTab, setActiveTab] = useState<"migrations" | "ffmpeg" | "dlq" | "drip">("migrations");
 
   // Hook 2: Consolidated local UI, confirmation dialog and async state for both views
   const [uiState, setUiState] = useState<{
@@ -496,6 +498,20 @@ export const JobsView: React.FC = () => {
         >
           <AlertTriangle className="w-3.5 h-3.5" />
           <span>Dead-Letter Queue (DLQ)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("drip")}
+          className={cn(
+            "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all",
+            activeTab === "drip"
+              ? "bg-cyan-600 text-white shadow-sm font-semibold"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          )}
+        >
+          <Droplets className="w-3.5 h-3.5" />
+          <span>Reservorio & Drip</span>
         </button>
       </div>
 
@@ -1147,8 +1163,10 @@ export const JobsView: React.FC = () => {
             </div>
           </Card>
         </>
-      ) : (
+      ) : activeTab === "dlq" ? (
         <DeadLetterQueueCard />
+      ) : (
+        <DripCampaignsCard />
       )}
 
       {/* Queue Modal for MTProto */}

@@ -7,6 +7,7 @@ from backend.domain.entities.cloning_history import ChannelCloningHistory, Clone
 from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 from backend.domain.entities.app_notification import AppNotification
+from backend.domain.entities.drip_campaign import DripCampaign, ReservoirItem
 
 
 class JobRepositoryPort(ABC):
@@ -346,4 +347,53 @@ class JobRepositoryPort(ABC):
     ) -> int:
         """Fast count of unread notifications for a tenant."""
         return 0
+
+    async def create_drip_campaign(
+        self, campaign: DripCampaign, items: list[ReservoirItem]
+    ) -> DripCampaign:
+        """Create a new Content Reservoir drip campaign with staged items."""
+        raise NotImplementedError
+
+    async def get_drip_campaign(self, campaign_id: str) -> DripCampaign | None:
+        """Retrieve a drip campaign by ID."""
+        raise NotImplementedError
+
+    async def list_drip_campaigns(
+        self, status: str | None = None
+    ) -> list[DripCampaign]:
+        """List drip campaigns optionally filtered by status."""
+        raise NotImplementedError
+
+    async def update_drip_campaign(self, campaign: DripCampaign) -> bool:
+        """Update drip campaign details and progress counters."""
+        raise NotImplementedError
+
+    async def delete_drip_campaign(self, campaign_id: str) -> bool:
+        """Delete or cancel a drip campaign and cascade items."""
+        raise NotImplementedError
+
+    async def list_reservoir_items(
+        self,
+        campaign_id: str,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[ReservoirItem], int]:
+        """List reservoir items for a campaign with optional status filter and pagination."""
+        raise NotImplementedError
+
+    async def get_reservoir_item(self, item_id: str) -> ReservoirItem | None:
+        """Retrieve an individual reservoir item by ID."""
+        raise NotImplementedError
+
+    async def update_reservoir_item(self, item: ReservoirItem) -> bool:
+        """Update an individual reservoir item status, caption, or error."""
+        raise NotImplementedError
+
+    async def get_due_drip_items(
+        self, now_iso: str
+    ) -> list[tuple[DripCampaign, ReservoirItem]]:
+        """Find pending reservoir items whose scheduled_at <= now_iso belonging to ACTIVE campaigns."""
+        raise NotImplementedError
+
 

@@ -478,7 +478,7 @@ class TelethonAdapter(TelegramGatewayPort):
         to resilient temporary download and upload.
         """
         raw_entities = None
-        if video.entities:
+        if getattr(video, "entities", None):
             raw_entities = []
             for ent_dict in video.entities:
                 try:

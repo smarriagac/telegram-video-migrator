@@ -25,6 +25,7 @@ from backend.presentation.api.routers.rate_governor import router as rate_govern
 from backend.presentation.api.routers.doctor import router as doctor_router
 from backend.presentation.api.routers.big_media_upload import router as big_media_upload_router
 from backend.presentation.api.routers.metrics import router as metrics_router
+from backend.presentation.api.routers.reservoir import router as reservoir_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository, get_webhook_repository
 
 logging.basicConfig(
@@ -121,8 +122,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Failed to start WebhookRetryEngine during startup: {e}")
 
+    # Initialize Content Reservoir & Drip Campaign Service
+    from backend.presentation.dependencies import get_drip_campaign_service
+    try:
+        drip_service = await get_drip_campaign_service()
+        await drip_service.start()
+        logger.info("DripCampaignService started successfully.")
+    except Exception as e:
+        logger.warning(f"Failed to start DripCampaignService during startup: {e}")
+
     logger.info("Telegram Video Migrator Backend initialized successfully.")
     yield
+
+    try:
+        drip_service = await get_drip_campaign_service()
+        await drip_service.stop()
+    except Exception:
+        pass
 
     try:
         webhook_retry_engine = await get_webhook_retry_engine()
@@ -190,6 +206,7 @@ app.include_router(webhooks_router, prefix="/api")
 app.include_router(rate_governor_router, prefix="/api")
 app.include_router(doctor_router, prefix="/api")
 app.include_router(big_media_upload_router, prefix="/api")
+app.include_router(reservoir_router, prefix="/api")
 app.include_router(billing_router)
 app.include_router(metrics_router)
 

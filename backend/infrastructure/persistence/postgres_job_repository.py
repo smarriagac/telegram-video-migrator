@@ -12,6 +12,12 @@ from backend.domain.entities.cloning_history import ChannelCloningHistory, Clone
 from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 from backend.domain.entities.app_notification import AppNotification
+from backend.domain.entities.drip_campaign import (
+    CampaignStatus,
+    DripCampaign,
+    ReservoirItem,
+    ReservoirItemStatus,
+)
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
 
@@ -195,6 +201,50 @@ class PostgresJobRepository(JobRepositoryPort):
                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
                 );
                 CREATE INDEX IF NOT EXISTS idx_notifications_tenant_read ON app_notifications(tenant_id, is_read, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS drip_campaigns (
+                    id VARCHAR(64) PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    source_channel_id BIGINT NOT NULL,
+                    target_channel_id BIGINT NOT NULL,
+                    source_channel_title TEXT,
+                    target_channel_title TEXT,
+                    source_account_id INT,
+                    target_account_id INT,
+                    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+                    interval_minutes INT NOT NULL DEFAULT 60,
+                    batch_size INT NOT NULL DEFAULT 1,
+                    jitter_seconds INT NOT NULL DEFAULT 0,
+                    daily_window_start VARCHAR(10),
+                    daily_window_end VARCHAR(10),
+                    caption_rules JSONB,
+                    next_release_at VARCHAR(64),
+                    total_items INT NOT NULL DEFAULT 0,
+                    released_items INT NOT NULL DEFAULT 0,
+                    failed_items INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_drip_campaigns_status ON drip_campaigns(status, next_release_at);
+
+                CREATE TABLE IF NOT EXISTS reservoir_items (
+                    id VARCHAR(64) PRIMARY KEY,
+                    campaign_id VARCHAR(64) NOT NULL REFERENCES drip_campaigns(id) ON DELETE CASCADE,
+                    source_message_id BIGINT NOT NULL,
+                    media_type VARCHAR(32) NOT NULL DEFAULT 'video',
+                    file_id TEXT,
+                    original_caption TEXT,
+                    transformed_caption TEXT,
+                    status VARCHAR(32) NOT NULL DEFAULT 'QUEUED',
+                    scheduled_at VARCHAR(64) NOT NULL,
+                    released_at VARCHAR(64),
+                    published_message_id BIGINT,
+                    error_message TEXT,
+                    position INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_reservoir_campaign_status ON reservoir_items(campaign_id, status, position);
+                CREATE INDEX IF NOT EXISTS idx_reservoir_scheduled ON reservoir_items(status, scheduled_at);
             """)
         self._initialized = True
 
@@ -2151,6 +2201,394 @@ class PostgresJobRepository(JobRepositoryPort):
                 tid,
             )
             return int(val or 0)
+
+    def _pg_row_to_drip_campaign(self, row: Any) -> DripCampaign:
+        caption_rules = row["caption_rules"]
+        if isinstance(caption_rules, str):
+            try:
+                caption_rules = json.loads(caption_rules)
+            except Exception:
+                pass
+        return DripCampaign(
+            id=str(row["id"]),
+            title=str(row["title"]),
+            source_channel_id=int(row["source_channel_id"]),
+            target_channel_id=int(row["target_channel_id"]),
+            source_channel_title=row["source_channel_title"],
+            target_channel_title=row["target_channel_title"],
+            source_account_id=row["source_account_id"],
+            target_account_id=row["target_account_id"],
+            status=CampaignStatus(row["status"]) if row["status"] in CampaignStatus.__members__.values() else CampaignStatus.ACTIVE,
+            interval_minutes=int(row["interval_minutes"] or 60),
+            batch_size=int(row["batch_size"] or 1),
+            jitter_seconds=int(row["jitter_seconds"] or 0),
+            daily_window_start=row["daily_window_start"],
+            daily_window_end=row["daily_window_end"],
+            caption_rules=caption_rules,
+            next_release_at=row["next_release_at"],
+            total_items=int(row["total_items"] or 0),
+            released_items=int(row["released_items"] or 0),
+            failed_items=int(row["failed_items"] or 0),
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
+        )
+
+    def _pg_row_to_reservoir_item(self, row: Any) -> ReservoirItem:
+        return ReservoirItem(
+            id=str(row["id"]),
+            campaign_id=str(row["campaign_id"]),
+            source_message_id=int(row["source_message_id"]),
+            media_type=str(row["media_type"] or "video"),
+            file_id=row["file_id"],
+            original_caption=str(row["original_caption"] or ""),
+            transformed_caption=str(row["transformed_caption"] or ""),
+            status=ReservoirItemStatus(row["status"]) if row["status"] in ReservoirItemStatus.__members__.values() else ReservoirItemStatus.QUEUED,
+            scheduled_at=str(row["scheduled_at"] or ""),
+            released_at=row["released_at"],
+            published_message_id=row["published_message_id"],
+            error_message=row["error_message"],
+            position=int(row["position"] or 0),
+            created_at=str(row["created_at"]),
+        )
+
+    async def create_drip_campaign(
+        self, campaign: DripCampaign, items: list[ReservoirItem]
+    ) -> DripCampaign:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.create_drip_campaign(campaign, items)
+
+        status_val = campaign.status.value if hasattr(campaign.status, "value") else str(campaign.status)
+        caption_rules_json = json.dumps(campaign.caption_rules) if campaign.caption_rules else None
+
+        async with self.pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    """
+                    INSERT INTO drip_campaigns (
+                        id, title, source_channel_id, target_channel_id, source_channel_title,
+                        target_channel_title, source_account_id, target_account_id, status,
+                        interval_minutes, batch_size, jitter_seconds, daily_window_start,
+                        daily_window_end, caption_rules, next_release_at, total_items,
+                        released_items, failed_items, created_at, updated_at
+                    ) VALUES (
+                        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+                        $15::jsonb, $16, $17, 0, 0, NOW(), NOW()
+                    )
+                    """,
+                    campaign.id,
+                    campaign.title,
+                    campaign.source_channel_id,
+                    campaign.target_channel_id,
+                    campaign.source_channel_title,
+                    campaign.target_channel_title,
+                    campaign.source_account_id,
+                    campaign.target_account_id,
+                    status_val,
+                    campaign.interval_minutes,
+                    campaign.batch_size,
+                    campaign.jitter_seconds,
+                    campaign.daily_window_start,
+                    campaign.daily_window_end,
+                    caption_rules_json,
+                    campaign.next_release_at,
+                    len(items),
+                )
+
+                if items:
+                    for it in items:
+                        it_status = it.status.value if hasattr(it.status, "value") else str(it.status)
+                        await conn.execute(
+                            """
+                            INSERT INTO reservoir_items (
+                                id, campaign_id, source_message_id, media_type, file_id,
+                                original_caption, transformed_caption, status, scheduled_at,
+                                released_at, published_message_id, error_message, position, created_at
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+                            """,
+                            it.id,
+                            it.campaign_id,
+                            it.source_message_id,
+                            it.media_type,
+                            it.file_id,
+                            it.original_caption,
+                            it.transformed_caption,
+                            it_status,
+                            it.scheduled_at,
+                            it.released_at,
+                            it.published_message_id,
+                            it.error_message,
+                            it.position,
+                        )
+        return campaign
+
+    async def get_drip_campaign(self, campaign_id: str) -> DripCampaign | None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_drip_campaign(campaign_id)
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM drip_campaigns WHERE id = $1", campaign_id)
+            if not row:
+                return None
+            return self._pg_row_to_drip_campaign(row)
+
+    async def list_drip_campaigns(
+        self, status: str | None = None
+    ) -> list[DripCampaign]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_drip_campaigns(status)
+
+        async with self.pool.acquire() as conn:
+            if status:
+                rows = await conn.fetch(
+                    "SELECT * FROM drip_campaigns WHERE status = $1 ORDER BY created_at DESC",
+                    status,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT * FROM drip_campaigns ORDER BY created_at DESC"
+                )
+            return [self._pg_row_to_drip_campaign(r) for r in rows]
+
+    async def update_drip_campaign(self, campaign: DripCampaign) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.update_drip_campaign(campaign)
+
+        status_val = campaign.status.value if hasattr(campaign.status, "value") else str(campaign.status)
+        caption_rules_json = json.dumps(campaign.caption_rules) if campaign.caption_rules else None
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE drip_campaigns SET
+                    title = $1,
+                    status = $2,
+                    interval_minutes = $3,
+                    batch_size = $4,
+                    jitter_seconds = $5,
+                    daily_window_start = $6,
+                    daily_window_end = $7,
+                    caption_rules = $8::jsonb,
+                    next_release_at = $9,
+                    total_items = $10,
+                    released_items = $11,
+                    failed_items = $12,
+                    updated_at = NOW()
+                WHERE id = $13
+                """,
+                campaign.title,
+                status_val,
+                campaign.interval_minutes,
+                campaign.batch_size,
+                campaign.jitter_seconds,
+                campaign.daily_window_start,
+                campaign.daily_window_end,
+                caption_rules_json,
+                campaign.next_release_at,
+                campaign.total_items,
+                campaign.released_items,
+                campaign.failed_items,
+                campaign.id,
+            )
+            return "UPDATE 1" in res
+
+    async def delete_drip_campaign(self, campaign_id: str) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.delete_drip_campaign(campaign_id)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute("DELETE FROM reservoir_items WHERE campaign_id = $1", campaign_id)
+            res = await conn.execute("DELETE FROM drip_campaigns WHERE id = $1", campaign_id)
+            return "DELETE 1" in res
+
+    async def list_reservoir_items(
+        self,
+        campaign_id: str,
+        status: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[ReservoirItem], int]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_reservoir_items(
+                campaign_id, status, limit, offset
+            )
+
+        async with self.pool.acquire() as conn:
+            if status:
+                total = await conn.fetchval(
+                    "SELECT COUNT(*) FROM reservoir_items WHERE campaign_id = $1 AND status = $2",
+                    campaign_id,
+                    status,
+                )
+                rows = await conn.fetch(
+                    """
+                    SELECT * FROM reservoir_items
+                    WHERE campaign_id = $1 AND status = $2
+                    ORDER BY position ASC, scheduled_at ASC
+                    LIMIT $3 OFFSET $4
+                    """,
+                    campaign_id,
+                    status,
+                    limit,
+                    offset,
+                )
+            else:
+                total = await conn.fetchval(
+                    "SELECT COUNT(*) FROM reservoir_items WHERE campaign_id = $1",
+                    campaign_id,
+                )
+                rows = await conn.fetch(
+                    """
+                    SELECT * FROM reservoir_items
+                    WHERE campaign_id = $1
+                    ORDER BY position ASC, scheduled_at ASC
+                    LIMIT $2 OFFSET $3
+                    """,
+                    campaign_id,
+                    limit,
+                    offset,
+                )
+            return [self._pg_row_to_reservoir_item(r) for r in rows], int(total or 0)
+
+    async def get_reservoir_item(self, item_id: str) -> ReservoirItem | None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_reservoir_item(item_id)
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM reservoir_items WHERE id = $1", item_id)
+            if not row:
+                return None
+            return self._pg_row_to_reservoir_item(row)
+
+    async def update_reservoir_item(self, item: ReservoirItem) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.update_reservoir_item(item)
+
+        status_val = item.status.value if hasattr(item.status, "value") else str(item.status)
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE reservoir_items SET
+                    transformed_caption = $1,
+                    status = $2,
+                    scheduled_at = $3,
+                    released_at = $4,
+                    published_message_id = $5,
+                    error_message = $6
+                WHERE id = $7
+                """,
+                item.transformed_caption,
+                status_val,
+                item.scheduled_at,
+                item.released_at,
+                item.published_message_id,
+                item.error_message,
+                item.id,
+            )
+            return "UPDATE 1" in res
+
+    async def get_due_drip_items(
+        self, now_iso: str
+    ) -> list[tuple[DripCampaign, ReservoirItem]]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_due_drip_items(now_iso)
+
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT
+                    c.id as c_id, c.title as c_title, c.source_channel_id as c_source_channel_id,
+                    c.target_channel_id as c_target_channel_id, c.source_channel_title as c_source_channel_title,
+                    c.target_channel_title as c_target_channel_title, c.source_account_id as c_source_account_id,
+                    c.target_account_id as c_target_account_id, c.status as c_status,
+                    c.interval_minutes as c_interval_minutes, c.batch_size as c_batch_size,
+                    c.jitter_seconds as c_jitter_seconds, c.daily_window_start as c_daily_window_start,
+                    c.daily_window_end as c_daily_window_end, c.caption_rules as c_caption_rules,
+                    c.next_release_at as c_next_release_at, c.total_items as c_total_items,
+                    c.released_items as c_released_items, c.failed_items as c_failed_items,
+                    c.created_at as c_created_at, c.updated_at as c_updated_at,
+                    i.id as i_id, i.campaign_id as i_campaign_id, i.source_message_id as i_source_message_id,
+                    i.media_type as i_media_type, i.file_id as i_file_id,
+                    i.original_caption as i_original_caption, i.transformed_caption as i_transformed_caption,
+                    i.status as i_status, i.scheduled_at as i_scheduled_at,
+                    i.released_at as i_released_at, i.published_message_id as i_published_message_id,
+                    i.error_message as i_error_message, i.position as i_position, i.created_at as i_created_at
+                FROM drip_campaigns c
+                JOIN reservoir_items i ON c.id = i.campaign_id
+                WHERE c.status = 'ACTIVE'
+                  AND i.status = 'QUEUED'
+                  AND (i.scheduled_at <= $1 OR i.scheduled_at IS NULL OR i.scheduled_at = '')
+                ORDER BY c.id, i.position ASC, i.scheduled_at ASC
+                """,
+                now_iso,
+            )
+            results: list[tuple[DripCampaign, ReservoirItem]] = []
+            campaign_batch_counts: dict[str, int] = {}
+
+            for r in rows:
+                camp = DripCampaign(
+                    id=str(r["c_id"]),
+                    title=str(r["c_title"]),
+                    source_channel_id=int(r["c_source_channel_id"]),
+                    target_channel_id=int(r["c_target_channel_id"]),
+                    source_channel_title=r["c_source_channel_title"],
+                    target_channel_title=r["c_target_channel_title"],
+                    source_account_id=r["c_source_account_id"],
+                    target_account_id=r["c_target_account_id"],
+                    status=CampaignStatus(r["c_status"]) if r["c_status"] in CampaignStatus.__members__.values() else CampaignStatus.ACTIVE,
+                    interval_minutes=int(r["c_interval_minutes"] or 60),
+                    batch_size=int(r["c_batch_size"] or 1),
+                    jitter_seconds=int(r["c_jitter_seconds"] or 0),
+                    daily_window_start=r["c_daily_window_start"],
+                    daily_window_end=r["c_daily_window_end"],
+                    caption_rules=json.loads(r["c_caption_rules"]) if isinstance(r["c_caption_rules"], str) else r["c_caption_rules"],
+                    next_release_at=r["c_next_release_at"],
+                    total_items=int(r["c_total_items"] or 0),
+                    released_items=int(r["c_released_items"] or 0),
+                    failed_items=int(r["c_failed_items"] or 0),
+                    created_at=str(r["c_created_at"]),
+                    updated_at=str(r["c_updated_at"]),
+                )
+                item = ReservoirItem(
+                    id=str(r["i_id"]),
+                    campaign_id=str(r["i_campaign_id"]),
+                    source_message_id=int(r["i_source_message_id"]),
+                    media_type=str(r["i_media_type"] or "video"),
+                    file_id=r["i_file_id"],
+                    original_caption=str(r["i_original_caption"] or ""),
+                    transformed_caption=str(r["i_transformed_caption"] or ""),
+                    status=ReservoirItemStatus(r["i_status"]) if r["i_status"] in ReservoirItemStatus.__members__.values() else ReservoirItemStatus.QUEUED,
+                    scheduled_at=str(r["i_scheduled_at"] or ""),
+                    released_at=r["i_released_at"],
+                    published_message_id=r["i_published_message_id"],
+                    error_message=r["i_error_message"],
+                    position=int(r["i_position"] or 0),
+                    created_at=str(r["i_created_at"]),
+                )
+
+                curr_count = campaign_batch_counts.get(camp.id, 0)
+                if curr_count < max(1, camp.batch_size):
+                    results.append((camp, item))
+                    campaign_batch_counts[camp.id] = curr_count + 1
+
+            return results
 
     async def close(self) -> None:
         if self.pool is not None:
