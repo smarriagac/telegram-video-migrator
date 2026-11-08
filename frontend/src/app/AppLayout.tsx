@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   MessageSquare,
@@ -19,6 +19,7 @@ import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { useThemeStore } from "@/shared/lib/useThemeStore";
 import { BrandLogo } from "@/shared/components/BrandLogo";
 import { NotificationBell } from "@/shared/components/NotificationBell";
+import { ViewLoadingFallback } from "@/shared/components/ViewLoadingFallback";
 import { Separator } from "@/shared/components/ui/separator";
 import {
   Breadcrumb,
@@ -448,7 +449,9 @@ export const AppLayout: React.FC = () => {
 
           {/* View Container */}
           <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col bg-background">
-            <Outlet />
+            <Suspense fallback={<ViewLoadingFallback />}>
+              <Outlet />
+            </Suspense>
           </main>
         </SidebarInset>
       </div>

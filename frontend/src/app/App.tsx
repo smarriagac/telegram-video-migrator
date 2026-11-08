@@ -1,19 +1,44 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./AppLayout";
 import { ProtectedRoute } from "./ProtectedRoute";
-import { LoginView } from "../features/auth/presentation/LoginView";
-import { MigrationView } from "../features/migration/presentation/MigrationView";
-import { PipelineModulesView } from "../features/migration/presentation/PipelineModulesView";
-import { ChatsView } from "../features/chats/presentation/ChatsView";
-import { JobsView } from "../features/jobs/presentation/JobsView";
-import { LiveSyncHubView } from "../features/sync/presentation/LiveSyncHubView";
-import { AnalyticsView } from "../features/analytics/presentation/AnalyticsView";
-import { SettingsView } from "../features/settings/presentation/SettingsView";
-import { AuditView } from "../features/audit/presentation/AuditView";
-import { BillingPlansView } from "../features/billing/presentation/BillingPlansView";
-import { ChannelManagementView } from "../features/channels/presentation/ChannelManagementView";
 import { ErrorBoundary } from "../shared/components/ErrorBoundary";
+import { ViewLoadingFallback } from "../shared/components/ViewLoadingFallback";
+
+// Lazy-loaded route components for optimal bundle splitting
+const LoginView = lazy(() =>
+  import("../features/auth/presentation/LoginView").then((m) => ({ default: m.LoginView }))
+);
+const MigrationView = lazy(() =>
+  import("../features/migration/presentation/MigrationView").then((m) => ({ default: m.MigrationView }))
+);
+const PipelineModulesView = lazy(() =>
+  import("../features/migration/presentation/PipelineModulesView").then((m) => ({ default: m.PipelineModulesView }))
+);
+const ChatsView = lazy(() =>
+  import("../features/chats/presentation/ChatsView").then((m) => ({ default: m.ChatsView }))
+);
+const JobsView = lazy(() =>
+  import("../features/jobs/presentation/JobsView").then((m) => ({ default: m.JobsView }))
+);
+const LiveSyncHubView = lazy(() =>
+  import("../features/sync/presentation/LiveSyncHubView").then((m) => ({ default: m.LiveSyncHubView }))
+);
+const AnalyticsView = lazy(() =>
+  import("../features/analytics/presentation/AnalyticsView").then((m) => ({ default: m.AnalyticsView }))
+);
+const SettingsView = lazy(() =>
+  import("../features/settings/presentation/SettingsView").then((m) => ({ default: m.SettingsView }))
+);
+const AuditView = lazy(() =>
+  import("../features/audit/presentation/AuditView").then((m) => ({ default: m.AuditView }))
+);
+const BillingPlansView = lazy(() =>
+  import("../features/billing/presentation/BillingPlansView").then((m) => ({ default: m.BillingPlansView }))
+);
+const ChannelManagementView = lazy(() =>
+  import("../features/channels/presentation/ChannelManagementView").then((m) => ({ default: m.ChannelManagementView }))
+);
 
 export const App: React.FC = () => {
   return (
@@ -21,7 +46,14 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           {/* Public Login Route */}
-          <Route path="/login" element={<LoginView />} />
+          <Route
+            path="/login"
+            element={
+              <Suspense fallback={<ViewLoadingFallback message="Iniciando acceso..." />}>
+                <LoginView />
+              </Suspense>
+            }
+          />
 
           {/* Protected Dashboard Shell */}
           <Route element={<ProtectedRoute />}>
