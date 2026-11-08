@@ -53,5 +53,15 @@ class EventBroadcaster:
         """Broadcast an event payload to all active subscribers of a topic or job_id."""
         await self.publish(topic, payload)
 
+    @property
+    def subscriber_count(self) -> int:
+        """Total active subscription queues across all topics."""
+        return sum(len(queues) for queues in self._subscribers.values())
+
+    @property
+    def topic_count(self) -> int:
+        """Total active topics currently being listened to."""
+        return len(self._subscribers)
+
 
 broadcaster = EventBroadcaster()

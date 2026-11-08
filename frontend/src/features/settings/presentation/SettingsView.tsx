@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   Database,
   Activity,
+  Stethoscope,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Switch } from "@/shared/components/ui/switch";
@@ -22,6 +23,7 @@ import { alertsApi } from "../infrastructure/alertsApi";
 import { BackupManagerCard } from "./components/BackupManagerCard";
 import { WebhookManagerCard } from "./components/WebhookManagerCard";
 import { RateGovernorCard } from "./components/RateGovernorCard";
+import { SystemDoctorCard } from "./components/SystemDoctorCard";
 import {
   Table,
   TableHeader,
@@ -47,8 +49,8 @@ import { cn } from "@/shared/lib/utils";
 
 export const SettingsView: React.FC = () => {
   // STRICT ARCHITECTURAL CONSTRAINT: At most 2 useState hooks
-  // Hook 1: Active tab navigation between Credentials, Users, Alerts, Backups and Rate Governor
-  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts" | "backups" | "governor">("credentials");
+  // Hook 1: Active tab navigation between Credentials, Users, Alerts, Backups, Rate Governor and System Doctor
+  const [activeTab, setActiveTab] = useState<"credentials" | "users" | "alerts" | "backups" | "governor" | "doctor">("credentials");
   // Hook 2: Consolidated local UI, alerts configuration and temporary action feedback banner
   const [localState, setLocalState] = useState<{
     feedback: { message: string; isError?: boolean } | null;
@@ -364,6 +366,18 @@ export const SettingsView: React.FC = () => {
             >
               <Activity className="w-3.5 h-3.5" />
               Gobernador de Tasa (AIMD)
+            </button>
+            <button
+              onClick={() => setActiveTab("doctor")}
+              className={cn(
+                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                activeTab === "doctor"
+                  ? "bg-primary text-primary-foreground shadow-sm font-semibold"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
+              )}
+            >
+              <Stethoscope className="w-3.5 h-3.5" />
+              Doctor del Sistema
             </button>
           </div>
         )}
@@ -905,6 +919,11 @@ export const SettingsView: React.FC = () => {
       {/* TAB 5: Adaptive Rate Governor (AIMD Token Bucket) */}
       {activeTab === "governor" && user?.role === "ADMIN" && (
         <RateGovernorCard />
+      )}
+
+      {/* TAB 6: System Doctor & Deep Diagnostics */}
+      {activeTab === "doctor" && user?.role === "ADMIN" && (
+        <SystemDoctorCard />
       )}
 
       {/* Confirmation Dialog (replaces browser window.confirm) */}

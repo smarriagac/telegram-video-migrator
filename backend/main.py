@@ -22,6 +22,7 @@ from backend.presentation.api.routers.backups import router as backups_router
 from backend.presentation.api.routers.templates import router as templates_router
 from backend.presentation.api.routers.webhooks import router as webhooks_router
 from backend.presentation.api.routers.rate_governor import router as rate_governor_router
+from backend.presentation.api.routers.doctor import router as doctor_router
 from backend.presentation.dependencies import get_job_repository, get_postgres_repository, get_webhook_repository
 
 logging.basicConfig(
@@ -170,6 +171,7 @@ app.include_router(backups_router, prefix="/api")
 app.include_router(templates_router, prefix="/api")
 app.include_router(webhooks_router, prefix="/api")
 app.include_router(rate_governor_router, prefix="/api")
+app.include_router(doctor_router, prefix="/api")
 app.include_router(billing_router)
 
 
