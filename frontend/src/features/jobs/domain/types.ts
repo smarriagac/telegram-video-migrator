@@ -26,6 +26,7 @@ export interface JobItem {
   caption_rules: Record<string, any> | null;
   drip_delay_seconds: number;
   media_filter_rules: Record<string, any> | null;
+  failover_count?: number;
 }
 
 export interface QueueItem {

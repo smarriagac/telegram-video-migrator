@@ -21,6 +21,7 @@ import {
   Upload,
   Film,
   Sparkles,
+  Shuffle,
 } from "lucide-react";
 import { useJobsStore } from "../application/useJobsStore";
 import { JobStatus } from "../domain/types";
@@ -718,7 +719,19 @@ export const JobsView: React.FC = () => {
 
                           {/* Estado */}
                           <TableCell className="py-2.5 px-3 whitespace-nowrap">
-                            {getStatusBadge(job.status)}
+                            <div className="flex flex-col gap-1 items-start">
+                              {getStatusBadge(job.status)}
+                              {Boolean(job.failover_count && job.failover_count > 0) && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-[9px] font-mono px-1.5 py-0 flex items-center gap-1"
+                                  title={`${job.failover_count} rotaciones de cuenta por FloodWait`}
+                                >
+                                  <Shuffle className="w-2.5 h-2.5" />
+                                  <span>{job.failover_count} failover{(job.failover_count ?? 0) > 1 ? "s" : ""}</span>
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
 
                           {/* Acciones */}

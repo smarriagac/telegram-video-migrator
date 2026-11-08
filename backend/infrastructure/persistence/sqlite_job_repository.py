@@ -97,6 +97,10 @@ class SQLiteJobRepository(JobRepositoryPort):
                 await conn.execute("ALTER TABLE migration_jobs ADD COLUMN scheduled_at TIMESTAMP;")
             except Exception:
                 pass
+            try:
+                await conn.execute("ALTER TABLE migration_jobs ADD COLUMN failover_count INTEGER NOT NULL DEFAULT 0;")
+            except Exception:
+                pass
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id TEXT NOT NULL,
@@ -235,8 +239,9 @@ class SQLiteJobRepository(JobRepositoryPort):
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_title, target_title,
-                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules, scheduled_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules, scheduled_at,
+                    failover_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """,
                 (
                     job.job_id,
@@ -257,6 +262,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                     job.drip_delay_seconds,
                     filter_json,
                     job.scheduled_at,
+                    getattr(job, "failover_count", 0),
                 ),
             )
             await conn.commit()
@@ -275,6 +281,23 @@ class SQLiteJobRepository(JobRepositoryPort):
                 WHERE id = ?;
                 """,
                 (processed_count, last_msg_id, job_id),
+            )
+            await conn.commit()
+
+    async def update_job_failover(
+        self, job_id: str, new_account_id: int, failover_count: int
+    ) -> None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE migration_jobs
+                SET target_account_id = ?,
+                    failover_count = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?;
+                """,
+                (new_account_id, failover_count, job_id),
             )
             await conn.commit()
 
@@ -312,6 +335,13 @@ class SQLiteJobRepository(JobRepositoryPort):
             except Exception:
                 parsed_filter = None
 
+        failover_cnt = 0
+        if len(row) > 18 and row[18] is not None:
+            try:
+                failover_cnt = int(row[18])
+            except Exception:
+                failover_cnt = 0
+
         return MigrationJob(
             job_id=str(row[0]),
             source_id=int(row[1]),
@@ -331,6 +361,7 @@ class SQLiteJobRepository(JobRepositoryPort):
             drip_delay_seconds=drip_sec,
             media_filter_rules=parsed_filter,
             scheduled_at=str(row[17]) if len(row) > 17 and row[17] is not None else None,
+            failover_count=failover_cnt,
         )
 
     async def get_job(self, job_id: str) -> MigrationJob | None:
@@ -342,7 +373,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_title, target_title,
                        source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
-                       scheduled_at
+                       scheduled_at, failover_count
                 FROM migration_jobs
                 WHERE id = ?;
                 """,
@@ -372,7 +403,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_title, target_title,
                            source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
-                           scheduled_at
+                           scheduled_at, failover_count
                     FROM migration_jobs
                     WHERE status = ?
                     ORDER BY created_at DESC
@@ -391,7 +422,7 @@ class SQLiteJobRepository(JobRepositoryPort):
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_title, target_title,
                            source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
-                           scheduled_at
+                           scheduled_at, failover_count
                     FROM migration_jobs
                     ORDER BY created_at DESC
                     LIMIT ? OFFSET ?;

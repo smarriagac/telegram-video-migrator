@@ -51,6 +51,7 @@ export interface MigrationJob {
   caption_rules?: CaptionRules | null;
   drip_delay_seconds?: number;
   media_filter_rules?: MediaFilterRules | null;
+  failover_count?: number;
 }
 
 export interface ProgressEventPayload {

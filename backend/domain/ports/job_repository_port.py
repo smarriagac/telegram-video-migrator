@@ -24,6 +24,12 @@ class JobRepositoryPort(ABC):
         """Update processed video count and last processed source message ID."""
         raise NotImplementedError
 
+    async def update_job_failover(
+        self, job_id: str, new_account_id: int, failover_count: int
+    ) -> None:
+        """Update active account and increment failover count upon hot-rotation."""
+        pass
+
     @abstractmethod
     async def set_job_status(self, job_id: str, status: JobStatus) -> None:
         """Update status of a migration job."""

@@ -84,6 +84,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS drip_delay_seconds INTEGER DEFAULT 0;
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS media_filter_rules JSONB;
                 ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMP WITH TIME ZONE;
+                ALTER TABLE migration_jobs ADD COLUMN IF NOT EXISTS failover_count INT NOT NULL DEFAULT 0;
 
                 CREATE TABLE IF NOT EXISTS migration_items (
                     job_id VARCHAR(64) NOT NULL REFERENCES migration_jobs(id) ON DELETE CASCADE,
@@ -226,8 +227,9 @@ class PostgresJobRepository(JobRepositoryPort):
                     id, source_channel_id, target_channel_id, status,
                     total_videos, processed_videos, last_processed_msg_id,
                     created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
-                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules, scheduled_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12, $13::jsonb, $14, $15::jsonb, $16)
+                    source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules, scheduled_at,
+                    failover_count
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), $8, $9, $10, $11, $12, $13::jsonb, $14, $15::jsonb, $16, $17)
                 ON CONFLICT (id) DO UPDATE SET
                     status = EXCLUDED.status,
                     total_videos = EXCLUDED.total_videos,
@@ -242,6 +244,7 @@ class PostgresJobRepository(JobRepositoryPort):
                     drip_delay_seconds = EXCLUDED.drip_delay_seconds,
                     media_filter_rules = EXCLUDED.media_filter_rules,
                     scheduled_at = EXCLUDED.scheduled_at,
+                    failover_count = EXCLUDED.failover_count,
                     updated_at = NOW();
                 """,
                 job.job_id,
@@ -260,6 +263,7 @@ class PostgresJobRepository(JobRepositoryPort):
                 job.drip_delay_seconds,
                 filter_rules_json,
                 sched_dt,
+                getattr(job, "failover_count", 0),
             )
 
     async def update_job_progress(
@@ -281,6 +285,28 @@ class PostgresJobRepository(JobRepositoryPort):
                 """,
                 processed_count,
                 last_msg_id,
+                job_id,
+            )
+
+    async def update_job_failover(
+        self, job_id: str, new_account_id: int, failover_count: int
+    ) -> None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.update_job_failover(job_id, new_account_id, failover_count)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE migration_jobs
+                SET target_account_id = $1,
+                    failover_count = $2,
+                    updated_at = NOW()
+                WHERE id = $3;
+                """,
+                new_account_id,
+                failover_count,
                 job_id,
             )
 
@@ -349,6 +375,7 @@ class PostgresJobRepository(JobRepositoryPort):
             drip_delay_seconds=drip_sec,
             media_filter_rules=parsed_filter,
             scheduled_at=str(row["scheduled_at"]) if "scheduled_at" in row and row["scheduled_at"] is not None else None,
+            failover_count=int(row["failover_count"]) if "failover_count" in row and row["failover_count"] is not None else 0,
         )
 
     async def get_job(self, job_id: str) -> MigrationJob | None:
@@ -364,7 +391,7 @@ class PostgresJobRepository(JobRepositoryPort):
                        total_videos, processed_videos, last_processed_msg_id,
                        created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
                        source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
-                       scheduled_at
+                       scheduled_at, failover_count
                 FROM migration_jobs
                 WHERE id = $1;
                 """,
@@ -398,7 +425,7 @@ class PostgresJobRepository(JobRepositoryPort):
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
                            source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
-                           scheduled_at
+                           scheduled_at, failover_count
                     FROM migration_jobs
                     WHERE status = $1
                     ORDER BY created_at DESC
@@ -416,7 +443,7 @@ class PostgresJobRepository(JobRepositoryPort):
                            total_videos, processed_videos, last_processed_msg_id,
                            created_at, updated_at, is_full_migration, source_channel_title, target_channel_title,
                            source_account_id, target_account_id, caption_rules, drip_delay_seconds, media_filter_rules,
-                           scheduled_at
+                           scheduled_at, failover_count
                     FROM migration_jobs
                     ORDER BY created_at DESC
                     LIMIT $1 OFFSET $2;

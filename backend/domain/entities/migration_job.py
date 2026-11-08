@@ -39,3 +39,4 @@ class MigrationJob:
     caption_rules: dict | None = None
     drip_delay_seconds: int = 0
     media_filter_rules: dict | None = None
+    failover_count: int = 0

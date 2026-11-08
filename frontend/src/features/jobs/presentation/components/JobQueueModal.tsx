@@ -28,6 +28,7 @@ import {
   ShieldAlert,
   Loader2,
   Zap,
+  Shuffle,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -112,11 +113,21 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
       <DialogContent className="max-w-3xl bg-card border-border text-foreground p-4 sm:p-6 shadow-xl max-h-[85vh] flex flex-col min-h-0">
         <DialogHeader className="border-b border-border pb-3 space-y-2 shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Layers className="w-4 h-4 text-primary shrink-0" />
               <DialogTitle className="text-sm font-semibold text-foreground font-mono">
                 Cola de Migración: <span className="text-muted-foreground font-normal">#{job.job_id.slice(0, 8)}</span>
               </DialogTitle>
+              {Boolean(job.failover_count && job.failover_count > 0) && (
+                <Badge
+                  variant="outline"
+                  className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-[10px] font-mono px-1.5 py-0.5 flex items-center gap-1"
+                  title={`${job.failover_count} rotación(es) automática(s) de cuenta MTProto por FloodWait`}
+                >
+                  <Shuffle className="w-3 h-3" />
+                  <span>{job.failover_count} failover{(job.failover_count ?? 0) > 1 ? "s" : ""}</span>
+                </Badge>
+              )}
             </div>
             {failedCount > 0 && (
               <Button

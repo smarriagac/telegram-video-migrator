@@ -295,11 +295,11 @@ class CloneChannelVideosUseCase:
                 and job.source_account_id != job.target_account_id
             )
 
-            target_account = getattr(job, "target_account_id", None) or getattr(job, "source_account_id", None)
+            current_target_account = getattr(job, "target_account_id", None) or getattr(job, "source_account_id", None)
             drip_delay_sec = float(getattr(job, "drip_delay_seconds", 0) or 0)
             if self.rate_governor:
                 await self.rate_governor.acquire(
-                    target_account, job.target_id, requested_delay=drip_delay_sec
+                    current_target_account, job.target_id, requested_delay=drip_delay_sec
                 )
 
             t0 = time.monotonic()
@@ -311,10 +311,10 @@ class CloneChannelVideosUseCase:
                             target_channel_id=job.target_id,
                             video=video,
                             source_account_id=job.source_account_id,  # type: ignore
-                            target_account_id=job.target_account_id,  # type: ignore
+                            target_account_id=current_target_account,  # type: ignore
                         )
                     else:
-                        acc_id = getattr(job, "source_account_id", None) or getattr(job, "target_account_id", None)
+                        acc_id = current_target_account
                         if acc_id is not None:
                             try:
                                 target_msg_id = await self.gateway.copy_video_by_reference(
@@ -331,15 +331,54 @@ class CloneChannelVideosUseCase:
                 except FloodWaitDomainException as fw:
                     wait_time = fw.seconds + 2
                     logger.warning(
-                        f"Flood wait encountered on job {job_id}. Pausing for {wait_time}s..."
+                        f"Flood wait encountered on job {job_id} for account #{current_target_account}: {fw.seconds}s"
                     )
                     if self.rate_governor:
                         await self.rate_governor.report_feedback(
-                            target_account,
+                            current_target_account,
                             job.target_id,
                             success=False,
                             flood_wait_seconds=fw.seconds,
                         )
+
+                    # Attempt Hot-Failover to an alternative connected account
+                    rotated = None
+                    if hasattr(self.gateway, "rotate_account_on_flood_wait"):
+                        rotate_call = self.gateway.rotate_account_on_flood_wait(
+                            account_id=current_target_account,
+                            flood_wait_seconds=fw.seconds,
+                            tenant_id=getattr(job, "tenant_id", None),
+                        )
+                        rotated = await rotate_call if (asyncio.iscoroutine(rotate_call) or hasattr(rotate_call, "__await__")) else rotate_call
+
+                    if rotated:
+                        new_acc_id, new_acc_name = rotated
+                        prev_acc = current_target_account
+                        current_target_account = new_acc_id
+                        job.target_account_id = new_acc_id
+                        new_failover_count = getattr(job, "failover_count", 0) + 1
+                        job.failover_count = new_failover_count
+
+                        if hasattr(self.repo, "update_job_failover"):
+                            upd_call = self.repo.update_job_failover(job_id, new_acc_id, new_failover_count)
+                            if asyncio.iscoroutine(upd_call) or hasattr(upd_call, "__await__"):
+                                await upd_call
+
+                        logger.info(
+                            f"Hot Failover: Job {job_id} rotated from account #{prev_acc} to #{new_acc_id} ('{new_acc_name}') due to FloodWait({fw.seconds}s). Continuing without pausing!"
+                        )
+                        if on_progress:
+                            await on_progress({
+                                "job_id": job_id,
+                                "status": JobStatus.RUNNING.value,
+                                "message": f"Hot Failover: Rotada cuenta a #{new_acc_id} ({new_acc_name}) por FloodWait ({fw.seconds}s)",
+                                "failover_count": new_failover_count,
+                                "active_account_id": new_acc_id,
+                            })
+                        # Immediately continue loop with the newly assigned account without pausing or sleeping!
+                        continue
+
+                    # Fallback when no alternative account is available: pause and wait cooldown
                     await self.repo.set_job_status(job_id, JobStatus.PAUSED_FLOOD_WAIT)
                     if on_progress:
                         await on_progress({

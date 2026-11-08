@@ -464,3 +464,100 @@ async def test_deduplication_api_endpoint():
         assert "estimated_saved_mb" in data
         assert data["engine_status"] == "ACTIVE"
 
+
+@pytest.mark.asyncio
+async def test_job_failover_persistence(repo: SQLiteJobRepository):
+    job_id = "test-failover-job-1"
+    job = MigrationJob(job_id=job_id, source_id=10, target_id=20, target_account_id=1, failover_count=0)
+    await repo.create_job(job)
+
+    # 1. Update failover
+    await repo.update_job_failover(job_id=job_id, new_account_id=2, failover_count=1)
+
+    # 2. Retrieve job and verify
+    updated_job = await repo.get_job(job_id)
+    assert updated_job is not None
+    assert updated_job.target_account_id == 2
+    assert updated_job.failover_count == 1
+
+
+@pytest.mark.asyncio
+async def test_use_case_hot_failover_on_flood_wait():
+    from backend.application.use_cases.clone_channel_videos_use_case import CloneChannelVideosUseCase
+    from backend.domain.entities.video_message import VideoMessage
+    from backend.domain.exceptions.domain_exceptions import FloodWaitDomainException
+    from unittest.mock import AsyncMock, MagicMock
+
+    gateway = MagicMock()
+    repo = MagicMock()
+
+    job = MigrationJob(
+        job_id="job_flood_failover",
+        source_id=-100111,
+        target_id=-100222,
+        source_account_id=1,
+        target_account_id=1,
+        failover_count=0,
+    )
+
+    sample_video = VideoMessage(
+        message_id=77,
+        source_channel_id=-100111,
+        caption="Flood prone video",
+        media_type="video",
+    )
+
+    use_case = CloneChannelVideosUseCase(
+        telegram_gateway=gateway,
+        job_repository=repo,
+        min_delay_seconds=0.01,
+        max_delay_seconds=0.01,
+    )
+
+    repo.get_job = AsyncMock(return_value=job)
+    repo.get_queue_items = AsyncMock(return_value=[])
+    gateway.fetch_channel_videos = AsyncMock(return_value=[sample_video])
+    repo.add_queue_items = AsyncMock()
+    repo.create_job = AsyncMock()
+    repo.set_job_status = AsyncMock()
+    repo.update_job_failover = AsyncMock()
+
+    mock_item = MagicMock()
+    mock_item.source_message_id = 77
+    mock_item.caption = "Flood prone video"
+    mock_item.media_type = "video"
+    mock_item.is_deduplicated = False
+    repo.get_next_pending_queue_item = AsyncMock(side_effect=[mock_item, None])
+    repo.is_item_migrated = AsyncMock(return_value=False)
+    repo.find_media_fingerprint_anywhere = AsyncMock(return_value=None)
+    repo.get_media_fingerprint = AsyncMock(return_value=None)
+    repo.update_queue_item_status = AsyncMock()
+    repo.record_migrated_item = AsyncMock()
+    repo.get_queue_stats = AsyncMock(return_value={"completed": 1, "failed": 0, "skipped": 0})
+    repo.update_job_progress = AsyncMock()
+
+    # Fail first with FloodWaitDomainException, rotate, then succeed
+    gateway.copy_video_by_reference = AsyncMock(side_effect=[
+        FloodWaitDomainException(seconds=300),
+        9999,
+    ])
+    gateway.rotate_account_on_flood_wait = AsyncMock(return_value=(2, "Backup Account"))
+
+    await use_case.execute("job_flood_failover")
+
+    # Verify rotation was called
+    gateway.rotate_account_on_flood_wait.assert_called_once_with(
+        account_id=1,
+        flood_wait_seconds=300,
+        tenant_id=None,
+    )
+    # Verify job failover was persisted
+    repo.update_job_failover.assert_called_once_with(
+        "job_flood_failover",
+        2,
+        1,
+    )
+    # Verify copy was attempted twice and ultimately succeeded
+    assert gateway.copy_video_by_reference.call_count == 2
+
+

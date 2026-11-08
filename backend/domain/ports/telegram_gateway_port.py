@@ -218,3 +218,12 @@ class TelegramGatewayPort(ABC):
     ) -> bool:
         """Click an inline keyboard button on a message (via callback or text)."""
         return False
+
+    async def rotate_account_on_flood_wait(
+        self,
+        account_id: int | None,
+        flood_wait_seconds: int,
+        tenant_id: str | None = None,
+    ) -> tuple[int, str] | None:
+        """Attempt to find an alternative active account when current account encounters FloodWait."""
+        return None

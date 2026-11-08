@@ -60,6 +60,7 @@ class JobResponse(BaseModel):
     caption_rules: dict | None = None
     drip_delay_seconds: int = 0
     media_filter_rules: dict | None = None
+    failover_count: int = 0
 
 
 class JobListResponse(BaseModel):
@@ -88,6 +89,7 @@ def _to_job_response(job: MigrationJob) -> JobResponse:
         caption_rules=job.caption_rules,
         drip_delay_seconds=job.drip_delay_seconds,
         media_filter_rules=job.media_filter_rules,
+        failover_count=getattr(job, "failover_count", 0),
     )
 
 
@@ -515,6 +517,7 @@ async def get_job(
         caption_rules=job.caption_rules,
         drip_delay_seconds=job.drip_delay_seconds,
         media_filter_rules=job.media_filter_rules,
+        failover_count=getattr(job, "failover_count", 0),
     )
 
 

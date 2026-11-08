@@ -91,4 +91,23 @@ describe("JobQueueModal Component", () => {
     // Verify Dedup counter in stats bar
     expect(screen.getByText("Dedup")).toBeInTheDocument();
   });
+
+  it("renders hot-failover badge when job has failover_count", () => {
+    const jobWithFailovers: JobItem = {
+      ...mockJob,
+      failover_count: 2,
+    };
+
+    render(
+      <JobQueueModal
+        job={jobWithFailovers}
+        queueStatus={mockQueueStatus}
+        isLoading={false}
+        onClose={vi.fn()}
+        onRetryFailed={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("2 failovers")).toBeInTheDocument();
+  });
 });

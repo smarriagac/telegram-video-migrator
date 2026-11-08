@@ -1480,3 +1480,32 @@ class TelethonAdapter(TelegramGatewayPort):
         except Exception as e:
             logger.warning(f"Error clicking message button on msg {message_id} in {chat_id}: {e}")
             return False
+
+    async def rotate_account_on_flood_wait(
+        self,
+        account_id: int | None,
+        flood_wait_seconds: int,
+        tenant_id: str | None = None,
+    ) -> tuple[int, str] | None:
+        """
+        Marks the current account as on FloodWait cooldown and attempts to find an alternative
+        connected client from the pool. Returns (new_account_id, new_account_name) if available.
+        """
+        if not self.pool:
+            return None
+
+        tid = tenant_id or self.tenant_id
+        if account_id is not None:
+            self.pool.mark_flood_wait(account_id, flood_wait_seconds)
+
+        alt = self.pool.get_available_client(
+            tenant_id=tid,
+            exclude_account_id=account_id,
+        )
+        if alt:
+            new_id, new_name, _ = alt
+            logger.info(
+                f"FailoverPool: Rotated from account #{account_id} to #{new_id} ('{new_name}') due to FloodWait ({flood_wait_seconds}s)"
+            )
+            return (new_id, new_name)
+        return None
