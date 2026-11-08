@@ -7,6 +7,8 @@ vi.mock("../../infrastructure/rateGovernorApi", () => ({
   rateGovernorApi: {
     getStatus: vi.fn(),
     resetChannel: vi.fn(),
+    getBandwidthStatus: vi.fn(),
+    updateBandwidthLimit: vi.fn(),
   },
 }));
 
@@ -14,6 +16,15 @@ const mockStatus: RateGovernorStatus = {
   total_managed_channels: 2,
   active_throttles: 1,
   frozen_channels: 1,
+  bandwidth: {
+    limit_bytes_per_sec: 0,
+    limit_mb_per_sec: 0,
+    is_unlimited: true,
+    current_rate_mb_per_sec: 4.2,
+    current_rate_bytes_per_sec: 4404019,
+    total_bytes_transferred: 52428800,
+    total_mb_transferred: 50.0,
+  },
   channels: [
     {
       account_id: 1,
@@ -145,6 +156,39 @@ describe("RateGovernorCard Component", () => {
     await waitFor(() => {
       expect(screen.getByText("-1001234567890")).toBeInTheDocument();
       expect(screen.queryByText("-1009876543210")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders bandwidth shaper telemetry and handles changing limit preset", async () => {
+    (rateGovernorApi.getStatus as any).mockResolvedValue(mockStatus);
+    (rateGovernorApi.updateBandwidthLimit as any).mockResolvedValue({
+      limit_bytes_per_sec: 10 * 1024 * 1024,
+      limit_mb_per_sec: 10,
+      is_unlimited: false,
+      current_rate_mb_per_sec: 4.2,
+      current_rate_bytes_per_sec: 4404019,
+      total_bytes_transferred: 52428800,
+      total_mb_transferred: 50.0,
+    });
+
+    render(<RateGovernorCard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Modelado de Ancho de Banda de Red (Bandwidth Shaper)")
+      ).toBeInTheDocument();
+      expect(screen.getByText("4.2 MB/s")).toBeInTheDocument();
+      expect(screen.getByText("50 MB")).toBeInTheDocument();
+    });
+
+    const preset10Btn = screen.getByRole("button", { name: /10 MB\/s/i });
+    fireEvent.click(preset10Btn);
+
+    await waitFor(() => {
+      expect(rateGovernorApi.updateBandwidthLimit).toHaveBeenCalledWith(10);
+      expect(
+        screen.getByText("Límite de ancho de banda fijado en 10 MB/s.")
+      ).toBeInTheDocument();
     });
   });
 });

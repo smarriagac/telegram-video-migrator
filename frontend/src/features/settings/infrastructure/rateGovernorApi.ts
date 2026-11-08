@@ -14,11 +14,22 @@ export interface ChannelThrottle {
   status: "HEALTHY" | "THROTTLED" | "FROZEN";
 }
 
+export interface BandwidthTelemetry {
+  limit_bytes_per_sec: number;
+  limit_mb_per_sec: number;
+  is_unlimited: boolean;
+  current_rate_mb_per_sec: number;
+  current_rate_bytes_per_sec: number;
+  total_bytes_transferred: number;
+  total_mb_transferred: number;
+}
+
 export interface RateGovernorStatus {
   total_managed_channels: number;
   active_throttles: number;
   frozen_channels: number;
   channels: ChannelThrottle[];
+  bandwidth?: BandwidthTelemetry;
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -58,6 +69,31 @@ export const rateGovernorApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Error al reiniciar gobernador de tasa");
+    }
+    return res.json();
+  },
+
+  async getBandwidthStatus(): Promise<BandwidthTelemetry> {
+    const res = await fetch(`${API_BASE_URL}/system/rate-governor/bandwidth`, {
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      throw new Error("Error al obtener estado de ancho de banda");
+    }
+    return res.json();
+  },
+
+  async updateBandwidthLimit(limitMbPerSec: number | null): Promise<BandwidthTelemetry> {
+    const res = await fetch(`${API_BASE_URL}/system/rate-governor/bandwidth`, {
+      method: "PUT",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ limit_mb_per_sec: limitMbPerSec }),
+    });
+    if (!res.ok) {
+      throw new Error("Error al actualizar límite de ancho de banda");
     }
     return res.json();
   },

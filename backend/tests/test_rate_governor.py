@@ -115,3 +115,54 @@ async def test_rate_governor_api_endpoints():
         assert reset_res.status_code == 200
         reset_data = reset_res.json()
         assert reset_data.get("success") is True
+
+
+@pytest.mark.asyncio
+async def test_bandwidth_shaper_and_governor_methods():
+    from backend.application.services.rate_governor_service import BandwidthShaper
+
+    # 1. Unlimited mode
+    shaper = BandwidthShaper(limit_bytes_per_sec=0)
+    delay = await shaper.throttle(10 * 1024 * 1024)
+    assert delay == 0.0
+    telemetry = shaper.get_telemetry()
+    assert telemetry["is_unlimited"] is True
+    assert telemetry["total_bytes_transferred"] == 10 * 1024 * 1024
+
+    # 2. Capped mode (e.g. 2 MB/s)
+    shaper.set_limit_mbps(2.0)
+    assert shaper.limit_bytes_per_sec == 2 * 1024 * 1024
+    telemetry2 = shaper.get_telemetry()
+    assert telemetry2["is_unlimited"] is False
+    assert telemetry2["limit_mb_per_sec"] == 2.0
+
+
+@pytest.mark.asyncio
+async def test_rate_governor_bandwidth_api_endpoints():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. GET bandwidth status
+        res = await client.get("/api/system/rate-governor/bandwidth")
+        assert res.status_code == 200
+        data = res.json()
+        assert "limit_mb_per_sec" in data
+        assert "is_unlimited" in data
+
+        # 2. PUT bandwidth limit (e.g. 15.5 MB/s)
+        put_res = await client.put(
+            "/api/system/rate-governor/bandwidth",
+            json={"limit_mb_per_sec": 15.5},
+        )
+        assert put_res.status_code == 200
+        put_data = put_res.json()
+        assert put_data["limit_mb_per_sec"] == 15.5
+        assert put_data["is_unlimited"] is False
+
+        # 3. PUT back to unlimited
+        unlim_res = await client.put(
+            "/api/system/rate-governor/bandwidth",
+            json={"limit_mb_per_sec": 0},
+        )
+        assert unlim_res.status_code == 200
+        assert unlim_res.json()["is_unlimited"] is True
+

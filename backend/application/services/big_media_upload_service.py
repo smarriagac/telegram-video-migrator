@@ -126,6 +126,14 @@ class BigMediaUploadService:
         with open(chunk_path, "wb") as f:
             f.write(chunk_bytes)
 
+        # Apply network bandwidth shaper
+        try:
+            from backend.application.services.rate_governor_service import get_rate_governor_service
+            gov = get_rate_governor_service()
+            await gov.throttle_bandwidth(len(chunk_bytes))
+        except Exception:
+            pass
+
         completed = self._get_completed_chunks(upload_id)
         progress = round((len(completed) / meta["total_chunks"]) * 100.0, 1)
 

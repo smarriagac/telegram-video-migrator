@@ -11,6 +11,7 @@ import {
   Search,
   Gauge,
   XCircle,
+  ArrowDownUp,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -35,11 +36,13 @@ export const RateGovernorCard: React.FC = () => {
   const [governorState, setGovernorState] = useState<{
     data: RateGovernorStatus | null;
     isLoading: boolean;
+    isUpdatingBandwidth: boolean;
     feedback: { message: string; isError?: boolean } | null;
     actionTarget: string | null;
   }>({
     data: null,
     isLoading: true,
+    isUpdatingBandwidth: false,
     feedback: null,
     actionTarget: null,
   });
@@ -82,6 +85,26 @@ export const RateGovernorCard: React.FC = () => {
     setTimeout(() => {
       setGovernorState((prev) => ({ ...prev, feedback: null }));
     }, 3500);
+  };
+
+  const handleSetBandwidthLimit = async (limitMb: number | null) => {
+    setGovernorState((prev) => ({ ...prev, isUpdatingBandwidth: true }));
+    try {
+      const updated = await rateGovernorApi.updateBandwidthLimit(limitMb);
+      setGovernorState((prev) => ({
+        ...prev,
+        data: prev.data ? { ...prev.data, bandwidth: updated } : null,
+      }));
+      showFeedback(
+        updated.is_unlimited
+          ? "Límite de ancho de banda desactivado (Ilimitado)."
+          : `Límite de ancho de banda fijado en ${updated.limit_mb_per_sec} MB/s.`
+      );
+    } catch (err: any) {
+      showFeedback(err?.message || "Error al actualizar límite de ancho de banda", true);
+    } finally {
+      setGovernorState((prev) => ({ ...prev, isUpdatingBandwidth: false }));
+    }
   };
 
   const handleResetChannel = async (targetId: string, accountId?: number | string | null) => {
@@ -236,6 +259,69 @@ export const RateGovernorCard: React.FC = () => {
           <p className="text-xs font-mono font-medium text-foreground truncate">
             AIMD (5 cap / 0.5s refill)
           </p>
+        </div>
+      </div>
+
+      {/* Bandwidth Shaper Section */}
+      <div className="p-3.5 rounded-lg bg-secondary/20 border border-border space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ArrowDownUp className="w-4 h-4 text-primary shrink-0" />
+            <div>
+              <span className="text-xs font-semibold font-mono text-foreground">
+                Modelado de Ancho de Banda de Red (Bandwidth Shaper)
+              </span>
+              <p className="text-[11px] text-muted-foreground">
+                Regula el throughput de subida de chunks para evitar saturación de red y desconexiones MTProto.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-mono shrink-0">
+            <span className="text-muted-foreground">Tasa actual:</span>
+            <span className="font-bold text-foreground">
+              {governorState.data?.bandwidth?.current_rate_mb_per_sec ?? 0} MB/s
+            </span>
+            <span className="text-muted-foreground">| Total:</span>
+            <span className="font-bold text-foreground">
+              {governorState.data?.bandwidth?.total_mb_transferred ?? 0} MB
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[11px] font-mono text-muted-foreground mr-1">Límite de subida:</span>
+          {[
+            { label: "Ilimitado", val: 0 },
+            { label: "5 MB/s", val: 5 },
+            { label: "10 MB/s", val: 10 },
+            { label: "25 MB/s", val: 25 },
+            { label: "50 MB/s", val: 50 },
+          ].map((preset) => {
+            const isSelected =
+              preset.val === 0
+                ? governorState.data?.bandwidth?.is_unlimited ?? true
+                : governorState.data?.bandwidth?.limit_mb_per_sec === preset.val &&
+                  !governorState.data?.bandwidth?.is_unlimited;
+
+            return (
+              <button
+                key={preset.label}
+                type="button"
+                disabled={governorState.isUpdatingBandwidth}
+                onClick={() => handleSetBandwidthLimit(preset.val)}
+                className={cn(
+                  "px-2.5 py-1 rounded text-[11px] font-mono border transition-all flex items-center gap-1",
+                  isSelected
+                    ? "bg-primary/20 border-primary text-primary font-bold shadow-xs"
+                    : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground/50",
+                  governorState.isUpdatingBandwidth && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <span>{preset.label}</span>
+                {isSelected && <CheckCircle2 className="w-3 h-3 text-primary inline" />}
+              </button>
+            );
+          })}
         </div>
       </div>
 

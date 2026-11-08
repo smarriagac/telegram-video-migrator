@@ -48,6 +48,103 @@ class ChannelThrottleState:
         }
 
 
+class BandwidthShaper:
+    """
+    Token-bucket byte-rate limiter and egress speed tracker.
+    Regulates upload and download throughput to prevent network saturation.
+    """
+
+    def __init__(self, limit_bytes_per_sec: int = 0) -> None:
+        self.limit_bytes_per_sec = max(0, limit_bytes_per_sec)  # 0 = unlimited
+        self._tokens: float = float(self.limit_bytes_per_sec)
+        self._last_check: float = time.monotonic()
+        self._lock = asyncio.Lock()
+
+        # Telemetry tracking
+        self.total_bytes_transferred: int = 0
+        self._window_bytes: int = 0
+        self._window_start: float = time.monotonic()
+        self._current_rate_bps: float = 0.0
+
+    def set_limit_mbps(self, limit_mb_per_sec: float | None) -> None:
+        if limit_mb_per_sec is None or limit_mb_per_sec <= 0:
+            self.limit_bytes_per_sec = 0
+            self._tokens = 0.0
+        else:
+            self.limit_bytes_per_sec = int(limit_mb_per_sec * 1024 * 1024)
+            self._tokens = float(self.limit_bytes_per_sec)
+        self._last_check = time.monotonic()
+
+    async def throttle(self, byte_count: int) -> float:
+        """
+        Record byte transfer and sleep if rate exceeds limit.
+        Returns seconds delayed.
+        """
+        if byte_count <= 0:
+            return 0.0
+
+        delay = 0.0
+        async with self._lock:
+            now = time.monotonic()
+            self.total_bytes_transferred += byte_count
+            self._window_bytes += byte_count
+
+            # Update moving rate every 1.0 seconds
+            elapsed_window = now - self._window_start
+            if elapsed_window >= 1.0:
+                self._current_rate_bps = self._window_bytes / max(0.1, elapsed_window)
+                self._window_bytes = 0
+                self._window_start = now
+
+            if self.limit_bytes_per_sec <= 0:
+                return 0.0
+
+            # Token bucket refill
+            elapsed = now - self._last_check
+            self._last_check = now
+            self._tokens = min(
+                float(self.limit_bytes_per_sec * 2),  # burst capacity = 2x
+                self._tokens + elapsed * self.limit_bytes_per_sec,
+            )
+
+            self._tokens -= byte_count
+            if self._tokens < 0:
+                debt = abs(self._tokens)
+                delay = debt / self.limit_bytes_per_sec
+                delay = min(delay, 5.0)
+
+        if delay > 0:
+            await asyncio.sleep(delay)
+            self._last_check = time.monotonic()
+
+        return delay
+
+    def get_telemetry(self) -> dict[str, Any]:
+        now = time.monotonic()
+        elapsed_window = now - self._window_start
+        rate_bps = self._current_rate_bps
+        if elapsed_window > 3.0:
+            rate_bps = 0.0
+
+        limit_mb = (
+            round(self.limit_bytes_per_sec / (1024 * 1024), 2)
+            if self.limit_bytes_per_sec > 0
+            else 0.0
+        )
+        current_mb = round(rate_bps / (1024 * 1024), 2)
+        total_mb = round(self.total_bytes_transferred / (1024 * 1024), 2)
+
+        return {
+            "limit_bytes_per_sec": self.limit_bytes_per_sec,
+            "limit_mb_per_sec": limit_mb,
+            "is_unlimited": self.limit_bytes_per_sec <= 0,
+            "current_rate_mb_per_sec": current_mb,
+            "current_rate_bytes_per_sec": round(rate_bps, 1),
+            "total_bytes_transferred": self.total_bytes_transferred,
+            "total_mb_transferred": total_mb,
+        }
+
+
 class RateGovernorService:
     """
     Centralized Adaptive Rate Governor & Concurrency Throttle for Telegram operations.
@@ -60,10 +157,12 @@ class RateGovernorService:
         default_capacity: float = 5.0,
         default_refill_rate: float = 0.5,
         broadcaster_instance: EventBroadcaster | None = None,
+        bandwidth_limit_bytes_per_sec: int = 0,
     ) -> None:
         self.default_capacity = default_capacity
         self.default_refill_rate = default_refill_rate
         self.broadcaster = broadcaster_instance or broadcaster
+        self.bandwidth_shaper = BandwidthShaper(limit_bytes_per_sec=bandwidth_limit_bytes_per_sec)
         self._states: dict[str, ChannelThrottleState] = {}
         self._lock = asyncio.Lock()
 
@@ -227,8 +326,17 @@ class RateGovernorService:
                 if state.frozen_until <= now:
                     state.status = "HEALTHY" if state.backoff_multiplier <= 1.05 else "THROTTLED"
 
+    async def throttle_bandwidth(self, byte_count: int) -> float:
+        """Throttle transfer speed if exceeding configured bandwidth cap."""
+        return await self.bandwidth_shaper.throttle(byte_count)
+
+    def set_bandwidth_limit_mbps(self, limit_mb_per_sec: float | None) -> dict[str, Any]:
+        """Configure global egress/ingress bandwidth cap in MB/s (None or 0 = unlimited)."""
+        self.bandwidth_shaper.set_limit_mbps(limit_mb_per_sec)
+        return self.bandwidth_shaper.get_telemetry()
+
     def get_status(self) -> dict[str, Any]:
-        """Telemetry snapshot of all managed channels."""
+        """Telemetry snapshot of all managed channels and bandwidth shaper."""
         now = time.monotonic()
         channel_list = []
         active_throttles = 0
@@ -247,6 +355,7 @@ class RateGovernorService:
             "active_throttles": active_throttles,
             "frozen_channels": frozen_count,
             "channels": channel_list,
+            "bandwidth": self.bandwidth_shaper.get_telemetry(),
         }
 
     def reset_channel(self, account_id: int | str | None, target_id: int | str) -> bool:

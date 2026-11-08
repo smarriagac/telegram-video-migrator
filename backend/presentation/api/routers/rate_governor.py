@@ -32,11 +32,26 @@ class ChannelThrottleResponse(BaseModel):
     status: str
 
 
+class BandwidthTelemetryResponse(BaseModel):
+    limit_bytes_per_sec: int
+    limit_mb_per_sec: float
+    is_unlimited: bool
+    current_rate_mb_per_sec: float
+    current_rate_bytes_per_sec: float
+    total_bytes_transferred: int
+    total_mb_transferred: float
+
+
+class UpdateBandwidthLimitRequest(BaseModel):
+    limit_mb_per_sec: float | None = None  # None or 0 = unlimited
+
+
 class RateGovernorStatusResponse(BaseModel):
     total_managed_channels: int
     active_throttles: int
     frozen_channels: int
     channels: list[ChannelThrottleResponse]
+    bandwidth: BandwidthTelemetryResponse | None = None
 
 
 class ResetRateGovernorRequest(BaseModel):
@@ -48,8 +63,26 @@ class ResetRateGovernorRequest(BaseModel):
 async def get_rate_governor_status(
     governor: RateGovernorService = Depends(get_rate_governor),
 ) -> RateGovernorStatusResponse:
-    """Telemetry snapshot of adaptive token buckets, active throttles, and flood wait cooldowns."""
+    """Telemetry snapshot of adaptive token buckets, active throttles, flood wait cooldowns, and network bandwidth."""
     return RateGovernorStatusResponse(**governor.get_status())
+
+
+@router.get("/bandwidth", response_model=BandwidthTelemetryResponse)
+async def get_bandwidth_status(
+    governor: RateGovernorService = Depends(get_rate_governor),
+) -> BandwidthTelemetryResponse:
+    """Get real-time bandwidth egress rate and configured limit."""
+    return BandwidthTelemetryResponse(**governor.bandwidth_shaper.get_telemetry())
+
+
+@router.put("/bandwidth", response_model=BandwidthTelemetryResponse)
+async def update_bandwidth_limit(
+    payload: UpdateBandwidthLimitRequest,
+    governor: RateGovernorService = Depends(get_rate_governor),
+) -> BandwidthTelemetryResponse:
+    """Update global network transfer speed limit in MB/s (0 or null = unlimited)."""
+    res = governor.set_bandwidth_limit_mbps(payload.limit_mb_per_sec)
+    return BandwidthTelemetryResponse(**res)
 
 
 @router.post("/reset")
