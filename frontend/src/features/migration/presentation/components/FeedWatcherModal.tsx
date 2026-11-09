@@ -24,6 +24,14 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
 import { Badge } from "@/shared/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { Switch } from "@/shared/components/ui/switch";
 import { Channel } from "@/features/migration/domain/types";
 import {
   feedWatcherApi,
@@ -290,16 +298,20 @@ export const FeedWatcherModal: React.FC<FeedWatcherModalProps> = ({
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Plataforma:</label>
-                  <select
+                  <Select
                     value={form.platform}
-                    onChange={(e) => setForm((prev) => ({ ...prev, platform: e.target.value }))}
-                    className="w-full h-8 px-2 text-xs rounded border border-border bg-secondary/50 text-foreground"
+                    onValueChange={(val) => setForm((prev) => ({ ...prev, platform: val }))}
                   >
-                    <option value="tiktok">TikTok</option>
-                    <option value="youtube">YouTube Shorts</option>
-                    <option value="instagram">Instagram Reels</option>
-                    <option value="web">Genérico / Web</option>
-                  </select>
+                    <SelectTrigger className="h-8 text-xs bg-secondary/50 border-border">
+                      <SelectValue placeholder="Seleccionar plataforma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="youtube">YouTube Shorts</SelectItem>
+                      <SelectItem value="instagram">Instagram Reels</SelectItem>
+                      <SelectItem value="web">Genérico / Web</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -318,99 +330,99 @@ export const FeedWatcherModal: React.FC<FeedWatcherModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Canal de Telegram Destino:</label>
-                  <select
-                    value={form.targetChannelId}
-                    onChange={(e) => setForm((prev) => ({ ...prev, targetChannelId: Number(e.target.value) }))}
-                    className="w-full h-8 px-2 text-xs rounded border border-border bg-secondary/50 text-foreground"
+                  <Select
+                    value={form.targetChannelId ? String(form.targetChannelId) : undefined}
+                    onValueChange={(val) => setForm((prev) => ({ ...prev, targetChannelId: Number(val) }))}
                   >
-                    {channels.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title} ({c.id})
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-8 text-xs bg-secondary/50 border-border">
+                      <SelectValue placeholder="Seleccionar canal destino" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {channels.map((c) => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.title} ({c.id})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Intervalo de Chequeo:</label>
-                  <select
-                    value={form.checkIntervalMinutes}
-                    onChange={(e) => setForm((prev) => ({ ...prev, checkIntervalMinutes: Number(e.target.value) }))}
-                    className="w-full h-8 px-2 text-xs rounded border border-border bg-secondary/50 text-foreground"
+                  <Select
+                    value={String(form.checkIntervalMinutes)}
+                    onValueChange={(val) => setForm((prev) => ({ ...prev, checkIntervalMinutes: Number(val) }))}
                   >
-                    <option value={15}>Cada 15 minutos</option>
-                    <option value={30}>Cada 30 minutos</option>
-                    <option value={60}>Cada 1 hora</option>
-                    <option value={120}>Cada 2 horas</option>
-                    <option value={360}>Cada 6 horas</option>
-                  </select>
+                    <SelectTrigger className="h-8 text-xs bg-secondary/50 border-border">
+                      <SelectValue placeholder="Intervalo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">Cada 15 minutos</SelectItem>
+                      <SelectItem value="30">Cada 30 minutos</SelectItem>
+                      <SelectItem value="60">Cada 1 hora</SelectItem>
+                      <SelectItem value="120">Cada 2 horas</SelectItem>
+                      <SelectItem value="360">Cada 6 horas</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
               {/* Pipeline Auto-Flags */}
-              <div className="p-3 rounded-lg border border-border bg-secondary/20 space-y-2">
-                <span className="text-[11px] font-mono font-semibold text-muted-foreground uppercase tracking-wider">
+              <div className="p-3.5 rounded-lg border border-border bg-secondary/20 space-y-3">
+                <span className="text-[11px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block">
                   Pipeline Automático de Procesamiento:
                 </span>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-md bg-card/60 border border-border/60">
+                    <span className="text-xs font-medium text-foreground">9:16 Vertical (Stories/Blur)</span>
+                    <Switch
                       checked={form.aspectRatioMode === "9:16_BLUR"}
-                      onChange={(e) =>
+                      onCheckedChange={(checked) =>
                         setForm((prev) => ({
                           ...prev,
-                          aspectRatioMode: e.target.checked ? "9:16_BLUR" : "ORIGINAL",
+                          aspectRatioMode: checked ? "9:16_BLUR" : "ORIGINAL",
                         }))
                       }
-                      className="rounded"
                     />
-                    <span>9:16 Vertical (Stories/Blur)</span>
-                  </label>
+                  </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.burnSubtitles}
-                      onChange={(e) => setForm((prev) => ({ ...prev, burnSubtitles: e.target.checked }))}
-                      className="rounded"
-                    />
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-yellow-400" />
+                  <div className="flex items-center justify-between p-2.5 rounded-md bg-card/60 border border-border/60">
+                    <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
                       Subtítulos Cinéticos
                     </span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.sliceStories}
-                      onChange={(e) => setForm((prev) => ({ ...prev, sliceStories: e.target.checked }))}
-                      className="rounded"
+                    <Switch
+                      checked={form.burnSubtitles}
+                      onCheckedChange={(checked) => setForm((prev) => ({ ...prev, burnSubtitles: checked }))}
                     />
-                    <span className="flex items-center gap-1">
-                      <Scissors className="w-3 h-3 text-amber-400" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-md bg-card/60 border border-border/60">
+                    <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Scissors className="w-3.5 h-3.5 text-amber-400" />
                       Slicer 60s (Álbum)
                     </span>
-                  </label>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.mode === "RESERVOIR"}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          mode: e.target.checked ? "RESERVOIR" : "DIRECT",
-                        }))
-                      }
-                      className="rounded"
+                    <Switch
+                      checked={form.sliceStories}
+                      onCheckedChange={(checked) => setForm((prev) => ({ ...prev, sliceStories: checked }))}
                     />
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-sky-400" />
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 rounded-md bg-card/60 border border-border/60">
+                    <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-sky-400" />
                       Goteo en Reservorio
                     </span>
-                  </label>
+                    <Switch
+                      checked={form.mode === "RESERVOIR"}
+                      onCheckedChange={(checked) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          mode: checked ? "RESERVOIR" : "DIRECT",
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 
