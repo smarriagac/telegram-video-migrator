@@ -18,6 +18,7 @@ from backend.domain.entities.drip_campaign import (
     ReservoirItem,
     ReservoirItemStatus,
 )
+from backend.domain.entities.feed_source import FeedSource
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 
 
@@ -278,6 +279,28 @@ class SQLiteJobRepository(JobRepositoryPort):
             """)
             await conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_reservoir_scheduled ON reservoir_items(status, scheduled_at);
+            """)
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS feed_sources (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    source_url TEXT NOT NULL,
+                    platform TEXT NOT NULL DEFAULT 'tiktok',
+                    target_channel_id INTEGER NOT NULL,
+                    target_channel_title TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    check_interval_minutes INTEGER NOT NULL DEFAULT 60,
+                    pipeline_config TEXT,
+                    last_checked_at TEXT,
+                    last_video_id TEXT,
+                    total_ingested INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_feed_sources_tenant ON feed_sources(tenant_id, is_active, last_checked_at);
             """)
             await conn.commit()
             self._initialized = True
@@ -2187,6 +2210,127 @@ class SQLiteJobRepository(JobRepositoryPort):
                     campaign_batch_counts[camp.id] = current_count + 1
 
             return results
+
+    def _row_to_feed_source(self, row: tuple) -> FeedSource:
+        return FeedSource.from_row({
+            "id": row[0],
+            "tenant_id": row[1],
+            "title": row[2],
+            "source_url": row[3],
+            "platform": row[4],
+            "target_channel_id": row[5],
+            "target_channel_title": row[6],
+            "is_active": row[7],
+            "check_interval_minutes": row[8],
+            "pipeline_config": row[9],
+            "last_checked_at": row[10],
+            "last_video_id": row[11],
+            "total_ingested": row[12],
+            "created_at": row[13],
+            "updated_at": row[14],
+        })
+
+    async def create_feed_source(self, source: FeedSource) -> FeedSource:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO feed_sources (
+                    id, tenant_id, title, source_url, platform,
+                    target_channel_id, target_channel_title, is_active,
+                    check_interval_minutes, pipeline_config, last_checked_at,
+                    last_video_id, total_ingested, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    source.id,
+                    source.tenant_id,
+                    source.title,
+                    source.source_url,
+                    source.platform,
+                    source.target_channel_id,
+                    source.target_channel_title,
+                    1 if source.is_active else 0,
+                    source.check_interval_minutes,
+                    source.pipeline_config_json,
+                    source.last_checked_at,
+                    source.last_video_id,
+                    source.total_ingested,
+                    source.created_at,
+                    source.updated_at,
+                ),
+            )
+            await conn.commit()
+            return source
+
+    async def get_feed_source(self, source_id: str) -> FeedSource | None:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute(
+                "SELECT id, tenant_id, title, source_url, platform, target_channel_id, target_channel_title, is_active, check_interval_minutes, pipeline_config, last_checked_at, last_video_id, total_ingested, created_at, updated_at FROM feed_sources WHERE id = ?",
+                (source_id,),
+            )
+            row = await cursor.fetchone()
+            return self._row_to_feed_source(row) if row else None
+
+    async def list_feed_sources(
+        self, tenant_id: str = "default", active_only: bool = False
+    ) -> list[FeedSource]:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            if active_only:
+                query = "SELECT id, tenant_id, title, source_url, platform, target_channel_id, target_channel_title, is_active, check_interval_minutes, pipeline_config, last_checked_at, last_video_id, total_ingested, created_at, updated_at FROM feed_sources WHERE tenant_id = ? AND is_active = 1 ORDER BY created_at DESC"
+                cursor = await conn.execute(query, (tenant_id,))
+            else:
+                query = "SELECT id, tenant_id, title, source_url, platform, target_channel_id, target_channel_title, is_active, check_interval_minutes, pipeline_config, last_checked_at, last_video_id, total_ingested, created_at, updated_at FROM feed_sources WHERE tenant_id = ? ORDER BY created_at DESC"
+                cursor = await conn.execute(query, (tenant_id,))
+            rows = await cursor.fetchall()
+            return [self._row_to_feed_source(r) for r in rows]
+
+    async def update_feed_source(self, source: FeedSource) -> FeedSource:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                UPDATE feed_sources SET
+                    title = ?,
+                    source_url = ?,
+                    platform = ?,
+                    target_channel_id = ?,
+                    target_channel_title = ?,
+                    is_active = ?,
+                    check_interval_minutes = ?,
+                    pipeline_config = ?,
+                    last_checked_at = ?,
+                    last_video_id = ?,
+                    total_ingested = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    source.title,
+                    source.source_url,
+                    source.platform,
+                    source.target_channel_id,
+                    source.target_channel_title,
+                    1 if source.is_active else 0,
+                    source.check_interval_minutes,
+                    source.pipeline_config_json,
+                    source.last_checked_at,
+                    source.last_video_id,
+                    source.total_ingested,
+                    source.id,
+                ),
+            )
+            await conn.commit()
+            return source
+
+    async def delete_feed_source(self, source_id: str) -> bool:
+        await self._ensure_initialized()
+        async with self._get_connection() as conn:
+            cursor = await conn.execute("DELETE FROM feed_sources WHERE id = ?", (source_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
 
     async def close(self) -> None:
         if self._shared_mem_conn is not None:

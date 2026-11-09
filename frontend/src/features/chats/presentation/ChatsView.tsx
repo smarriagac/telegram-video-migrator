@@ -43,6 +43,7 @@ import { ChatAvatar } from "@/shared/components/ui/chat-avatar";
 import { OrganizeChannelModal } from "@/features/migration/presentation/components/OrganizeChannelModal";
 import { BroadcastMessageModal } from "./components/BroadcastMessageModal";
 import { MediaIngestionModal } from "@/features/migration/presentation/components/MediaIngestionModal";
+import { FeedWatcherModal } from "@/features/migration/presentation/components/FeedWatcherModal";
 import { ChannelMessageItem, Channel } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -394,6 +395,7 @@ interface ExtraViewState {
   previewModalMsg: Message | null;
   broadcastModalOpen: boolean;
   isIngestionModalOpen: boolean;
+  isFeedWatcherModalOpen: boolean;
 }
 
 export const ChatsView: React.FC = () => {
@@ -415,6 +417,7 @@ export const ChatsView: React.FC = () => {
     previewModalMsg: null,
     broadcastModalOpen: false,
     isIngestionModalOpen: false,
+    isFeedWatcherModalOpen: false,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1148,6 +1151,20 @@ export const ChatsView: React.FC = () => {
                   >
                     <DownloadCloud className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">TikTok/Reels</span>
+                  </Button>
+
+                  {/* Button: Auto-Pilot Feeds Watcher */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setViewState((prev) => ({ ...prev, isFeedWatcherModalOpen: true }))
+                    }
+                    className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-violet-500/30 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 font-mono cursor-pointer transition-all"
+                    title="Configurar monitor automático de perfiles de TikTok, Reels y Shorts"
+                  >
+                    <Radio className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Auto-Pilot Feeds</span>
                   </Button>
 
                   {/* Mode: Multi-Select for Self-Organization / Albums (Only for Own Channels/Groups or Admins) */}
@@ -2200,6 +2217,14 @@ export const ChatsView: React.FC = () => {
           }
           loadDialogs(false);
         }}
+      />
+
+      {/* Auto-Pilot Feeds Watcher Modal */}
+      <FeedWatcherModal
+        isOpen={viewState.isFeedWatcherModalOpen}
+        onClose={() => setViewState((s) => ({ ...s, isFeedWatcherModalOpen: false }))}
+        channels={destinationChannels}
+        selectedTargetId={activeChat?.id || null}
       />
     </div>
   );

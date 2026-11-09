@@ -18,6 +18,7 @@ from backend.domain.entities.drip_campaign import (
     ReservoirItem,
     ReservoirItemStatus,
 )
+from backend.domain.entities.feed_source import FeedSource
 from backend.domain.ports.job_repository_port import JobRepositoryPort
 from backend.infrastructure.persistence.sqlite_job_repository import SQLiteJobRepository
 
@@ -245,6 +246,25 @@ class PostgresJobRepository(JobRepositoryPort):
                 );
                 CREATE INDEX IF NOT EXISTS idx_reservoir_campaign_status ON reservoir_items(campaign_id, status, position);
                 CREATE INDEX IF NOT EXISTS idx_reservoir_scheduled ON reservoir_items(status, scheduled_at);
+
+                CREATE TABLE IF NOT EXISTS feed_sources (
+                    id VARCHAR(64) PRIMARY KEY,
+                    tenant_id VARCHAR(64) NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    source_url TEXT NOT NULL,
+                    platform VARCHAR(32) NOT NULL DEFAULT 'tiktok',
+                    target_channel_id BIGINT NOT NULL,
+                    target_channel_title TEXT,
+                    is_active INT NOT NULL DEFAULT 1,
+                    check_interval_minutes INT NOT NULL DEFAULT 60,
+                    pipeline_config JSONB,
+                    last_checked_at VARCHAR(64),
+                    last_video_id TEXT,
+                    total_ingested INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                CREATE INDEX IF NOT EXISTS idx_feed_sources_tenant ON feed_sources(tenant_id, is_active, last_checked_at);
             """)
         self._initialized = True
 
@@ -2589,6 +2609,136 @@ class PostgresJobRepository(JobRepositoryPort):
                     campaign_batch_counts[camp.id] = curr_count + 1
 
             return results
+
+    async def create_feed_source(self, source: FeedSource) -> FeedSource:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.create_feed_source(source)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO feed_sources (
+                    id, tenant_id, title, source_url, platform,
+                    target_channel_id, target_channel_title, is_active,
+                    check_interval_minutes, pipeline_config, last_checked_at,
+                    last_video_id, total_ingested, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, NOW(), NOW())
+                ON CONFLICT (id) DO UPDATE SET
+                    title = EXCLUDED.title,
+                    source_url = EXCLUDED.source_url,
+                    platform = EXCLUDED.platform,
+                    target_channel_id = EXCLUDED.target_channel_id,
+                    target_channel_title = EXCLUDED.target_channel_title,
+                    is_active = EXCLUDED.is_active,
+                    check_interval_minutes = EXCLUDED.check_interval_minutes,
+                    pipeline_config = EXCLUDED.pipeline_config,
+                    last_checked_at = EXCLUDED.last_checked_at,
+                    last_video_id = EXCLUDED.last_video_id,
+                    total_ingested = EXCLUDED.total_ingested,
+                    updated_at = NOW();
+                """,
+                source.id,
+                source.tenant_id,
+                source.title,
+                source.source_url,
+                source.platform,
+                source.target_channel_id,
+                source.target_channel_title,
+                1 if source.is_active else 0,
+                source.check_interval_minutes,
+                source.pipeline_config_json,
+                source.last_checked_at,
+                source.last_video_id,
+                source.total_ingested,
+            )
+            return source
+
+    async def get_feed_source(self, source_id: str) -> FeedSource | None:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.get_feed_source(source_id)
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id, tenant_id, title, source_url, platform, target_channel_id, target_channel_title, is_active, check_interval_minutes, pipeline_config, last_checked_at, last_video_id, total_ingested, created_at, updated_at FROM feed_sources WHERE id = $1",
+                source_id,
+            )
+            if not row:
+                return None
+            return FeedSource.from_row(dict(row))
+
+    async def list_feed_sources(
+        self, tenant_id: str = "default", active_only: bool = False
+    ) -> list[FeedSource]:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.list_feed_sources(tenant_id, active_only)
+
+        async with self.pool.acquire() as conn:
+            if active_only:
+                rows = await conn.fetch(
+                    "SELECT id, tenant_id, title, source_url, platform, target_channel_id, target_channel_title, is_active, check_interval_minutes, pipeline_config, last_checked_at, last_video_id, total_ingested, created_at, updated_at FROM feed_sources WHERE tenant_id = $1 AND is_active = 1 ORDER BY created_at DESC",
+                    tenant_id,
+                )
+            else:
+                rows = await conn.fetch(
+                    "SELECT id, tenant_id, title, source_url, platform, target_channel_id, target_channel_title, is_active, check_interval_minutes, pipeline_config, last_checked_at, last_video_id, total_ingested, created_at, updated_at FROM feed_sources WHERE tenant_id = $1 ORDER BY created_at DESC",
+                    tenant_id,
+                )
+            return [FeedSource.from_row(dict(r)) for r in rows]
+
+    async def update_feed_source(self, source: FeedSource) -> FeedSource:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.update_feed_source(source)
+
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE feed_sources SET
+                    title = $1,
+                    source_url = $2,
+                    platform = $3,
+                    target_channel_id = $4,
+                    target_channel_title = $5,
+                    is_active = $6,
+                    check_interval_minutes = $7,
+                    pipeline_config = $8::jsonb,
+                    last_checked_at = $9,
+                    last_video_id = $10,
+                    total_ingested = $11,
+                    updated_at = NOW()
+                WHERE id = $12
+                """,
+                source.title,
+                source.source_url,
+                source.platform,
+                source.target_channel_id,
+                source.target_channel_title,
+                1 if source.is_active else 0,
+                source.check_interval_minutes,
+                source.pipeline_config_json,
+                source.last_checked_at,
+                source.last_video_id,
+                source.total_ingested,
+                source.id,
+            )
+            return source
+
+    async def delete_feed_source(self, source_id: str) -> bool:
+        await self._ensure_initialized()
+        if self._fallback_mode or self.pool is None:
+            assert self._fallback_repo is not None
+            return await self._fallback_repo.delete_feed_source(source_id)
+
+        async with self.pool.acquire() as conn:
+            res = await conn.execute("DELETE FROM feed_sources WHERE id = $1", source_id)
+            return "DELETE 1" in res
 
     async def close(self) -> None:
         if self.pool is not None:

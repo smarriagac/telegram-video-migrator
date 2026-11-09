@@ -8,6 +8,7 @@ from backend.domain.entities.sync_binding import ChannelSyncBinding
 from backend.domain.entities.scheduled_broadcast import ScheduledBroadcast
 from backend.domain.entities.app_notification import AppNotification
 from backend.domain.entities.drip_campaign import DripCampaign, ReservoirItem
+from backend.domain.entities.feed_source import FeedSource
 
 
 class JobRepositoryPort(ABC):
@@ -394,6 +395,28 @@ class JobRepositoryPort(ABC):
         self, now_iso: str
     ) -> list[tuple[DripCampaign, ReservoirItem]]:
         """Find pending reservoir items whose scheduled_at <= now_iso belonging to ACTIVE campaigns."""
+        raise NotImplementedError
+
+    async def create_feed_source(self, source: FeedSource) -> FeedSource:
+        """Create a new monitored external feed source."""
+        raise NotImplementedError
+
+    async def get_feed_source(self, source_id: str) -> FeedSource | None:
+        """Retrieve a monitored feed source by ID."""
+        raise NotImplementedError
+
+    async def list_feed_sources(
+        self, tenant_id: str = "default", active_only: bool = False
+    ) -> list[FeedSource]:
+        """List monitored feed sources for tenant."""
+        raise NotImplementedError
+
+    async def update_feed_source(self, source: FeedSource) -> FeedSource:
+        """Update feed source settings or last processed state."""
+        raise NotImplementedError
+
+    async def delete_feed_source(self, source_id: str) -> bool:
+        """Delete a feed source."""
         raise NotImplementedError
 
 

@@ -522,6 +522,22 @@ async def get_media_ingestion_service():
     return _media_ingestion_service_instance
 
 
+_feed_watcher_service_instance = None
+
+
+async def get_feed_watcher_service():
+    global _feed_watcher_service_instance
+    if _feed_watcher_service_instance is None:
+        from backend.application.services.feed_watcher_service import FeedWatcherService
+        repo = await get_job_repository()
+        ingest_svc = await get_media_ingestion_service()
+        _feed_watcher_service_instance = FeedWatcherService(
+            repository=repo,
+            ingestion_service=ingest_svc,
+        )
+    return _feed_watcher_service_instance
+
+
 
 
 

@@ -12,6 +12,7 @@ from backend.domain.entities.media_filter_rules import MediaFilterRules
 from backend.domain.entities.tenant import Tenant, PlanTier, TenantStatus
 from backend.domain.entities.subscription import Subscription, SubscriptionStatus, PaymentProvider
 from backend.domain.entities.channel_membership import ChannelMembership, MembershipStatus
+from backend.domain.entities.feed_source import FeedSource
 
 __all__ = [
     "Channel",
@@ -36,4 +37,5 @@ __all__ = [
     "PaymentProvider",
     "ChannelMembership",
     "MembershipStatus",
+    "FeedSource",
 ]
