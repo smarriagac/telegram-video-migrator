@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Switch } from "@/shared/components/ui/switch";
+import { SearchableChannelSelect } from "./SearchableChannelSelect";
 import { Channel } from "@/features/migration/domain/types";
 import {
   feedWatcherApi,
@@ -330,21 +331,17 @@ export const FeedWatcherModal: React.FC<FeedWatcherModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Canal de Telegram Destino:</label>
-                  <Select
-                    value={form.targetChannelId ? String(form.targetChannelId) : undefined}
-                    onValueChange={(val) => setForm((prev) => ({ ...prev, targetChannelId: Number(val) }))}
-                  >
-                    <SelectTrigger className="h-8 text-xs bg-secondary/50 border-border">
-                      <SelectValue placeholder="Seleccionar canal destino" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {channels.map((c) => (
-                        <SelectItem key={c.id} value={String(c.id)}>
-                          {c.title} ({c.id})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableChannelSelect
+                    value={form.targetChannelId || null}
+                    onChange={(id) => {
+                      setForm((prev) => ({
+                        ...prev,
+                        targetChannelId: id || 0,
+                      }));
+                    }}
+                    channels={channels}
+                    placeholder="Buscar canal destino..."
+                  />
                 </div>
 
                 <div className="space-y-1">
