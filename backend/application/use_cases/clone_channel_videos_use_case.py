@@ -410,7 +410,7 @@ class CloneChannelVideosUseCase:
                 latency_ms = (time.monotonic() - t0) * 1000.0
                 if self.rate_governor:
                     await self.rate_governor.report_feedback(
-                        target_account,
+                        current_target_account,
                         job.target_id,
                         success=True,
                         latency_ms=latency_ms,
