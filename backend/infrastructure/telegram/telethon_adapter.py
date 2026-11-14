@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from pathlib import Path
 from typing import Any
 from telethon import TelegramClient, types
@@ -1509,3 +1510,286 @@ class TelethonAdapter(TelegramGatewayPort):
             )
             return (new_id, new_name)
         return None
+
+    def _parse_invite_target(self, target: str) -> tuple[str, str]:
+        """Parses an invite string into ('hash', raw_hash) or ('username', clean_username)."""
+        clean = target.strip()
+        hash_match = re.search(r'(?:(?:https?:\/\/)?t\.me\/(?:\+|joinchat\/)|\+)([a-zA-Z0-9_-]+)', clean)
+        if hash_match:
+            return ("hash", hash_match.group(1))
+
+        user_match = re.search(r'(?:https?:\/\/)?t\.me\/([a-zA-Z0-9_]{4,})', clean)
+        if user_match:
+            return ("username", user_match.group(1))
+
+        if clean.startswith("@"):
+            return ("username", clean[1:])
+
+        if re.fullmatch(r'[a-zA-Z0-9_]{4,}', clean):
+            return ("username", clean)
+
+        return ("unknown", clean)
+
+    async def forward_messages(
+        self,
+        source_chat_id: int,
+        target_chat_ids: list[int] | int,
+        message_ids: list[int],
+        account_id: int | None = None,
+    ) -> list[int]:
+        """Forward messages to one or multiple destination chats/channels."""
+        client = self._get_client(account_id)
+        source_entity = await client.get_entity(source_chat_id)
+        targets = [target_chat_ids] if isinstance(target_chat_ids, int) else target_chat_ids
+        forwarded_ids: list[int] = []
+
+        for target_id in targets:
+            try:
+                target_entity = await client.get_entity(target_id)
+                res = await client.forward_messages(
+                    entity=target_entity,
+                    messages=message_ids,
+                    from_peer=source_entity,
+                )
+                if isinstance(res, list):
+                    forwarded_ids.extend([m.id for m in res if hasattr(m, "id")])
+                elif hasattr(res, "id"):
+                    forwarded_ids.append(res.id)
+            except Exception as e:
+                logger.error(f"Error forwarding messages {message_ids} to {target_id}: {e}")
+                raise
+
+        return forwarded_ids
+
+    async def check_chat_invite(
+        self,
+        invite_url_or_hash: str,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Check/inspect a private or public Telegram invite link before joining."""
+        client = self._get_client(account_id)
+        kind, value = self._parse_invite_target(invite_url_or_hash)
+
+        from telethon.tl.types import ChatInvite, ChatInviteAlready
+        from telethon.tl.functions.messages import CheckChatInviteRequest
+
+        if kind == "hash":
+            try:
+                invite = await client(CheckChatInviteRequest(hash=value))
+                if isinstance(invite, ChatInviteAlready):
+                    chat = invite.chat
+                    return {
+                        "already_joined": True,
+                        "chat_id": getattr(chat, "id", None),
+                        "title": getattr(chat, "title", "Canal / Grupo Privado"),
+                        "type": "channel" if getattr(chat, "broadcast", False) else "group",
+                        "participants_count": getattr(chat, "participants_count", None),
+                        "about": getattr(chat, "about", None),
+                        "hash": value,
+                    }
+                elif isinstance(invite, ChatInvite):
+                    return {
+                        "already_joined": False,
+                        "title": getattr(invite, "title", "Invitación a Grupo / Canal"),
+                        "type": "channel" if getattr(invite, "channel", False) else "group",
+                        "participants_count": getattr(invite, "participants_count", None),
+                        "about": getattr(invite, "about", None),
+                        "hash": value,
+                        "is_public": False,
+                    }
+            except Exception as e:
+                logger.warning(f"CheckChatInviteRequest failed for hash '{value}': {e}")
+                return {
+                    "already_joined": False,
+                    "title": "Enlace de Invitación Privado",
+                    "hash": value,
+                    "error": str(e),
+                }
+
+        elif kind == "username":
+            try:
+                entity = await client.get_entity(value)
+                return {
+                    "already_joined": True,
+                    "chat_id": getattr(entity, "id", None),
+                    "title": getattr(entity, "title", getattr(entity, "first_name", value)),
+                    "username": getattr(entity, "username", value),
+                    "type": "channel" if getattr(entity, "broadcast", False) else "group",
+                    "participants_count": getattr(entity, "participants_count", None),
+                    "about": getattr(entity, "about", None),
+                    "is_public": True,
+                }
+            except Exception as e:
+                logger.warning(f"Resolve username entity failed for '{value}': {e}")
+                return {
+                    "already_joined": False,
+                    "title": f"@{value}",
+                    "username": value,
+                    "is_public": True,
+                    "error": str(e),
+                }
+
+        return {"error": "Formato de enlace no reconocido", "raw": invite_url_or_hash}
+
+    async def join_chat_invite(
+        self,
+        invite_url_or_hash: str,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Join a private chat invite link or public channel/group."""
+        client = self._get_client(account_id)
+        kind, value = self._parse_invite_target(invite_url_or_hash)
+
+        from telethon.tl.functions.messages import ImportChatInviteRequest
+        from telethon.tl.functions.channels import JoinChannelRequest
+        from telethon.errors import UserAlreadyParticipantError
+
+        if kind == "hash":
+            try:
+                updates = await client(ImportChatInviteRequest(hash=value))
+                chat = updates.chats[0] if getattr(updates, "chats", None) else None
+                return {
+                    "success": True,
+                    "already_joined": False,
+                    "chat_id": getattr(chat, "id", None),
+                    "title": getattr(chat, "title", ""),
+                }
+            except UserAlreadyParticipantError:
+                return {
+                    "success": True,
+                    "already_joined": True,
+                    "message": "Ya eres miembro de este chat / grupo.",
+                }
+            except Exception as e:
+                logger.error(f"ImportChatInviteRequest failed for hash '{value}': {e}")
+                raise
+
+        elif kind == "username":
+            try:
+                entity = await client.get_entity(value)
+                await client(JoinChannelRequest(entity))
+                return {
+                    "success": True,
+                    "already_joined": False,
+                    "chat_id": getattr(entity, "id", None),
+                    "title": getattr(entity, "title", value),
+                }
+            except UserAlreadyParticipantError:
+                return {
+                    "success": True,
+                    "already_joined": True,
+                    "message": "Ya eres miembro de este canal / grupo.",
+                }
+            except Exception as e:
+                logger.error(f"JoinChannelRequest failed for '{value}': {e}")
+                raise
+
+        raise ValueError(f"Formato de invitación no válido: {invite_url_or_hash}")
+
+    async def get_chat_full_info(
+        self,
+        chat_id: int,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Retrieve full details, bio/description, participant count, and invite links for a chat/channel/user."""
+        client = self._get_client(account_id)
+        entity = await client.get_entity(chat_id)
+
+        info: dict[str, Any] = {
+            "id": getattr(entity, "id", chat_id),
+            "title": getattr(
+                entity,
+                "title",
+                f"{getattr(entity, 'first_name', '')} {getattr(entity, 'last_name', '')}".strip() or "Chat",
+            ),
+            "username": getattr(entity, "username", None),
+            "type": (
+                "channel"
+                if getattr(entity, "broadcast", False)
+                else ("group" if getattr(entity, "megagroup", False) or hasattr(entity, "participants_count") else "user")
+            ),
+            "participants_count": getattr(entity, "participants_count", None),
+            "online_count": None,
+            "about": None,
+            "invite_link": None,
+            "pinned_message_id": None,
+            "is_creator": getattr(entity, "creator", False),
+            "is_admin": getattr(entity, "admin_rights", None) is not None,
+            "can_change_info": (
+                getattr(entity, "creator", False)
+                or (
+                    getattr(entity, "admin_rights", None) is not None
+                    and getattr(entity.admin_rights, "change_info", False)
+                )
+            ),
+            "phone": None,
+            "is_bot": getattr(entity, "bot", False),
+            "avatar_color": None,
+        }
+
+        from telethon.tl.functions.channels import GetFullChannelRequest
+        from telethon.tl.functions.users import GetFullUserRequest
+        from telethon.tl.functions.messages import GetFullChatRequest
+
+        if getattr(entity, "broadcast", False) or getattr(entity, "megagroup", False):
+            try:
+                full = await client(GetFullChannelRequest(entity))
+                full_chat = full.full_chat
+                info["about"] = getattr(full_chat, "about", None)
+                info["participants_count"] = getattr(full_chat, "participants_count", info["participants_count"])
+                info["admins_count"] = getattr(full_chat, "admins_count", None)
+                info["pinned_message_id"] = getattr(full_chat, "pinned_msg_id", None)
+                if getattr(full_chat, "exported_invite", None):
+                    info["invite_link"] = getattr(full_chat.exported_invite, "link", None)
+            except Exception as e:
+                logger.warning(f"GetFullChannelRequest failed for {chat_id}: {e}")
+        elif isinstance(entity, types.User):
+            try:
+                full = await client(GetFullUserRequest(entity))
+                info["about"] = getattr(full.full_user, "about", None)
+                info["phone"] = getattr(entity, "phone", None)
+            except Exception as e:
+                logger.warning(f"GetFullUserRequest failed for user {chat_id}: {e}")
+        else:
+            try:
+                raw_id = entity.id if hasattr(entity, "id") else chat_id
+                full = await client(GetFullChatRequest(chat_id=raw_id))
+                full_chat = full.full_chat
+                info["about"] = getattr(full_chat, "about", None)
+                info["participants_count"] = getattr(full_chat, "participants_count", info["participants_count"])
+                if getattr(full_chat, "exported_invite", None):
+                    info["invite_link"] = getattr(full_chat.exported_invite, "link", None)
+            except Exception as e:
+                logger.warning(f"GetFullChatRequest failed for basic chat {chat_id}: {e}")
+
+        return info
+
+    async def update_chat_photo(
+        self,
+        chat_id: int,
+        file_path: str,
+        account_id: int | None = None,
+    ) -> bool:
+        """Upload and update the profile/avatar photo of a chat, channel, or user."""
+        client = self._get_client(account_id)
+        entity = await client.get_entity(chat_id)
+        uploaded = await client.upload_file(file_path)
+
+        from telethon.tl.types import InputChatUploadedPhoto
+        from telethon.tl.functions.channels import EditPhotoRequest
+        from telethon.tl.functions.photos import UploadProfilePhotoRequest
+        from telethon.tl.functions.messages import EditChatPhotoRequest
+
+        photo_arg = InputChatUploadedPhoto(file=uploaded)
+
+        if getattr(entity, "broadcast", False) or getattr(entity, "megagroup", False):
+            await client(EditPhotoRequest(channel=entity, photo=photo_arg))
+        elif isinstance(entity, types.User) and getattr(entity, "is_self", False):
+            await client(UploadProfilePhotoRequest(file=uploaded))
+        else:
+            raw_id = entity.id if hasattr(entity, "id") else chat_id
+            await client(EditChatPhotoRequest(chat_id=raw_id, photo=photo_arg))
+
+        # Evict local avatar cache
+        self._avatar_cache.pop(chat_id, None)
+        return True

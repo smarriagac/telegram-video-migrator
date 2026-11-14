@@ -117,4 +117,91 @@ export const chatApi = {
     const data = await res.json();
     return !!data.success;
   },
+
+  async forwardMessages(
+    chatId: number,
+    targetChatIds: number[],
+    messageIds: number[],
+    accountId?: number | null
+  ): Promise<{ success: boolean; forwarded_count: number; forwarded_message_ids: number[] }> {
+    const res = await fetch(`/api/dialogs/${chatId}/messages/forward`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target_chat_ids: targetChatIds,
+        message_ids: messageIds,
+        account_id: accountId ?? null,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al reenviar mensajes`);
+    }
+    return res.json();
+  },
+
+  async checkInvite(
+    inviteUrl: string,
+    accountId?: number | null
+  ): Promise<{ success: boolean; invite: any }> {
+    const res = await fetch("/api/dialogs/check-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invite_url: inviteUrl,
+        account_id: accountId ?? null,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al verificar enlace`);
+    }
+    return res.json();
+  },
+
+  async joinInvite(
+    inviteUrl: string,
+    accountId?: number | null
+  ): Promise<{ success: boolean; result: any }> {
+    const res = await fetch("/api/dialogs/join-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        invite_url: inviteUrl,
+        account_id: accountId ?? null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Error al unirse" }));
+      throw new Error(err.detail || `Error ${res.status} al unirse`);
+    }
+    return res.json();
+  },
+
+  async fetchChatFullInfo(chatId: number, accountId?: number | null): Promise<any> {
+    const url = accountId
+      ? `/api/dialogs/${chatId}/full-info?account_id=${accountId}`
+      : `/api/dialogs/${chatId}/full-info`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al obtener detalles del chat`);
+    }
+    const data = await res.json();
+    return data.chat;
+  },
+
+  async updateChatPhoto(chatId: number, file: File, accountId?: number | null): Promise<boolean> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const url = accountId
+      ? `/api/dialogs/${chatId}/photo?account_id=${accountId}`
+      : `/api/dialogs/${chatId}/photo`;
+    const res = await fetch(url, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al actualizar foto del chat`);
+    }
+    const data = await res.json();
+    return !!data.success;
+  },
 };

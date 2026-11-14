@@ -31,6 +31,8 @@ import {
   Tag,
   Crown,
   DownloadCloud,
+  Forward,
+  ExternalLink,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -44,6 +46,9 @@ import { OrganizeChannelModal } from "@/features/migration/presentation/componen
 import { BroadcastMessageModal } from "./components/BroadcastMessageModal";
 import { MediaIngestionModal } from "@/features/migration/presentation/components/MediaIngestionModal";
 import { FeedWatcherModal } from "@/features/migration/presentation/components/FeedWatcherModal";
+import { ForwardMessagesModal } from "./components/ForwardMessagesModal";
+import { JoinInviteModal } from "./components/JoinInviteModal";
+import { ChatProfileModal } from "./components/ChatProfileModal";
 import { ChannelMessageItem, Channel } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -372,6 +377,69 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   );
 };
 
+const renderFormattedMessageText = (
+  text: string,
+  onTelegramLinkClick: (url: string) => void
+) => {
+  if (!text) return null;
+
+  const urlRegex = /(https?:\/\/[^\s]+|t\.me\/[^\s]+|\+[a-zA-Z0-9_-]{8,})/gi;
+  const parts = text.split(urlRegex);
+
+  return parts.map((part, idx) => {
+    if (!part) return null;
+
+    const isTg =
+      part.startsWith("+") ||
+      part.includes("t.me/") ||
+      part.includes("telegram.me/");
+
+    const isHttp = /^https?:\/\//i.test(part);
+
+    if (isTg || isHttp) {
+      const fullUrl = part.startsWith("t.me/")
+        ? `https://${part}`
+        : part.startsWith("+")
+        ? `https://t.me/${part}`
+        : part;
+
+      if (isTg) {
+        return (
+          <button
+            key={idx}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTelegramLinkClick(fullUrl);
+            }}
+            className="inline-flex items-center gap-1 font-mono text-cyan-400 hover:text-cyan-300 underline underline-offset-2 font-medium bg-cyan-500/10 hover:bg-cyan-500/20 px-1 py-0.5 rounded transition-colors cursor-pointer select-text mx-0.5"
+            title="Abrir o unirse en Telegram Hub"
+          >
+            <span>{part}</span>
+            <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-70" />
+          </button>
+        );
+      }
+
+      return (
+        <a
+          key={idx}
+          href={fullUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-primary hover:text-primary/80 underline underline-offset-2 transition-colors inline-flex items-center gap-0.5"
+        >
+          <span>{part}</span>
+          <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-60" />
+        </a>
+      );
+    }
+
+    return <span key={idx}>{part}</span>;
+  });
+};
+
 interface VipModalState {
   isOpen: boolean;
   channelId: number;
@@ -396,6 +464,10 @@ interface ExtraViewState {
   broadcastModalOpen: boolean;
   isIngestionModalOpen: boolean;
   isFeedWatcherModalOpen: boolean;
+  forwardModalOpen: boolean;
+  forwardMessageIds: number[];
+  profileModalOpen: boolean;
+  inviteUrlToJoin: string | null;
 }
 
 export const ChatsView: React.FC = () => {
@@ -418,6 +490,10 @@ export const ChatsView: React.FC = () => {
     broadcastModalOpen: false,
     isIngestionModalOpen: false,
     isFeedWatcherModalOpen: false,
+    forwardModalOpen: false,
+    forwardMessageIds: [],
+    profileModalOpen: false,
+    inviteUrlToJoin: null,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1013,7 +1089,7 @@ export const ChatsView: React.FC = () => {
             <>
               {/* Conversation Header (shrink-0) */}
               <div className="p-2.5 px-3 border-b border-border flex items-center justify-between bg-card shrink-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <button
                     type="button"
                     onClick={() => selectChat(0)}
@@ -1023,92 +1099,99 @@ export const ChatsView: React.FC = () => {
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <ChatAvatar
-                    id={activeChat.id}
-                    title={activeChat.title}
-                    avatarColor={activeChat.avatar_color}
-                    accountId={selectedAccountId || activeChat.account_id}
-                    className="w-7 h-7 rounded-md"
-                  />
-                  <div className="min-w-0">
-                    <h2 className="text-xs font-bold text-white leading-none truncate max-w-[200px] sm:max-w-xs">
-                      {activeChat.title || "Conversación"}
-                    </h2>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      {/* Presence / Member Count / Subscriber Count */}
-                      {activeChat.type === "user" ? (
-                        activeChat.is_online ? (
-                          <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                            En línea
+                  <div
+                    onClick={() => setViewState((prev) => ({ ...prev, profileModalOpen: true }))}
+                    className="flex items-center gap-2 cursor-pointer group/header hover:opacity-90 transition-opacity min-w-0"
+                    title="Ver perfil e información de la comunidad"
+                  >
+                    <ChatAvatar
+                      id={activeChat.id}
+                      title={activeChat.title}
+                      avatarColor={activeChat.avatar_color}
+                      accountId={selectedAccountId || activeChat.account_id}
+                      className="w-7 h-7 rounded-md transition-transform group-hover/header:scale-105 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <h2 className="text-xs font-bold text-white leading-none truncate max-w-[200px] sm:max-w-xs group-hover/header:text-primary transition-colors">
+                        {activeChat.title || "Conversación"}
+                      </h2>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {/* Presence / Member Count / Subscriber Count */}
+                        {activeChat.type === "user" ? (
+                          activeChat.is_online ? (
+                            <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              En línea
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                              {activeChat.status_text || "Desconectado"}
+                            </span>
+                          )
+                        ) : activeChat.type === "channel" ? (
+                          <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                            <Radio className="w-2.5 h-2.5 text-primary shrink-0" />
+                            <span>{activeChat.status_text || "Canal"}</span>
                           </span>
                         ) : (
                           <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
-                            {activeChat.status_text || "Desconectado"}
+                            <Users className="w-2.5 h-2.5 text-primary shrink-0" />
+                            <span>{activeChat.status_text || "Grupo"}</span>
                           </span>
-                        )
-                      ) : activeChat.type === "channel" ? (
-                        <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
-                          <Radio className="w-2.5 h-2.5 text-primary shrink-0" />
-                          <span>{activeChat.status_text || "Canal"}</span>
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
-                          <Users className="w-2.5 h-2.5 text-primary shrink-0" />
-                          <span>{activeChat.status_text || "Grupo"}</span>
-                        </span>
-                      )}
+                        )}
 
-                      {/* Own Group / Channel Badge */}
-                      {activeChat.is_creator && (
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] font-mono px-1.5 py-0.5 rounded border-amber-500/35 text-amber-400 bg-amber-500/10 flex items-center gap-1 font-semibold"
-                        >
-                          <Crown className="w-2.5 h-2.5" />
-                          <span>{activeChat.type === "channel" ? "Canal Propio" : "Grupo Propio"}</span>
-                        </Badge>
-                      )}
-                      {!activeChat.is_creator && activeChat.is_admin && (
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] font-mono px-1.5 py-0.5 rounded border-primary/35 text-primary bg-primary/10 flex items-center gap-1 font-semibold"
-                        >
-                          Admin
-                        </Badge>
-                      )}
+                        {/* Own Group / Channel Badge */}
+                        {activeChat.is_creator && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded border-amber-500/35 text-amber-400 bg-amber-500/10 flex items-center gap-1 font-semibold"
+                          >
+                            <Crown className="w-2.5 h-2.5" />
+                            <span>{activeChat.type === "channel" ? "Canal Propio" : "Grupo Propio"}</span>
+                          </Badge>
+                        )}
+                        {!activeChat.is_creator && activeChat.is_admin && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded border-primary/35 text-primary bg-primary/10 flex items-center gap-1 font-semibold"
+                          >
+                            Admin
+                          </Badge>
+                        )}
 
-                      {/* Permissions Badge */}
-                      {activeChat.can_post === false ? (
-                        <span className="text-[9px] text-amber-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
-                          <Lock className="w-2.5 h-2.5" />
-                          Solo Lectura
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-cyan-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
-                          <Check className="w-2.5 h-2.5" />
-                          Envío Habilitado
-                        </span>
-                      )}
-                      {viewState.userMemberships.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setViewState((s) => ({
-                              ...s,
-                              showUserVipPopover: !s.showUserVipPopover,
-                            }))
-                          }
-                          className="text-[9px] text-primary font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors font-semibold cursor-pointer"
-                          title="Click para ver los canales/grupos VIP asociados a este usuario"
-                        >
-                          <Key className="w-2.5 h-2.5 text-primary" />
-                          <span>
-                            {viewState.userMemberships.length} Canal{viewState.userMemberships.length > 1 ? "es" : ""} VIP
+                        {/* Permissions Badge */}
+                        {activeChat.can_post === false ? (
+                          <span className="text-[9px] text-amber-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
+                            <Lock className="w-2.5 h-2.5" />
+                            Solo Lectura
                           </span>
-                        </button>
-                      )}
+                        ) : (
+                          <span className="text-[9px] text-cyan-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                            <Check className="w-2.5 h-2.5" />
+                            Envío Habilitado
+                          </span>
+                        )}
+                        {viewState.userMemberships.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setViewState((s) => ({
+                                ...s,
+                                showUserVipPopover: !s.showUserVipPopover,
+                              }));
+                            }}
+                            className="text-[9px] text-primary font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors font-semibold cursor-pointer"
+                            title="Click para ver los canales/grupos VIP asociados a este usuario"
+                          >
+                            <Key className="w-2.5 h-2.5 text-primary" />
+                            <span>
+                              {viewState.userMemberships.length} Canal{viewState.userMemberships.length > 1 ? "es" : ""} VIP
+                            </span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1167,34 +1250,36 @@ export const ChatsView: React.FC = () => {
                     <span className="hidden sm:inline">Auto-Pilot Feeds</span>
                   </Button>
 
-                  {/* Mode: Multi-Select for Self-Organization / Albums (Only for Own Channels/Groups or Admins) */}
-                  {Boolean(activeChat.is_creator || activeChat.is_admin) && (
-                    <Button
-                      variant={viewState.isSelectionMode ? "default" : "outline"}
-                      size="sm"
-                      onClick={() =>
-                        setViewState((prev) => ({
-                          ...prev,
-                          isSelectionMode: !prev.isSelectionMode,
-                          selectedMessageIds: prev.isSelectionMode ? [] : prev.selectedMessageIds,
-                        }))
-                      }
-                      className={cn(
-                        "h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 transition-all font-mono cursor-pointer",
-                        viewState.isSelectionMode
-                          ? "bg-primary text-primary-foreground font-semibold"
-                          : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-                      )}
-                      title="Seleccionar múltiples mensajes para organizar (#tag) o crear un álbum"
-                    >
-                      <CheckSquare className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">
-                        {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar"}
-                      </span>
-                    </Button>
-                  )}
+                  {/* Mode: Multi-Select for Forwarding / Self-Organization */}
+                  <Button
+                    variant={viewState.isSelectionMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() =>
+                      setViewState((prev) => ({
+                        ...prev,
+                        isSelectionMode: !prev.isSelectionMode,
+                        selectedMessageIds: prev.isSelectionMode ? [] : prev.selectedMessageIds,
+                      }))
+                    }
+                    className={cn(
+                      "h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 transition-all font-mono cursor-pointer",
+                      viewState.isSelectionMode
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                    )}
+                    title="Seleccionar mensajes para reenviar o agrupar"
+                  >
+                    <CheckSquare className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">
+                      {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar"}
+                    </span>
+                  </Button>
+
                   <button
-                    className="p-1 rounded-md hover:bg-white/5 text-zinc-400"
+                    type="button"
+                    onClick={() => setViewState((prev) => ({ ...prev, profileModalOpen: true }))}
+                    className="p-1 rounded-md hover:bg-white/5 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    title="Ver perfil del canal/chat"
                     aria-label="Más opciones"
                   >
                     <MoreVertical className="w-3.5 h-3.5" />
@@ -1221,12 +1306,29 @@ export const ChatsView: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      onClick={() => setViewState((prev) => ({ ...prev, organizeModalOpen: true }))}
-                      className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      onClick={() =>
+                        setViewState((prev) => ({
+                          ...prev,
+                          forwardModalOpen: true,
+                          forwardMessageIds: prev.selectedMessageIds,
+                        }))
+                      }
+                      className="h-7 px-2.5 text-xs bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
-                      <Tag className="w-3.5 h-3.5" />
-                      <span>Organizar / Álbum ({viewState.selectedMessageIds.length})</span>
+                      <Forward className="w-3.5 h-3.5" />
+                      <span>Reenviar ({viewState.selectedMessageIds.length})</span>
                     </Button>
+
+                    {Boolean(activeChat.is_creator || activeChat.is_admin) && (
+                      <Button
+                        size="sm"
+                        onClick={() => setViewState((prev) => ({ ...prev, organizeModalOpen: true }))}
+                        className="h-7 px-2.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      >
+                        <Tag className="w-3.5 h-3.5" />
+                        <span>Organizar / Álbum</span>
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1342,17 +1444,33 @@ export const ChatsView: React.FC = () => {
                                 : "bg-card dark:bg-[#172338] border border-border dark:border-[#22354e] text-foreground dark:text-slate-100 rounded-[18px] rounded-bl-[4px] self-start"
                             )}
                           >
-                            {/* Hover Action Buttons (Edit / Delete) */}
+                            {/* Hover Action Buttons (Forward / Edit / Delete) */}
                             {!isEditingThis && (
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2 z-20">
                                 <button
                                   type="button"
-                                  onClick={() => handleStartEdit(msg)}
-                                  title="Editar mensaje"
-                                  className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-white transition-colors border border-white/10 cursor-pointer shadow-xs"
+                                  onClick={() =>
+                                    setViewState((prev) => ({
+                                      ...prev,
+                                      forwardModalOpen: true,
+                                      forwardMessageIds: [msg.id],
+                                    }))
+                                  }
+                                  title="Reenviar mensaje"
+                                  className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-cyan-400 transition-colors border border-white/10 cursor-pointer shadow-xs"
                                 >
-                                  <Pencil className="w-3 h-3" />
+                                  <Forward className="w-3 h-3" />
                                 </button>
+                                {msg.is_outgoing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEdit(msg)}
+                                    title="Editar mensaje"
+                                    className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-white transition-colors border border-white/10 cursor-pointer shadow-xs"
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1439,7 +1557,13 @@ export const ChatsView: React.FC = () => {
                                 </div>
                               ) : (
                                 <div className="leading-relaxed break-words whitespace-pre-wrap font-sans text-xs">
-                                  {msg.text && <span>{msg.text}</span>}
+                                  {msg.text && (
+                                    <span>
+                                      {renderFormattedMessageText(msg.text, (url) => {
+                                        setViewState((s) => ({ ...s, inviteUrlToJoin: url }));
+                                      })}
+                                    </span>
+                                  )}
                                   {/* Floating Telegram Timestamp & Checkmarks */}
                                   <span className="float-right ml-2.5 mt-1 -mb-0.5 inline-flex items-center gap-0.5 text-[10px] font-mono opacity-65 leading-none select-none">
                                     <span>{msg.date}</span>
@@ -2225,6 +2349,52 @@ export const ChatsView: React.FC = () => {
         onClose={() => setViewState((s) => ({ ...s, isFeedWatcherModalOpen: false }))}
         channels={destinationChannels}
         selectedTargetId={activeChat?.id || null}
+      />
+
+      {/* Forward Messages Modal */}
+      <ForwardMessagesModal
+        isOpen={viewState.forwardModalOpen}
+        onClose={() =>
+          setViewState((s) => ({ ...s, forwardModalOpen: false, forwardMessageIds: [] }))
+        }
+        sourceChatId={activeChat?.id || 0}
+        messageIds={viewState.forwardMessageIds}
+        channels={destinationChannels}
+        accountId={selectedAccountId || activeChat?.account_id || null}
+        onSuccess={() => {
+          setViewState((s) => ({
+            ...s,
+            selectedMessageIds: [],
+            isSelectionMode: false,
+          }));
+          loadDialogs(false);
+          refreshActiveMessages();
+        }}
+      />
+
+      {/* Join Invite Modal */}
+      <JoinInviteModal
+        isOpen={Boolean(viewState.inviteUrlToJoin)}
+        onClose={() => setViewState((s) => ({ ...s, inviteUrlToJoin: null }))}
+        inviteUrl={viewState.inviteUrlToJoin || ""}
+        accountId={selectedAccountId || activeChat?.account_id || null}
+        onJoined={(chatId) => {
+          loadDialogs(false);
+          if (chatId) {
+            selectChat(chatId);
+          }
+        }}
+      />
+
+      {/* Chat Profile / Details Modal */}
+      <ChatProfileModal
+        isOpen={viewState.profileModalOpen}
+        onClose={() => setViewState((s) => ({ ...s, profileModalOpen: false }))}
+        chat={activeChat || null}
+        accountId={selectedAccountId || activeChat?.account_id || null}
+        onAvatarUpdated={() => {
+          loadDialogs(false);
+        }}
       />
     </div>
   );

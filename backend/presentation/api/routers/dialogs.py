@@ -71,6 +71,22 @@ class MarkDialogReadRequest(BaseModel):
     max_id: int | None = None
 
 
+class ForwardMessagesRequest(BaseModel):
+    message_ids: list[int]
+    target_chat_ids: list[int]
+    account_id: int | None = None
+
+
+class CheckInviteRequest(BaseModel):
+    invite_url: str
+    account_id: int | None = None
+
+
+class JoinInviteRequest(BaseModel):
+    invite_url: str
+    account_id: int | None = None
+
+
 # Demo Fallbacks for development / unauthorized MTProto environments
 DEMO_DIALOGS = [
     DialogResponse(
@@ -647,3 +663,157 @@ async def click_message_button_endpoint(
         account_id=req.account_id,
     )
     return {"success": success, "chat_id": chat_id, "message_id": message_id}
+
+
+@router.post("/{chat_id}/messages/forward")
+async def forward_messages_endpoint(
+    chat_id: int,
+    req: ForwardMessagesRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Forward one or more messages to destination chat(s)/channel(s)."""
+    if not req.message_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe especificar al menos un ID de mensaje para reenviar.",
+        )
+    if not req.target_chat_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Debe especificar al menos un chat de destino.",
+        )
+
+    try:
+        forwarded = await gateway.forward_messages(
+            source_chat_id=chat_id,
+            target_chat_ids=req.target_chat_ids,
+            message_ids=req.message_ids,
+            account_id=req.account_id,
+        )
+        return {
+            "success": True,
+            "forwarded_count": len(forwarded),
+            "forwarded_message_ids": forwarded,
+        }
+    except Exception as e:
+        logger.error(f"Error forwarding messages from {chat_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al reenviar mensajes: {e}",
+        )
+
+
+@router.post("/check-invite")
+async def check_invite_endpoint(
+    req: CheckInviteRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Inspect a Telegram private or public invite link without joining yet."""
+    url = req.invite_url.strip()
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de invitación no puede estar vacío.",
+        )
+
+    try:
+        info = await gateway.check_chat_invite(url, account_id=req.account_id)
+        return {"success": True, "invite": info}
+    except Exception as e:
+        logger.warning(f"Error checking invite {url}: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "invite": {"already_joined": False, "title": "Enlace no válido", "hash": url},
+        }
+
+
+@router.post("/join-invite")
+async def join_invite_endpoint(
+    req: JoinInviteRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Join a Telegram private invite link or public channel/group."""
+    url = req.invite_url.strip()
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de invitación no puede estar vacío.",
+        )
+
+    try:
+        res = await gateway.join_chat_invite(url, account_id=req.account_id)
+        return {"success": True, "result": res}
+    except Exception as e:
+        logger.error(f"Error joining invite {url}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se pudo unir al canal/grupo: {e}",
+        )
+
+
+@router.get("/{chat_id}/full-info")
+async def get_chat_full_info_endpoint(
+    chat_id: int,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Retrieve full details, bio/description, participant counts and invite links for a chat."""
+    try:
+        info = await gateway.get_chat_full_info(chat_id=chat_id, account_id=account_id)
+        return {"success": True, "chat": info}
+    except Exception as e:
+        logger.warning(f"Error fetching full info for chat {chat_id}: {e}")
+        # Return fallback representation
+        return {
+            "success": True,
+            "chat": {
+                "id": chat_id,
+                "title": f"Chat #{chat_id}",
+                "type": "channel" if chat_id < 0 else "user",
+                "about": None,
+                "participants_count": None,
+                "invite_link": None,
+                "is_creator": False,
+                "is_admin": False,
+                "can_change_info": False,
+            },
+        }
+
+
+@router.post("/{chat_id}/photo")
+async def update_chat_photo_endpoint(
+    chat_id: int,
+    file: UploadFile = File(...),
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Upload and update the avatar/profile picture of a chat, channel, or user."""
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Archivo no válido")
+
+    suffix = Path(file.filename).suffix or ".jpg"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp_path = tmp.name
+        content = await file.read()
+        tmp.write(content)
+
+    try:
+        updated = await gateway.update_chat_photo(
+            chat_id=chat_id,
+            file_path=tmp_path,
+            account_id=account_id,
+        )
+        return {"success": updated, "chat_id": chat_id}
+    except Exception as e:
+        logger.error(f"Error updating chat photo for {chat_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al actualizar foto del chat: {e}",
+        )
+    finally:
+        if os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass

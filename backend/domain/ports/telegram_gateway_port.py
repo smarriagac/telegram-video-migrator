@@ -227,3 +227,46 @@ class TelegramGatewayPort(ABC):
     ) -> tuple[int, str] | None:
         """Attempt to find an alternative active account when current account encounters FloodWait."""
         return None
+
+    async def forward_messages(
+        self,
+        source_chat_id: int,
+        target_chat_ids: list[int] | int,
+        message_ids: list[int],
+        account_id: int | None = None,
+    ) -> list[int]:
+        """Forward messages to one or multiple destination chats/channels."""
+        return []
+
+    async def check_chat_invite(
+        self,
+        invite_url_or_hash: str,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Check/inspect a private or public Telegram invite link before joining."""
+        return {}
+
+    async def join_chat_invite(
+        self,
+        invite_url_or_hash: str,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Join a private chat invite link or public channel/group."""
+        return {}
+
+    async def get_chat_full_info(
+        self,
+        chat_id: int,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Retrieve full details, bio/description, participant count, and invite links for a chat/channel/user."""
+        return {}
+
+    async def update_chat_photo(
+        self,
+        chat_id: int,
+        file_path: str,
+        account_id: int | None = None,
+    ) -> bool:
+        """Upload and update the profile/avatar photo of a chat, channel, or user."""
+        return False

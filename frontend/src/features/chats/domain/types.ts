@@ -40,3 +40,22 @@ export interface Chat {
   is_online?: boolean | null;
   status_text?: string | null;
 }
+
+export interface ChatFullInfo {
+  id: number;
+  title: string;
+  username?: string | null;
+  type: "user" | "group" | "channel";
+  participants_count?: number | null;
+  online_count?: number | null;
+  admins_count?: number | null;
+  about?: string | null;
+  invite_link?: string | null;
+  pinned_message_id?: number | null;
+  is_creator?: boolean;
+  is_admin?: boolean;
+  can_change_info?: boolean;
+  phone?: string | null;
+  is_bot?: boolean;
+  avatar_color?: string | null;
+}
