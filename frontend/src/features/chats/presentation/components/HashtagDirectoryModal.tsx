@@ -74,7 +74,14 @@ const buildDirectoryMessage = (
   return lines.join("\n");
 };
 
-const DEPTH_PRESETS = [200, 500, 1000, 2500, 5000];
+const DEPTH_PRESETS = [
+  { label: "200", value: 200 },
+  { label: "500", value: 500 },
+  { label: "1k", value: 1000 },
+  { label: "2.5k", value: 2500 },
+  { label: "5k", value: 5000 },
+  { label: "Todo el canal", value: 0 },
+];
 
 export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
   isOpen,
@@ -240,20 +247,22 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
           {/* Depth Preset Chips */}
           <div className="flex items-center gap-1.5 pt-2 flex-wrap text-xs">
             <span className="text-[11px] font-medium text-slate-400 mr-1">Profundidad del historial:</span>
-            {DEPTH_PRESETS.map((limit) => (
-              <button
-                key={limit}
+            {DEPTH_PRESETS.map((preset) => (
+              <Button
+                key={preset.value}
                 type="button"
+                variant={uiState.scanLimit === preset.value ? "default" : "outline"}
+                size="sm"
                 disabled={uiState.isLoading}
-                onClick={() => loadHashtags(limit)}
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono transition-all border ${
-                  uiState.scanLimit === limit
-                    ? "bg-pink-600 text-white border-pink-400 font-bold shadow-xs scale-105"
+                onClick={() => loadHashtags(preset.value)}
+                className={`h-6 px-2.5 rounded-full text-[11px] font-mono transition-all ${
+                  uiState.scanLimit === preset.value
+                    ? "bg-pink-600 hover:bg-pink-500 text-white font-bold shadow-xs scale-105 border-pink-400"
                     : "bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60"
                 }`}
               >
-                {limit >= 1000 ? `${limit / 1000}k` : limit} msgs
-              </button>
+                {preset.label}
+              </Button>
             ))}
           </div>
         </DialogHeader>
@@ -270,7 +279,9 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
             <div className="flex flex-col items-center justify-center py-12 space-y-3">
               <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
               <p className="text-sm text-slate-300 font-medium">
-                Escaneando los últimos {uiState.scanLimit.toLocaleString()} mensajes del canal...
+                {uiState.scanLimit === 0
+                  ? "Escaneando todo el historial del canal..."
+                  : `Escaneando los últimos ${uiState.scanLimit.toLocaleString()} mensajes del canal...`}
               </p>
               <p className="text-xs text-slate-500">
                 Extrayendo etiquetas de texto, subtítulos y metadatos MTProto
@@ -305,22 +316,26 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
                     Encontrados <strong className="text-pink-400 font-bold">{uiState.hashtags.length}</strong> hashtags únicos en{" "}
                     <strong className="text-white">{uiState.scannedCount}</strong> mensajes analizados:
                   </span>
-                  <div className="flex items-center space-x-2">
-                    <button
+                  <div className="flex items-center space-x-1">
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       onClick={() => handleSelectAll(true)}
-                      className="text-pink-400 hover:underline"
+                      className="h-auto p-0 text-xs text-pink-400 hover:text-pink-300 font-semibold"
                     >
                       Todos
-                    </button>
-                    <span>•</span>
-                    <button
+                    </Button>
+                    <span className="text-slate-600">•</span>
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       onClick={() => handleSelectAll(false)}
-                      className="text-slate-400 hover:underline"
+                      className="h-auto p-0 text-xs text-slate-400 hover:text-slate-200"
                     >
                       Ninguno
-                    </button>
+                    </Button>
                   </div>
                 </div>
 

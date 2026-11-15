@@ -2090,9 +2090,10 @@ class TelethonAdapter(TelegramGatewayPort):
 
         tag_stats: dict[str, dict[str, Any]] = {}
         scanned_count = 0
+        iter_limit = None if (limit is None or limit <= 0) else limit
 
         try:
-            async for msg in client.iter_messages(chat_id, limit=limit):
+            async for msg in client.iter_messages(chat_id, limit=iter_limit):
                 scanned_count += 1
                 text = ""
                 raw_text = getattr(msg, "raw_text", None)
@@ -2111,24 +2112,31 @@ class TelethonAdapter(TelegramGatewayPort):
 
                 extracted_tags: set[str] = set()
 
-                # 1. Native Telegram MessageEntityHashtag extraction
+                # 1. Native Telegram MessageEntityHashtag extraction with UTF-16 offset safety
                 if getattr(msg, "entities", None):
                     for ent in msg.entities:
                         if isinstance(ent, MessageEntityHashtag):
                             try:
-                                ent_str = text[ent.offset : ent.offset + ent.length].strip()
-                                if ent_str:
-                                    tag_name = ent_str if ent_str.startswith("#") else f"#{ent_str}"
-                                    extracted_tags.add(tag_name)
+                                utf16_bytes = text.encode("utf-16-le")
+                                start = ent.offset * 2
+                                end = (ent.offset + ent.length) * 2
+                                ent_str = utf16_bytes[start:end].decode("utf-16-le", errors="ignore").strip()
+                                matches = re.findall(r'#?([a-zA-Z0-9_\u00C0-\u017F\u0400-\u04FF]+)', ent_str)
+                                for m in matches:
+                                    if m.strip():
+                                        extracted_tags.add(f"#{m.strip()}")
                             except Exception:
                                 pass
 
                 # 2. Comprehensive Unicode regex for hashtags in Spanish and international characters
                 regex_matches = re.findall(r'#([a-zA-Z0-9_\u00C0-\u017F\u0400-\u04FF]+)', text)
                 for raw_tag in regex_matches:
-                    extracted_tags.add(f"#{raw_tag}")
+                    if raw_tag.strip():
+                        extracted_tags.add(f"#{raw_tag.strip()}")
 
                 for clean_tag in extracted_tags:
+                    if " " in clean_tag or "\n" in clean_tag or not re.match(r"^#[a-zA-Z0-9_\u00C0-\u017F\u0400-\u04FF]+$", clean_tag):
+                        continue
                     lower_key = clean_tag.lower()
                     if lower_key not in tag_stats:
                         tag_stats[lower_key] = {

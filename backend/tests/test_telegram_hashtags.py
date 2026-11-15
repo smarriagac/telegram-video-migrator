@@ -104,3 +104,66 @@ async def test_get_chat_hashtags_endpoint():
             assert data["hashtags"][0]["tag"] == "#Netflix"
     finally:
         app.dependency_overrides.pop(get_telegram_gateway, None)
+
+
+@pytest.mark.asyncio
+async def test_extract_chat_hashtags_utf16_and_emojis_sanitization():
+    from telethon.tl.types import MessageEntityHashtag
+
+    mock_client = AsyncMock()
+    mock_client.is_connected.return_value = True
+
+    # Text containing emojis which take 2 UTF-16 code units (surrogate pairs)
+    # Native Telegram entity with UTF-16 offsets
+    text = "Promo 🔞✨ #valledupar 🔥🔥🔥 #baba2vip y más"
+    utf16_bytes = text.encode("utf-16-le")
+    # find offset of #valledupar in utf-16
+    val_byte_offset = utf16_bytes.find("#valledupar".encode("utf-16-le"))
+    offset_units = val_byte_offset // 2
+    length_units = len("#valledupar".encode("utf-16-le")) // 2
+
+    ent = MessageEntityHashtag(offset=offset_units, length=length_units)
+
+    msg = MagicMock(id=301, message=text, entities=[ent])
+    msg.rich_message = None
+    msg.action = None
+    msg.media = None
+
+    async def mock_iter(*args, **kwargs):
+        yield msg
+
+    mock_client.iter_messages = mock_iter
+
+    adapter = TelethonAdapter(client=mock_client)
+    res = await adapter.extract_chat_hashtags(chat_id=999, limit=10)
+
+    assert res["success"] is True
+    tags = {h["tag"] for h in res["hashtags"]}
+    assert "#valledupar" in tags
+    assert "#baba2vip" in tags
+    # Ensure NO emoji or trailing garbage attached to any tag
+    for t in tags:
+        assert not any(char in t for char in ["🔞", "✨", "🔥", " "])
+
+
+@pytest.mark.asyncio
+async def test_extract_chat_hashtags_full_history_unbounded_limit():
+    mock_client = AsyncMock()
+    mock_client.is_connected.return_value = True
+
+    passed_kwargs = {}
+
+    def mock_iter(*args, **kwargs):
+        passed_kwargs.update(kwargs)
+        async def gen():
+            if False:
+                yield
+        return gen()
+
+    mock_client.iter_messages = mock_iter
+
+    adapter = TelethonAdapter(client=mock_client)
+    await adapter.extract_chat_hashtags(chat_id=888, limit=0)
+
+    # When limit=0 or <= 0, iter_messages should be called with limit=None for full history
+    assert passed_kwargs.get("limit") is None

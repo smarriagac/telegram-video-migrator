@@ -337,7 +337,7 @@ async def get_messages(
 @router.get("/{chat_id}/hashtags")
 async def get_chat_hashtags_endpoint(
     chat_id: int,
-    limit: int = Query(500, ge=20, le=10000),
+    limit: int = Query(500, ge=0, le=50000),
     account_id: int | None = Query(None),
     gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
 ) -> dict[str, Any]:

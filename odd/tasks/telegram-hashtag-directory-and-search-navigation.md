@@ -33,6 +33,13 @@ Delivery strategy: single-pr
   - Vitest + Vite build in `frontend/`.
   - Pytest in Docker `telegram_migrator_backend`.
   - Deploy to Docker containers and test live.
+- S6: Full History Channel Scan Depth (`limit=0` / Unbounded):
+  - In `dialogs.py`: allow `limit: int = Query(500, ge=0, le=50000)` where `0` designates a full channel history scan.
+  - In `telethon_adapter.py`: when `limit <= 0`, pass `limit=None` to `iter_messages` so channels with >1,000 messages (e.g. 1,443 messages) are scanned in full.
+  - In `HashtagDirectoryModal.tsx`: add `Todo el canal` depth preset chip and display status message accordingly.
+- S7: UTF-16 Entity Offset Safety & Regex Sanitization:
+  - Slicing `text.encode('utf-16-le')` prevents index drift caused by 4-byte emojis (`🔥`, `🔞`, `✨`).
+  - Strict regex post-filter `^#[a-zA-Z0-9_\u00C0-\u017F\u0400-\u04FF]+$` guarantees zero dirty tags with spaces, newlines, or trailing symbols.
 
 ## Tasks
 - [x] T1 (S1): Add `extract_chat_hashtags` and `search_query` in port, adapter, and router [inline]
@@ -42,6 +49,9 @@ Delivery strategy: single-pr
 - [x] T5 (S4): Integrate hashtag detection, in-chat search bar, and smooth navigation in `ChatsView.tsx` [inline]
 - [x] T6 (S5): Run full test suite, compile frontend build, deploy to Docker and verify live [inline]
 - [x] T7 (S5): Complete ODD logbook, commit and push [inline]
+- [x] T8 (S6): Add full channel scan depth (`limit=0`) in adapter and dialogs router [inline]
+- [x] T9 (S7): Implement UTF-16 byte slicing and regex sanitization in `extract_chat_hashtags` [inline]
+- [x] T10 (S6, S7): Add unit tests in `test_telegram_hashtags.py`, update modal with "Todo el canal" preset, test live on channel ID `-1004337257363` (1,443 messages -> 85 clean tags) [inline]
 
 ## Log
 - L1: Initialized ODD task for Telegram Hashtag Directory Generator & In-Chat Navigation.
@@ -51,3 +61,5 @@ Delivery strategy: single-pr
 - L5: Built `HashtagDirectoryModal.tsx` strictly abiding by $\le 2$ `useState` hooks and using Shadcn UI dialog, textarea, and badges.
 - L6: Integrated `# Índice` header button, clickable interactive `#hashtag` token parsing, in-chat navigation bar (`X de Y`, `[▲]`, `[▼]`, `[✕]`), and smooth scroll centering with pulsing highlight.
 - L7: Frontend and backend test suites passed 100%. Built and deployed to Docker containers.
+- L8: Discovered that default depth (1,000 msgs) truncated channels with larger histories (e.g. `Prueba 2.0 - reenvio` has 1,443 messages), and Telegram MTProto `MessageEntityHashtag` offsets in UTF-16 caused index drift across emojis resulting in dirty tags (`#Escorcia #val`, `#agarcia y de`, `#r 🔥🔥🔥😈`).
+- L9: Implemented UTF-16 byte slicing, regex sanitization, and `limit=0` for full channel scans. Added preset "Todo el canal". Verified live on channel `-1004337257363` extracting 85 clean unique hashtags across 1,443 messages with 0 dirty tags.
