@@ -1,4 +1,4 @@
-import { Chat, Message } from "../domain/types";
+import { Chat, Message, ResolvedMessageLink } from "../domain/types";
 
 export const chatApi = {
   async fetchDialogs(limit: number = 100, accountId?: number): Promise<Chat[]> {
@@ -203,5 +203,24 @@ export const chatApi = {
     }
     const data = await res.json();
     return !!data.success;
+  },
+
+  async resolveMessageLink(
+    url: string,
+    accountId?: number | null
+  ): Promise<ResolvedMessageLink> {
+    const res = await fetch("/api/dialogs/resolve-message-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url,
+        account_id: accountId ?? null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Error al resolver mensaje" }));
+      throw new Error(err.detail || `Error ${res.status} al resolver mensaje`);
+    }
+    return res.json();
   },
 };

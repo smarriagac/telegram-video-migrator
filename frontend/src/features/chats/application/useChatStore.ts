@@ -40,6 +40,7 @@ interface ChatState {
   setSearchFilter: (filter: string) => void;
   clearError: () => void;
   refreshActiveMessages: () => Promise<void>;
+  ensureMessageLoaded: (chatId: number, message: Message) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -376,4 +377,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  ensureMessageLoaded: (chatId: number, message: Message) => {
+    set((state) => {
+      const existing = state.messages[chatId] || [];
+      if (existing.some((m) => m.id === message.id)) {
+        return state;
+      }
+      const updated = [...existing, message].sort((a, b) => a.id - b.id);
+      return {
+        messages: {
+          ...state.messages,
+          [chatId]: updated,
+        },
+      };
+    });
+  },
 }));

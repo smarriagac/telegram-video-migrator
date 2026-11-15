@@ -270,3 +270,11 @@ class TelegramGatewayPort(ABC):
     ) -> bool:
         """Upload and update the profile/avatar photo of a chat, channel, or user."""
         return False
+
+    async def resolve_message_link(
+        self,
+        url_or_path: str,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a Telegram message permalink (e.g. t.me/username/123 or t.me/c/123/456) and fetch its message."""
+        return {}

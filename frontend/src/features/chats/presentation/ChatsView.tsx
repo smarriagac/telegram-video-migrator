@@ -379,7 +379,8 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
 
 const renderFormattedMessageText = (
   text: string,
-  onTelegramLinkClick: (url: string) => void
+  onTelegramLinkClick: (url: string) => void,
+  onMessagePermalinkClick?: (url: string) => void
 ) => {
   if (!text) return null;
 
@@ -404,6 +405,30 @@ const renderFormattedMessageText = (
         : part;
 
       if (isTg) {
+        // Telegram Message Permalink (e.g. t.me/canal/123 or t.me/c/123/456)
+        const isMessagePermalink = /(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/(?:c\/\d+|[a-zA-Z0-9_]{4,})\/\d+)/i.test(fullUrl);
+
+        if (isMessagePermalink && onMessagePermalinkClick) {
+          const msgMatch = fullUrl.match(/\d+$/);
+          const msgNum = msgMatch ? msgMatch[0] : null;
+
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMessagePermalinkClick(fullUrl);
+              }}
+              className="inline-flex items-center gap-1 font-mono text-cyan-300 hover:text-cyan-100 underline underline-offset-2 font-semibold bg-cyan-950/70 hover:bg-cyan-900/80 px-1.5 py-0.5 rounded transition-colors cursor-pointer select-text mx-0.5 border border-cyan-500/40 shadow-xs"
+              title={`Saltar al mensaje ${msgNum ? `#${msgNum}` : ""} en Telegram Hub`}
+            >
+              <span>{part}</span>
+              <ExternalLink className="w-2.5 h-2.5 inline shrink-0 opacity-80" />
+            </button>
+          );
+        }
+
         return (
           <button
             key={idx}
@@ -468,6 +493,7 @@ interface ExtraViewState {
   forwardMessageIds: number[];
   profileModalOpen: boolean;
   inviteUrlToJoin: string | null;
+  highlightedMessageId: number | null;
 }
 
 export const ChatsView: React.FC = () => {
@@ -494,6 +520,7 @@ export const ChatsView: React.FC = () => {
     forwardMessageIds: [],
     profileModalOpen: false,
     inviteUrlToJoin: null,
+    highlightedMessageId: null,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -536,6 +563,7 @@ export const ChatsView: React.FC = () => {
   const setSearchFilter = useChatStore((state) => state.setSearchFilter);
   const clearError = useChatStore((state) => state.clearError);
   const refreshActiveMessages = useChatStore((state) => state.refreshActiveMessages);
+  const ensureMessageLoaded = useChatStore((state) => state.ensureMessageLoaded);
 
   useEffect(() => {
     loadAccounts();
@@ -728,6 +756,84 @@ export const ChatsView: React.FC = () => {
     if (!viewState.editText.trim()) return;
     await editMessage(msgId, viewState.editText);
     setViewState((s) => ({ ...s, editText: "" }));
+  };
+
+  const handleMessagePermalinkClick = async (url: string) => {
+    const clean = url.trim();
+    const cMatch = clean.match(/(?:https?:\/\/)?(?:t\.me|telegram\.me)\/c\/(\d+)\/(\d+)/i);
+    const uMatch = clean.match(/(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/|@)?([a-zA-Z0-9_]{4,})\/(\d+)/i);
+
+    let targetChatId: number | null = null;
+    let targetMsgId: number | null = null;
+    let username: string | null = null;
+
+    if (cMatch) {
+      targetChatId = Number(`-100${cMatch[1]}`);
+      targetMsgId = Number(cMatch[2]);
+    } else if (uMatch) {
+      username = uMatch[1].toLowerCase();
+      targetMsgId = Number(uMatch[2]);
+      const matchedChat = chats.find(
+        (c) => c.username?.toLowerCase() === username || c.id.toString() === username
+      );
+      if (matchedChat) {
+        targetChatId = matchedChat.id;
+      }
+    }
+
+    if (!targetMsgId) {
+      setViewState((s) => ({ ...s, inviteUrlToJoin: url }));
+      return;
+    }
+
+    const triggerJumpAndHighlight = (msgId: number) => {
+      setTimeout(() => {
+        const el = document.getElementById(`msg-${msgId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          setViewState((s) => ({ ...s, highlightedMessageId: msgId }));
+          setTimeout(() => {
+            setViewState((s) => (s.highlightedMessageId === msgId ? { ...s, highlightedMessageId: null } : s));
+          }, 2600);
+        }
+      }, 150);
+    };
+
+    const isCurrentChat =
+      (targetChatId && activeChatId === targetChatId) ||
+      (username && activeChat?.username?.toLowerCase() === username);
+
+    if (isCurrentChat) {
+      const el = document.getElementById(`msg-${targetMsgId}`);
+      if (el) {
+        triggerJumpAndHighlight(targetMsgId);
+        return;
+      }
+    }
+
+    try {
+      const resolved = await chatApi.resolveMessageLink(url, selectedAccountId);
+      if (resolved && resolved.success) {
+        const chatToSelect = resolved.chat_id;
+        ensureMessageLoaded(chatToSelect, resolved.message);
+        if (activeChatId !== chatToSelect) {
+          await selectChat(chatToSelect);
+        }
+        setTimeout(() => {
+          triggerJumpAndHighlight(resolved.message_id);
+        }, 350);
+      } else {
+        setViewState((s) => ({ ...s, inviteUrlToJoin: url }));
+      }
+    } catch (e) {
+      console.warn("Could not resolve message permalink remotely:", e);
+      if (targetChatId) {
+        await selectChat(targetChatId);
+        triggerJumpAndHighlight(targetMsgId);
+      } else {
+        setViewState((s) => ({ ...s, inviteUrlToJoin: url }));
+      }
+    }
   };
 
   const openVipModal = async () => {
@@ -1405,9 +1511,12 @@ export const ChatsView: React.FC = () => {
                         )}
 
                         <div
+                          id={`msg-${msg.id}`}
                           className={cn(
-                            "flex items-center gap-2 max-w-full",
-                            msg.is_outgoing ? "self-end justify-end" : "self-start justify-start"
+                            "flex items-center gap-2 max-w-full transition-all duration-500 rounded-2xl",
+                            msg.is_outgoing ? "self-end justify-end" : "self-start justify-start",
+                            viewState.highlightedMessageId === msg.id &&
+                              "ring-2 ring-cyan-400 bg-cyan-500/15 p-1 -m-1 shadow-lg shadow-cyan-500/30 animate-pulse"
                           )}
                         >
                           {viewState.isSelectionMode && (
@@ -1559,9 +1668,11 @@ export const ChatsView: React.FC = () => {
                                 <div className="leading-relaxed break-words whitespace-pre-wrap font-sans text-xs">
                                   {msg.text && (
                                     <span>
-                                      {renderFormattedMessageText(msg.text, (url) => {
-                                        setViewState((s) => ({ ...s, inviteUrlToJoin: url }));
-                                      })}
+                                      {renderFormattedMessageText(
+                                        msg.text,
+                                        (url) => setViewState((s) => ({ ...s, inviteUrlToJoin: url })),
+                                        handleMessagePermalinkClick
+                                      )}
                                     </span>
                                   )}
                                   {/* Floating Telegram Timestamp & Checkmarks */}

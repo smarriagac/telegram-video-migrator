@@ -59,3 +59,13 @@ export interface ChatFullInfo {
   is_bot?: boolean;
   avatar_color?: string | null;
 }
+
+export interface ResolvedMessageLink {
+  success: boolean;
+  chat_id: number;
+  chat_title: string;
+  chat_username?: string | null;
+  message_id: number;
+  message: Message;
+  error?: string;
+}

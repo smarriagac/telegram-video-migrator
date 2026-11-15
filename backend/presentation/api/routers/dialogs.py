@@ -87,6 +87,11 @@ class JoinInviteRequest(BaseModel):
     account_id: int | None = None
 
 
+class ResolveMessageLinkRequest(BaseModel):
+    url: str
+    account_id: int | None = None
+
+
 # Demo Fallbacks for development / unauthorized MTProto environments
 DEMO_DIALOGS = [
     DialogResponse(
@@ -749,6 +754,37 @@ async def join_invite_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"No se pudo unir al canal/grupo: {e}",
+        )
+
+
+@router.post("/resolve-message-link")
+async def resolve_message_link_endpoint(
+    req: ResolveMessageLinkRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Resolve a Telegram message permalink (e.g. t.me/canal/123) and fetch its message."""
+    url = req.url.strip()
+    if not url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La URL del mensaje no puede estar vacía.",
+        )
+
+    try:
+        result = await gateway.resolve_message_link(url, account_id=req.account_id)
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=result.get("error", "No se pudo resolver el mensaje."),
+            )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving message link {url}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al resolver el mensaje: {e}",
         )
 
 

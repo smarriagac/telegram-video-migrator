@@ -1793,3 +1793,128 @@ class TelethonAdapter(TelegramGatewayPort):
         # Evict local avatar cache
         self._avatar_cache.pop(chat_id, None)
         return True
+
+    def _parse_message_link(self, target: str) -> tuple[str, str | int, int] | None:
+        """Parses a message permalink into ('private_channel'|'public_chat', channel_target, message_id)."""
+        clean = target.strip()
+        # Private channel format: t.me/c/<channel_id>/<message_id>
+        c_match = re.search(r'(?:https?:\/\/)?(?:t\.me|telegram\.me)\/c\/(\d+)\/(\d+)', clean)
+        if c_match:
+            return ("private_channel", int(c_match.group(1)), int(c_match.group(2)))
+
+        # Public chat format: t.me/<username>/<message_id>
+        u_match = re.search(r'(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/|@)?([a-zA-Z0-9_]{4,})\/(\d+)', clean)
+        if u_match:
+            return ("public_chat", u_match.group(1), int(u_match.group(2)))
+
+        return None
+
+    async def resolve_message_link(
+        self,
+        url_or_path: str,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Resolve a Telegram message permalink (e.g. t.me/username/123 or t.me/c/123/456) and fetch its message."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+
+        parsed = self._parse_message_link(url_or_path)
+        if not parsed:
+            return {
+                "success": False,
+                "error": "El formato del enlace no corresponde a un mensaje de Telegram válido (ej: t.me/canal/123 o t.me/c/123/456).",
+            }
+
+        kind, channel_target, message_id = parsed
+
+        try:
+            if kind == "private_channel":
+                target_peer = int(f"-100{channel_target}")
+                entity = await client.get_entity(target_peer)
+            else:
+                entity = await client.get_entity(channel_target)
+        except Exception as e:
+            logger.warning(f"Failed to resolve entity for message link '{url_or_path}': {e}")
+            return {
+                "success": False,
+                "error": f"No se pudo acceder al canal o chat: {e}",
+            }
+
+        try:
+            raw_msg = await client.get_messages(entity, ids=message_id)
+            if isinstance(raw_msg, list):
+                raw_msg = raw_msg[0] if raw_msg else None
+
+            if not raw_msg:
+                return {
+                    "success": False,
+                    "error": f"El mensaje #{message_id} no fue encontrado o ha sido eliminado.",
+                }
+
+            sender_name = "Desconocido"
+            if raw_msg.sender:
+                first = getattr(raw_msg.sender, "first_name", "") or ""
+                last = getattr(raw_msg.sender, "last_name", "") or ""
+                title = getattr(raw_msg.sender, "title", "") or ""
+                sender_name = f"{first} {last}".strip() or title or "Usuario"
+            elif getattr(raw_msg, "post", False):
+                sender_name = "Canal"
+
+            media_type = None
+            if getattr(raw_msg, "video", None):
+                media_type = "video"
+            elif getattr(raw_msg, "photo", None):
+                media_type = "photo"
+            elif getattr(raw_msg, "document", None):
+                media_type = "document"
+
+            date_str = raw_msg.date.strftime("%H:%M") if getattr(raw_msg, "date", None) else ""
+            is_outgoing = bool(getattr(raw_msg, "out", False))
+
+            buttons_matrix: list[list[dict]] | None = None
+            if getattr(raw_msg, "reply_markup", None) and hasattr(raw_msg.reply_markup, "rows"):
+                buttons_matrix = []
+                for row_idx, row in enumerate(raw_msg.reply_markup.rows):
+                    row_items = []
+                    for col_idx, b in enumerate(row.buttons):
+                        row_items.append({
+                            "text": b.text,
+                            "url": getattr(b, "url", None),
+                            "has_callback": bool(getattr(b, "data", None)),
+                            "row": row_idx,
+                            "col": col_idx,
+                        })
+                    if row_items:
+                        buttons_matrix.append(row_items)
+
+            chat_id = getattr(entity, "id", None)
+            if hasattr(entity, "broadcast") or hasattr(entity, "megagroup"):
+                if chat_id and not str(chat_id).startswith("-100"):
+                    chat_id = int(f"-100{chat_id}")
+
+            chat_title = getattr(entity, "title", None) or getattr(entity, "first_name", "") or str(channel_target)
+            chat_username = getattr(entity, "username", None)
+
+            return {
+                "success": True,
+                "chat_id": chat_id,
+                "chat_title": chat_title,
+                "chat_username": chat_username,
+                "message_id": message_id,
+                "message": {
+                    "id": raw_msg.id,
+                    "sender": sender_name,
+                    "text": raw_msg.message or "",
+                    "date": date_str,
+                    "is_outgoing": is_outgoing,
+                    "is_read": True,
+                    "media_type": media_type,
+                    "buttons": buttons_matrix,
+                },
+            }
+        except Exception as e:
+            logger.error(f"Error fetching message #{message_id} from {channel_target}: {e}")
+            return {
+                "success": False,
+                "error": f"Error al obtener el mensaje: {e}",
+            }
