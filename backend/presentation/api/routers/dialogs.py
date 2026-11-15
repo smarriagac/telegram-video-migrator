@@ -92,6 +92,12 @@ class ResolveMessageLinkRequest(BaseModel):
     account_id: int | None = None
 
 
+class OpenBotRequest(BaseModel):
+    bot_username: str
+    start_param: str | None = None
+    account_id: int | None = None
+
+
 # Demo Fallbacks for development / unauthorized MTProto environments
 DEMO_DIALOGS = [
     DialogResponse(
@@ -785,6 +791,41 @@ async def resolve_message_link_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al resolver el mensaje: {e}",
+        )
+
+
+@router.post("/open-bot")
+async def open_bot_endpoint(
+    req: OpenBotRequest,
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Start conversation with a Telegram bot inside the app, sending /start [payload]."""
+    bot_username = req.bot_username.strip().lstrip("@")
+    if not bot_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El nombre de usuario del bot no puede estar vacío.",
+        )
+
+    try:
+        result = await gateway.open_bot_start(
+            bot_username=bot_username,
+            start_param=req.start_param,
+            account_id=req.account_id,
+        )
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.get("error", "No se pudo iniciar el bot."),
+            )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error opening bot @{bot_username}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al interactuar con el bot: {e}",
         )
 
 

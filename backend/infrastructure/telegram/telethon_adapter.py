@@ -2027,3 +2027,40 @@ class TelethonAdapter(TelegramGatewayPort):
                 "success": False,
                 "error": f"Error al obtener el mensaje: {e}",
             }
+
+    async def open_bot_start(
+        self,
+        bot_username: str,
+        start_param: str | None = None,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Start a conversation with a Telegram bot, sending /start [payload] and returning chat details."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+
+        clean_username = bot_username.strip().lstrip("@")
+        if not clean_username:
+            return {"success": False, "error": "Nombre de usuario del bot inválido"}
+
+        try:
+            entity = await client.get_entity(clean_username)
+            chat_id = getattr(entity, "id", None)
+            chat_title = getattr(entity, "title", None) or getattr(entity, "first_name", "") or clean_username
+            chat_username = getattr(entity, "username", clean_username)
+
+            text_to_send = f"/start {start_param.strip()}" if start_param and start_param.strip() else "/start"
+            sent_msg = await client.send_message(entity, text_to_send)
+
+            return {
+                "success": True,
+                "chat_id": chat_id,
+                "chat_title": chat_title,
+                "chat_username": chat_username,
+                "sent_message_id": getattr(sent_msg, "id", None),
+            }
+        except Exception as e:
+            logger.error(f"Error opening bot @{clean_username} with start '{start_param}': {e}")
+            return {
+                "success": False,
+                "error": f"No se pudo iniciar conversación con el bot: {e}",
+            }

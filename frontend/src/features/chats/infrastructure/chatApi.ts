@@ -223,4 +223,25 @@ export const chatApi = {
     }
     return res.json();
   },
+
+  async openBot(
+    botUsername: string,
+    startParam?: string | null,
+    accountId?: number | null
+  ): Promise<{ success: boolean; chat_id: number; chat_title: string; chat_username: string }> {
+    const res = await fetch("/api/dialogs/open-bot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bot_username: botUsername,
+        start_param: startParam ?? null,
+        account_id: accountId ?? null,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Error al interactuar con el bot" }));
+      throw new Error(err.detail || `Error ${res.status} al abrir el bot`);
+    }
+    return res.json();
+  },
 };

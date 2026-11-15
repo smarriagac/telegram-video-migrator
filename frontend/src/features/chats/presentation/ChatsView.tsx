@@ -854,6 +854,63 @@ export const ChatsView: React.FC = () => {
     }
   };
 
+  const handleTelegramActionClick = async (url: string) => {
+    const clean = url.trim();
+
+    // 1. Bot Start link: t.me/<bot>?start=<param> or t.me/<bot>?startgroup=<param>
+    const botStartMatch = clean.match(
+      /(?:https?:\/\/)?(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{4,})\?(?:start|startgroup)=([a-zA-Z0-9_-]+)/i
+    );
+    if (botStartMatch) {
+      const botUser = botStartMatch[1];
+      const startParam = botStartMatch[2];
+      try {
+        const res = await chatApi.openBot(botUser, startParam, selectedAccountId);
+        if (res.success && res.chat_id) {
+          await loadDialogs();
+          await selectChat(res.chat_id);
+          return;
+        }
+      } catch (err) {
+        console.warn("Could not start bot conversation:", err);
+      }
+    }
+
+    // 2. Message Permalink: t.me/<chat>/<id> or t.me/c/<id>/<id>
+    const isMessagePermalink = /(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/(?:c\/\d+|[a-zA-Z0-9_]{4,})\/\d+)/i.test(clean);
+    if (isMessagePermalink) {
+      handleMessagePermalinkClick(clean);
+      return;
+    }
+
+    // 3. Invite / Join Link: t.me/+hash or t.me/joinchat/hash
+    const isInvite = /(?:t\.me\/(?:\+|joinchat\/)|\+)/i.test(clean);
+    if (isInvite) {
+      setViewState((s) => ({ ...s, inviteUrlToJoin: clean }));
+      return;
+    }
+
+    // 4. Plain username / channel link: t.me/<username>
+    const userMatch = clean.match(/(?:https?:\/\/)?(?:t\.me|telegram\.me)\/([a-zA-Z0-9_]{4,})$/i);
+    if (userMatch) {
+      const targetUser = userMatch[1].toLowerCase();
+      const existing = chats.find(
+        (c) => c.username?.toLowerCase() === targetUser || c.id.toString() === targetUser
+      );
+      if (existing) {
+        await selectChat(existing.id);
+        return;
+      }
+      setViewState((s) => ({ ...s, inviteUrlToJoin: clean }));
+      return;
+    }
+
+    // 5. External non-Telegram URL
+    if (/^https?:\/\//i.test(clean)) {
+      window.open(clean, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const openVipModal = async () => {
     let channels = viewState.channels;
     if (channels.length === 0) {
@@ -1688,7 +1745,7 @@ export const ChatsView: React.FC = () => {
                                     <span>
                                       {renderFormattedMessageText(
                                         msg.text,
-                                        (url) => setViewState((s) => ({ ...s, inviteUrlToJoin: url })),
+                                        (url) => handleTelegramActionClick(url),
                                         handleMessagePermalinkClick
                                       )}
                                     </span>
@@ -1715,16 +1772,28 @@ export const ChatsView: React.FC = () => {
                                   <div key={rowIdx} className="flex items-center gap-1.5 flex-wrap w-full">
                                     {row.map((btn, colIdx) => {
                                       if (btn.url) {
+                                        const isTgLink =
+                                          btn.url.includes("t.me/") ||
+                                          btn.url.includes("telegram.me/") ||
+                                          btn.url.startsWith("+");
+
                                         return (
-                                          <a
+                                          <button
                                             key={colIdx}
-                                            href={btn.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex-1 min-w-[120px] text-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-secondary/90 hover:bg-secondary text-primary border border-border/80 hover:border-primary/40 transition-colors shadow-xs"
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (isTgLink) {
+                                                handleTelegramActionClick(btn.url!);
+                                              } else {
+                                                window.open(btn.url!, "_blank", "noopener,noreferrer");
+                                              }
+                                            }}
+                                            className="flex-1 min-w-[120px] text-center px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-secondary/90 hover:bg-secondary text-primary border border-border/80 hover:border-primary/40 transition-colors shadow-xs cursor-pointer"
+                                            title={isTgLink ? "Abrir en Telegram Hub" : "Abrir enlace externo"}
                                           >
-                                            {btn.text} ↗
-                                          </a>
+                                            {btn.text} {isTgLink ? "↗" : "🌐"}
+                                          </button>
                                         );
                                       }
                                       return (

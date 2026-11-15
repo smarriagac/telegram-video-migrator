@@ -278,3 +278,12 @@ class TelegramGatewayPort(ABC):
     ) -> dict[str, Any]:
         """Resolve a Telegram message permalink (e.g. t.me/username/123 or t.me/c/123/456) and fetch its message."""
         return {}
+
+    async def open_bot_start(
+        self,
+        bot_username: str,
+        start_param: str | None = None,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Start a conversation with a Telegram bot, optionally passing a start deep-link parameter."""
+        return {}
