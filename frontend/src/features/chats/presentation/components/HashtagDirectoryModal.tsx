@@ -10,6 +10,7 @@ import {
   Loader2,
   Sparkles,
   AlertCircle,
+  PlusCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -73,6 +74,8 @@ const buildDirectoryMessage = (
   return lines.join("\n");
 };
 
+const DEPTH_PRESETS = [200, 500, 1000, 2500, 5000];
+
 export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
   isOpen,
   onClose,
@@ -88,7 +91,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
   const [uiState, setUiState] = useState<UiState>({
     isLoading: false,
     isPublishing: false,
-    scanLimit: 200,
+    scanLimit: 1000,
     filterText: "",
     hashtags: [],
     scannedCount: 0,
@@ -99,7 +102,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
 
   const loadHashtags = async (limit: number = uiState.scanLimit) => {
     if (!isOpen || !chatId) return;
-    setUiState((prev) => ({ ...prev, isLoading: true, error: null }));
+    setUiState((prev) => ({ ...prev, isLoading: true, error: null, scanLimit: limit }));
     try {
       const res = await chatApi.fetchChatHashtags(chatId, limit, accountId);
       const allTagNames = (res.hashtags || []).map((h) => h.tag);
@@ -107,6 +110,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
       setUiState((prev) => ({
         ...prev,
         isLoading: false,
+        scanLimit: limit,
         hashtags: res.hashtags || [],
         scannedCount: res.scanned_messages || 0,
         customMessage: res.suggested_message || buildDirectoryMessage(res.hashtags || [], allTagNames, chatTitle),
@@ -122,7 +126,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      loadHashtags();
+      loadHashtags(uiState.scanLimit);
     }
   }, [isOpen, chatId, accountId]);
 
@@ -178,15 +182,20 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
     }
   };
 
+  const handleScanMore = () => {
+    const nextLimit = Math.min(uiState.scanLimit + 1000, 10000);
+    loadHashtags(nextLimit);
+  };
+
   const filteredHashtags = uiState.hashtags.filter((h) =>
     h.tag.toLowerCase().includes(uiState.filterText.toLowerCase())
   );
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-slate-900 border-slate-800 text-slate-100 max-h-[90vh] flex flex-col p-6 shadow-2xl">
+      <DialogContent className="max-w-2xl bg-slate-900 border-slate-800 text-slate-100 max-h-[92vh] flex flex-col p-6 shadow-2xl">
         <DialogHeader className="pb-3 border-b border-slate-800">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center space-x-2.5">
               <div className="p-2 bg-pink-500/10 text-pink-400 rounded-lg border border-pink-500/20">
                 <Hash className="w-5 h-5" />
@@ -201,16 +210,51 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
                 </DialogDescription>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => loadHashtags()}
-              disabled={uiState.isLoading}
-              className="border-slate-700 hover:bg-slate-800 text-xs h-8 text-slate-300"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${uiState.isLoading ? "animate-spin" : ""}`} />
-              Re-escanear
-            </Button>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScanMore}
+                disabled={uiState.isLoading || uiState.scanLimit >= 10000}
+                className="border-pink-500/40 hover:bg-pink-500/10 text-pink-300 text-xs h-8"
+                title="Escanear 1.000 mensajes más hacia atrás en el historial"
+              >
+                <PlusCircle className="w-3.5 h-3.5 mr-1" />
+                +1.000 msgs
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadHashtags(uiState.scanLimit)}
+                disabled={uiState.isLoading}
+                className="border-slate-700 hover:bg-slate-800 text-xs h-8 text-slate-300"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${uiState.isLoading ? "animate-spin" : ""}`} />
+                Re-escanear
+              </Button>
+            </div>
+          </div>
+
+          {/* Depth Preset Chips */}
+          <div className="flex items-center gap-1.5 pt-2 flex-wrap text-xs">
+            <span className="text-[11px] font-medium text-slate-400 mr-1">Profundidad del historial:</span>
+            {DEPTH_PRESETS.map((limit) => (
+              <button
+                key={limit}
+                type="button"
+                disabled={uiState.isLoading}
+                onClick={() => loadHashtags(limit)}
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono transition-all border ${
+                  uiState.scanLimit === limit
+                    ? "bg-pink-600 text-white border-pink-400 font-bold shadow-xs scale-105"
+                    : "bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60"
+                }`}
+              >
+                {limit >= 1000 ? `${limit / 1000}k` : limit} msgs
+              </button>
+            ))}
           </div>
         </DialogHeader>
 
@@ -225,15 +269,32 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
           {uiState.isLoading ? (
             <div className="flex flex-col items-center justify-center py-12 space-y-3">
               <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
-              <p className="text-sm text-slate-400">Extrayendo hashtags de los últimos mensajes...</p>
+              <p className="text-sm text-slate-300 font-medium">
+                Escaneando los últimos {uiState.scanLimit.toLocaleString()} mensajes del canal...
+              </p>
+              <p className="text-xs text-slate-500">
+                Extrayendo etiquetas de texto, subtítulos y metadatos MTProto
+              </p>
             </div>
           ) : uiState.hashtags.length === 0 ? (
             <div className="text-center py-10 border border-dashed border-slate-800 rounded-lg space-y-2">
               <Hash className="w-8 h-8 text-slate-600 mx-auto" />
-              <p className="text-sm font-medium text-slate-300">No se encontraron #hashtags en los mensajes analizados</p>
-              <p className="text-xs text-slate-500">
-                Se analizaron {uiState.scannedCount} mensajes. Asegurate de que los mensajes contengan etiquetas como #Netflix, #Accion, etc.
+              <p className="text-sm font-medium text-slate-300">
+                No se encontraron #hashtags en los {uiState.scannedCount} mensajes analizados
               </p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Probá seleccionando una profundidad mayor arriba (ej. 2.5k o 5k mensajes) para buscar en publicaciones más antiguas del canal.
+              </p>
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => loadHashtags(Math.max(uiState.scanLimit * 2, 2500))}
+                  className="text-xs text-pink-300 border-pink-500/30 hover:bg-pink-500/10"
+                >
+                  Escanear historial más profundo (2.500 msgs)
+                </Button>
+              </div>
             </div>
           ) : (
             <>
@@ -241,8 +302,8 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-400">
                   <span>
-                    Encontrados <strong className="text-pink-400">{uiState.hashtags.length}</strong> hashtags únicos en{" "}
-                    {uiState.scannedCount} mensajes:
+                    Encontrados <strong className="text-pink-400 font-bold">{uiState.hashtags.length}</strong> hashtags únicos en{" "}
+                    <strong className="text-white">{uiState.scannedCount}</strong> mensajes analizados:
                   </span>
                   <div className="flex items-center space-x-2">
                     <button
@@ -276,7 +337,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
                 </div>
 
                 {/* Tag Pills */}
-                <div className="flex flex-wrap gap-1.5 p-3 max-h-36 overflow-y-auto bg-slate-950/40 border border-slate-800/80 rounded-lg">
+                <div className="flex flex-wrap gap-1.5 p-3 max-h-40 overflow-y-auto bg-slate-950/40 border border-slate-800/80 rounded-lg">
                   {filteredHashtags.map((h) => {
                     const isSelected = selectedTags.includes(h.tag);
                     return (

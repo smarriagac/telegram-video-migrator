@@ -52,7 +52,7 @@ describe("HashtagDirectoryModal Component", () => {
       expect(screen.getByText("#Peliculas")).toBeInTheDocument();
     });
 
-    expect(chatApi.fetchChatHashtags).toHaveBeenCalledWith(12345, 200, undefined);
+    expect(chatApi.fetchChatHashtags).toHaveBeenCalledWith(12345, 1000, undefined);
   });
 
   it("handles publish action when clicking 'Publicar en Canal'", async () => {

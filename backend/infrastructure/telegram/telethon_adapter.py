@@ -2079,24 +2079,56 @@ class TelethonAdapter(TelegramGatewayPort):
     async def extract_chat_hashtags(
         self,
         chat_id: int,
-        limit: int = 200,
+        limit: int = 500,
         account_id: int | None = None,
     ) -> dict[str, Any]:
         """Scan chat history, extract unique #hashtags with counts, and generate a structured directory template."""
+        from telethon.tl.types import MessageEntityHashtag
+
         client = self._get_client(account_id)
         await self._ensure_connected(client)
 
         tag_stats: dict[str, dict[str, Any]] = {}
+        scanned_count = 0
 
         try:
             async for msg in client.iter_messages(chat_id, limit=limit):
-                text = self._extract_message_text(msg)
+                scanned_count += 1
+                text = ""
+                raw_text = getattr(msg, "raw_text", None)
+                msg_text = getattr(msg, "message", None)
+                if isinstance(raw_text, str) and raw_text:
+                    text = raw_text
+                elif isinstance(msg_text, str) and msg_text:
+                    text = msg_text
+                else:
+                    extracted = self._extract_message_text(msg)
+                    if isinstance(extracted, str):
+                        text = extracted
+
                 if not text:
                     continue
 
-                tags = re.findall(r'#([a-zA-Z0-9_ñáéíóúÁÉÍÓÚ]+)', text)
-                for raw_tag in tags:
-                    clean_tag = f"#{raw_tag}"
+                extracted_tags: set[str] = set()
+
+                # 1. Native Telegram MessageEntityHashtag extraction
+                if getattr(msg, "entities", None):
+                    for ent in msg.entities:
+                        if isinstance(ent, MessageEntityHashtag):
+                            try:
+                                ent_str = text[ent.offset : ent.offset + ent.length].strip()
+                                if ent_str:
+                                    tag_name = ent_str if ent_str.startswith("#") else f"#{ent_str}"
+                                    extracted_tags.add(tag_name)
+                            except Exception:
+                                pass
+
+                # 2. Comprehensive Unicode regex for hashtags in Spanish and international characters
+                regex_matches = re.findall(r'#([a-zA-Z0-9_\u00C0-\u017F\u0400-\u04FF]+)', text)
+                for raw_tag in regex_matches:
+                    extracted_tags.add(f"#{raw_tag}")
+
+                for clean_tag in extracted_tags:
                     lower_key = clean_tag.lower()
                     if lower_key not in tag_stats:
                         tag_stats[lower_key] = {
@@ -2119,11 +2151,11 @@ class TelethonAdapter(TelegramGatewayPort):
                 "Hacé clic en cualquier etiqueta para filtrar y navegar las publicaciones del canal:",
                 "",
             ]
-            for item in sorted_tags[:30]:
+            for item in sorted_tags[:40]:
                 template_lines.append(f"🔹 {item['tag']} ({item['count']} publicaciones)")
 
             if not sorted_tags:
-                template_lines.append("*(No se encontraron etiquetas # en el historial reciente)*")
+                template_lines.append("*(No se encontraron etiquetas # en el historial analizado)*")
 
             template_lines.append("")
             template_lines.append("💡 *Tip: Al tocar un hashtag podés saltar directamente a sus mensajes.*")
@@ -2132,6 +2164,8 @@ class TelethonAdapter(TelegramGatewayPort):
             return {
                 "success": True,
                 "chat_id": chat_id,
+                "limit": limit,
+                "scanned_messages": scanned_count,
                 "total_hashtags": len(sorted_tags),
                 "hashtags": sorted_tags,
                 "suggested_message": suggested_message,
@@ -2141,6 +2175,9 @@ class TelethonAdapter(TelegramGatewayPort):
             return {
                 "success": False,
                 "error": f"Error al extraer hashtags del canal: {e}",
+                "limit": limit,
+                "scanned_messages": scanned_count,
+                "total_hashtags": 0,
                 "hashtags": [],
                 "suggested_message": "",
             }
