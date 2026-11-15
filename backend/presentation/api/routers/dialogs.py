@@ -65,6 +65,7 @@ class SendChatMessageRequest(BaseModel):
 
 class EditChatMessageRequest(BaseModel):
     text: str
+    account_id: int | None = None
 
 
 class MarkDialogReadRequest(BaseModel):
@@ -649,7 +650,7 @@ async def edit_dialog_message_endpoint(
 ) -> ChatMessageResponse:
     """Edit the caption or text of a message in a chat."""
     try:
-        msg = await gateway.edit_channel_message(chat_id, message_id, req.text)
+        msg = await gateway.edit_channel_message(chat_id, message_id, req.text, account_id=req.account_id)
         return ChatMessageResponse(
             id=msg.id,
             chat_id=chat_id,

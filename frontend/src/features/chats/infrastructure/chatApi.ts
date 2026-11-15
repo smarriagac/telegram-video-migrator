@@ -87,11 +87,11 @@ export const chatApi = {
     }
   },
 
-  async editMessage(chatId: number, messageId: number, text: string): Promise<Message> {
+  async editMessage(chatId: number, messageId: number, text: string, accountId?: number | null): Promise<Message> {
     const res = await fetch(`/api/dialogs/${chatId}/messages/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, account_id: accountId }),
     });
     if (!res.ok) {
       throw new Error(`Error ${res.status} al editar mensaje`);

@@ -170,4 +170,43 @@ describe("HashtagDirectoryModal Component", () => {
 
     expect(textarea.value).toContain("#Netflix (12)  •  #Amazon (8)");
   });
+
+  it("handles editing an existing message when targetMessageId is passed", async () => {
+    const mockEditMessage = vi.fn().mockResolvedValue(undefined);
+    (chatApi.fetchChatHashtags as any).mockResolvedValueOnce({
+      success: true,
+      chat_id: 12345,
+      limit: 200,
+      scanned_messages: 50,
+      total_hashtags: 1,
+      hashtags: [{ tag: "#Actualizado", count: 3, sample_message_ids: [100] }],
+      suggested_message: "📌 Índice",
+    });
+
+    render(
+      <HashtagDirectoryModal
+        isOpen={true}
+        onClose={mockClose}
+        chatId={12345}
+        chatTitle="Canal Test"
+        targetMessageId={792}
+        onEditMessage={mockEditMessage}
+        onPublish={mockPublish}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("#Actualizado")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Editando mensaje #792/i)).toBeInTheDocument();
+
+    const updateBtn = screen.getByRole("button", { name: /Actualizar Mensaje en Canal/i });
+    fireEvent.click(updateBtn);
+
+    await waitFor(() => {
+      expect(mockEditMessage).toHaveBeenCalledWith(792, expect.stringContaining("#Actualizado"));
+      expect(mockClose).toHaveBeenCalled();
+    });
+  });
 });

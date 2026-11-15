@@ -557,6 +557,7 @@ interface ExtraViewState {
   inviteUrlToJoin: string | null;
   highlightedMessageId: number | null;
   hashtagModalOpen: boolean;
+  hashtagModalTargetMsgId: number | null;
   inChatSearchQuery: string | null;
   inChatSearchMatches: number[];
   inChatSearchIndex: number;
@@ -588,6 +589,7 @@ export const ChatsView: React.FC = () => {
     inviteUrlToJoin: null,
     highlightedMessageId: null,
     hashtagModalOpen: false,
+    hashtagModalTargetMsgId: null,
     inChatSearchQuery: null,
     inChatSearchMatches: [],
     inChatSearchIndex: 0,
@@ -1619,7 +1621,11 @@ export const ChatsView: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      setViewState((prev) => ({ ...prev, hashtagModalOpen: true }))
+                      setViewState((prev) => ({
+                        ...prev,
+                        hashtagModalOpen: true,
+                        hashtagModalTargetMsgId: null,
+                      }))
                     }
                     className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-pink-500/40 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
                     title="Escanear historial y generar mensaje índice con todos los #hashtags"
@@ -1860,6 +1866,13 @@ export const ChatsView: React.FC = () => {
                         ? msg.id <= activeChat.read_outbox_max_id
                         : false);
                     const hasMedia = msg.media_type === "video" || msg.media_type === "photo";
+                    const isDirectoryMessage = Boolean(
+                      msg.text && (
+                        msg.text.includes("ÍNDICE DE ETIQUETAS Y CONTENIDO") ||
+                        msg.text.includes("ÍNDICE DE CONTENIDO") ||
+                        (msg.text.startsWith("📌") && msg.text.includes("ÍNDICE"))
+                      )
+                    );
 
                     return (
                       <React.Fragment key={msg.id}>
@@ -1949,6 +1962,20 @@ export const ChatsView: React.FC = () => {
                                 )}
                                 <button
                                   type="button"
+                                  onClick={() =>
+                                    setViewState((prev) => ({
+                                      ...prev,
+                                      hashtagModalOpen: true,
+                                      hashtagModalTargetMsgId: msg.id,
+                                    }))
+                                  }
+                                  title={isDirectoryMessage ? "Re-escanear y actualizar este índice" : "Generar/actualizar índice en este mensaje"}
+                                  className="p-1 rounded bg-black/60 hover:bg-black/80 text-pink-400 hover:text-pink-300 transition-colors border border-white/10 cursor-pointer shadow-xs"
+                                >
+                                  <Hash className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
                                   onClick={() => {
                                     setViewState((prev) => ({
                                       ...prev,
@@ -1979,6 +2006,31 @@ export const ChatsView: React.FC = () => {
 
                             {/* Bubble Content Body */}
                             <div className="p-2.5 sm:p-3 space-y-1">
+                              {/* Interactive Hashtag Directory Header Banner */}
+                              {isDirectoryMessage && !isEditingThis && (
+                                <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-pink-500/20 bg-pink-500/10 -mx-1 px-2.5 py-1.5 rounded-t-lg">
+                                  <div className="flex items-center gap-1.5 text-pink-400 text-[11px] font-semibold">
+                                    <Hash className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Directorio de Hashtags</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewState((prev) => ({
+                                        ...prev,
+                                        hashtagModalOpen: true,
+                                        hashtagModalTargetMsgId: msg.id,
+                                      }));
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-600 hover:bg-pink-500 text-white transition-colors cursor-pointer shadow-xs border border-pink-400/30"
+                                    title="Re-escanear canal y actualizar este mensaje"
+                                  >
+                                    <RefreshCw className="w-2.5 h-2.5" />
+                                    <span>Re-escanear y editar</span>
+                                  </button>
+                                </div>
+                              )}
                               {/* Sender Name (only on incoming messages in multi-user groups) */}
                               {Boolean(!msg.is_outgoing && activeChat?.type === "group" && msg.sender_name) && (
                                 <div className="text-[11px] font-semibold text-primary font-mono truncate select-none leading-none mb-1">
@@ -2892,11 +2944,21 @@ export const ChatsView: React.FC = () => {
       {activeChat && (
         <HashtagDirectoryModal
           isOpen={viewState.hashtagModalOpen}
-          onClose={() => setViewState((s) => ({ ...s, hashtagModalOpen: false }))}
+          onClose={() =>
+            setViewState((s) => ({
+              ...s,
+              hashtagModalOpen: false,
+              hashtagModalTargetMsgId: null,
+            }))
+          }
           chatId={activeChat.id}
           chatTitle={activeChat.title}
           accountId={selectedAccountId || activeChat?.account_id || null}
+          targetMessageId={viewState.hashtagModalTargetMsgId}
           onPublish={handlePublishDirectory}
+          onEditMessage={async (targetMsgId, text) => {
+            await editMessage(targetMsgId, text, selectedAccountId || activeChat?.account_id || null);
+          }}
           onLoadDraft={handleLoadDraftDirectory}
           onSelectHashtag={handleHashtagClick}
         />

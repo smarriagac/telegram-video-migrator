@@ -39,7 +39,9 @@ interface HashtagDirectoryModalProps {
   chatId: number;
   chatTitle: string;
   accountId?: number | null;
+  targetMessageId?: number | null;
   onPublish: (text: string) => Promise<void>;
+  onEditMessage?: (messageId: number, text: string) => Promise<void>;
   onLoadDraft?: (text: string) => void;
   onSelectHashtag?: (tag: string) => void;
 }
@@ -144,7 +146,9 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
   chatId,
   chatTitle,
   accountId,
+  targetMessageId,
   onPublish,
+  onEditMessage,
   onLoadDraft,
   onSelectHashtag,
 }) => {
@@ -292,6 +296,24 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
     }
   };
 
+  const handleUpdate = async () => {
+    if (!uiState.customMessage.trim() || !targetMessageId) return;
+    setUiState((prev) => ({ ...prev, isPublishing: true, error: null }));
+    try {
+      if (onEditMessage) {
+        await onEditMessage(targetMessageId, uiState.customMessage);
+      }
+      setUiState((prev) => ({ ...prev, isPublishing: false }));
+      onClose();
+    } catch (err: any) {
+      setUiState((prev) => ({
+        ...prev,
+        isPublishing: false,
+        error: err.message || "Error al actualizar el mensaje en el canal.",
+      }));
+    }
+  };
+
   const handleScanMore = () => {
     const nextLimit = Math.min(uiState.scanLimit + 1000, 10000);
     loadHashtags(nextLimit);
@@ -312,11 +334,19 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
               </div>
               <div>
                 <DialogTitle className="text-lg font-bold text-white flex items-center gap-2">
-                  Generador de Índice por Hashtags
-                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  {targetMessageId ? "Actualizar Índice de Hashtags" : "Generador de Índice por Hashtags"}
+                  {targetMessageId ? (
+                    <Badge variant="outline" className="text-xs bg-pink-500/15 text-pink-300 border-pink-500/30 font-mono">
+                      Editando mensaje #{targetMessageId}
+                    </Badge>
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                  )}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-400">
-                  Escanea el historial de {chatTitle} y crea un mensaje directorio interactivo para navegar.
+                  {targetMessageId
+                    ? `Re-escanea ${chatTitle} y actualiza el mensaje #${targetMessageId} existente sin duplicar publicaciones.`
+                    : `Escanea el historial de ${chatTitle} y crea un mensaje directorio interactivo para navegar.`}
                 </DialogDescription>
               </div>
             </div>
@@ -633,25 +663,47 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
               Cerrar
             </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              onClick={handlePublish}
-              disabled={uiState.isLoading || uiState.isPublishing || !uiState.customMessage.trim()}
-              className="bg-pink-600 hover:bg-pink-700 text-white text-xs font-semibold px-4 shadow-lg shadow-pink-600/20"
-            >
-              {uiState.isPublishing ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  Publicando...
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5 mr-1.5" />
-                  Publicar en Canal
-                </>
-              )}
-            </Button>
+            {targetMessageId ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleUpdate}
+                disabled={uiState.isLoading || uiState.isPublishing || !uiState.customMessage.trim()}
+                className="bg-pink-600 hover:bg-pink-700 text-white text-xs font-semibold px-4 shadow-lg shadow-pink-600/20"
+              >
+                {uiState.isPublishing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Actualizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                    Actualizar Mensaje en Canal
+                  </>
+                )}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handlePublish}
+                disabled={uiState.isLoading || uiState.isPublishing || !uiState.customMessage.trim()}
+                className="bg-pink-600 hover:bg-pink-700 text-white text-xs font-semibold px-4 shadow-lg shadow-pink-600/20"
+              >
+                {uiState.isPublishing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Publicando...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5 mr-1.5" />
+                    Publicar en Canal
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

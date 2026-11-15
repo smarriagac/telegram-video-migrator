@@ -48,6 +48,13 @@ Delivery strategy: single-pr
   - Add switch toggle for publication counts (`Cantidades: Sí / No`).
   - Add `10k` to depth presets list (`200`, `500`, `1k`, `2.5k`, `5k`, `10k`, `Todo el canal`).
   - Abide by strictly $\le 2$ `useState` hooks in `HashtagDirectoryModal.tsx`.
+- S9: In-place Re-scan and Message Editing:
+  - Add `targetMessageId: number | null` and `onEditMessage` to `HashtagDirectoryModal.tsx`.
+  - When editing existing message, modal displays targeted badge and button `Actualizar Mensaje en Canal` executing `editMessage(targetMsgId, customMessage)`.
+  - In `ChatsView.tsx`:
+    - Detect directory messages in chat via header `📌 **ÍNDICE`.
+    - Render interactive top banner with button `[ 🔄 Re-escanear y editar ]` on directory messages.
+    - Add `#` hover action button on all messages to re-scan and overwrite as directory if desired.
 
 ## Tasks
 - [x] T1 (S1): Add `extract_chat_hashtags` and `search_query` in port, adapter, and router [inline]
@@ -62,6 +69,8 @@ Delivery strategy: single-pr
 - [x] T10 (S6, S7): Add unit tests in `test_telegram_hashtags.py`, update modal with "Todo el canal" preset, test live on channel ID `-1004337257363` (1,443 messages -> 85 clean tags) [inline]
 - [x] T11 (S8): Implement `DirectoryLayoutStyle` ("popularity" | "alphabetical" | "compact") and counts toggle in `buildDirectoryMessage` and `HashtagDirectoryModal.tsx` [inline]
 - [x] T12 (S8): Add component unit tests for layout switching and counts toggle, build and verify live [inline]
+- [x] T13 (S9): Add `targetMessageId` and `onEditMessage` in `HashtagDirectoryModal.tsx` [inline]
+- [x] T14 (S9): Add in-message interactive directory banner and hover action in `ChatsView.tsx`, test with vitest and deploy [inline]
 
 ## Log
 - L1: Initialized ODD task for Telegram Hashtag Directory Generator & In-Chat Navigation.
@@ -75,3 +84,4 @@ Delivery strategy: single-pr
 - L9: Implemented UTF-16 byte slicing, regex sanitization, and `limit=0` for full channel scans. Added preset "Todo el canal". Verified live on channel `-1004337257363` extracting 85 clean unique hashtags across 1,443 messages with 0 dirty tags.
 - L10: Enhanced directory generator with 3 customizable layouts (Popularidad, Alfabético A-Z con carpetas, Nube Compacta) and dynamic toggle for publication counts. Added 10k depth preset.
 - L11: Diagnosed missing hashtag `#maribelKlinger`: located in message ID 792 with 1 count, corresponding to rank 44 among 85 total tags. The previous template generation had a slicing cap (`sorted_tags[:40]`), causing tags from rank 41 downwards to be truncated from the generated text. Removed the cap so all 85 tags (including `#maribelKlinger` and `#samaria`) are emitted, and set default scan depth to full history (`limit=0`). Verified via live endpoint.
+- L12: Implemented in-message re-scan and in-place message edit workflow: directory messages display interactive re-scan banner and action button, allowing instant rescan and updating existing messages via `editMessage` without creating duplicates.

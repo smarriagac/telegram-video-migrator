@@ -37,7 +37,7 @@ interface ChatState {
   sendMessage: (text: string) => Promise<void>;
   uploadMedia: (file: File, caption?: string) => Promise<void>;
   deleteMessage: (messageId: number) => Promise<void>;
-  editMessage: (messageId: number, text: string) => Promise<void>;
+  editMessage: (messageId: number, text: string, accountId?: number | null) => Promise<void>;
   setSelectedFile: (file: File | null) => void;
   setEditingMessage: (editing: { id: number; text: string } | null) => void;
   setSearchFilter: (filter: string) => void;
@@ -409,7 +409,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  editMessage: async (messageId: number, text: string) => {
+  editMessage: async (messageId: number, text: string, accountId?: number | null) => {
     const { activeChatId, messages } = get();
     if (!activeChatId || !text.trim()) return;
 
@@ -425,7 +425,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
 
     try {
-      const updated = await chatApi.editMessage(activeChatId, messageId, text.trim());
+      const updated = await chatApi.editMessage(activeChatId, messageId, text.trim(), accountId);
       set((state) => ({
         messages: {
           ...state.messages,
