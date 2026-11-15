@@ -2159,7 +2159,7 @@ class TelethonAdapter(TelegramGatewayPort):
                 "Hacé clic en cualquier etiqueta para filtrar y navegar las publicaciones del canal:",
                 "",
             ]
-            for item in sorted_tags[:40]:
+            for item in sorted_tags[:100]:
                 template_lines.append(f"🔹 {item['tag']} ({item['count']} publicaciones)")
 
             if not sorted_tags:

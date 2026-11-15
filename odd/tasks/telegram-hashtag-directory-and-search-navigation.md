@@ -40,6 +40,14 @@ Delivery strategy: single-pr
 - S7: UTF-16 Entity Offset Safety & Regex Sanitization:
   - Slicing `text.encode('utf-16-le')` prevents index drift caused by 4-byte emojis (`🔥`, `🔞`, `✨`).
   - Strict regex post-filter `^#[a-zA-Z0-9_\u00C0-\u017F\u0400-\u04FF]+$` guarantees zero dirty tags with spaces, newlines, or trailing symbols.
+- S8: Directory Format Styles & Customization:
+  - Implement 3 directory message layout styles:
+    1. `Popularidad`: Decreasing order by post frequency with count indicator.
+    2. `Alfabético A-Z`: Grouped by letter initial into alphabetical sections (`📁 **A**`, `📁 **B**`...).
+    3. `Nube Compacta`: Ultra-compact inline cloud separated by `•` bullets.
+  - Add switch toggle for publication counts (`Cantidades: Sí / No`).
+  - Add `10k` to depth presets list (`200`, `500`, `1k`, `2.5k`, `5k`, `10k`, `Todo el canal`).
+  - Abide by strictly $\le 2$ `useState` hooks in `HashtagDirectoryModal.tsx`.
 
 ## Tasks
 - [x] T1 (S1): Add `extract_chat_hashtags` and `search_query` in port, adapter, and router [inline]
@@ -52,6 +60,8 @@ Delivery strategy: single-pr
 - [x] T8 (S6): Add full channel scan depth (`limit=0`) in adapter and dialogs router [inline]
 - [x] T9 (S7): Implement UTF-16 byte slicing and regex sanitization in `extract_chat_hashtags` [inline]
 - [x] T10 (S6, S7): Add unit tests in `test_telegram_hashtags.py`, update modal with "Todo el canal" preset, test live on channel ID `-1004337257363` (1,443 messages -> 85 clean tags) [inline]
+- [x] T11 (S8): Implement `DirectoryLayoutStyle` ("popularity" | "alphabetical" | "compact") and counts toggle in `buildDirectoryMessage` and `HashtagDirectoryModal.tsx` [inline]
+- [x] T12 (S8): Add component unit tests for layout switching and counts toggle, build and verify live [inline]
 
 ## Log
 - L1: Initialized ODD task for Telegram Hashtag Directory Generator & In-Chat Navigation.
@@ -63,3 +73,4 @@ Delivery strategy: single-pr
 - L7: Frontend and backend test suites passed 100%. Built and deployed to Docker containers.
 - L8: Discovered that default depth (1,000 msgs) truncated channels with larger histories (e.g. `Prueba 2.0 - reenvio` has 1,443 messages), and Telegram MTProto `MessageEntityHashtag` offsets in UTF-16 caused index drift across emojis resulting in dirty tags (`#Escorcia #val`, `#agarcia y de`, `#r 🔥🔥🔥😈`).
 - L9: Implemented UTF-16 byte slicing, regex sanitization, and `limit=0` for full channel scans. Added preset "Todo el canal". Verified live on channel `-1004337257363` extracting 85 clean unique hashtags across 1,443 messages with 0 dirty tags.
+- L10: Enhanced directory generator with 3 customizable layouts (Popularidad, Alfabético A-Z con carpetas, Nube Compacta) and dynamic toggle for publication counts. Added 10k depth preset.

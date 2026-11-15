@@ -11,6 +11,9 @@ import {
   Sparkles,
   AlertCircle,
   PlusCircle,
+  AlignLeft,
+  FolderTree,
+  Cloud,
 } from "lucide-react";
 import {
   Dialog,
@@ -24,8 +27,11 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { Input } from "@/shared/components/ui/input";
+import { Switch } from "@/shared/components/ui/switch";
 import { ChatHashtagInfo } from "../../domain/types";
 import { chatApi } from "../../infrastructure/chatApi";
+
+export type DirectoryLayoutStyle = "popularity" | "alphabetical" | "compact";
 
 interface HashtagDirectoryModalProps {
   isOpen: boolean;
@@ -46,30 +52,79 @@ interface UiState {
   hashtags: ChatHashtagInfo[];
   scannedCount: number;
   customMessage: string;
+  layoutStyle: DirectoryLayoutStyle;
+  showCounts: boolean;
   copied: boolean;
   error: string | null;
 }
 
-const buildDirectoryMessage = (
+export const buildDirectoryMessage = (
   tags: ChatHashtagInfo[],
   selected: string[],
-  title: string
+  title: string,
+  style: DirectoryLayoutStyle = "popularity",
+  showCounts: boolean = true
 ): string => {
   const activeTags = tags.filter((h) => selected.includes(h.tag));
   if (activeTags.length === 0) {
     return `📌 **ÍNDICE DE CONTENIDO - ${title}**\n\n(No hay etiquetas seleccionadas)`;
   }
 
-  const lines = [
+  const header = [
     `📌 **ÍNDICE DE ETIQUETAS Y CONTENIDO**`,
     `Canal: **${title}**`,
-    `Toca cualquier etiqueta para filtrar y navegar los mensajes:\n`,
+    `Toca cualquier etiqueta para filtrar y navegar las publicaciones:\n`,
   ];
 
-  for (const h of activeTags) {
-    lines.push(`🔹 ${h.tag} — (${h.count} ${h.count === 1 ? "publicación" : "publicaciones"})`);
+  if (style === "compact") {
+    const tagList = activeTags.map((h) =>
+      showCounts ? `${h.tag} (${h.count})` : h.tag
+    );
+    const body = tagList.join("  •  ");
+    return [
+      ...header,
+      body,
+      `\n💡 *Tip: Puedes presionar en cualquier hashtag dentro de este mensaje para buscar automáticamente.*`,
+    ].join("\n");
   }
 
+  if (style === "alphabetical") {
+    const sortedAlpha = [...activeTags].sort((a, b) =>
+      a.tag.replace(/^#/, "").localeCompare(b.tag.replace(/^#/, ""), "es", { sensitivity: "base" })
+    );
+
+    const groups: Record<string, ChatHashtagInfo[]> = {};
+    for (const h of sortedAlpha) {
+      const firstChar = h.tag.replace(/^#/, "").charAt(0).toUpperCase() || "#";
+      const letter = /^[A-ZÑÁÉÍÓÚÜ]$/.test(firstChar) ? firstChar : "#";
+      if (!groups[letter]) groups[letter] = [];
+      groups[letter].push(h);
+    }
+
+    const lines: string[] = [...header];
+    for (const [letter, groupTags] of Object.entries(groups)) {
+      lines.push(`📁 **${letter}**`);
+      for (const h of groupTags) {
+        const countStr = showCounts
+          ? ` — (${h.count} ${h.count === 1 ? "publicación" : "publicaciones"})`
+          : "";
+        lines.push(`  ▫️ ${h.tag}${countStr}`);
+      }
+      lines.push("");
+    }
+    lines.push(`💡 *Tip: Puedes presionar en cualquier hashtag dentro de este mensaje para buscar automáticamente.*`);
+    return lines.join("\n");
+  }
+
+  // Default: popularity
+  const sortedPopular = [...activeTags].sort((a, b) => b.count - a.count);
+  const lines = [...header];
+  for (const h of sortedPopular) {
+    const countStr = showCounts
+      ? ` — (${h.count} ${h.count === 1 ? "publicación" : "publicaciones"})`
+      : "";
+    lines.push(`🔹 ${h.tag}${countStr}`);
+  }
   lines.push(`\n💡 *Tip: Puedes presionar en cualquier hashtag dentro de este mensaje para buscar automáticamente.*`);
   return lines.join("\n");
 };
@@ -80,6 +135,7 @@ const DEPTH_PRESETS = [
   { label: "1k", value: 1000 },
   { label: "2.5k", value: 2500 },
   { label: "5k", value: 5000 },
+  { label: "10k", value: 10000 },
   { label: "Todo el canal", value: 0 },
 ];
 
@@ -103,6 +159,8 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
     hashtags: [],
     scannedCount: 0,
     customMessage: "",
+    layoutStyle: "popularity",
+    showCounts: true,
     copied: false,
     error: null,
   });
@@ -120,7 +178,15 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
         scanLimit: limit,
         hashtags: res.hashtags || [],
         scannedCount: res.scanned_messages || 0,
-        customMessage: res.suggested_message || buildDirectoryMessage(res.hashtags || [], allTagNames, chatTitle),
+        customMessage:
+          res.suggested_message ||
+          buildDirectoryMessage(
+            res.hashtags || [],
+            allTagNames,
+            chatTitle,
+            prev.layoutStyle,
+            prev.showCounts
+          ),
       }));
     } catch (err: any) {
       setUiState((prev) => ({
@@ -143,7 +209,13 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
     setSelectedTags(updated);
     setUiState((prev) => ({
       ...prev,
-      customMessage: buildDirectoryMessage(prev.hashtags, updated, chatTitle),
+      customMessage: buildDirectoryMessage(
+        prev.hashtags,
+        updated,
+        chatTitle,
+        prev.layoutStyle,
+        prev.showCounts
+      ),
     }));
   };
 
@@ -152,7 +224,41 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
     setSelectedTags(updated);
     setUiState((prev) => ({
       ...prev,
-      customMessage: buildDirectoryMessage(prev.hashtags, updated, chatTitle),
+      customMessage: buildDirectoryMessage(
+        prev.hashtags,
+        updated,
+        chatTitle,
+        prev.layoutStyle,
+        prev.showCounts
+      ),
+    }));
+  };
+
+  const handleStyleChange = (style: DirectoryLayoutStyle) => {
+    setUiState((prev) => ({
+      ...prev,
+      layoutStyle: style,
+      customMessage: buildDirectoryMessage(
+        prev.hashtags,
+        selectedTags,
+        chatTitle,
+        style,
+        prev.showCounts
+      ),
+    }));
+  };
+
+  const handleToggleCounts = (show: boolean) => {
+    setUiState((prev) => ({
+      ...prev,
+      showCounts: show,
+      customMessage: buildDirectoryMessage(
+        prev.hashtags,
+        selectedTags,
+        chatTitle,
+        prev.layoutStyle,
+        show
+      ),
     }));
   };
 
@@ -393,13 +499,82 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
               </div>
 
               {/* Message Editor */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-                  <span>Mensaje Índice Generado:</span>
-                  <span className="text-[11px] font-normal text-slate-500">
-                    Puedes editar el texto antes de enviarlo
-                  </span>
-                </label>
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                    <span>Mensaje Índice Generado:</span>
+                    <span className="text-[11px] font-normal text-slate-500">
+                      ({selectedTags.length} de {uiState.hashtags.length} seleccionados)
+                    </span>
+                  </label>
+
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {/* Style Selector Chips */}
+                    <div className="flex items-center bg-slate-950/80 border border-slate-800 rounded-lg p-0.5">
+                      <Button
+                        type="button"
+                        variant={uiState.layoutStyle === "popularity" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handleStyleChange("popularity")}
+                        className={`h-6 px-2 text-[11px] rounded-md transition-all ${
+                          uiState.layoutStyle === "popularity"
+                            ? "bg-pink-600 hover:bg-pink-500 text-white font-semibold shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                        title="Ordenar de mayor a menor frecuencia"
+                      >
+                        <AlignLeft className="w-3 h-3 mr-1" />
+                        Popularidad
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={uiState.layoutStyle === "alphabetical" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handleStyleChange("alphabetical")}
+                        className={`h-6 px-2 text-[11px] rounded-md transition-all ${
+                          uiState.layoutStyle === "alphabetical"
+                            ? "bg-pink-600 hover:bg-pink-500 text-white font-semibold shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                        title="Agrupar alfabéticamente por letra inicial"
+                      >
+                        <FolderTree className="w-3 h-3 mr-1" />
+                        A-Z
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={uiState.layoutStyle === "compact" ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => handleStyleChange("compact")}
+                        className={`h-6 px-2 text-[11px] rounded-md transition-all ${
+                          uiState.layoutStyle === "compact"
+                            ? "bg-pink-600 hover:bg-pink-500 text-white font-semibold shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                        title="Diseño ultra-compacto tipo nube de etiquetas"
+                      >
+                        <Cloud className="w-3 h-3 mr-1" />
+                        Nube Compacta
+                      </Button>
+                    </div>
+
+                    {/* Counts Switch */}
+                    <div className="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+                      <Switch
+                        id="toggle-counts"
+                        checked={uiState.showCounts}
+                        onCheckedChange={handleToggleCounts}
+                      />
+                      <label
+                        htmlFor="toggle-counts"
+                        className="text-[11px] font-medium text-slate-400 cursor-pointer select-none"
+                      >
+                        Cantidades
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
                 <Textarea
                   value={uiState.customMessage}
                   onChange={(e) => setUiState((prev) => ({ ...prev, customMessage: e.target.value }))}
