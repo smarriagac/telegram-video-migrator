@@ -384,7 +384,8 @@ const renderFormattedMessageText = (
   text: string,
   onTelegramLinkClick: (url: string) => void,
   onMessagePermalinkClick?: (url: string) => void,
-  onHashtagClick?: (tag: string) => void
+  onHashtagClick?: (tag: string, sourceMessageId?: number) => void,
+  sourceMessageId?: number
 ) => {
   if (!text) return null;
 
@@ -482,7 +483,7 @@ const renderFormattedMessageText = (
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onHashtagClick) {
-                    onHashtagClick(subPart);
+                    onHashtagClick(subPart, sourceMessageId);
                   }
                 }}
                 className="inline-flex items-center text-pink-400 hover:text-pink-300 font-semibold hover:underline cursor-pointer px-1 py-0.2 rounded hover:bg-pink-500/15 transition-colors font-mono select-text mx-0.5 border border-pink-500/20 bg-pink-500/5"
@@ -968,25 +969,96 @@ export const ChatsView: React.FC = () => {
     }
   };
 
-  const handleHashtagClick = async (tag: string) => {
+  const handleHashtagClick = async (tag: string, sourceMsgId?: number) => {
     if (!activeChat) return;
 
     const cleanTag = tag.trim().toLowerCase();
-    const matches = activeMessages
-      .filter((m) => m.text && m.text.toLowerCase().includes(cleanTag))
-      .map((m) => m.id);
 
-    if (matches.length > 0) {
-      const lastIndex = matches.length - 1;
-      const targetMsgId = matches[lastIndex];
+    // 1. Immediately present the search bar with active query and searching state
+    setViewState((prev) => ({
+      ...prev,
+      inChatSearchQuery: tag,
+      inChatSearchMatches: [],
+      inChatSearchIndex: 0,
+    }));
+
+    try {
+      // 2. Query Telegram server across full channel history (limit 200)
+      const serverMsgs = await chatApi.fetchMessages(
+        activeChat.id,
+        200,
+        null,
+        selectedAccountId || activeChat.account_id,
+        tag
+      );
+
+      // 3. Ensure all returned server messages are registered in store
+      if (serverMsgs && serverMsgs.length > 0) {
+        for (const sMsg of serverMsgs) {
+          ensureMessageLoaded(activeChat.id, sMsg);
+        }
+      }
+
+      // 4. Collect unique matching message IDs (from server and active in-memory buffer)
+      const matchesSet = new Set<number>();
+      for (const m of serverMsgs || []) {
+        matchesSet.add(m.id);
+      }
+      for (const m of activeMessages) {
+        if (m.text && m.text.toLowerCase().includes(cleanTag)) {
+          matchesSet.add(m.id);
+        }
+      }
+
+      const matches = Array.from(matchesSet).sort((a, b) => a - b);
+
+      if (matches.length === 0) {
+        setViewState((prev) => ({
+          ...prev,
+          inChatSearchMatches: [],
+          inChatSearchIndex: 0,
+        }));
+        return;
+      }
+
+      // 5. Helper to identify directory/index messages
+      const isDir = (id: number) => {
+        const msg = (serverMsgs || []).find((m) => m.id === id) || activeMessages.find((m) => m.id === id);
+        return Boolean(
+          msg?.text && (
+            msg.text.includes("📌 **ÍNDICE") ||
+            msg.text.includes("📌 ÍNDICE") ||
+            msg.text.includes("ÍNDICE DE ETIQUETAS Y CONTENIDO")
+          )
+        );
+      };
+
+      // 6. Smart target selection:
+      // If clicked from a directory message (or modal), jump to the latest content publication
+      const nonDirIndices = matches
+        .map((id, idx) => ({ id, idx, isDir: isDir(id) }))
+        .filter((item) => !item.isDir);
+
+      let targetIndex = matches.length - 1;
+      const clickedFromDirectory = sourceMsgId ? isDir(sourceMsgId) : false;
+
+      if (clickedFromDirectory || (sourceMsgId === undefined && nonDirIndices.length > 0)) {
+        if (nonDirIndices.length > 0) {
+          targetIndex = nonDirIndices[nonDirIndices.length - 1].idx;
+        }
+      } else if (sourceMsgId && matches.includes(sourceMsgId)) {
+        targetIndex = matches.indexOf(sourceMsgId);
+      }
+
+      const targetMsgId = matches[targetIndex];
 
       setViewState((prev) => ({
         ...prev,
-        inChatSearchQuery: tag,
         inChatSearchMatches: matches,
-        inChatSearchIndex: lastIndex,
+        inChatSearchIndex: targetIndex,
       }));
 
+      // Scroll smoothly to target after React commits newly loaded messages
       setTimeout(() => {
         const el = document.getElementById(`msg-${targetMsgId}`);
         if (el) {
@@ -996,56 +1068,18 @@ export const ChatsView: React.FC = () => {
             setViewState((s) => (s.highlightedMessageId === targetMsgId ? { ...s, highlightedMessageId: null } : s));
           }, 2600);
         }
-      }, 100);
-    } else {
-      try {
-        const serverMsgs = await chatApi.fetchMessages(
-          activeChat.id,
-          50,
-          null,
-          selectedAccountId || activeChat.account_id,
-          tag
-        );
-        if (serverMsgs.length > 0) {
-          for (const sMsg of serverMsgs) {
-            ensureMessageLoaded(activeChat.id, sMsg);
-          }
-          const serverMatches = serverMsgs.map((m) => m.id);
-          const targetMsgId = serverMatches[serverMatches.length - 1];
+      }, 150);
+    } catch (err) {
+      console.error("Error searching hashtag on server:", err);
+      const fallbackMatches = activeMessages
+        .filter((m) => m.text && m.text.toLowerCase().includes(cleanTag))
+        .map((m) => m.id);
 
-          setViewState((prev) => ({
-            ...prev,
-            inChatSearchQuery: tag,
-            inChatSearchMatches: serverMatches,
-            inChatSearchIndex: serverMatches.length - 1,
-          }));
-
-          setTimeout(() => {
-            const el = document.getElementById(`msg-${targetMsgId}`);
-            if (el) {
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
-              setViewState((s) => ({ ...s, highlightedMessageId: targetMsgId }));
-              setTimeout(() => {
-                setViewState((s) => (s.highlightedMessageId === targetMsgId ? { ...s, highlightedMessageId: null } : s));
-              }, 2600);
-            }
-          }, 150);
-        } else {
-          setViewState((prev) => ({
-            ...prev,
-            inChatSearchQuery: tag,
-            inChatSearchMatches: [],
-            inChatSearchIndex: 0,
-          }));
-        }
-      } catch {
-        setViewState((prev) => ({
-          ...prev,
-          inChatSearchQuery: tag,
-          inChatSearchMatches: [],
-          inChatSearchIndex: 0,
-        }));
-      }
+      setViewState((prev) => ({
+        ...prev,
+        inChatSearchMatches: fallbackMatches,
+        inChatSearchIndex: Math.max(0, fallbackMatches.length - 1),
+      }));
     }
   };
 
@@ -1749,7 +1783,7 @@ export const ChatsView: React.FC = () => {
                           <strong className="text-white">{viewState.inChatSearchMatches.length}</strong>
                         </>
                       ) : (
-                        "Sin coincidencias en este historial"
+                        "Buscando en el canal..."
                       )}
                     </span>
                   </div>
@@ -2091,7 +2125,8 @@ export const ChatsView: React.FC = () => {
                                         msg.text,
                                         (url) => handleTelegramActionClick(url),
                                         handleMessagePermalinkClick,
-                                        handleHashtagClick
+                                        handleHashtagClick,
+                                        msg.id
                                       )}
                                     </span>
                                   )}
@@ -2960,7 +2995,7 @@ export const ChatsView: React.FC = () => {
             await editMessage(targetMsgId, text, selectedAccountId || activeChat?.account_id || null);
           }}
           onLoadDraft={handleLoadDraftDirectory}
-          onSelectHashtag={handleHashtagClick}
+          onSelectHashtag={(tag) => handleHashtagClick(tag, viewState.hashtagModalTargetMsgId || undefined)}
         />
       )}
     </div>

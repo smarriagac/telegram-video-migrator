@@ -300,7 +300,7 @@ async def list_dialogs(
 @router.get("/{chat_id}/messages", response_model=list[ChatMessageResponse])
 async def get_messages(
     chat_id: int,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=500),
     offset_id: int | None = Query(None),
     query: str | None = Query(None),
     account_id: int | None = Query(None),
