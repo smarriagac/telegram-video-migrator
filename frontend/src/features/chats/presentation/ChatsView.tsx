@@ -105,14 +105,14 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   // If playing inline, render HTML5 video player inside the chat bubble
   if (mediaType === "video" && isPlayingInline) {
     return (
-      <div className="relative mb-2 rounded-lg overflow-hidden bg-black border border-white/10 max-w-sm shadow-xl group/video">
+      <div className="relative mb-0 rounded-t-[17px] overflow-hidden bg-black border-b border-white/10 shadow-xl group/video w-full">
         <video
           src={videoUrl}
           poster={thumbUrl}
           controls
           autoPlay
           playsInline
-          className="w-full max-h-80 object-contain bg-black rounded-lg"
+          className="w-full max-h-[380px] min-h-[220px] sm:min-h-[260px] object-cover bg-black"
         />
         {/* Top-right overlay actions: expand to modal or close inline */}
         <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/70 backdrop-blur-md rounded-md p-0.5 border border-white/10 z-10">
@@ -205,26 +205,26 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
   }
 
   return (
-    <div className="relative mb-0 rounded-t-[17px] overflow-hidden bg-black/80 max-w-sm group/preview shadow-inner w-full">
+    <div className="relative mb-0 rounded-t-[17px] overflow-hidden bg-black/80 group/preview shadow-inner w-full">
       {!loaded && !hasError && (
-        <div className="w-full h-36 bg-secondary/60 animate-pulse flex items-center justify-center text-muted-foreground">
-          <Loader2 className="w-5 h-5 text-primary/60 animate-spin" />
+        <div className="w-full h-56 bg-secondary/60 animate-pulse flex items-center justify-center text-muted-foreground">
+          <Loader2 className="w-6 h-6 text-primary/60 animate-spin" />
         </div>
       )}
 
       {hasError ? (
-        <div className="w-full h-36 bg-secondary/80 border border-border flex flex-col items-center justify-center gap-1.5 text-muted-foreground p-4 text-center">
+        <div className="w-full h-48 bg-secondary/80 border border-border flex flex-col items-center justify-center gap-1.5 text-muted-foreground p-4 text-center">
           {mediaType === "video" ? (
-            <div className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center mb-1">
-              <Play className="w-5 h-5 text-primary fill-primary ml-0.5" />
+            <div className="w-12 h-12 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center mb-1">
+              <Play className="w-6 h-6 text-primary fill-primary ml-0.5" />
             </div>
           ) : (
-            <ImageIcon className="w-8 h-8 text-emerald-500/50 mb-1" />
+            <ImageIcon className="w-10 h-10 text-emerald-500/50 mb-1" />
           )}
-          <span className="text-[11px] font-medium text-foreground">
+          <span className="text-xs font-medium text-foreground">
             {mediaType === "video" ? "Video de Telegram" : "Foto de Telegram"}
           </span>
-          <span className="text-[9px] font-mono text-muted-foreground">
+          <span className="text-[10px] font-mono text-muted-foreground">
             Miniatura no provista por el remitente
           </span>
         </div>
@@ -233,7 +233,7 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
           src={thumbUrl}
           alt={mediaType === "video" ? "Vista previa de video" : "Foto"}
           className={cn(
-            "w-full max-h-64 min-h-[140px] object-cover rounded-md transition-all duration-300 group-hover/preview:scale-[1.02] cursor-pointer",
+            "w-full max-h-[380px] min-h-[220px] sm:min-h-[260px] object-cover rounded-t-[17px] transition-all duration-300 group-hover/preview:scale-[1.02] cursor-pointer",
             !loaded ? "opacity-0" : "opacity-100"
           )}
           loading="lazy"
@@ -295,9 +295,9 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
               setIsPlayingInline(true);
             }}
             title="Reproducir video inline"
-            className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
+            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-2xl flex items-center justify-center cursor-pointer pointer-events-auto group-hover/preview:scale-110 transition-transform active:scale-95"
           >
-            <Play className="w-5 h-5 fill-white ml-0.5" />
+            <Play className="w-6 h-6 fill-white ml-0.5" />
           </button>
         </div>
       )}
@@ -1961,7 +1961,10 @@ export const ChatsView: React.FC = () => {
                           {/* Telegram Official-Styled Bubble adapted to Dark Cyber */}
                           <div
                             className={cn(
-                              "group relative max-w-[85%] sm:max-w-[75%] md:max-w-[65%] w-fit text-xs flex flex-col shadow-md transition-all overflow-hidden",
+                              "group relative flex flex-col shadow-md transition-all overflow-hidden",
+                              hasMedia
+                                ? "w-[280px] sm:w-[340px] md:w-[380px] max-w-[92%] sm:max-w-[420px]"
+                                : "max-w-[85%] sm:max-w-[75%] md:max-w-[65%] w-fit min-w-[140px]",
                               msg.is_outgoing
                                 ? "bg-primary/20 dark:bg-[#1a3353] border border-primary/30 dark:border-[#2d527c] text-foreground dark:text-slate-100 rounded-[18px] rounded-br-[4px] self-end"
                                 : "bg-card dark:bg-[#172338] border border-border dark:border-[#22354e] text-foreground dark:text-slate-100 rounded-[18px] rounded-bl-[4px] self-start"
@@ -2039,11 +2042,11 @@ export const ChatsView: React.FC = () => {
                             )}
 
                             {/* Bubble Content Body */}
-                            <div className="p-2.5 sm:p-3 space-y-1">
+                            <div className="p-3 sm:p-3.5 space-y-1.5">
                               {/* Interactive Hashtag Directory Header Banner */}
                               {isDirectoryMessage && !isEditingThis && (
                                 <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-pink-500/20 bg-pink-500/10 -mx-1 px-2.5 py-1.5 rounded-t-lg">
-                                  <div className="flex items-center gap-1.5 text-pink-400 text-[11px] font-semibold">
+                                  <div className="flex items-center gap-1.5 text-pink-400 text-xs font-semibold">
                                     <Hash className="w-3.5 h-3.5 shrink-0" />
                                     <span>Directorio de Hashtags</span>
                                   </div>
@@ -2057,7 +2060,7 @@ export const ChatsView: React.FC = () => {
                                         hashtagModalTargetMsgId: msg.id,
                                       }));
                                     }}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-600 hover:bg-pink-500 text-white transition-colors cursor-pointer shadow-xs border border-pink-400/30"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-pink-600 hover:bg-pink-500 text-white transition-colors cursor-pointer shadow-xs border border-pink-400/30"
                                     title="Re-escanear canal y actualizar este mensaje"
                                   >
                                     <RefreshCw className="w-2.5 h-2.5" />
@@ -2067,13 +2070,13 @@ export const ChatsView: React.FC = () => {
                               )}
                               {/* Sender Name (only on incoming messages in multi-user groups) */}
                               {Boolean(!msg.is_outgoing && activeChat?.type === "group" && msg.sender_name) && (
-                                <div className="text-[11px] font-semibold text-primary font-mono truncate select-none leading-none mb-1">
+                                <div className="text-xs font-semibold text-primary font-mono truncate select-none leading-none mb-1">
                                   {msg.sender_name}
                                 </div>
                               )}
 
                               {msg.media_type === "document" && (
-                                <div className="flex items-center gap-1.5 px-2 py-1 mb-1 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[10px] font-mono w-fit">
+                                <div className="flex items-center gap-1.5 px-2 py-1 mb-1 rounded bg-secondary/70 border border-border text-amber-500 dark:text-amber-300 text-[11px] font-mono w-fit">
                                   <FileText className="w-3.5 h-3.5 text-amber-500" />
                                   <span>Documento / Archivo</span>
                                 </div>
@@ -2088,7 +2091,7 @@ export const ChatsView: React.FC = () => {
                                     onChange={(e) =>
                                       setViewState((s) => ({ ...s, editText: e.target.value }))
                                     }
-                                    className="w-full bg-secondary/70 border border-primary/50 rounded px-2 py-1 text-xs text-foreground focus:outline-none"
+                                    className="w-full bg-secondary/70 border border-primary/50 rounded px-2.5 py-1.5 text-sm text-foreground focus:outline-none"
                                     autoFocus
                                     onKeyDown={(e) => {
                                       if (e.key === "Enter") {
@@ -2102,7 +2105,7 @@ export const ChatsView: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => setEditingMessage(null)}
-                                      className="p-1 px-2 rounded text-[10px] text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border cursor-pointer"
+                                      className="p-1 px-2 rounded text-xs text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 flex items-center gap-1 border border-border cursor-pointer"
                                     >
                                       <X className="w-3 h-3" />
                                       Cancelar
@@ -2110,7 +2113,7 @@ export const ChatsView: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={() => handleSaveEdit(msg.id)}
-                                      className="p-1 px-2 rounded text-[10px] text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1 cursor-pointer"
+                                      className="p-1 px-2 rounded text-xs text-primary-foreground bg-primary hover:bg-primary/90 font-semibold flex items-center gap-1 cursor-pointer"
                                     >
                                       <Check className="w-3 h-3" />
                                       Guardar
@@ -2118,7 +2121,7 @@ export const ChatsView: React.FC = () => {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="leading-relaxed break-words whitespace-pre-wrap font-sans text-xs">
+                                <div className="leading-relaxed break-words whitespace-pre-wrap font-sans text-[13.5px] sm:text-sm text-foreground dark:text-slate-100">
                                   {msg.text && (
                                     <span>
                                       {renderFormattedMessageText(
@@ -2131,7 +2134,7 @@ export const ChatsView: React.FC = () => {
                                     </span>
                                   )}
                                   {/* Floating Telegram Timestamp & Checkmarks */}
-                                  <span className="float-right ml-2.5 mt-1 -mb-0.5 inline-flex items-center gap-0.5 text-[10px] font-mono opacity-65 leading-none select-none">
+                                  <span className="float-right ml-3 mt-1.5 -mb-0.5 inline-flex items-center gap-1 text-[11px] font-mono opacity-70 leading-none select-none">
                                     <span>{msg.date}</span>
                                     {msg.is_outgoing && !isEditingThis && (
                                       isOutgoingRead ? (

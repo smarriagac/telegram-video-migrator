@@ -60,6 +60,11 @@ Delivery strategy: single-pr
   - Load all matching messages into `useChatStore` via `ensureMessageLoaded` so all related publications across the full channel history are present in the DOM.
   - Fix false-positive "1 de 1": previous logic checked only in-memory `activeMessages` (last 50 messages); because the directory message contained the hashtag, it returned 1 match (`1 de 1`) and never queried the server.
   - Automatically identify directory vs content messages: when navigating from an index message, default target focus to the latest content publication (`nonDirIndices[last]`), displaying total matching publications (`X de Y`) and enabling seamless `[▲]` / `[▼]` navigation across all related publications in the channel.
+- S11: Message Bubble Proportions & Media Visual Hierarchy:
+  - Prevent portrait video/photo messages from collapsing to narrow 140px columns due to `w-fit`.
+  - Expand media bubbles to Telegram-native proportions: `w-[280px] sm:w-[340px] md:w-[380px] max-w-[92%] sm:max-w-[420px]`.
+  - Increase media preview height to `min-h-[220px] sm:min-h-[260px] max-h-[380px]` with `object-cover`.
+  - Upgrade typography to `text-[13.5px] sm:text-sm` for body text, `text-xs` for sender names, and `text-[11px]` for timestamps.
 
 ## Tasks
 - [x] T1 (S1): Add `extract_chat_hashtags` and `search_query` in port, adapter, and router [inline]
@@ -78,6 +83,7 @@ Delivery strategy: single-pr
 - [x] T14 (S9): Add in-message interactive directory banner and hover action in `ChatsView.tsx`, test with vitest and deploy [inline]
 - [x] T15 (S10): Implement channel-wide server search in `handleHashtagClick` and `renderFormattedMessageText`, removing local in-memory false-positive truncation [inline]
 - [x] T16 (S10): Verify full multi-message navigation (e.g. `#DianaRomero` with 4 messages `[19, 629, 1282, 1460]`), build and deploy [inline]
+- [x] T17 (S11): Enhance message bubble proportions for media (`w-[280px]..[380px]`, `min-h-[220px]..[260px]`), upgrade text size to `text-sm`, build and deploy [inline]
 
 ## Log
 - L1: Initialized ODD task for Telegram Hashtag Directory Generator & In-Chat Navigation.
@@ -93,3 +99,4 @@ Delivery strategy: single-pr
 - L11: Diagnosed missing hashtag `#maribelKlinger`: located in message ID 792 with 1 count, corresponding to rank 44 among 85 total tags. The previous template generation had a slicing cap (`sorted_tags[:40]`), causing tags from rank 41 downwards to be truncated from the generated text. Removed the cap so all 85 tags (including `#maribelKlinger` and `#samaria`) are emitted, and set default scan depth to full history (`limit=0`). Verified via live endpoint.
 - L12: Implemented in-message re-scan and in-place message edit workflow: directory messages display interactive re-scan banner and action button, allowing instant rescan and updating existing messages via `editMessage` without creating duplicates.
 - L13: Resolved "1 de 1" hashtag click bug: `handleHashtagClick` was performing a local search only against the 50 loaded in-memory messages. Because the directory message contained the hashtag, it returned 1 match (`1 de 1`) and aborted without querying Telegram. Updated `handleHashtagClick` to always query the server across the channel history (`chatApi.fetchMessages(chatId, 200, ...)`), register all matching messages into `useChatStore` via `ensureMessageLoaded`, smart-target the actual content post (jumping away from the directory message to message 1282 or 792), and enable seamless `[▲]` / `[▼]` navigation across all related publications (e.g. `1 de 4` to `4 de 4`). Verified live on `#DianaRomero` (4 matches: 19, 629, 1282, 1460) and `#maribelKlinger` (2 matches: 792, 1460).
+- L14: Fixed cramped/tiny message bubbles: vertical portrait video thumbnails were shrinking the bubble to ~140px width under `w-fit`. Updated media bubbles to have dedicated width `w-[280px] sm:w-[340px] md:w-[380px] max-w-[420px]`, thumbnail height `min-h-[220px] sm:min-h-[260px] max-h-[380px]`, and upgraded font sizes to `text-[13.5px] sm:text-sm` for clean readability.
