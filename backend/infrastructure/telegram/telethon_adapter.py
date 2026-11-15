@@ -652,6 +652,99 @@ class TelethonAdapter(TelegramGatewayPort):
                 except Exception:
                     pass
 
+    @staticmethod
+    def _extract_rich_text(rt: Any) -> str:
+        """Recursively extract plain text from RichText TL objects (TextPlain, TextConcat, TextBold, etc.)."""
+        if not rt:
+            return ""
+        if hasattr(rt, "text"):
+            return TelethonAdapter._extract_rich_text(rt.text)
+        if hasattr(rt, "texts"):
+            return "".join(TelethonAdapter._extract_rich_text(t) for t in rt.texts)
+        if isinstance(rt, str):
+            return rt
+        return str(rt)
+
+    @classmethod
+    def _extract_message_text(cls, msg: Any) -> str:
+        """Extract user-visible text from a message, including rich_message blocks and service actions."""
+        if not msg:
+            return ""
+
+        # 1. Standard text message or caption
+        if getattr(msg, "message", None):
+            return msg.message
+
+        # 2. Rich message (Telegram Business / E-commerce receipt or rich page)
+        rich = getattr(msg, "rich_message", None)
+        if rich and hasattr(rich, "blocks"):
+            lines: list[str] = []
+            for b in rich.blocks:
+                b_text = getattr(b, "text", None)
+                b_rows = getattr(b, "rows", None)
+                b_items = getattr(b, "items", None)
+                if b_text:
+                    lines.append(cls._extract_rich_text(b_text))
+                elif b_rows:
+                    table_lines: list[str] = []
+                    for r in b_rows:
+                        cells = [
+                            cls._extract_rich_text(getattr(c, "text", ""))
+                            for c in getattr(r, "cells", [])
+                        ]
+                        if len(cells) == 2:
+                            table_lines.append(f"• **{cells[0]}**: {cells[1]}")
+                        elif cells:
+                            table_lines.append(" | ".join(cells))
+                    if table_lines:
+                        lines.append("\n".join(table_lines))
+                elif b_items:
+                    for it in b_items:
+                        lines.append(f"• {cls._extract_rich_text(it)}")
+            result = "\n\n".join(l for l in lines if l.strip())
+            if result:
+                return result
+
+        # 3. Service messages (MessageService actions)
+        action = getattr(msg, "action", None)
+        if action:
+            action_type = type(action).__name__
+            if action_type == "MessageActionChatJoinedByLink":
+                return "Se unió mediante enlace de invitación"
+            if action_type == "MessageActionPinMessage":
+                return "Fijó un mensaje"
+            if action_type == "MessageActionChatEditPhoto":
+                return "Actualizó la foto del grupo"
+            if hasattr(action, "title"):
+                return f"Cambió el título a: {action.title}"
+            return f"[{action_type}]"
+
+        # 4. Special media descriptions
+        media = getattr(msg, "media", None)
+        if media:
+            media_type_name = type(media).__name__
+            if media_type_name == "MessageMediaPoll":
+                q = getattr(media.poll, "question", "")
+                q_text = getattr(q, "text", q) if hasattr(q, "text") else str(q)
+                return f"📊 Encuesta: {q_text}"
+            if media_type_name == "MessageMediaContact":
+                first = getattr(media, "first_name", "")
+                phone = getattr(media, "phone_number", "")
+                return f"👤 Contacto: {first} ({phone})".strip()
+            if media_type_name == "MessageMediaGeo":
+                return "📍 Ubicación compartida"
+            if media_type_name == "MessageMediaDice":
+                emo = getattr(media, "emoticon", "Dado")
+                return f"🎲 {emo}"
+            if getattr(msg, "video", None):
+                return "[Video]"
+            if getattr(msg, "photo", None):
+                return "[Foto]"
+            if getattr(msg, "document", None):
+                return "[Documento]"
+
+        return ""
+
     async def get_dialogs(self, limit: int = 50, account_id: int | None = None) -> list[TelegramDialog]:
         """Retrieve conversation dialogs (users, groups, channels) for authenticated account."""
         dialogs_list: list[TelegramDialog] = []
@@ -692,9 +785,11 @@ class TelethonAdapter(TelegramGatewayPort):
                 last_msg_text = None
                 last_msg_date = None
                 if dialog.message:
-                    last_msg_text = dialog.message.message or (
-                        "[Video]" if getattr(dialog.message, "video", None) else "[Archivo/Foto]"
-                    )
+                    last_msg_text = self._extract_message_text(dialog.message)
+                    if not last_msg_text:
+                        last_msg_text = (
+                            "[Video]" if getattr(dialog.message, "video", None) else "[Archivo/Foto]"
+                        )
                     if dialog.message.date:
                         last_msg_date = dialog.message.date.strftime("%H:%M")
 
@@ -835,15 +930,22 @@ class TelethonAdapter(TelegramGatewayPort):
                     for row_idx, row in enumerate(msg.reply_markup.rows):
                         row_items = []
                         for col_idx, b in enumerate(row.buttons):
+                            b_type = getattr(b, "type", None)
+                            b_url = getattr(b, "url", None) or (getattr(b_type, "url", None) if b_type else None)
+                            b_data = getattr(b, "data", None) or (getattr(b_type, "data", None) if b_type else None)
                             row_items.append({
                                 "text": b.text,
-                                "url": getattr(b, "url", None),
-                                "has_callback": bool(getattr(b, "data", None)),
+                                "url": b_url,
+                                "has_callback": bool(b_data),
                                 "row": row_idx,
                                 "col": col_idx,
                             })
                         if row_items:
                             buttons_matrix.append(row_items)
+
+                text_content = self._extract_message_text(msg)
+                if not text_content and media_type:
+                    text_content = f"[{media_type.capitalize()}]"
 
                 messages_list.append(
                     ChatMessage(
@@ -851,7 +953,7 @@ class TelethonAdapter(TelegramGatewayPort):
                         chat_id=chat_id,
                         sender_id=msg.sender_id or 0,
                         sender_name=sender_name,
-                        text=msg.message or (f"[{media_type.capitalize()}]" if media_type else ""),
+                        text=text_content,
                         date=date_str,
                         is_outgoing=is_outgoing,
                         media_type=media_type,
@@ -1877,10 +1979,13 @@ class TelethonAdapter(TelegramGatewayPort):
                 for row_idx, row in enumerate(raw_msg.reply_markup.rows):
                     row_items = []
                     for col_idx, b in enumerate(row.buttons):
+                        b_type = getattr(b, "type", None)
+                        b_url = getattr(b, "url", None) or (getattr(b_type, "url", None) if b_type else None)
+                        b_data = getattr(b, "data", None) or (getattr(b_type, "data", None) if b_type else None)
                         row_items.append({
                             "text": b.text,
-                            "url": getattr(b, "url", None),
-                            "has_callback": bool(getattr(b, "data", None)),
+                            "url": b_url,
+                            "has_callback": bool(b_data),
                             "row": row_idx,
                             "col": col_idx,
                         })
@@ -1895,6 +2000,10 @@ class TelethonAdapter(TelegramGatewayPort):
             chat_title = getattr(entity, "title", None) or getattr(entity, "first_name", "") or str(channel_target)
             chat_username = getattr(entity, "username", None)
 
+            resolved_text = self._extract_message_text(raw_msg)
+            if not resolved_text and media_type:
+                resolved_text = f"[{media_type.capitalize()}]"
+
             return {
                 "success": True,
                 "chat_id": chat_id,
@@ -1904,7 +2013,7 @@ class TelethonAdapter(TelegramGatewayPort):
                 "message": {
                     "id": raw_msg.id,
                     "sender": sender_name,
-                    "text": raw_msg.message or "",
+                    "text": resolved_text,
                     "date": date_str,
                     "is_outgoing": is_outgoing,
                     "is_read": True,

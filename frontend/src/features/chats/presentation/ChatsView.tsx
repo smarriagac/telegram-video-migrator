@@ -461,6 +461,24 @@ const renderFormattedMessageText = (
       );
     }
 
+    if (part.includes("**")) {
+      const boldParts = part.split(/(\*\*.*?\*\*)/g);
+      return (
+        <span key={idx}>
+          {boldParts.map((bPart, bIdx) => {
+            if (bPart.startsWith("**") && bPart.endsWith("**")) {
+              return (
+                <strong key={bIdx} className="font-semibold text-foreground">
+                  {bPart.slice(2, -2)}
+                </strong>
+              );
+            }
+            return <React.Fragment key={bIdx}>{bPart}</React.Fragment>;
+          })}
+        </span>
+      );
+    }
+
     return <span key={idx}>{part}</span>;
   });
 };
