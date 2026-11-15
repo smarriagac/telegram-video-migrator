@@ -10,8 +10,17 @@ export const chatApi = {
     return res.json();
   },
 
-  async fetchMessages(chatId: number, limit: number = 50, accountId?: number, query?: string): Promise<Message[]> {
+  async fetchMessages(
+    chatId: number,
+    limit: number = 50,
+    offsetId?: number | null,
+    accountId?: number | null,
+    query?: string | null
+  ): Promise<Message[]> {
     let url = `/api/dialogs/${chatId}/messages?limit=${limit}`;
+    if (offsetId) {
+      url += `&offset_id=${offsetId}`;
+    }
     if (accountId) {
       url += `&account_id=${accountId}`;
     }

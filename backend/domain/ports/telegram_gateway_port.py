@@ -83,6 +83,7 @@ class TelegramGatewayPort(ABC):
         self,
         chat_id: int,
         limit: int = 50,
+        offset_id: int | None = None,
         account_id: int | None = None,
         search_query: str | None = None,
     ) -> list[ChatMessage]:

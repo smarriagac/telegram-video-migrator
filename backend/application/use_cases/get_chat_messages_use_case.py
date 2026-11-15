@@ -15,10 +15,13 @@ class GetChatMessagesUseCase:
         self,
         chat_id: int,
         limit: int = 50,
+        offset_id: int | None = None,
         account_id: int | None = None,
         search_query: str | None = None,
     ) -> list[ChatMessage]:
         kwargs: dict[str, Any] = {"chat_id": chat_id, "limit": limit}
+        if offset_id is not None:
+            kwargs["offset_id"] = offset_id
         if account_id is not None:
             kwargs["account_id"] = account_id
         if search_query is not None:

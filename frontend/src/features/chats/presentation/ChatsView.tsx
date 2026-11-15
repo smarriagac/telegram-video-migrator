@@ -615,6 +615,8 @@ export const ChatsView: React.FC = () => {
   const accounts = useChatStore((state) => state.accounts);
   const selectedAccountId = useChatStore((state) => state.selectedAccountId);
   const isScrolledUp = useChatStore((state) => state.isScrolledUp);
+  const isLoadingOlderMessages = useChatStore((state) => state.isLoadingOlderMessages);
+  const hasMoreOlderMessages = useChatStore((state) => state.hasMoreOlderMessages);
 
   const loadAccounts = useChatStore((state) => state.loadAccounts);
   const setSelectedAccountId = useChatStore((state) => state.setSelectedAccountId);
@@ -622,6 +624,7 @@ export const ChatsView: React.FC = () => {
   const loadMoreDialogs = useChatStore((state) => state.loadMoreDialogs);
   const setCategoryFilter = useChatStore((state) => state.setCategoryFilter);
   const selectChat = useChatStore((state) => state.selectChat);
+  const loadOlderMessages = useChatStore((state) => state.loadOlderMessages);
   const markAsRead = useChatStore((state) => state.markAsRead);
   const setIsScrolledUp = useChatStore((state) => state.setIsScrolledUp);
   const sendMessage = useChatStore((state) => state.sendMessage);
@@ -997,6 +1000,7 @@ export const ChatsView: React.FC = () => {
         const serverMsgs = await chatApi.fetchMessages(
           activeChat.id,
           50,
+          null,
           selectedAccountId || activeChat.account_id,
           tag
         );
@@ -1792,9 +1796,48 @@ export const ChatsView: React.FC = () => {
                   if (distanceToBottom <= 20 && activeChat && activeChat.unread_count > 0) {
                     markAsRead(activeChat.id);
                   }
+
+                  // Upward infinite scroll pagination: load older messages when scrolling near top
+                  if (
+                    el.scrollTop < 120 &&
+                    !isLoadingOlderMessages &&
+                    activeChat &&
+                    hasMoreOlderMessages[activeChat.id] !== false
+                  ) {
+                    const prevScrollHeight = el.scrollHeight;
+                    const prevScrollTop = el.scrollTop;
+                    loadOlderMessages(activeChat.id).then((loaded) => {
+                      if (loaded) {
+                        requestAnimationFrame(() => {
+                          const delta = el.scrollHeight - prevScrollHeight;
+                          el.scrollTop = prevScrollTop + delta;
+                        });
+                      }
+                    });
+                  }
                 }}
                 className="relative flex-1 min-h-0 p-3 sm:p-4 overflow-y-auto space-y-2 flex flex-col bg-[#0b121e]/40 dark:bg-[#0c1422]"
               >
+                {/* Older Messages Loading Indicator */}
+                {isLoadingOlderMessages && (
+                  <div className="py-2 text-center text-xs text-muted-foreground flex items-center justify-center gap-2 shrink-0 bg-secondary/30 rounded-md mx-4 animate-in fade-in">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    <span>Cargando mensajes anteriores...</span>
+                  </div>
+                )}
+
+                {/* Beginning of History Indicator */}
+                {!isLoadingOlderMessages &&
+                  activeChat &&
+                  hasMoreOlderMessages[activeChat.id] === false &&
+                  activeMessages.length > 0 && (
+                    <div className="text-center my-2 shrink-0">
+                      <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-slate-900/60 border border-slate-800 text-slate-500">
+                        Inicio del historial de la conversación
+                      </span>
+                    </div>
+                  )}
+
                 <div className="text-center my-1 shrink-0">
                   <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-white/5 text-zinc-400">
                     Cifrado y transmitido a través de Telegram MTProto

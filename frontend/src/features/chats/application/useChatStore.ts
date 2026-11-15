@@ -21,6 +21,8 @@ interface ChatState {
   accounts: { id: number; name: string }[];
   selectedAccountId: number | null;
   isScrolledUp: boolean;
+  isLoadingOlderMessages: boolean;
+  hasMoreOlderMessages: Record<number, boolean>;
 
   // Actions
   loadAccounts: () => Promise<void>;
@@ -29,6 +31,7 @@ interface ChatState {
   loadMoreDialogs: () => Promise<void>;
   setCategoryFilter: (category: "all" | "channel" | "group" | "user") => void;
   selectChat: (chatId: number) => Promise<void>;
+  loadOlderMessages: (chatId: number) => Promise<boolean>;
   markAsRead: (chatId: number, maxId?: number) => Promise<void>;
   setIsScrolledUp: (scrolledUp: boolean) => void;
   sendMessage: (text: string) => Promise<void>;
@@ -62,6 +65,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   accounts: [],
   selectedAccountId: null,
   isScrolledUp: false,
+  isLoadingOlderMessages: false,
+  hasMoreOlderMessages: {},
 
   setIsScrolledUp: (scrolledUp: boolean) => set({ isScrolledUp: scrolledUp }),
 
@@ -142,16 +147,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
     const { messages } = get();
 
-    // If messages for this chat are not loaded yet, fetch them
-    if (!messages[chatId]) {
+    // If messages for this chat are not loaded yet or empty, fetch initial batch
+    const existing = messages[chatId];
+    if (!existing || existing.length === 0) {
       set({ isLoadingMessages: true });
       try {
         const accountId = get().selectedAccountId;
-        const chatMsgs = await chatApi.fetchMessages(chatId, 50, accountId || undefined);
+        const chatMsgs = await chatApi.fetchMessages(chatId, 60, null, accountId || undefined);
         set((state) => ({
           messages: {
             ...state.messages,
             [chatId]: chatMsgs,
+          },
+          hasMoreOlderMessages: {
+            ...state.hasMoreOlderMessages,
+            [chatId]: chatMsgs.length >= 60,
           },
         }));
       } catch (err) {
@@ -162,21 +172,95 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  loadOlderMessages: async (chatId: number): Promise<boolean> => {
+    const { isLoadingOlderMessages, hasMoreOlderMessages, messages, selectedAccountId } = get();
+    if (isLoadingOlderMessages) return false;
+    if (hasMoreOlderMessages[chatId] === false) return false;
+
+    const currentMsgs = messages[chatId] || [];
+    if (currentMsgs.length === 0) return false;
+
+    // The oldest message currently in view is the first one in the sorted list
+    const oldestMsg = currentMsgs[0];
+    const offsetId = oldestMsg.id;
+
+    set({ isLoadingOlderMessages: true });
+    try {
+      const olderMsgs = await chatApi.fetchMessages(
+        chatId,
+        50,
+        offsetId,
+        selectedAccountId || undefined
+      );
+
+      if (olderMsgs.length === 0) {
+        set((state) => ({
+          hasMoreOlderMessages: {
+            ...state.hasMoreOlderMessages,
+            [chatId]: false,
+          },
+        }));
+        return false;
+      }
+
+      const existingIds = new Set(currentMsgs.map((m) => m.id));
+      const newOlder = olderMsgs.filter((m) => !existingIds.has(m.id));
+
+      if (newOlder.length === 0) {
+        set((state) => ({
+          hasMoreOlderMessages: {
+            ...state.hasMoreOlderMessages,
+            [chatId]: false,
+          },
+        }));
+        return false;
+      }
+
+      const merged = [...newOlder, ...currentMsgs].sort((a, b) => a.id - b.id);
+
+      set((state) => ({
+        messages: {
+          ...state.messages,
+          [chatId]: merged,
+        },
+        hasMoreOlderMessages: {
+          ...state.hasMoreOlderMessages,
+          [chatId]: olderMsgs.length >= 50,
+        },
+      }));
+      return true;
+    } catch (err) {
+      console.error(`Error cargando mensajes anteriores para el chat ${chatId}:`, err);
+      return false;
+    } finally {
+      set({ isLoadingOlderMessages: false });
+    }
+  },
+
   refreshActiveMessages: async () => {
     const chatId = get().activeChatId;
     if (!chatId) return;
     try {
       const chatMsgs = await chatApi.fetchMessages(
         chatId,
-        50,
+        60,
+        null,
         get().selectedAccountId || undefined
       );
-      set((state) => ({
-        messages: {
-          ...state.messages,
-          [chatId]: chatMsgs,
-        },
-      }));
+      set((state) => {
+        const existing = state.messages[chatId] || [];
+        const existingMap = new Map(existing.map((m) => [m.id, m]));
+        for (const m of chatMsgs) {
+          existingMap.set(m.id, m);
+        }
+        const updated = Array.from(existingMap.values()).sort((a, b) => a.id - b.id);
+        return {
+          messages: {
+            ...state.messages,
+            [chatId]: updated,
+          },
+        };
+      });
     } catch (err) {
       console.error(`Error refrescando mensajes para chat ${chatId}:`, err);
     }

@@ -101,6 +101,17 @@ async def test_get_chat_messages_use_case():
 
 
 @pytest.mark.asyncio
+async def test_get_chat_messages_use_case_with_offset_id():
+    mock_gateway = AsyncMock(spec=TelegramGatewayPort)
+    mock_gateway.get_chat_messages.return_value = []
+
+    use_case = GetChatMessagesUseCase(telegram_gateway=mock_gateway)
+    await use_case.execute(chat_id=101, limit=30, offset_id=500)
+
+    mock_gateway.get_chat_messages.assert_awaited_once_with(chat_id=101, limit=30, offset_id=500)
+
+
+@pytest.mark.asyncio
 async def test_dialogs_api_endpoints():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
