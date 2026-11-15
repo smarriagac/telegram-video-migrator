@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from backend.domain.entities.chat_message import ChatMessage
 from backend.domain.ports.telegram_gateway_port import TelegramGatewayPort
 
@@ -11,8 +12,15 @@ class GetChatMessagesUseCase:
         self.telegram_gateway = telegram_gateway
 
     async def execute(
-        self, chat_id: int, limit: int = 50, account_id: int | None = None
+        self,
+        chat_id: int,
+        limit: int = 50,
+        account_id: int | None = None,
+        search_query: str | None = None,
     ) -> list[ChatMessage]:
+        kwargs: dict[str, Any] = {"chat_id": chat_id, "limit": limit}
         if account_id is not None:
-            return await self.telegram_gateway.get_chat_messages(chat_id=chat_id, limit=limit, account_id=account_id)
-        return await self.telegram_gateway.get_chat_messages(chat_id=chat_id, limit=limit)
+            kwargs["account_id"] = account_id
+        if search_query is not None:
+            kwargs["search_query"] = search_query
+        return await self.telegram_gateway.get_chat_messages(**kwargs)

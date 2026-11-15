@@ -69,3 +69,20 @@ export interface ResolvedMessageLink {
   message: Message;
   error?: string;
 }
+
+export interface ChatHashtagInfo {
+  tag: string;
+  count: number;
+  sample_message_ids: number[];
+}
+
+export interface ChatHashtagReport {
+  success: boolean;
+  chat_id: number;
+  limit: number;
+  scanned_messages: number;
+  total_hashtags: number;
+  hashtags: ChatHashtagInfo[];
+  suggested_message: string;
+  error?: string;
+}

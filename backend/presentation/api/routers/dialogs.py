@@ -300,12 +300,18 @@ async def list_dialogs(
 async def get_messages(
     chat_id: int,
     limit: int = Query(50, ge=1, le=200),
+    query: str | None = Query(None),
     account_id: int | None = Query(None),
     use_case: GetChatMessagesUseCase = Depends(get_chat_messages_use_case),
 ) -> list[ChatMessageResponse]:
-    """Retrieve message history for a specific Telegram chat."""
+    """Retrieve message history for a specific Telegram chat, optionally filtered by search query."""
     try:
-        messages = await use_case.execute(chat_id=chat_id, limit=limit, account_id=account_id)
+        messages = await use_case.execute(
+            chat_id=chat_id,
+            limit=limit,
+            account_id=account_id,
+            search_query=query,
+        )
         return [
             ChatMessageResponse(
                 id=m.id,
@@ -324,6 +330,29 @@ async def get_messages(
     except Exception as e:
         logger.warning(f"Error fetching messages for chat {chat_id}: {e}")
         return DEMO_MESSAGES.get(chat_id, [])
+
+
+@router.get("/{chat_id}/hashtags")
+async def get_chat_hashtags_endpoint(
+    chat_id: int,
+    limit: int = Query(200, ge=20, le=500),
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Extract all unique #hashtags from chat history and generate a structured directory."""
+    try:
+        result = await gateway.extract_chat_hashtags(
+            chat_id=chat_id,
+            limit=limit,
+            account_id=account_id,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error extracting hashtags for chat {chat_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al analizar hashtags: {e}",
+        )
 
 
 @router.post("/{chat_id}/read")

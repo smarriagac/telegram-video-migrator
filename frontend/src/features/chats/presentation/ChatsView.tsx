@@ -22,6 +22,7 @@ import {
   Lock,
   Maximize2,
   ChevronDown,
+  ChevronUp,
   ChevronLeft,
   ChevronRight,
   UserPlus,
@@ -33,6 +34,7 @@ import {
   DownloadCloud,
   Forward,
   ExternalLink,
+  Hash,
 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
@@ -49,6 +51,7 @@ import { FeedWatcherModal } from "@/features/migration/presentation/components/F
 import { ForwardMessagesModal } from "./components/ForwardMessagesModal";
 import { JoinInviteModal } from "./components/JoinInviteModal";
 import { ChatProfileModal } from "./components/ChatProfileModal";
+import { HashtagDirectoryModal } from "./components/HashtagDirectoryModal";
 import { ChannelMessageItem, Channel } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -380,7 +383,8 @@ const ChatMediaThumbnail: React.FC<ChatMediaThumbnailProps> = ({
 const renderFormattedMessageText = (
   text: string,
   onTelegramLinkClick: (url: string) => void,
-  onMessagePermalinkClick?: (url: string) => void
+  onMessagePermalinkClick?: (url: string) => void,
+  onHashtagClick?: (tag: string) => void
 ) => {
   if (!text) return null;
 
@@ -461,25 +465,65 @@ const renderFormattedMessageText = (
       );
     }
 
-    if (part.includes("**")) {
-      const boldParts = part.split(/(\*\*.*?\*\*)/g);
-      return (
-        <span key={idx}>
-          {boldParts.map((bPart, bIdx) => {
-            if (bPart.startsWith("**") && bPart.endsWith("**")) {
+    // Process non-URL parts for hashtags and bold markdown (**text**)
+    const tokenRegex = /(#[a-zA-Z0-9_ñáéíóúÁÉÍÓÚ]+|\*\*.*?\*\*)/g;
+    const subParts = part.split(tokenRegex);
+
+    return (
+      <React.Fragment key={idx}>
+        {subParts.map((subPart, subIdx) => {
+          if (!subPart) return null;
+
+          if (subPart.startsWith("#") && /^#[a-zA-Z0-9_ñáéíóúÁÉÍÓÚ]+$/.test(subPart)) {
+            return (
+              <button
+                key={`${idx}-${subIdx}`}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onHashtagClick) {
+                    onHashtagClick(subPart);
+                  }
+                }}
+                className="inline-flex items-center text-pink-400 hover:text-pink-300 font-semibold hover:underline cursor-pointer px-1 py-0.2 rounded hover:bg-pink-500/15 transition-colors font-mono select-text mx-0.5 border border-pink-500/20 bg-pink-500/5"
+                title={`Buscar ${subPart} en este chat`}
+              >
+                {subPart}
+              </button>
+            );
+          }
+
+          if (subPart.startsWith("**") && subPart.endsWith("**") && subPart.length >= 4) {
+            const inner = subPart.slice(2, -2);
+            if (inner.startsWith("#") && /^#[a-zA-Z0-9_ñáéíóúÁÉÍÓÚ]+$/.test(inner)) {
               return (
-                <strong key={bIdx} className="font-semibold text-foreground">
-                  {bPart.slice(2, -2)}
-                </strong>
+                <button
+                  key={`${idx}-${subIdx}`}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onHashtagClick) {
+                      onHashtagClick(inner);
+                    }
+                  }}
+                  className="inline-flex items-center text-pink-400 hover:text-pink-300 font-bold hover:underline cursor-pointer px-1 py-0.2 rounded hover:bg-pink-500/20 transition-colors font-mono select-text mx-0.5 border border-pink-500/30 bg-pink-500/10"
+                  title={`Buscar ${inner} en este chat`}
+                >
+                  {inner}
+                </button>
               );
             }
-            return <React.Fragment key={bIdx}>{bPart}</React.Fragment>;
-          })}
-        </span>
-      );
-    }
+            return (
+              <strong key={`${idx}-${subIdx}`} className="font-semibold text-foreground">
+                {inner}
+              </strong>
+            );
+          }
 
-    return <span key={idx}>{part}</span>;
+          return <React.Fragment key={`${idx}-${subIdx}`}>{subPart}</React.Fragment>;
+        })}
+      </React.Fragment>
+    );
   });
 };
 
@@ -512,6 +556,10 @@ interface ExtraViewState {
   profileModalOpen: boolean;
   inviteUrlToJoin: string | null;
   highlightedMessageId: number | null;
+  hashtagModalOpen: boolean;
+  inChatSearchQuery: string | null;
+  inChatSearchMatches: number[];
+  inChatSearchIndex: number;
 }
 
 export const ChatsView: React.FC = () => {
@@ -539,6 +587,10 @@ export const ChatsView: React.FC = () => {
     profileModalOpen: false,
     inviteUrlToJoin: null,
     highlightedMessageId: null,
+    hashtagModalOpen: false,
+    inChatSearchQuery: null,
+    inChatSearchMatches: [],
+    inChatSearchIndex: 0,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -909,6 +961,133 @@ export const ChatsView: React.FC = () => {
     if (/^https?:\/\//i.test(clean)) {
       window.open(clean, "_blank", "noopener,noreferrer");
     }
+  };
+
+  const handleHashtagClick = async (tag: string) => {
+    if (!activeChat) return;
+
+    const cleanTag = tag.trim().toLowerCase();
+    const matches = activeMessages
+      .filter((m) => m.text && m.text.toLowerCase().includes(cleanTag))
+      .map((m) => m.id);
+
+    if (matches.length > 0) {
+      const lastIndex = matches.length - 1;
+      const targetMsgId = matches[lastIndex];
+
+      setViewState((prev) => ({
+        ...prev,
+        inChatSearchQuery: tag,
+        inChatSearchMatches: matches,
+        inChatSearchIndex: lastIndex,
+      }));
+
+      setTimeout(() => {
+        const el = document.getElementById(`msg-${targetMsgId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          setViewState((s) => ({ ...s, highlightedMessageId: targetMsgId }));
+          setTimeout(() => {
+            setViewState((s) => (s.highlightedMessageId === targetMsgId ? { ...s, highlightedMessageId: null } : s));
+          }, 2600);
+        }
+      }, 100);
+    } else {
+      try {
+        const serverMsgs = await chatApi.fetchMessages(
+          activeChat.id,
+          50,
+          selectedAccountId || activeChat.account_id,
+          tag
+        );
+        if (serverMsgs.length > 0) {
+          for (const sMsg of serverMsgs) {
+            ensureMessageLoaded(activeChat.id, sMsg);
+          }
+          const serverMatches = serverMsgs.map((m) => m.id);
+          const targetMsgId = serverMatches[serverMatches.length - 1];
+
+          setViewState((prev) => ({
+            ...prev,
+            inChatSearchQuery: tag,
+            inChatSearchMatches: serverMatches,
+            inChatSearchIndex: serverMatches.length - 1,
+          }));
+
+          setTimeout(() => {
+            const el = document.getElementById(`msg-${targetMsgId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              setViewState((s) => ({ ...s, highlightedMessageId: targetMsgId }));
+              setTimeout(() => {
+                setViewState((s) => (s.highlightedMessageId === targetMsgId ? { ...s, highlightedMessageId: null } : s));
+              }, 2600);
+            }
+          }, 150);
+        } else {
+          setViewState((prev) => ({
+            ...prev,
+            inChatSearchQuery: tag,
+            inChatSearchMatches: [],
+            inChatSearchIndex: 0,
+          }));
+        }
+      } catch {
+        setViewState((prev) => ({
+          ...prev,
+          inChatSearchQuery: tag,
+          inChatSearchMatches: [],
+          inChatSearchIndex: 0,
+        }));
+      }
+    }
+  };
+
+  const handleInChatSearchNavigate = (direction: "prev" | "next") => {
+    const { inChatSearchMatches, inChatSearchIndex } = viewState;
+    if (inChatSearchMatches.length === 0) return;
+
+    let newIndex = direction === "next" ? inChatSearchIndex + 1 : inChatSearchIndex - 1;
+    if (newIndex >= inChatSearchMatches.length) newIndex = 0;
+    if (newIndex < 0) newIndex = inChatSearchMatches.length - 1;
+
+    const targetMsgId = inChatSearchMatches[newIndex];
+    setViewState((prev) => ({
+      ...prev,
+      inChatSearchIndex: newIndex,
+    }));
+
+    setTimeout(() => {
+      const el = document.getElementById(`msg-${targetMsgId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setViewState((s) => ({ ...s, highlightedMessageId: targetMsgId }));
+        setTimeout(() => {
+          setViewState((s) => (s.highlightedMessageId === targetMsgId ? { ...s, highlightedMessageId: null } : s));
+        }, 2600);
+      }
+    }, 100);
+  };
+
+  const handleCloseInChatSearch = () => {
+    setViewState((prev) => ({
+      ...prev,
+      inChatSearchQuery: null,
+      inChatSearchMatches: [],
+      inChatSearchIndex: 0,
+    }));
+  };
+
+  const handlePublishDirectory = async (text: string) => {
+    if (!activeChat) return;
+    await sendMessage(text);
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
+
+  const handleLoadDraftDirectory = (text: string) => {
+    setInputText(text);
   };
 
   const openVipModal = async () => {
@@ -1431,6 +1610,20 @@ export const ChatsView: React.FC = () => {
                     <span className="hidden sm:inline">Auto-Pilot Feeds</span>
                   </Button>
 
+                  {/* Button: Hashtag Directory Generator */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setViewState((prev) => ({ ...prev, hashtagModalOpen: true }))
+                    }
+                    className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-pink-500/40 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
+                    title="Escanear historial y generar mensaje índice con todos los #hashtags"
+                  >
+                    <Hash className="w-3.5 h-3.5 text-pink-400" />
+                    <span className="hidden sm:inline">Índice #</span>
+                  </Button>
+
                   {/* Mode: Multi-Select for Forwarding / Self-Organization */}
                   <Button
                     variant={viewState.isSelectionMode ? "default" : "outline"}
@@ -1526,6 +1719,62 @@ export const ChatsView: React.FC = () => {
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
+                </div>
+              )}
+
+              {/* In-Chat Hashtag Search Navigation Bar */}
+              {viewState.inChatSearchQuery && (
+                <div className="mx-3 mt-2 p-2 px-3 rounded-lg bg-slate-900/95 border border-pink-500/40 shadow-xl flex items-center justify-between gap-3 shrink-0 animate-in fade-in z-20">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1 rounded bg-pink-500/20 text-pink-400 border border-pink-500/30">
+                      <Hash className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-mono font-bold text-pink-300 truncate">
+                      {viewState.inChatSearchQuery}
+                    </span>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {viewState.inChatSearchMatches.length > 0 ? (
+                        <>
+                          <strong className="text-white">{viewState.inChatSearchIndex + 1}</strong> de{" "}
+                          <strong className="text-white">{viewState.inChatSearchMatches.length}</strong>
+                        </>
+                      ) : (
+                        "Sin coincidencias en este historial"
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={viewState.inChatSearchMatches.length <= 1}
+                      onClick={() => handleInChatSearchNavigate("prev")}
+                      className="h-6 w-6 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
+                      title="Coincidencia anterior"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={viewState.inChatSearchMatches.length <= 1}
+                      onClick={() => handleInChatSearchNavigate("next")}
+                      className="h-6 w-6 p-0 text-slate-300 hover:text-white hover:bg-slate-800"
+                      title="Siguiente coincidencia"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </Button>
+                    <div className="w-[1px] h-4 bg-slate-800 mx-1" />
+                    <button
+                      type="button"
+                      onClick={handleCloseInChatSearch}
+                      className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors"
+                      title="Cerrar búsqueda"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1746,7 +1995,8 @@ export const ChatsView: React.FC = () => {
                                       {renderFormattedMessageText(
                                         msg.text,
                                         (url) => handleTelegramActionClick(url),
-                                        handleMessagePermalinkClick
+                                        handleMessagePermalinkClick,
+                                        handleHashtagClick
                                       )}
                                     </span>
                                   )}
@@ -2594,6 +2844,20 @@ export const ChatsView: React.FC = () => {
           loadDialogs(false);
         }}
       />
+
+      {/* Hashtag Directory Generator Modal */}
+      {activeChat && (
+        <HashtagDirectoryModal
+          isOpen={viewState.hashtagModalOpen}
+          onClose={() => setViewState((s) => ({ ...s, hashtagModalOpen: false }))}
+          chatId={activeChat.id}
+          chatTitle={activeChat.title}
+          accountId={selectedAccountId || activeChat?.account_id || null}
+          onPublish={handlePublishDirectory}
+          onLoadDraft={handleLoadDraftDirectory}
+          onSelectHashtag={handleHashtagClick}
+        />
+      )}
     </div>
   );
 };

@@ -80,7 +80,11 @@ class TelegramGatewayPort(ABC):
 
     @abstractmethod
     async def get_chat_messages(
-        self, chat_id: int, limit: int = 50
+        self,
+        chat_id: int,
+        limit: int = 50,
+        account_id: int | None = None,
+        search_query: str | None = None,
     ) -> list[ChatMessage]:
         """Fetch recent message history from a specific chat."""
         raise NotImplementedError
@@ -286,4 +290,13 @@ class TelegramGatewayPort(ABC):
         account_id: int | None = None,
     ) -> dict[str, Any]:
         """Start a conversation with a Telegram bot, optionally passing a start deep-link parameter."""
+        return {}
+
+    async def extract_chat_hashtags(
+        self,
+        chat_id: int,
+        limit: int = 200,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Scan chat history, extract unique #hashtags with counts and generate an index message."""
         return {}

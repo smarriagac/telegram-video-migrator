@@ -882,9 +882,13 @@ class TelethonAdapter(TelegramGatewayPort):
             return False
 
     async def get_chat_messages(
-        self, chat_id: int, limit: int = 50, account_id: int | None = None
+        self,
+        chat_id: int,
+        limit: int = 50,
+        account_id: int | None = None,
+        search_query: str | None = None,
     ) -> list[ChatMessage]:
-        """Fetch recent message history from a specific chat in chronological order."""
+        """Fetch message history from a specific chat in chronological order, optionally filtering by search query."""
         messages_list: list[ChatMessage] = []
         try:
             client = self._get_client(account_id)
@@ -902,7 +906,11 @@ class TelethonAdapter(TelegramGatewayPort):
             except Exception:
                 pass
 
-            async for msg in client.iter_messages(chat_id, limit=limit):
+            iter_kwargs: dict[str, Any] = {"limit": limit}
+            if search_query and search_query.strip():
+                iter_kwargs["search"] = search_query.strip()
+
+            async for msg in client.iter_messages(chat_id, **iter_kwargs):
                 sender_name = "Desconocido"
                 if msg.sender:
                     first = getattr(msg.sender, "first_name", "") or ""
@@ -2063,4 +2071,73 @@ class TelethonAdapter(TelegramGatewayPort):
             return {
                 "success": False,
                 "error": f"No se pudo iniciar conversación con el bot: {e}",
+            }
+
+    async def extract_chat_hashtags(
+        self,
+        chat_id: int,
+        limit: int = 200,
+        account_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Scan chat history, extract unique #hashtags with counts, and generate a structured directory template."""
+        client = self._get_client(account_id)
+        await self._ensure_connected(client)
+
+        tag_stats: dict[str, dict[str, Any]] = {}
+
+        try:
+            async for msg in client.iter_messages(chat_id, limit=limit):
+                text = self._extract_message_text(msg)
+                if not text:
+                    continue
+
+                tags = re.findall(r'#([a-zA-Z0-9_ñáéíóúÁÉÍÓÚ]+)', text)
+                for raw_tag in tags:
+                    clean_tag = f"#{raw_tag}"
+                    lower_key = clean_tag.lower()
+                    if lower_key not in tag_stats:
+                        tag_stats[lower_key] = {
+                            "tag": clean_tag,
+                            "count": 0,
+                            "sample_message_ids": [],
+                        }
+                    tag_stats[lower_key]["count"] += 1
+                    if (
+                        msg.id not in tag_stats[lower_key]["sample_message_ids"]
+                        and len(tag_stats[lower_key]["sample_message_ids"]) < 5
+                    ):
+                        tag_stats[lower_key]["sample_message_ids"].append(msg.id)
+
+            sorted_tags = sorted(tag_stats.values(), key=lambda x: x["count"], reverse=True)
+
+            template_lines = [
+                "📌 **ÍNDICE DE ETIQUETAS Y CONTENIDO**",
+                "",
+                "Hacé clic en cualquier etiqueta para filtrar y navegar las publicaciones del canal:",
+                "",
+            ]
+            for item in sorted_tags[:30]:
+                template_lines.append(f"🔹 {item['tag']} ({item['count']} publicaciones)")
+
+            if not sorted_tags:
+                template_lines.append("*(No se encontraron etiquetas # en el historial reciente)*")
+
+            template_lines.append("")
+            template_lines.append("💡 *Tip: Al tocar un hashtag podés saltar directamente a sus mensajes.*")
+            suggested_message = "\n".join(template_lines)
+
+            return {
+                "success": True,
+                "chat_id": chat_id,
+                "total_hashtags": len(sorted_tags),
+                "hashtags": sorted_tags,
+                "suggested_message": suggested_message,
+            }
+        except Exception as e:
+            logger.error(f"Error extracting hashtags from chat {chat_id}: {e}")
+            return {
+                "success": False,
+                "error": f"Error al extraer hashtags del canal: {e}",
+                "hashtags": [],
+                "suggested_message": "",
             }

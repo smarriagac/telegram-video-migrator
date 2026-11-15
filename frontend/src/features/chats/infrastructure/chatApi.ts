@@ -1,4 +1,4 @@
-import { Chat, Message, ResolvedMessageLink } from "../domain/types";
+import { Chat, Message, ResolvedMessageLink, ChatHashtagReport } from "../domain/types";
 
 export const chatApi = {
   async fetchDialogs(limit: number = 100, accountId?: number): Promise<Chat[]> {
@@ -10,8 +10,14 @@ export const chatApi = {
     return res.json();
   },
 
-  async fetchMessages(chatId: number, limit: number = 50, accountId?: number): Promise<Message[]> {
-    const url = accountId ? `/api/dialogs/${chatId}/messages?limit=${limit}&account_id=${accountId}` : `/api/dialogs/${chatId}/messages?limit=${limit}`;
+  async fetchMessages(chatId: number, limit: number = 50, accountId?: number, query?: string): Promise<Message[]> {
+    let url = `/api/dialogs/${chatId}/messages?limit=${limit}`;
+    if (accountId) {
+      url += `&account_id=${accountId}`;
+    }
+    if (query) {
+      url += `&query=${encodeURIComponent(query)}`;
+    }
     const res = await fetch(url);
     if (!res.ok) {
       throw new Error(`Error ${res.status} al obtener mensajes del chat ${chatId}`);
@@ -241,6 +247,23 @@ export const chatApi = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: "Error al interactuar con el bot" }));
       throw new Error(err.detail || `Error ${res.status} al abrir el bot`);
+    }
+    return res.json();
+  },
+
+  async fetchChatHashtags(
+    chatId: number,
+    limit: number = 200,
+    accountId?: number | null
+  ): Promise<ChatHashtagReport> {
+    let url = `/api/dialogs/${chatId}/hashtags?limit=${limit}`;
+    if (accountId) {
+      url += `&account_id=${accountId}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Error al extraer hashtags" }));
+      throw new Error(err.detail || `Error ${res.status} al extraer hashtags del chat`);
     }
     return res.json();
   },
