@@ -130,13 +130,12 @@ export const buildDirectoryMessage = (
 };
 
 const DEPTH_PRESETS = [
-  { label: "200", value: 200 },
+  { label: "Todo el canal", value: 0 },
   { label: "500", value: 500 },
   { label: "1k", value: 1000 },
   { label: "2.5k", value: 2500 },
   { label: "5k", value: 5000 },
   { label: "10k", value: 10000 },
-  { label: "Todo el canal", value: 0 },
 ];
 
 export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
@@ -154,7 +153,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
   const [uiState, setUiState] = useState<UiState>({
     isLoading: false,
     isPublishing: false,
-    scanLimit: 1000,
+    scanLimit: 0,
     filterText: "",
     hashtags: [],
     scannedCount: 0,
@@ -178,15 +177,13 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
         scanLimit: limit,
         hashtags: res.hashtags || [],
         scannedCount: res.scanned_messages || 0,
-        customMessage:
-          res.suggested_message ||
-          buildDirectoryMessage(
-            res.hashtags || [],
-            allTagNames,
-            chatTitle,
-            prev.layoutStyle,
-            prev.showCounts
-          ),
+        customMessage: buildDirectoryMessage(
+          res.hashtags || [],
+          allTagNames,
+          chatTitle,
+          prev.layoutStyle,
+          prev.showCounts
+        ),
       }));
     } catch (err: any) {
       setUiState((prev) => ({

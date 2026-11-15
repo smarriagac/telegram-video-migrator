@@ -52,7 +52,7 @@ describe("HashtagDirectoryModal Component", () => {
       expect(screen.getByText("#Peliculas")).toBeInTheDocument();
     });
 
-    expect(chatApi.fetchChatHashtags).toHaveBeenCalledWith(12345, 1000, undefined);
+    expect(chatApi.fetchChatHashtags).toHaveBeenCalledWith(12345, 0, undefined);
   });
 
   it("handles publish action when clicking 'Publicar en Canal'", async () => {
@@ -63,7 +63,6 @@ describe("HashtagDirectoryModal Component", () => {
       scanned_messages: 20,
       total_hashtags: 1,
       hashtags: [{ tag: "#Oferta", count: 5, sample_message_ids: [10] }],
-      suggested_message: "📌 Índice con #Oferta",
     });
 
     render(
@@ -85,7 +84,9 @@ describe("HashtagDirectoryModal Component", () => {
     fireEvent.click(publishBtn);
 
     await waitFor(() => {
-      expect(mockPublish).toHaveBeenCalledWith("📌 Índice con #Oferta");
+      expect(mockPublish).toHaveBeenCalled();
+      const calledText = mockPublish.mock.calls[0][0];
+      expect(calledText).toContain("#Oferta");
       expect(mockClose).toHaveBeenCalled();
     });
   });
@@ -98,7 +99,6 @@ describe("HashtagDirectoryModal Component", () => {
       scanned_messages: 20,
       total_hashtags: 1,
       hashtags: [{ tag: "#Directorio", count: 2, sample_message_ids: [1] }],
-      suggested_message: "📌 Índice con #Directorio",
     });
 
     render(
@@ -119,7 +119,9 @@ describe("HashtagDirectoryModal Component", () => {
     const draftBtn = screen.getByRole("button", { name: /Cargar en Borrador/i });
     fireEvent.click(draftBtn);
 
-    expect(mockLoadDraft).toHaveBeenCalledWith("📌 Índice con #Directorio");
+    expect(mockLoadDraft).toHaveBeenCalled();
+    const loadedText = mockLoadDraft.mock.calls[0][0];
+    expect(loadedText).toContain("#Directorio");
     expect(mockClose).toHaveBeenCalled();
   });
 
