@@ -86,6 +86,7 @@ class TelegramGatewayPort(ABC):
         offset_id: int | None = None,
         account_id: int | None = None,
         search_query: str | None = None,
+        add_offset: int | None = None,
     ) -> list[ChatMessage]:
         """Fetch recent message history from a specific chat."""
         raise NotImplementedError

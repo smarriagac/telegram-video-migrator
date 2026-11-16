@@ -304,6 +304,7 @@ async def get_messages(
     offset_id: int | None = Query(None),
     query: str | None = Query(None),
     account_id: int | None = Query(None),
+    add_offset: int | None = Query(None),
     use_case: GetChatMessagesUseCase = Depends(get_chat_messages_use_case),
 ) -> list[ChatMessageResponse]:
     """Retrieve message history for a specific Telegram chat, optionally filtered by search query or paginated by offset_id."""
@@ -314,6 +315,7 @@ async def get_messages(
             offset_id=offset_id,
             account_id=account_id,
             search_query=query,
+            add_offset=add_offset,
         )
         return [
             ChatMessageResponse(

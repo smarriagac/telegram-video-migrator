@@ -15,7 +15,8 @@ export const chatApi = {
     limit: number = 50,
     offsetId?: number | null,
     accountId?: number | null,
-    query?: string | null
+    query?: string | null,
+    addOffset?: number | null
   ): Promise<Message[]> {
     let url = `/api/dialogs/${chatId}/messages?limit=${limit}`;
     if (offsetId) {
@@ -26,6 +27,9 @@ export const chatApi = {
     }
     if (query) {
       url += `&query=${encodeURIComponent(query)}`;
+    }
+    if (addOffset !== undefined && addOffset !== null) {
+      url += `&add_offset=${addOffset}`;
     }
     const res = await fetch(url);
     if (!res.ok) {

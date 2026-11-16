@@ -834,10 +834,31 @@ export const ChatsView: React.FC = () => {
     setViewState((s) => ({ ...s, editText: "" }));
   };
 
+  const loadMessageContext = async (chatId: number, messageId: number, accountId?: number | null) => {
+    try {
+      // Fetch 40 messages around messageId, with 30 messages before it (add_offset=-10)
+      const surrounding = await chatApi.fetchMessages(
+        chatId,
+        40,
+        messageId,
+        accountId || undefined,
+        null,
+        -10
+      );
+      if (surrounding && surrounding.length > 0) {
+        for (const m of surrounding) {
+          ensureMessageLoaded(chatId, m);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load message context:", e);
+    }
+  };
+
   const handleMessagePermalinkClick = async (url: string) => {
     const clean = url.trim();
     const cMatch = clean.match(/(?:https?:\/\/)?(?:t\.me|telegram\.me)\/c\/(\d+)\/(\d+)/i);
-    const uMatch = clean.match(/(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/|@)?([a-zA-Z0-9_]{4,})\/(\d+)/i);
+    const uMatch = clean.match(/(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/|@)?([a-zA-Z0-9_]{4,})\/\d+/i);
 
     let targetChatId: number | null = null;
     let targetMsgId: number | null = null;
@@ -848,7 +869,7 @@ export const ChatsView: React.FC = () => {
       targetMsgId = Number(cMatch[2]);
     } else if (uMatch) {
       username = uMatch[1].toLowerCase();
-      targetMsgId = Number(uMatch[2]);
+      targetMsgId = Number(clean.match(/\d+$/)?.[0] || 0);
       const matchedChat = chats.find(
         (c) => c.username?.toLowerCase() === username || c.id.toString() === username
       );
@@ -879,12 +900,16 @@ export const ChatsView: React.FC = () => {
       (targetChatId && activeChatId === targetChatId) ||
       (username && activeChat?.username?.toLowerCase() === username);
 
-    if (isCurrentChat) {
+    if (isCurrentChat && activeChat) {
       const el = document.getElementById(`msg-${targetMsgId}`);
       if (el) {
         triggerJumpAndHighlight(targetMsgId);
         return;
       }
+      // If element not in DOM, load context before and after
+      await loadMessageContext(activeChat.id, targetMsgId, selectedAccountId || activeChat.account_id);
+      triggerJumpAndHighlight(targetMsgId);
+      return;
     }
 
     try {
@@ -892,6 +917,7 @@ export const ChatsView: React.FC = () => {
       if (resolved && resolved.success) {
         const chatToSelect = resolved.chat_id;
         ensureMessageLoaded(chatToSelect, resolved.message);
+        await loadMessageContext(chatToSelect, resolved.message_id, selectedAccountId);
         if (activeChatId !== chatToSelect) {
           await selectChat(chatToSelect);
         }
@@ -1052,6 +1078,13 @@ export const ChatsView: React.FC = () => {
 
       const targetMsgId = matches[targetIndex];
 
+      // Pre-load context around target message (30 messages before and 9 after)
+      await loadMessageContext(
+        activeChat.id,
+        targetMsgId,
+        selectedAccountId || activeChat.account_id
+      );
+
       setViewState((prev) => ({
         ...prev,
         inChatSearchMatches: matches,
@@ -1083,30 +1116,41 @@ export const ChatsView: React.FC = () => {
     }
   };
 
-  const handleInChatSearchNavigate = (direction: "prev" | "next") => {
+  const handleInChatSearchNavigate = async (direction: "prev" | "next") => {
     const { inChatSearchMatches, inChatSearchIndex } = viewState;
-    if (inChatSearchMatches.length === 0) return;
+    if (inChatSearchMatches.length === 0 || !activeChat) return;
 
     let newIndex = direction === "next" ? inChatSearchIndex + 1 : inChatSearchIndex - 1;
     if (newIndex >= inChatSearchMatches.length) newIndex = 0;
     if (newIndex < 0) newIndex = inChatSearchMatches.length - 1;
 
     const targetMsgId = inChatSearchMatches[newIndex];
+
+    // Pre-load surrounding context if not yet in DOM
+    const el = document.getElementById(`msg-${targetMsgId}`);
+    if (!el) {
+      await loadMessageContext(
+        activeChat.id,
+        targetMsgId,
+        selectedAccountId || activeChat.account_id
+      );
+    }
+
     setViewState((prev) => ({
       ...prev,
       inChatSearchIndex: newIndex,
     }));
 
     setTimeout(() => {
-      const el = document.getElementById(`msg-${targetMsgId}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const targetEl = document.getElementById(`msg-${targetMsgId}`);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
         setViewState((s) => ({ ...s, highlightedMessageId: targetMsgId }));
         setTimeout(() => {
           setViewState((s) => (s.highlightedMessageId === targetMsgId ? { ...s, highlightedMessageId: null } : s));
         }, 2600);
       }
-    }, 100);
+    }, 150);
   };
 
   const handleCloseInChatSearch = () => {

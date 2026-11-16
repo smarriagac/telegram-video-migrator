@@ -888,6 +888,7 @@ class TelethonAdapter(TelegramGatewayPort):
         offset_id: int | None = None,
         account_id: int | None = None,
         search_query: str | None = None,
+        add_offset: int | None = None,
     ) -> list[ChatMessage]:
         """Fetch message history from a specific chat in chronological order, optionally filtering by search query or paginating by offset_id."""
         messages_list: list[ChatMessage] = []
@@ -910,6 +911,8 @@ class TelethonAdapter(TelegramGatewayPort):
             iter_kwargs: dict[str, Any] = {"limit": limit}
             if offset_id:
                 iter_kwargs["offset_id"] = offset_id
+            if add_offset is not None:
+                iter_kwargs["add_offset"] = add_offset
             if search_query and search_query.strip():
                 iter_kwargs["search"] = search_query.strip()
 

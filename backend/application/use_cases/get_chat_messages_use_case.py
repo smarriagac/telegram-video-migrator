@@ -18,6 +18,7 @@ class GetChatMessagesUseCase:
         offset_id: int | None = None,
         account_id: int | None = None,
         search_query: str | None = None,
+        add_offset: int | None = None,
     ) -> list[ChatMessage]:
         kwargs: dict[str, Any] = {"chat_id": chat_id, "limit": limit}
         if offset_id is not None:
@@ -26,4 +27,6 @@ class GetChatMessagesUseCase:
             kwargs["account_id"] = account_id
         if search_query is not None:
             kwargs["search_query"] = search_query
+        if add_offset is not None:
+            kwargs["add_offset"] = add_offset
         return await self.telegram_gateway.get_chat_messages(**kwargs)

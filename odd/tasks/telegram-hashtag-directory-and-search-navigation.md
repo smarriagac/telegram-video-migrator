@@ -65,6 +65,11 @@ Delivery strategy: single-pr
   - Expand media bubbles to Telegram-native proportions: `w-[280px] sm:w-[340px] md:w-[380px] max-w-[92%] sm:max-w-[420px]`.
   - Increase media preview height to `min-h-[220px] sm:min-h-[260px] max-h-[380px]` with `object-cover`.
   - Upgrade typography to `text-[13.5px] sm:text-sm` for body text, `text-xs` for sender names, and `text-[11px]` for timestamps.
+- S12: Surrounding Message Context Pre-loading (`add_offset`):
+  - When redirecting or jumping to a message via hashtag click, permalink, or in-chat search navigation, avoid loading target message in isolation.
+  - Add `add_offset: int | None = None` to `TelegramGatewayPort`, `GetChatMessagesUseCase`, `TelethonAdapter`, `dialogs` REST router, and frontend `chatApi.fetchMessages`.
+  - In `ChatsView.tsx`, implement `loadMessageContext(chatId, targetMsgId)` fetching 40 messages around the target (`limit=40, offset_id=targetMsgId, add_offset=-10`), loading ~30 messages preceding the target and ~9 messages following it into `messages[chatId]`.
+  - Ensure users landing on a hashtag redirect can immediately scroll up to inspect preceding messages without gaps.
 
 ## Tasks
 - [x] T1 (S1): Add `extract_chat_hashtags` and `search_query` in port, adapter, and router [inline]
@@ -84,6 +89,7 @@ Delivery strategy: single-pr
 - [x] T15 (S10): Implement channel-wide server search in `handleHashtagClick` and `renderFormattedMessageText`, removing local in-memory false-positive truncation [inline]
 - [x] T16 (S10): Verify full multi-message navigation (e.g. `#DianaRomero` with 4 messages `[19, 629, 1282, 1460]`), build and deploy [inline]
 - [x] T17 (S11): Enhance message bubble proportions for media (`w-[280px]..[380px]`, `min-h-[220px]..[260px]`), upgrade text size to `text-sm`, build and deploy [inline]
+- [x] T18 (S12): Add `add_offset` support across backend gateway and API, and implement `loadMessageContext` in `ChatsView.tsx` to pre-load preceding messages on redirect [inline]
 
 ## Log
 - L1: Initialized ODD task for Telegram Hashtag Directory Generator & In-Chat Navigation.
@@ -100,3 +106,4 @@ Delivery strategy: single-pr
 - L12: Implemented in-message re-scan and in-place message edit workflow: directory messages display interactive re-scan banner and action button, allowing instant rescan and updating existing messages via `editMessage` without creating duplicates.
 - L13: Resolved "1 de 1" hashtag click bug: `handleHashtagClick` was performing a local search only against the 50 loaded in-memory messages. Because the directory message contained the hashtag, it returned 1 match (`1 de 1`) and aborted without querying Telegram. Updated `handleHashtagClick` to always query the server across the channel history (`chatApi.fetchMessages(chatId, 200, ...)`), register all matching messages into `useChatStore` via `ensureMessageLoaded`, smart-target the actual content post (jumping away from the directory message to message 1282 or 792), and enable seamless `[▲]` / `[▼]` navigation across all related publications (e.g. `1 de 4` to `4 de 4`). Verified live on `#DianaRomero` (4 matches: 19, 629, 1282, 1460) and `#maribelKlinger` (2 matches: 792, 1460).
 - L14: Fixed cramped/tiny message bubbles: vertical portrait video thumbnails were shrinking the bubble to ~140px width under `w-fit`. Updated media bubbles to have dedicated width `w-[280px] sm:w-[340px] md:w-[380px] max-w-[420px]`, thumbnail height `min-h-[220px] sm:min-h-[260px] max-h-[380px]`, and upgraded font sizes to `text-[13.5px] sm:text-sm` for clean readability.
+- L15: Implemented contextual message pre-loading for hashtag and permalink redirects. Previously, jumping to a message (e.g. 792) loaded only that single message, leaving it isolated without preceding messages. Added `add_offset` support (`limit=40, offset_id=792, add_offset=-10`) across Telethon gateway, use case, REST endpoint, and frontend `loadMessageContext`, successfully loading ~30 messages before the target (762..791) and ~9 messages after it. Verified via live endpoint on channel `-1004337257363`.
