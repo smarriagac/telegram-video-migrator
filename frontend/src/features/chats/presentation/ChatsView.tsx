@@ -35,7 +35,9 @@ import {
   Forward,
   ExternalLink,
   Hash,
+  Pin,
 } from "lucide-react";
+import { ConfirmDialog } from "@/shared/components/ui/confirm-dialog";
 import { createPortal } from "react-dom";
 import { useChatStore } from "../application/useChatStore";
 import { chatApi } from "../infrastructure/chatApi";
@@ -562,6 +564,8 @@ interface ExtraViewState {
   inChatSearchQuery: string | null;
   inChatSearchMatches: number[];
   inChatSearchIndex: number;
+  pinnedMessage: Message | null;
+  pinConfirmTargetMsg: Message | null;
 }
 
 export const ChatsView: React.FC = () => {
@@ -594,12 +598,15 @@ export const ChatsView: React.FC = () => {
     inChatSearchQuery: null,
     inChatSearchMatches: [],
     inChatSearchIndex: 0,
+    pinnedMessage: null,
+    pinConfirmTargetMsg: null,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const unreadDividerRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const chats = useChatStore((state) => state.chats);
   const activeChatId = useChatStore((state) => state.activeChatId);
@@ -853,6 +860,111 @@ export const ChatsView: React.FC = () => {
     } catch (e) {
       console.warn("Could not load message context:", e);
     }
+  };
+
+  // Fetch pinned message whenever activeChat changes
+  useEffect(() => {
+    if (!activeChat) {
+      setViewState((s) => ({ ...s, pinnedMessage: null, pinConfirmTargetMsg: null }));
+      return;
+    }
+    let isCancelled = false;
+    chatApi
+      .fetchPinnedMessage(activeChat.id, selectedAccountId || activeChat.account_id)
+      .then((pinned) => {
+        if (!isCancelled) {
+          setViewState((s) => ({ ...s, pinnedMessage: pinned }));
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setViewState((s) => ({ ...s, pinnedMessage: null }));
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeChatId, selectedAccountId, activeChat?.account_id]);
+
+  const handleStartLongPress = (msg: Message) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    longPressTimerRef.current = setTimeout(() => {
+      setViewState((prev) => ({
+        ...prev,
+        pinConfirmTargetMsg: msg,
+      }));
+    }, 500);
+  };
+
+  const handleCancelLongPress = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleConfirmPin = async () => {
+    const target = viewState.pinConfirmTargetMsg;
+    if (!target || !activeChat) return;
+    try {
+      const pinned = await chatApi.pinMessage(
+        activeChat.id,
+        target.id,
+        selectedAccountId || activeChat.account_id,
+        false
+      );
+      setViewState((prev) => ({
+        ...prev,
+        pinnedMessage: pinned || target,
+        pinConfirmTargetMsg: null,
+      }));
+    } catch (err) {
+      console.error("Error pinning message:", err);
+      setViewState((prev) => ({ ...prev, pinConfirmTargetMsg: null }));
+    }
+  };
+
+  const handleUnpinMessage = async () => {
+    if (!activeChat || !viewState.pinnedMessage) return;
+    const targetId = viewState.pinnedMessage.id;
+    try {
+      await chatApi.unpinMessage(
+        activeChat.id,
+        targetId,
+        selectedAccountId || activeChat.account_id
+      );
+      setViewState((prev) => ({ ...prev, pinnedMessage: null }));
+    } catch (err) {
+      console.error("Error unpinning message:", err);
+    }
+  };
+
+  const handleJumpToPinnedMessage = async () => {
+    if (!viewState.pinnedMessage || !activeChat) return;
+    const pinId = viewState.pinnedMessage.id;
+    const el = document.getElementById(`msg-${pinId}`);
+    if (!el) {
+      await loadMessageContext(
+        activeChat.id,
+        pinId,
+        selectedAccountId || activeChat.account_id
+      );
+    }
+    setTimeout(() => {
+      const targetEl = document.getElementById(`msg-${pinId}`);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        setViewState((s) => ({ ...s, highlightedMessageId: pinId }));
+        setTimeout(() => {
+          setViewState((s) =>
+            s.highlightedMessageId === pinId ? { ...s, highlightedMessageId: null } : s
+          );
+        }, 2600);
+      }
+    }, 150);
   };
 
   const handleMessagePermalinkClick = async (url: string) => {
@@ -1866,6 +1978,49 @@ export const ChatsView: React.FC = () => {
                 </div>
               )}
 
+              {/* Pinned Message Banner (Telegram official style) */}
+              {viewState.pinnedMessage && (
+                <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#0e1726]/95 border-b border-cyan-500/30 backdrop-blur-md z-10 shrink-0 gap-2 shadow-xs transition-all">
+                  <div
+                    className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer group/pinned py-0.5"
+                    onClick={handleJumpToPinnedMessage}
+                    title="Hacé click para ir al mensaje fijado"
+                  >
+                    <div className="w-0.5 h-6 rounded-full bg-cyan-400 shrink-0" />
+                    <Pin className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                    <div className="flex flex-col min-w-0 flex-1 leading-tight">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-cyan-400 group-hover/pinned:underline">
+                          Mensaje fijado #{viewState.pinnedMessage.id}
+                        </span>
+                        {viewState.pinnedMessage.media_type && viewState.pinnedMessage.media_type !== "text" && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 h-3.5 border-cyan-500/40 text-cyan-300 bg-cyan-950/40 uppercase font-mono"
+                          >
+                            {viewState.pinnedMessage.media_type}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {viewState.pinnedMessage.text ||
+                          (viewState.pinnedMessage.media_type
+                            ? `[${viewState.pinnedMessage.media_type.toUpperCase()}]`
+                            : "Sin texto")}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUnpinMessage}
+                    className="p-1 text-muted-foreground hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors shrink-0 cursor-pointer"
+                    title="Desfijar mensaje"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Message Feed (flex-1 min-h-0 overflow-y-auto for smooth scroll) */}
               <div
                 ref={messagesContainerRef}
@@ -2004,8 +2159,13 @@ export const ChatsView: React.FC = () => {
 
                           {/* Telegram Official-Styled Bubble adapted to Dark Cyber */}
                           <div
+                            onMouseDown={() => handleStartLongPress(msg)}
+                            onMouseUp={handleCancelLongPress}
+                            onMouseLeave={handleCancelLongPress}
+                            onTouchStart={() => handleStartLongPress(msg)}
+                            onTouchEnd={handleCancelLongPress}
                             className={cn(
-                              "group relative flex flex-col shadow-md transition-all overflow-hidden",
+                              "group relative flex flex-col shadow-md transition-all overflow-hidden select-text",
                               hasMedia
                                 ? "w-[280px] sm:w-[340px] md:w-[380px] max-w-[92%] sm:max-w-[420px]"
                                 : "max-w-[85%] sm:max-w-[75%] md:max-w-[65%] w-fit min-w-[140px]",
@@ -2014,7 +2174,7 @@ export const ChatsView: React.FC = () => {
                                 : "bg-card dark:bg-[#172338] border border-border dark:border-[#22354e] text-foreground dark:text-slate-100 rounded-[18px] rounded-bl-[4px] self-start"
                             )}
                           >
-                            {/* Hover Action Buttons (Forward / Edit / Delete) */}
+                            {/* Hover Action Buttons (Forward / Pin / Edit / Hash / Delete) */}
                             {!isEditingThis && (
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute top-2 right-2 z-20">
                                 <button
@@ -2030,6 +2190,19 @@ export const ChatsView: React.FC = () => {
                                   className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-cyan-400 transition-colors border border-white/10 cursor-pointer shadow-xs"
                                 >
                                   <Forward className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setViewState((prev) => ({
+                                      ...prev,
+                                      pinConfirmTargetMsg: msg,
+                                    }))
+                                  }
+                                  title="Fijar mensaje en el chat"
+                                  className="p-1 rounded bg-black/60 hover:bg-black/80 text-white/80 hover:text-cyan-400 transition-colors border border-white/10 cursor-pointer shadow-xs"
+                                >
+                                  <Pin className="w-3 h-3" />
                                 </button>
                                 {msg.is_outgoing && (
                                   <button
@@ -3045,6 +3218,17 @@ export const ChatsView: React.FC = () => {
           onSelectHashtag={(tag) => handleHashtagClick(tag, viewState.hashtagModalTargetMsgId || undefined)}
         />
       )}
+
+      {/* Confirm Pin Message Dialog */}
+      <ConfirmDialog
+        isOpen={Boolean(viewState.pinConfirmTargetMsg)}
+        onClose={() => setViewState((prev) => ({ ...prev, pinConfirmTargetMsg: null }))}
+        onConfirm={handleConfirmPin}
+        title="¿Fijar mensaje en la ventana del chat?"
+        description={`¿Deseas fijar el mensaje #${viewState.pinConfirmTargetMsg?.id} en la parte superior para todos los miembros? Podrás hacer clic en él en cualquier momento para ir a su posición.`}
+        confirmLabel="Fijar mensaje"
+        variant="default"
+      />
     </div>
   );
 };

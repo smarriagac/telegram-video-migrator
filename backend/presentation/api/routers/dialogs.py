@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 from typing import Any
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Query, Request, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -65,6 +65,11 @@ class SendChatMessageRequest(BaseModel):
 
 class EditChatMessageRequest(BaseModel):
     text: str
+    account_id: int | None = None
+
+
+class PinChatMessageRequest(BaseModel):
+    notify: bool = False
     account_id: int | None = None
 
 
@@ -682,6 +687,97 @@ async def edit_dialog_message_endpoint(
             is_outgoing=True,
             media_type="text",
         )
+
+
+@router.get("/{chat_id}/pinned", response_model=ChatMessageResponse | None)
+async def get_pinned_chat_message_endpoint(
+    chat_id: int,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> ChatMessageResponse | None:
+    """Get the currently pinned message for a chat/channel."""
+    try:
+        pinned = await gateway.get_pinned_messages(chat_id, limit=1, account_id=account_id)
+        if pinned:
+            m = pinned[0]
+            return ChatMessageResponse(
+                id=m.id,
+                chat_id=m.chat_id,
+                sender_id=m.sender_id,
+                sender_name=m.sender_name,
+                text=m.text,
+                date=m.date,
+                is_outgoing=m.is_outgoing,
+                media_type=m.media_type,
+                is_read=m.is_read,
+                buttons=m.buttons,
+            )
+        return None
+    except Exception as e:
+        logger.warning(f"Error fetching pinned message for chat {chat_id}: {e}")
+        return None
+
+
+@router.post("/{chat_id}/messages/{message_id}/pin", response_model=ChatMessageResponse)
+async def pin_chat_message_endpoint(
+    chat_id: int,
+    message_id: int,
+    req: PinChatMessageRequest = Body(default_factory=PinChatMessageRequest),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> ChatMessageResponse:
+    """Pin a message in a chat/channel and return the message details."""
+    try:
+        await gateway.pin_chat_message(chat_id, message_id, notify=req.notify, account_id=req.account_id)
+        msgs = await gateway.get_chat_messages(chat_id, limit=1, offset_id=message_id + 1, account_id=req.account_id)
+        target = next((m for m in msgs if m.id == message_id), None)
+        if target:
+            return ChatMessageResponse(
+                id=target.id,
+                chat_id=chat_id,
+                sender_id=target.sender_id,
+                sender_name=target.sender_name,
+                text=target.text,
+                date=target.date,
+                is_outgoing=target.is_outgoing,
+                media_type=target.media_type,
+                is_read=target.is_read,
+                buttons=target.buttons,
+            )
+        return ChatMessageResponse(
+            id=message_id,
+            chat_id=chat_id,
+            sender_id=0,
+            sender_name="Canal",
+            text="",
+            date="",
+            is_outgoing=True,
+            media_type=None,
+            is_read=True,
+            buttons=None,
+        )
+    except FloodWaitDomainException as e:
+        raise HTTPException(status_code=429, detail=f"FloodWait de {e.seconds}s de Telegram.")
+    except ChannelAccessDeniedException as e:
+        raise HTTPException(status_code=403, detail=f"Permiso denegado para fijar mensaje: {e}")
+    except Exception as e:
+        logger.error(f"Error pinning message {message_id} in chat {chat_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fijando mensaje: {e}")
+
+
+@router.delete("/{chat_id}/messages/{message_id}/pin")
+async def unpin_chat_message_endpoint(
+    chat_id: int,
+    message_id: int,
+    account_id: int | None = Query(None),
+    gateway: TelegramGatewayPort = Depends(get_telegram_gateway),
+) -> dict[str, Any]:
+    """Unpin a specific message in a chat/channel."""
+    try:
+        await gateway.unpin_chat_message(chat_id, message_id, account_id=account_id)
+        return {"success": True, "chat_id": chat_id, "message_id": message_id}
+    except Exception as e:
+        logger.error(f"Error unpinning message {message_id} in chat {chat_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error desfijando mensaje: {e}")
 
 
 class ClickButtonRequest(BaseModel):

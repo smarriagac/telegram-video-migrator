@@ -103,6 +103,40 @@ export const chatApi = {
     return res.json();
   },
 
+  async fetchPinnedMessage(chatId: number, accountId?: number | null): Promise<Message | null> {
+    const url = accountId ? `/api/dialogs/${chatId}/pinned?account_id=${accountId}` : `/api/dialogs/${chatId}/pinned`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return res.json();
+  },
+
+  async pinMessage(
+    chatId: number,
+    messageId: number,
+    accountId?: number | null,
+    notify: boolean = false
+  ): Promise<Message> {
+    const res = await fetch(`/api/dialogs/${chatId}/messages/${messageId}/pin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ notify, account_id: accountId }),
+    });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al fijar mensaje`);
+    }
+    return res.json();
+  },
+
+  async unpinMessage(chatId: number, messageId: number, accountId?: number | null): Promise<void> {
+    const url = accountId
+      ? `/api/dialogs/${chatId}/messages/${messageId}/pin?account_id=${accountId}`
+      : `/api/dialogs/${chatId}/messages/${messageId}/pin`;
+    const res = await fetch(url, { method: "DELETE" });
+    if (!res.ok) {
+      throw new Error(`Error ${res.status} al desfijar mensaje`);
+    }
+  },
+
   async markAsRead(chatId: number, maxId?: number, accountId?: number): Promise<void> {
     const url = accountId ? `/api/dialogs/${chatId}/read?account_id=${accountId}` : `/api/dialogs/${chatId}/read`;
     const res = await fetch(url, {

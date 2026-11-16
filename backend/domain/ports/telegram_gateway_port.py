@@ -97,6 +97,24 @@ class TelegramGatewayPort(ABC):
         """Mark dialog messages up to max_id as read in Telegram MTProto."""
         return True
 
+    async def pin_chat_message(
+        self, chat_id: int, message_id: int, notify: bool = False, account_id: int | None = None
+    ) -> bool:
+        """Pin a message in a Telegram chat/channel."""
+        return True
+
+    async def unpin_chat_message(
+        self, chat_id: int, message_id: int | None = None, account_id: int | None = None
+    ) -> bool:
+        """Unpin a message in a Telegram chat/channel."""
+        return True
+
+    async def get_pinned_messages(
+        self, chat_id: int, limit: int = 5, account_id: int | None = None
+    ) -> list[ChatMessage]:
+        """Fetch pinned messages from a chat/channel."""
+        return []
+
     @abstractmethod
     async def send_local_media(
         self, channel_id: int, file_path: str, caption: str | None = None

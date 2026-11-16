@@ -985,6 +985,90 @@ class TelethonAdapter(TelegramGatewayPort):
             logger.error(f"Error fetching chat messages for chat {chat_id}: {e}")
             raise
 
+    async def pin_chat_message(
+        self, chat_id: int, message_id: int, notify: bool = False, account_id: int | None = None
+    ) -> bool:
+        """Pin a message in a Telegram chat/channel using MTProto."""
+        try:
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            await client.pin_message(chat_id, message_id, notify=notify)
+            return True
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error pinning message {message_id} in chat {chat_id}: {e}")
+            raise
+
+    async def unpin_chat_message(
+        self, chat_id: int, message_id: int | None = None, account_id: int | None = None
+    ) -> bool:
+        """Unpin a message in a Telegram chat/channel using MTProto."""
+        try:
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            await client.unpin_message(chat_id, message_id)
+            return True
+        except FloodWaitError as e:
+            raise FloodWaitDomainException(seconds=e.seconds) from e
+        except (ChatAdminRequiredError, ChannelPrivateError, UserBannedInChannelError) as e:
+            raise ChannelAccessDeniedException(str(e)) from e
+        except Exception as e:
+            logger.error(f"Error unpinning message in chat {chat_id}: {e}")
+            raise
+
+    async def get_pinned_messages(
+        self, chat_id: int, limit: int = 5, account_id: int | None = None
+    ) -> list[ChatMessage]:
+        """Fetch pinned messages from a chat/channel using InputMessagesFilterPinned."""
+        pinned_list: list[ChatMessage] = []
+        try:
+            client = self._get_client(account_id)
+            await self._ensure_connected(client)
+            async for msg in client.iter_messages(chat_id, filter=types.InputMessagesFilterPinned(), limit=limit):
+                if isinstance(msg, types.MessageService) or getattr(msg, "action", None) is not None:
+                    continue
+
+                sender_name = "Desconocido"
+                if msg.sender:
+                    first = getattr(msg.sender, "first_name", "") or ""
+                    last = getattr(msg.sender, "last_name", "") or ""
+                    title = getattr(msg.sender, "title", "") or ""
+                    sender_name = f"{first} {last}".strip() or title or "Usuario"
+                elif getattr(msg, "post", False):
+                    sender_name = "Canal"
+
+                media_type = None
+                if getattr(msg, "video", None):
+                    media_type = "video"
+                elif getattr(msg, "photo", None):
+                    media_type = "photo"
+                elif getattr(msg, "document", None):
+                    media_type = "document"
+
+                date_str = msg.date.strftime("%H:%M") if msg.date else ""
+
+                pinned_list.append(
+                    ChatMessage(
+                        id=msg.id,
+                        chat_id=chat_id,
+                        sender_id=msg.sender_id or 0,
+                        sender_name=sender_name,
+                        text=msg.message or "",
+                        date=date_str,
+                        is_outgoing=bool(msg.out),
+                        media_type=media_type,
+                        is_read=True,
+                        buttons=None,
+                    )
+                )
+            return pinned_list
+        except Exception as e:
+            logger.warning(f"Error fetching pinned messages for chat {chat_id}: {e}")
+            return []
+
     async def send_local_media(
         self, channel_id: int, file_path: str, caption: str | None = None
     ) -> ChannelMessage:
