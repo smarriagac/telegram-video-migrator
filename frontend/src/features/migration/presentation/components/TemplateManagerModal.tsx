@@ -206,7 +206,7 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[88dvh] flex flex-col p-0 overflow-hidden bg-card border-border">
-        <DialogHeader className="p-4 border-b border-border bg-secondary/30 flex flex-row items-center justify-between">
+        <DialogHeader className="p-3.5 sm:p-4 pr-10 sm:pr-12 border-b border-border bg-secondary/30 flex flex-row items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
               <FileText className="w-4 h-4" />

@@ -1418,16 +1418,17 @@ export const ChatsView: React.FC = () => {
             <div />
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
             <Button
               onClick={() => setViewState((s) => ({ ...s, broadcastModalOpen: true }))}
               variant="default"
               size="sm"
-              className="rounded-md text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-8 shrink-0 cursor-pointer shadow-xs gap-1.5"
+              className="rounded-md text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-8 flex-1 sm:flex-none cursor-pointer shadow-xs gap-1.5"
               title="Crear un mensaje rico y difundirlo simultáneamente a múltiples canales y grupos"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>Difusión Multicanal</span>
+              <Send className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Difusión Multicanal</span>
+              <span className="sm:hidden">Difusión</span>
             </Button>
 
             <Button
@@ -1435,12 +1436,12 @@ export const ChatsView: React.FC = () => {
               disabled={isLoadingDialogs}
               variant="outline"
               size="sm"
-              className="rounded-md border-border text-xs hover:bg-secondary/60 h-8 shrink-0 cursor-pointer"
+              className="rounded-md border-border text-xs hover:bg-secondary/60 h-8 shrink-0 cursor-pointer gap-1.5 px-2.5 sm:px-3"
             >
               <RefreshCw
-                className={cn("w-3.5 h-3.5 mr-1.5", isLoadingDialogs && "animate-spin text-primary")}
+                className={cn("w-3.5 h-3.5", isLoadingDialogs && "animate-spin text-primary")}
               />
-              Sincronizar
+              <span className="hidden sm:inline">Sincronizar</span>
             </Button>
           </div>
         </div>
@@ -1559,20 +1560,20 @@ export const ChatsView: React.FC = () => {
                         className="w-8 h-8 rounded-md"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-foreground truncate">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-xs font-semibold text-foreground truncate flex-1 min-w-0">
                             {chat.title || "Sin título"}
                           </span>
                           <span className="text-[9px] text-muted-foreground font-mono shrink-0 ml-1">
                             {chat.last_message_date}
                           </span>
                         </div>
-                        <div className="flex items-center justify-between mt-0.5">
-                          <p className="text-[11px] text-muted-foreground truncate max-w-[170px]">
+                        <div className="flex items-center justify-between mt-0.5 gap-2">
+                          <p className="text-[11px] text-muted-foreground truncate flex-1 min-w-0">
                             {chat.last_message || "Sin mensajes"}
                           </p>
                           {chat.unread_count > 0 && (
-                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary text-primary-foreground font-bold shrink-0 ml-1">
+                            <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-primary text-primary-foreground font-bold shrink-0">
                               {chat.unread_count}
                             </span>
                           )}

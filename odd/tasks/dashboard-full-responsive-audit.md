@@ -51,3 +51,4 @@ Systematically audit and optimize every operational module of the Telegram Video
 - L6: Audited `SettingsView.tsx`, `AnalyticsView.tsx`, `BillingPlansView.tsx`, and `AuditView.tsx`: mobile pill wrappers, responsive action toolbars, and 1-column mobile grids.
 - L7: Enforced `max-w-[calc(100vw-2rem)]` and `max-h-[88dvh]` across all 20+ DialogContent instances in the application.
 - L8: Passed full Vitest test suite (20 test files / 73 tests) and production Vite TypeScript build (0 errors). Deployed build into `telegram_migrator_frontend` container.
+- L9: Fixed close-button collision in `BroadcastMessageModal.tsx` (`pr-11 sm:pr-12` margin protection), removed `max-w-[170px]` artificial truncation on chat message previews in `ChatsView.tsx`, eliminated horizontal scrollbars (`overflow-x-hidden`) inside nested modal forms, and added compact responsive buttons for mobile toolbars.

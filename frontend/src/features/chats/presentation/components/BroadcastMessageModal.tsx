@@ -417,40 +417,43 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !asyncState.isSubmitting && onClose()}>
-      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl lg:max-w-5xl w-full max-h-[88dvh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground shadow-2xl">
+      <DialogContent className="max-w-[calc(100vw-1.5rem)] sm:max-w-4xl lg:max-w-5xl w-full max-h-[92dvh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground shadow-2xl">
         {/* Header */}
-        <DialogHeader className="p-4 border-b border-border bg-secondary/30 shrink-0 space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary">
+        <DialogHeader className="p-3.5 sm:p-4 pr-11 sm:pr-12 border-b border-border bg-secondary/30 shrink-0 space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center text-primary shrink-0">
                 <Send className="w-4 h-4" />
               </div>
-              <div>
-                <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span>Difusión Multicanal (Broadcast)</span>
-                  <Badge variant="outline" className="border-primary/30 text-primary bg-primary/10 text-[10px] font-mono">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <DialogTitle className="text-sm font-semibold text-foreground truncate">
+                    Difusión Multicanal
+                  </DialogTitle>
+                  <Badge variant="outline" className="border-primary/30 text-primary bg-primary/10 text-[10px] font-mono shrink-0">
                     {formState.selectedTargetIds.length} seleccionados
                   </Badge>
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Componé o programá difusiones recurrentes con previsualización en vivo MTProto.
+                </div>
+                <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 line-clamp-1 sm:line-clamp-none">
+                  Componé o programá difusiones con previsualización en vivo MTProto.
                 </DialogDescription>
               </div>
             </div>
 
             {/* Tab Switcher */}
-            <div className="flex items-center p-0.5 rounded-lg bg-secondary/80 border border-border">
+            <div className="grid grid-cols-2 p-0.5 rounded-lg bg-secondary/80 border border-border w-full sm:w-auto shrink-0 text-center">
               <button
                 type="button"
                 onClick={() => setFormState((s) => ({ ...s, activeTab: "compose" }))}
                 className={cn(
-                  "px-3 py-1 rounded text-xs font-medium transition-all cursor-pointer",
+                  "px-2.5 sm:px-3 py-1 rounded text-xs font-medium transition-all cursor-pointer text-center",
                   formState.activeTab === "compose"
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                Redactar Difusión
+                <span className="hidden sm:inline">Redactar Difusión</span>
+                <span className="sm:hidden">Redactar</span>
               </button>
               <button
                 type="button"
@@ -459,16 +462,17 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                   loadCampaigns();
                 }}
                 className={cn(
-                  "px-3 py-1 rounded text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer",
+                  "px-2.5 sm:px-3 py-1 rounded text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center",
                   formState.activeTab === "scheduled"
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Campañas Programadas</span>
+                <Calendar className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline">Campañas Programadas</span>
+                <span className="sm:hidden">Programadas</span>
                 {asyncState.scheduledCampaigns.length > 0 && (
-                  <Badge variant="secondary" className="px-1 py-0 text-[9px] font-mono">
+                  <Badge variant="secondary" className="px-1 py-0 text-[9px] font-mono shrink-0">
                     {asyncState.scheduledCampaigns.length}
                   </Badge>
                 )}
@@ -478,7 +482,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
         </DialogHeader>
 
         {/* Modal Body: 2-Column Layout (Editor vs Live Simulator) */}
-        <div className="p-4 overflow-y-auto space-y-4 text-xs">
+        <div className="p-3 sm:p-4 overflow-y-auto overflow-x-hidden space-y-3 sm:space-y-4 text-xs">
           {/* Feedback Banner */}
           {asyncState.feedback && (
             <div
@@ -639,9 +643,9 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
             </div>
           ) : (
             /* 2-Column Split: Form (Left) & Live Telegram Post Simulator (Right) */
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start w-full min-w-0">
             {/* Left Column: Form Controls (7 cols) */}
-            <div className="lg:col-span-7 space-y-3">
+            <div className="lg:col-span-7 space-y-3 w-full min-w-0 overflow-x-hidden">
               {/* Step 1: Destination Channels & Groups Selection */}
               <div className="space-y-2 border border-border rounded-lg p-3 bg-secondary/20">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -808,7 +812,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
 
                 {/* Step 3: Attached Media (Photos, Video, GIF - Optional) */}
                 <div className="space-y-2 pt-1 border-t border-border/50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 font-mono uppercase text-[11px]">
                       <Paperclip className="w-3.5 h-3.5 text-primary" />
                       3. Multimedia Opcional ({formState.files.length}/10)
@@ -827,10 +831,11 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={formState.files.length >= 10}
-                      className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 font-mono gap-1 cursor-pointer"
+                      className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10 font-mono gap-1 cursor-pointer shrink-0"
                     >
                       <Paperclip className="w-3 h-3" />
-                      <span>+ Adjuntar Foto / Video / GIF</span>
+                      <span className="hidden sm:inline">+ Adjuntar Foto / Video / GIF</span>
+                      <span className="sm:hidden">+ Adjuntar</span>
                     </Button>
                   </div>
 
@@ -874,7 +879,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
 
                 {/* Step 4: Programación y Recurrencia */}
                 <div className="space-y-2 pt-2 border-t border-border/50">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="font-semibold text-foreground flex items-center gap-1.5 font-mono uppercase text-[11px]">
                       <Calendar className="w-3.5 h-3.5 text-primary" />
                       4. Programación y Recurrencia
@@ -959,7 +964,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
             </div>
 
             {/* Right Column: Live Telegram Post Simulator (5 cols) */}
-            <div className="lg:col-span-5 space-y-2 sticky top-0">
+            <div className="lg:col-span-5 space-y-2 lg:sticky lg:top-0 w-full min-w-0">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-foreground flex items-center gap-1.5 font-mono uppercase text-[11px]">
                   <Eye className="w-3.5 h-3.5 text-primary" />
@@ -969,7 +974,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
               </div>
 
               {/* Telegram Simulated Chat Canvas */}
-              <div className="p-3 sm:p-4 rounded-xl bg-[#0e1621] border border-border/80 shadow-inner flex flex-col justify-start min-h-[380px] max-h-[500px] overflow-y-auto">
+              <div className="p-3 sm:p-4 rounded-xl bg-[#0e1621] border border-border/80 shadow-inner flex flex-col justify-start min-h-[260px] sm:min-h-[380px] max-h-[500px] overflow-y-auto w-full min-w-0">
                 <div className="text-[9px] font-mono text-center text-muted-foreground mb-2">
                   Hoy, {new Date().toLocaleDateString([], { month: "short", day: "numeric" })}
                 </div>
@@ -1053,14 +1058,14 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
       </div>
 
         {/* Footer Actions */}
-        <DialogFooter className="p-3 border-t border-border bg-secondary/30 flex sm:justify-between items-center w-full">
+        <DialogFooter className="p-3 border-t border-border bg-secondary/30 flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 w-full">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={onClose}
             disabled={asyncState.isSubmitting}
-            className="text-xs text-muted-foreground"
+            className="text-xs text-muted-foreground h-8 cursor-pointer justify-center"
           >
             Cerrar
           </Button>
@@ -1071,7 +1076,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
               size="sm"
               onClick={handleSubmit}
               disabled={asyncState.isSubmitting || formState.selectedTargetIds.length === 0}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-9 px-4 flex items-center justify-center gap-1.5 shadow-sm cursor-pointer w-full sm:w-auto"
             >
               {asyncState.isSubmitting ? (
                 <>
@@ -1099,7 +1104,7 @@ export const BroadcastMessageModal: React.FC<BroadcastMessageModalProps> = ({
               type="button"
               size="sm"
               onClick={() => setFormState((s) => ({ ...s, activeTab: "compose" }))}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-9 px-4 flex items-center justify-center gap-1.5 shadow-sm cursor-pointer w-full sm:w-auto"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Redactar Nueva Difusión</span>

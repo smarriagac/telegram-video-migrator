@@ -167,16 +167,16 @@ export const CreateAlbumModal: React.FC<CreateAlbumModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && !asyncState.isSubmitting && onClose()}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-xl w-full max-h-[88dvh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground shadow-2xl">
         {/* Header */}
-        <DialogHeader className="p-4 border-b border-border bg-secondary/30 shrink-0">
+        <DialogHeader className="p-3.5 sm:p-4 pr-10 sm:pr-12 border-b border-border bg-secondary/30 shrink-0">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
                 <Layers className="w-4 h-4" />
               </div>
-              <div>
-                <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <span>Agrupar Contenido en Álbum (MediaGroup)</span>
-                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-300 bg-cyan-500/10 text-[10px] font-mono">
+              <div className="min-w-0">
+                <DialogTitle className="text-sm font-semibold text-foreground flex items-center gap-1.5 flex-wrap">
+                  <span className="truncate">Agrupar en Álbum<span className="hidden sm:inline"> (MediaGroup)</span></span>
+                  <Badge variant="outline" className="border-cyan-500/30 text-cyan-300 bg-cyan-500/10 text-[10px] font-mono shrink-0">
                     {count} elementos
                   </Badge>
                 </DialogTitle>
