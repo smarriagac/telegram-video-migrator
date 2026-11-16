@@ -13,13 +13,17 @@ import {
   Moon,
   CreditCard,
   Tv,
+  Download,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/features/auth/application/useAuthStore";
 import { useThemeStore } from "@/shared/lib/useThemeStore";
+import { usePwaInstall } from "@/shared/hooks/usePwaInstall";
 import { BrandLogo } from "@/shared/components/BrandLogo";
 import { NotificationBell } from "@/shared/components/NotificationBell";
+import { MobileBottomNav } from "@/shared/components/MobileBottomNav";
 import { ViewLoadingFallback } from "@/shared/components/ViewLoadingFallback";
+import { Button } from "@/shared/components/ui/button";
 import { Separator } from "@/shared/components/ui/separator";
 import {
   Breadcrumb,
@@ -71,6 +75,7 @@ export const AppLayout: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const { theme, toggleTheme } = useThemeStore();
+  const { isInstallable, promptInstall } = usePwaInstall();
 
   const handleLogout = () => {
     logout();
@@ -431,6 +436,19 @@ export const AppLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              {isInstallable && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={promptInstall}
+                  className="h-8 gap-1.5 border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 text-xs font-semibold cursor-pointer"
+                  title="Instalar como Progressive Web App"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Instalar App</span>
+                  <span className="sm:hidden">PWA</span>
+                </Button>
+              )}
               <NotificationBell />
               <button
                 type="button"
@@ -448,13 +466,14 @@ export const AppLayout: React.FC = () => {
           </header>
 
           {/* View Container */}
-          <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col bg-background">
+          <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-3.5">
             <Suspense fallback={<ViewLoadingFallback />}>
               <Outlet />
             </Suspense>
           </main>
         </SidebarInset>
       </div>
+      <MobileBottomNav />
     </SidebarProvider>
   );
 };

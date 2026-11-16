@@ -341,7 +341,7 @@ export const MigrationView: React.FC = () => {
                 </div>
 
                 {/* Queue Metrics */}
-                <div className="grid grid-cols-4 gap-2 text-center font-mono text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center font-mono text-xs">
                   <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
                     <span className="text-muted-foreground text-[10px] block uppercase">Total</span>
                     <span className="text-foreground font-bold text-sm">{stats.total}</span>
@@ -773,7 +773,7 @@ export const MigrationView: React.FC = () => {
                 </div>
 
                 {/* Technical Parameters Table */}
-                <div className="grid grid-cols-3 gap-3 text-xs font-mono">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 text-xs font-mono">
                   <div className="p-2.5 rounded-lg bg-secondary/40 border border-border">
                     <span className="text-[10px] text-muted-foreground block uppercase">Alcance</span>
                     <span className="font-semibold text-foreground text-xs mt-0.5 block truncate">
