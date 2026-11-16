@@ -32,7 +32,7 @@ export const ViewHeader: React.FC<ViewHeaderProps> = ({
       </div>
 
       {children && (
-        <div className="flex items-center gap-2 flex-wrap shrink-0 self-start sm:self-auto">
+        <div className="flex items-center gap-2 flex-wrap shrink-0 self-start sm:self-auto w-full sm:w-auto">
           {children}
         </div>
       )}

@@ -116,13 +116,13 @@ export const PipelineModulesView: React.FC = () => {
         subtitle="Configuración global de los motores del pipeline: Sanitización de texto, Goteo programado, Duplicate Guard y Filtros de Calidad."
       >
 
-        {/* Tab Switcher: 2x2 grid on mobile (< 640px), inline row on >= 640px */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 p-0.5 sm:p-1 rounded-lg bg-secondary/60 border border-border w-full sm:w-auto shrink-0">
+        {/* Tab Switcher: Scrollable row on mobile, inline row on desktop */}
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/60 border border-border overflow-x-auto no-scrollbar w-full sm:w-auto shrink-0">
           <button
             type="button"
             onClick={() => setActiveTab("captions")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
+              "px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center shrink-0",
               activeTab === "captions"
                 ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
@@ -135,7 +135,7 @@ export const PipelineModulesView: React.FC = () => {
             type="button"
             onClick={() => setActiveTab("drip")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
+              "px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center shrink-0",
               activeTab === "drip"
                 ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
@@ -148,43 +148,43 @@ export const PipelineModulesView: React.FC = () => {
             type="button"
             onClick={() => setActiveTab("dedup")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
+              "px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center shrink-0",
               activeTab === "dedup"
                 ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden xs:inline">Duplicate Guard</span>
-            <span className="xs:hidden">Dedup</span>
+            <span className="hidden sm:inline">Duplicate Guard</span>
+            <span className="sm:hidden">Dedup</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("quality")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
+              "px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center shrink-0",
               activeTab === "quality"
                 ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <Filter className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden xs:inline">Filtros Calidad</span>
-            <span className="xs:hidden">Calidad</span>
+            <span className="hidden sm:inline">Filtros Calidad</span>
+            <span className="sm:hidden">Calidad</span>
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("playground")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center",
+              "px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 text-center shrink-0",
               activeTab === "playground"
                 ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
             )}
           >
             <Play className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden xs:inline">Simulador / Playground</span>
-            <span className="xs:hidden">Simulador</span>
+            <span className="hidden sm:inline">Simulador</span>
+            <span className="sm:hidden">Test</span>
           </button>
         </div>
       </ViewHeader>

@@ -66,7 +66,7 @@ export const ForwardMessagesModal: React.FC<ForwardMessagesModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-background border-border">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md bg-background border-border p-4 sm:p-6">
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20">

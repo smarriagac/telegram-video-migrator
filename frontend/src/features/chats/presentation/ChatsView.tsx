@@ -2689,7 +2689,7 @@ export const ChatsView: React.FC = () => {
           if (!open) setViewState((s) => ({ ...s, vipModal: null }));
         }}
       >
-        <DialogContent className="sm:max-w-md border-border bg-card">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md border-border bg-card max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-foreground">
               <Key className="w-4 h-4 text-primary" />
@@ -2881,7 +2881,7 @@ export const ChatsView: React.FC = () => {
         open={viewState.showUserVipPopover}
         onOpenChange={(open) => setViewState((s) => ({ ...s, showUserVipPopover: open }))}
       >
-        <DialogContent className="sm:max-w-md border-border bg-card">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md border-border bg-card max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-foreground">
               <Key className="w-4 h-4 text-cyan-400" />
@@ -2954,7 +2954,7 @@ export const ChatsView: React.FC = () => {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md bg-card border-border shadow-2xl">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md bg-card border-border shadow-2xl p-4 sm:p-6">
           <DialogHeader className="space-y-2">
             <div className="w-10 h-10 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
               <Trash2 className="w-5 h-5" />

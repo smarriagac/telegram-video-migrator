@@ -307,90 +307,97 @@ export const SettingsView: React.FC = () => {
 
         {/* Tab Switcher for Admins */}
         {user?.role === "ADMIN" && (
-          <div className="flex items-center gap-1 p-0.5 bg-secondary/60 border border-border rounded-lg shrink-0 overflow-x-auto max-w-full">
+          <div className="flex items-center gap-1 p-0.5 sm:p-1 bg-secondary/60 border border-border rounded-lg shrink-0 overflow-x-auto no-scrollbar w-full sm:w-auto">
             <button
               onClick={() => setActiveTab("credentials")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "credentials"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <KeyRound className="w-3.5 h-3.5" />
-              Credenciales Telegram
+              <KeyRound className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Credenciales Telegram</span>
+              <span className="sm:hidden">Credenciales</span>
             </button>
             <button
               onClick={() => setActiveTab("users")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "users"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <Users className="w-3.5 h-3.5" />
-              Gestión de Usuarios (RBAC)
+              <Users className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Gestión de Usuarios (RBAC)</span>
+              <span className="sm:hidden">Usuarios</span>
             </button>
             <button
               onClick={() => setActiveTab("alerts")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "alerts"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <Bell className="w-3.5 h-3.5" />
-              Alertas y Monitoreo MTProto
+              <Bell className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Alertas MTProto</span>
+              <span className="sm:hidden">Alertas</span>
             </button>
             <button
               onClick={() => setActiveTab("backups")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "backups"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <Database className="w-3.5 h-3.5" />
-              Copias de Seguridad (DR)
+              <Database className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Copias de Seguridad (DR)</span>
+              <span className="sm:hidden">Backups</span>
             </button>
             <button
               onClick={() => setActiveTab("governor")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "governor"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <Activity className="w-3.5 h-3.5" />
-              Gobernador de Tasa (AIMD)
+              <Activity className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Gobernador de Tasa (AIMD)</span>
+              <span className="sm:hidden">Gobernador</span>
             </button>
             <button
               onClick={() => setActiveTab("doctor")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "doctor"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <Stethoscope className="w-3.5 h-3.5" />
-              Doctor del Sistema
+              <Stethoscope className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Doctor del Sistema</span>
+              <span className="sm:hidden">Doctor</span>
             </button>
             <button
               onClick={() => setActiveTab("observability")}
               className={cn(
-                "px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                "px-2.5 sm:px-3 py-1 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === "observability"
                   ? "bg-primary text-primary-foreground shadow-sm font-semibold"
                   : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 font-medium"
               )}
             >
-              <Activity className="w-3.5 h-3.5 text-orange-400" />
-              Observabilidad (Prometheus)
+              <Activity className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+              <span className="hidden sm:inline">Observabilidad (Prometheus)</span>
+              <span className="sm:hidden">Métricas</span>
             </button>
           </div>
         )}

@@ -340,7 +340,7 @@ export const AuditView: React.FC = () => {
               size="sm"
               onClick={() => setFilters((prev) => ({ ...prev, category: cat.id }))}
               className={cn(
-                "h-8 px-3 text-xs whitespace-nowrap",
+                "h-8 px-2.5 sm:px-3 text-xs whitespace-nowrap shrink-0",
                 filters.category === cat.id
                   ? "bg-primary/10 text-primary border border-primary/30 font-semibold shadow-sm"
                   : "text-muted-foreground hover:text-foreground"

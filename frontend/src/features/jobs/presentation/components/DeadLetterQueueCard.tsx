@@ -620,7 +620,7 @@ export const DeadLetterQueueCard: React.FC = () => {
           open={Boolean(uiState.editingItem)}
           onOpenChange={(open) => !open && setUiState((prev) => ({ ...prev, editingItem: null, isSavingCaption: false }))}
         >
-          <DialogContent className="max-w-md bg-card border-border text-foreground p-4">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md bg-card border-border text-foreground p-3.5 sm:p-5">
             <DialogHeader className="border-b border-border pb-2">
               <DialogTitle className="text-sm font-semibold font-mono">
                 Editar Caption del Mensaje #{uiState.editingItem.sourceMsgId}

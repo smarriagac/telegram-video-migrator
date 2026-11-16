@@ -230,7 +230,7 @@ export const FeedWatcherModal: React.FC<FeedWatcherModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden bg-background border-border">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[88dvh] flex flex-col p-0 gap-0 overflow-hidden bg-background border-border">
         {/* Header */}
         <DialogHeader className="p-4 border-b border-border bg-card/60">
           <div className="flex items-center justify-between">

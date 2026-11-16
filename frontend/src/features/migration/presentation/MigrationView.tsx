@@ -169,14 +169,14 @@ export const MigrationView: React.FC = () => {
     <div className="w-full h-full flex flex-col space-y-2.5 sm:space-y-3 min-h-0 overflow-hidden">
       {/* Industrial Step Track */}
       {!isExecutionMode && (
-        <div className="border-b border-border/70 pb-3 flex items-center justify-between shrink-0 select-none">
-          <div className="flex items-center gap-3 text-xs">
+        <div className="border-b border-border/70 pb-2.5 flex items-center justify-between shrink-0 select-none gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 sm:gap-3 text-xs shrink-0">
             {/* Step 1 */}
             <button
               type="button"
               onClick={() => setWizardState((s) => ({ ...s, currentStep: "channels" }))}
               className={cn(
-                "flex items-center gap-2 font-mono transition-colors cursor-pointer",
+                "flex items-center gap-1.5 sm:gap-2 font-mono transition-colors cursor-pointer shrink-0",
                 wizardState.currentStep === "channels"
                   ? "text-primary font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -195,7 +195,7 @@ export const MigrationView: React.FC = () => {
               <span>Canales</span>
             </button>
 
-            <span className="text-muted-foreground/30 font-mono">───</span>
+            <span className="text-muted-foreground/30 font-mono text-[10px]">───</span>
 
             {/* Step 2 */}
             <button
@@ -203,7 +203,7 @@ export const MigrationView: React.FC = () => {
               disabled={!canGoToContent}
               onClick={() => canGoToContent && setWizardState((s) => ({ ...s, currentStep: "content" }))}
               className={cn(
-                "flex items-center gap-2 font-mono transition-colors",
+                "flex items-center gap-1.5 sm:gap-2 font-mono transition-colors shrink-0",
                 wizardState.currentStep === "content"
                   ? "text-primary font-semibold cursor-pointer"
                   : canGoToContent
@@ -221,7 +221,8 @@ export const MigrationView: React.FC = () => {
                     : "bg-muted-foreground/40"
                 )}
               />
-              <span>Selección de Videos</span>
+              <span className="hidden sm:inline">Selección de Videos</span>
+              <span className="sm:hidden">Videos</span>
               {selectedMessageIds.length > 0 && (
                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.2 rounded border border-primary/20">
                   {selectedMessageIds.length}
@@ -229,7 +230,7 @@ export const MigrationView: React.FC = () => {
               )}
             </button>
 
-            <span className="text-muted-foreground/30 font-mono">───</span>
+            <span className="text-muted-foreground/30 font-mono text-[10px]">───</span>
 
             {/* Step 3 */}
             <button
@@ -237,7 +238,7 @@ export const MigrationView: React.FC = () => {
               disabled={!canGoToContent}
               onClick={() => canGoToContent && setWizardState((s) => ({ ...s, currentStep: "review" }))}
               className={cn(
-                "flex items-center gap-2 font-mono transition-colors",
+                "flex items-center gap-1.5 sm:gap-2 font-mono transition-colors shrink-0",
                 wizardState.currentStep === "review"
                   ? "text-primary font-semibold cursor-pointer"
                   : canGoToContent
@@ -253,17 +254,18 @@ export const MigrationView: React.FC = () => {
                     : "bg-muted-foreground/40"
                 )}
               />
-              <span>Confirmación y Despacho</span>
+              <span className="hidden sm:inline">Confirmación y Despacho</span>
+              <span className="sm:hidden">Confirmar</span>
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {isCrossAccount ? (
-              <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-mono">
+              <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-mono hidden sm:inline-flex">
                 Puente Multi-Cuenta
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono">
+              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono hidden sm:inline-flex">
                 Directo MTProto
               </Badge>
             )}
@@ -399,14 +401,14 @@ export const MigrationView: React.FC = () => {
               {/* Dual Console Surface */}
               <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
                 {/* Top Bar with Console Header */}
-                <div className="px-5 py-3 border-b border-border/80 bg-secondary/30 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-primary" />
-                    <span className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
-                      Consola de Enrutamiento de Canales
+                <div className="px-3.5 sm:px-5 py-2.5 sm:py-3 border-b border-border/80 bg-secondary/30 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Layers className="w-4 h-4 text-primary shrink-0" />
+                    <span className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider truncate">
+                      Consola de Enrutamiento
                     </span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-mono">
+                  <span className="text-[11px] text-muted-foreground font-mono hidden sm:inline shrink-0">
                     Extracción por referencia MTProto
                   </span>
                 </div>
@@ -414,7 +416,7 @@ export const MigrationView: React.FC = () => {
                 {/* Dual Workstation Grid: Origen | Destino */}
                 <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border">
                   {/* Left Wing: Canal Origen */}
-                  <div className="p-5 space-y-3">
+                  <div className="p-3.5 sm:p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
                         Canal Origen
@@ -479,7 +481,7 @@ export const MigrationView: React.FC = () => {
                   </div>
 
                   {/* Right Wing: Canal Destino */}
-                  <div className="p-5 space-y-3">
+                  <div className="p-3.5 sm:p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-foreground font-mono uppercase tracking-wider">
                         Canal Destino
@@ -688,7 +690,7 @@ export const MigrationView: React.FC = () => {
                 size="default"
                 disabled={!canGoToContent}
                 onClick={() => setWizardState((s) => ({ ...s, currentStep: "content" }))}
-                className="h-10 px-6 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer transition-all gap-1.5"
+                className="w-full sm:w-auto h-10 px-6 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer transition-all gap-1.5"
               >
                 <span>Continuar a Selección de Videos</span>
                 <ChevronRight className="w-4 h-4 ml-1" />
@@ -708,7 +710,7 @@ export const MigrationView: React.FC = () => {
           <div className="max-w-3xl mx-auto w-full h-full min-h-0 overflow-y-auto py-2 space-y-4">
             <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
               {/* Sheet Header */}
-              <div className="px-5 py-3.5 border-b border-border bg-secondary/30 flex items-center justify-between">
+              <div className="px-3.5 sm:px-5 py-3 sm:py-3.5 border-b border-border bg-secondary/30 flex items-center justify-between gap-2">
                 <div>
                   <h3 className="font-mono text-xs font-semibold text-foreground uppercase tracking-wider">
                     Ficha Técnica de Despacho
@@ -717,13 +719,13 @@ export const MigrationView: React.FC = () => {
                     Confirmación de parámetros de transferencia MTProto
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-mono text-primary border-primary/30 bg-primary/10">
+                <Badge variant="outline" className="text-[10px] font-mono text-primary border-primary/30 bg-primary/10 shrink-0">
                   Verificado
                 </Badge>
               </div>
 
               {/* Transfer Route Table */}
-              <div className="p-5 space-y-4">
+              <div className="p-3.5 sm:p-5 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-border/70">
                   {/* Origen */}
                   <div className="space-y-1.5">
@@ -833,23 +835,24 @@ export const MigrationView: React.FC = () => {
               </div>
 
               {/* Footer Actions */}
-              <div className="px-5 py-3.5 bg-secondary/30 border-t border-border flex items-center justify-between">
+              <div className="px-3.5 sm:px-5 py-3 bg-secondary/30 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setWizardState((s) => ({ ...s, currentStep: "content" }))}
-                  className="h-9 px-4 text-xs font-mono gap-1.5 cursor-pointer"
+                  className="h-9 px-4 text-xs font-mono gap-1.5 cursor-pointer justify-center"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Modificar Selección</span>
+                  <span className="hidden sm:inline">Modificar Selección</span>
+                  <span className="sm:hidden">Modificar</span>
                 </Button>
 
                 <Button
                   type="button"
                   size="default"
                   onClick={handleLaunchMigration}
-                  className="h-9 px-6 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm flex items-center gap-1.5 cursor-pointer"
+                  className="h-9 px-6 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   <span>

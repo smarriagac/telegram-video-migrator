@@ -108,7 +108,7 @@ export const JoinInviteModal: React.FC<JoinInviteModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm bg-background border-border">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm bg-background border-border p-4 sm:p-6">
         <DialogHeader className="text-center space-y-2">
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-sm">
             {data?.type === "channel" ? <Radio className="w-6 h-6" /> : <Users className="w-6 h-6" />}

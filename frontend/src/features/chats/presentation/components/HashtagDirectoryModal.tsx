@@ -325,7 +325,7 @@ export const HashtagDirectoryModal: React.FC<HashtagDirectoryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-slate-900 border-slate-800 text-slate-100 max-h-[92vh] flex flex-col p-6 shadow-2xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl bg-slate-900 border-slate-800 text-slate-100 max-h-[88dvh] flex flex-col p-4 sm:p-6 shadow-2xl">
         <DialogHeader className="pb-3 border-b border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center space-x-2.5">

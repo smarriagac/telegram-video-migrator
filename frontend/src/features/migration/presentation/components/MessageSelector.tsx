@@ -1148,16 +1148,16 @@ export const MessageSelector: React.FC<MessageSelectorProps> = ({
               variant="outline"
               size="sm"
               onClick={onBack}
-              className="text-xs h-8 px-3 gap-1.5 border-border hover:bg-muted cursor-pointer"
+              className="text-xs h-8 px-2.5 sm:px-3 gap-1 sm:gap-1.5 border-border hover:bg-muted cursor-pointer shrink-0"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Volver a Canales</span>
+              <span>Volver<span className="hidden sm:inline"> a Canales</span></span>
             </Button>
           ) : (
             <div />
           )}
 
-          <div className="text-xs text-muted-foreground font-mono hidden sm:block">
+          <div className="text-xs text-muted-foreground font-mono hidden sm:block truncate">
             {selectedMessageIds.length > 0 ? (
               <span className="text-primary font-semibold">
                 {selectedMessageIds.length} elemento{selectedMessageIds.length > 1 ? "s" : ""} marcado{selectedMessageIds.length > 1 ? "s" : ""} para clonar
@@ -1172,9 +1172,9 @@ export const MessageSelector: React.FC<MessageSelectorProps> = ({
               type="button"
               size="sm"
               onClick={onNext}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-4 gap-1.5 shadow-sm cursor-pointer"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs h-8 px-3 sm:px-4 gap-1 sm:gap-1.5 shadow-sm cursor-pointer shrink-0"
             >
-              <span>Continuar al Resumen</span>
+              <span>Continuar<span className="hidden sm:inline"> al Resumen</span></span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Button>
           )}

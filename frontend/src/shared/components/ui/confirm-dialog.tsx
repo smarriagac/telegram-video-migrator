@@ -34,7 +34,7 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-card border-border shadow-2xl p-5 space-y-3">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md bg-card border-border shadow-2xl p-4 sm:p-5 space-y-3">
         <DialogHeader>
           <div className="flex items-center space-x-3 mb-1">
             <div

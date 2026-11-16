@@ -123,7 +123,7 @@ export const BatchSanitizerModal: React.FC<BatchSanitizerModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-xl border-border bg-card max-h-[90vh] flex flex-col p-4 sm:p-5">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-xl border-border bg-card max-h-[88dvh] flex flex-col p-3.5 sm:p-5">
         <DialogHeader className="pb-3 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">

@@ -63,7 +63,7 @@ export const ChannelCloningHistoryModal: React.FC<Props> = ({ isOpen, onClose })
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-6 space-y-4">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[88dvh] flex flex-col p-4 sm:p-6 space-y-4">
         {/* Header */}
         <DialogHeader>
           <div className="flex items-center space-x-2.5">

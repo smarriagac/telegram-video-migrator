@@ -529,28 +529,29 @@ export const ChannelManagementView: React.FC = () => {
           </Badge>
         }
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={loadData}
             disabled={state.loading}
-            className="h-8 border-border bg-card/60 hover:bg-muted text-foreground text-xs flex items-center gap-1.5"
+            className="h-8 px-2 sm:px-3 border-border bg-card/60 hover:bg-muted text-foreground text-xs flex items-center gap-1.5"
             title="Recargar datos de canales y solicitudes"
           >
             <RefreshCw className={cn("w-3.5 h-3.5", state.loading && "animate-spin text-primary")} />
-            Recargar
+            <span className="hidden sm:inline">Recargar</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={openEvictExpiredModal}
             disabled={state.isSubmitting}
-            className="h-8 text-xs gap-1.5 border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+            className="h-8 px-2 sm:px-3 text-xs gap-1.5 border-border hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
             title="Expulsar miembros con membresía vencida"
           >
             <UserX className="w-3.5 h-3.5 text-destructive" />
-            Purgar Vencidos
+            <span className="hidden md:inline">Purgar Vencidos</span>
+            <span className="md:hidden hidden sm:inline">Purgar</span>
           </Button>
           <Button
             variant="outline"
@@ -563,11 +564,11 @@ export const ChannelManagementView: React.FC = () => {
                 webhookChannelId: adminChannels[0]?.id || state.channels[0]?.id || 0,
               }))
             }
-            className="h-8 text-xs gap-1.5 border-border bg-card/60 hover:bg-muted text-foreground"
+            className="h-8 px-2 sm:px-3 text-xs gap-1.5 border-border bg-card/60 hover:bg-muted text-foreground"
             title="Integración de pasarela de pagos y webhook VIP"
           >
             <CreditCard className="w-3.5 h-3.5 text-primary" />
-            Webhook Pagos
+            <span className="hidden sm:inline">Webhook Pagos</span>
           </Button>
           <Button
             size="sm"
@@ -581,10 +582,10 @@ export const ChannelManagementView: React.FC = () => {
                 modalUsername: "",
               }))
             }
-            className="h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs flex items-center shadow-sm gap-1.5"
+            className="h-8 px-2.5 sm:px-3 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs flex items-center shadow-sm gap-1.5 shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
-            Crear Pase VIP
+            <span>Pase VIP</span>
           </Button>
         </div>
       </ViewHeader>
@@ -733,15 +734,16 @@ export const ChannelManagementView: React.FC = () => {
       {/* Filter and Search Bar Card */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-card border border-border p-2.5 rounded-lg shrink-0 shadow-sm">
         {/* Category Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs no-scrollbar py-0.5">
           {[
-            { id: "ADMIN", label: `Mis Canales y Grupos (${adminChannels.length})` },
+            { id: "ADMIN", label: `Mis Canales y Grupos (${adminChannels.length})`, shortLabel: `Canales (${adminChannels.length})` },
             {
               id: "REQUESTS",
               label: `Solicitudes de Ingreso (${pendingRequestsCount})`,
+              shortLabel: `Solicitudes (${pendingRequestsCount})`,
             },
-            { id: "VIP", label: `Membresías VIP (${state.members.length})` },
-            { id: "ALL", label: `Todos en Sesión (${state.channels.length})` },
+            { id: "VIP", label: `Membresías VIP (${state.members.length})`, shortLabel: `VIP (${state.members.length})` },
+            { id: "ALL", label: `Todos en Sesión (${state.channels.length})`, shortLabel: `Todos (${state.channels.length})` },
           ].map((cat) => (
             <Button
               key={cat.id}
@@ -752,13 +754,14 @@ export const ChannelManagementView: React.FC = () => {
                 setState((s) => ({ ...s, currentPage: 1 }));
               }}
               className={cn(
-                "h-7 text-xs px-2.5 rounded-md transition-colors gap-1.5",
+                "h-7 text-xs px-2 sm:px-2.5 rounded-md transition-colors gap-1.5 shrink-0",
                 filterCategory === cat.id
                   ? "bg-primary text-primary-foreground font-medium"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
-              <span>{cat.label}</span>
+              <span className="hidden sm:inline">{cat.label}</span>
+              <span className="sm:hidden">{cat.shortLabel}</span>
             </Button>
           ))}
         </div>
@@ -1542,7 +1545,7 @@ export const ChannelManagementView: React.FC = () => {
         open={state.webhookModalOpen}
         onOpenChange={(open) => setState((s) => ({ ...s, webhookModalOpen: open }))}
       >
-        <DialogContent className="sm:max-w-xl border-border bg-card max-h-[90vh] flex flex-col p-5">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-xl border-border bg-card max-h-[88dvh] flex flex-col p-3.5 sm:p-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-foreground font-semibold">
               <CreditCard className="w-5 h-5 text-primary" />
@@ -1721,7 +1724,7 @@ export const ChannelManagementView: React.FC = () => {
           }))
         }
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md border-border bg-card max-h-[88dvh] flex flex-col p-3.5 sm:p-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <Key className="w-4 h-4 text-primary" />
@@ -1889,7 +1892,7 @@ export const ChannelManagementView: React.FC = () => {
           if (!open) setState((s) => ({ ...s, actionModal: null }));
         }}
       >
-        <DialogContent className="sm:max-w-md border-border bg-card">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md border-border bg-card max-h-[88dvh] flex flex-col p-3.5 sm:p-5">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-foreground">
               {state.actionModal?.type === "KICK_MEMBER" || state.actionModal?.type === "KICK_BATCH_MEMBERS" ? (
@@ -2085,7 +2088,7 @@ export const ChannelManagementView: React.FC = () => {
           if (!open) setState((s) => ({ ...s, channelMembersModal: null }));
         }}
       >
-        <DialogContent className="sm:max-w-2xl border-border bg-card max-h-[85vh] flex flex-col p-4 sm:p-5">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl border-border bg-card max-h-[88dvh] flex flex-col p-3.5 sm:p-5">
           <DialogHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

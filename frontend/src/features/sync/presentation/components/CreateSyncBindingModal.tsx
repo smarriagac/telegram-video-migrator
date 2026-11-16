@@ -99,7 +99,7 @@ export const CreateSyncBindingModal: React.FC = () => {
 
   return (
     <Dialog open={isCreateModalOpen} onOpenChange={setCreateModalOpen}>
-      <DialogContent className="sm:max-w-[720px] md:max-w-[760px] bg-card border-border text-foreground rounded-md">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-[720px] md:max-w-[760px] bg-card border-border text-foreground rounded-md max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />

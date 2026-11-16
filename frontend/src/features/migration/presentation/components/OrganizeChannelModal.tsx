@@ -220,7 +220,7 @@ export const OrganizeChannelModal: React.FC<OrganizeChannelModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !asyncState.isSubmitting && onClose()}>
-      <DialogContent className="max-w-xl w-full max-h-[92vh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground shadow-2xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-xl w-full max-h-[88dvh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground shadow-2xl">
         {/* Header & Mode Switcher */}
         <DialogHeader className="p-4 border-b border-border bg-secondary/30 shrink-0 space-y-3">
           <div className="flex items-center justify-between">

@@ -127,7 +127,7 @@ export const ChatProfileModal: React.FC<ChatProfileModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-background border-border p-0 overflow-hidden">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md bg-background border-border p-0 overflow-hidden max-h-[88dvh]">
         {/* Cover / Header section */}
         <DialogHeader className="relative bg-gradient-to-b from-primary/20 via-background to-background p-6 flex flex-col items-center text-center border-b border-border/40">
           <input

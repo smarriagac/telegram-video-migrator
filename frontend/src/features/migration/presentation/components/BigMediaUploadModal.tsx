@@ -203,7 +203,7 @@ export const BigMediaUploadModal: React.FC<Props> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !pipelineState.isUploading && onClose()}>
-      <DialogContent className="max-w-xl bg-card border border-border p-6 space-y-4 shadow-xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-xl bg-card border border-border p-4 sm:p-6 space-y-4 shadow-xl max-h-[88dvh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">

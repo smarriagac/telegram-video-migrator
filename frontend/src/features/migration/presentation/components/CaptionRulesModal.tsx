@@ -89,7 +89,7 @@ export const CaptionRulesModal: React.FC<CaptionRulesModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg w-full max-h-[88dvh] overflow-hidden flex flex-col p-0 bg-card border-border text-foreground">
         {/* Header */}
         <DialogHeader className="p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2">

@@ -72,7 +72,7 @@ export const SyncRulesModal: React.FC = () => {
 
   return (
     <Dialog open={isRulesModalOpen} onOpenChange={setRulesModalOpen}>
-      <DialogContent className="sm:max-w-[500px] bg-card border-border text-foreground rounded-md">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-[500px] bg-card border-border text-foreground rounded-md max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Sliders className="h-5 w-5 text-primary" />

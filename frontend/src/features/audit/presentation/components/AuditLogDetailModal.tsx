@@ -115,7 +115,7 @@ export const AuditLogDetailModal: React.FC<AuditLogDetailModalProps> = ({
 
   return (
     <Dialog open={Boolean(log)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-card border-border text-foreground p-6 shadow-xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl bg-card border-border text-foreground p-4 sm:p-6 shadow-xl max-h-[88dvh] overflow-y-auto">
         <DialogHeader className="border-b border-border pb-4 space-y-2">
           <div className="flex items-center justify-between">
             {getActionBadge(log.action)}

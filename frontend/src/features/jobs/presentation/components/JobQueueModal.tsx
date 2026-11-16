@@ -110,7 +110,7 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
 
   return (
     <Dialog open={Boolean(job)} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl bg-card border-border text-foreground p-4 sm:p-6 shadow-xl max-h-[85vh] flex flex-col min-h-0">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-3xl bg-card border-border text-foreground p-3.5 sm:p-6 shadow-xl max-h-[88dvh] flex flex-col min-h-0">
         <DialogHeader className="border-b border-border pb-3 space-y-2 shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap">

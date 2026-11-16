@@ -89,7 +89,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({ isOpen, onClose, onC
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md space-y-3">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md space-y-3 p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center space-x-2.5 mb-0.5">
             <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">

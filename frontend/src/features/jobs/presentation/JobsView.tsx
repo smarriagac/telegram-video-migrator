@@ -436,19 +436,20 @@ export const JobsView: React.FC = () => {
       </ViewHeader>
 
       {/* Navigation Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-border pb-2 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-border pb-2 shrink-0 overflow-x-auto no-scrollbar">
         <button
           type="button"
           onClick={() => setActiveTab("migrations")}
           className={cn(
-            "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all",
+            "px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 sm:gap-2 transition-all shrink-0",
             activeTab === "migrations"
               ? "bg-primary text-primary-foreground shadow-sm font-semibold"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           )}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Clonaciones MTProto Nube</span>
+          <span className="hidden sm:inline">Clonaciones MTProto Nube</span>
+          <span className="sm:hidden">MTProto</span>
           <Badge
             variant="secondary"
             className={cn(
@@ -464,14 +465,15 @@ export const JobsView: React.FC = () => {
           type="button"
           onClick={() => setActiveTab("ffmpeg")}
           className={cn(
-            "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all",
+            "px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 sm:gap-2 transition-all shrink-0",
             activeTab === "ffmpeg"
               ? "bg-purple-600 text-white shadow-sm font-semibold"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           )}
         >
           <Wand2 className="w-3.5 h-3.5" />
-          <span>Cola FFmpeg Sanitizador</span>
+          <span className="hidden sm:inline">Cola FFmpeg Sanitizador</span>
+          <span className="sm:hidden">FFmpeg</span>
           <Badge
             variant="secondary"
             className={cn(
@@ -490,28 +492,30 @@ export const JobsView: React.FC = () => {
           type="button"
           onClick={() => setActiveTab("dlq")}
           className={cn(
-            "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all",
+            "px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 sm:gap-2 transition-all shrink-0",
             activeTab === "dlq"
               ? "bg-rose-600 text-white shadow-sm font-semibold"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           )}
         >
           <AlertTriangle className="w-3.5 h-3.5" />
-          <span>Dead-Letter Queue (DLQ)</span>
+          <span className="hidden sm:inline">Dead-Letter Queue (DLQ)</span>
+          <span className="sm:hidden">DLQ</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("drip")}
           className={cn(
-            "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition-all",
+            "px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 sm:gap-2 transition-all shrink-0",
             activeTab === "drip"
               ? "bg-cyan-600 text-white shadow-sm font-semibold"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           )}
         >
           <Droplets className="w-3.5 h-3.5" />
-          <span>Reservorio & Drip</span>
+          <span className="hidden sm:inline">Reservorio & Drip</span>
+          <span className="sm:hidden">Drip</span>
         </button>
       </div>
 
@@ -611,7 +615,7 @@ export const JobsView: React.FC = () => {
                   size="sm"
                   onClick={() => setStatusFilter(cat.id)}
                   className={cn(
-                    "h-8 px-3 text-xs whitespace-nowrap",
+                    "h-8 px-2.5 sm:px-3 text-xs whitespace-nowrap shrink-0",
                     statusFilter === cat.id
                       ? "bg-primary/10 text-primary border border-primary/30 font-semibold shadow-sm"
                       : "text-muted-foreground hover:text-foreground"

@@ -131,7 +131,7 @@ export const DirectUploadModal: React.FC<Props> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && onClose()}>
-      <DialogContent className="max-w-lg bg-card border border-border p-6 space-y-4 shadow-xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg bg-card border border-border p-4 sm:p-6 space-y-4 shadow-xl max-h-[88dvh] overflow-y-auto">
         {/* Header */}
         <DialogHeader>
           <div className="flex items-center space-x-2.5">

@@ -97,7 +97,7 @@ export const AnalyticsView: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap justify-end">
             <span className="text-[10px] text-muted-foreground font-mono hidden md:inline">
               Actualizado: {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </span>
@@ -107,10 +107,10 @@ export const AnalyticsView: React.FC = () => {
               onClick={() => handleExport("csv")}
               disabled={exportingFormat !== null}
               title="Exportar métricas a formato CSV"
-              className="h-8 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1 cursor-pointer"
+              className="h-8 px-2 sm:px-3 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1 cursor-pointer"
             >
               <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
-              <span className="hidden sm:inline">Exportar CSV</span>
+              <span className="hidden sm:inline">CSV</span>
             </Button>
             <Button
               variant="outline"
@@ -118,20 +118,21 @@ export const AnalyticsView: React.FC = () => {
               onClick={() => handleExport("json")}
               disabled={exportingFormat !== null}
               title="Exportar telemetría a formato JSON"
-              className="h-8 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1 cursor-pointer"
+              className="h-8 px-2 sm:px-3 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1 cursor-pointer"
             >
               <FileCode className="h-3.5 w-3.5 text-blue-500" />
-              <span className="hidden sm:inline">Exportar JSON</span>
+              <span className="hidden sm:inline">JSON</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => fetchOverview()}
               disabled={isLoading}
-              className="h-8 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1.5 cursor-pointer"
+              className="h-8 px-2 sm:px-3 border-border bg-card hover:bg-secondary text-foreground text-xs flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin text-primary")} />
-              <span>Actualizar Métricas</span>
+              <span className="hidden sm:inline">Actualizar Métricas</span>
+              <span className="sm:hidden">Actualizar</span>
             </Button>
           </div>
         </div>

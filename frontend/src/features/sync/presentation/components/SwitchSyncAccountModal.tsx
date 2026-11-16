@@ -78,7 +78,7 @@ export const SwitchSyncAccountModal: React.FC = () => {
 
   return (
     <Dialog open={isSwitchModalOpen} onOpenChange={(open) => !open && closeSwitchModal()}>
-      <DialogContent className="sm:max-w-[560px] bg-card border-border text-foreground rounded-lg shadow-xl">
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-[560px] bg-card border-border text-foreground rounded-lg shadow-xl max-h-[88dvh] overflow-y-auto p-3.5 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20">
