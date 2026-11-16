@@ -95,6 +95,7 @@ export const AppLayout: React.FC = () => {
 
   const userInitials = (user?.email?.slice(0, 2) || "AD").toUpperCase();
   const isCloningActive = ["/migration", "/sync", "/pipeline", "/jobs"].includes(location.pathname);
+  const isChatsRoute = location.pathname.startsWith("/chats");
   const currentMeta = ROUTE_META[location.pathname] || {
     domain: "Telegram Hub",
     module: "Módulos",
@@ -466,7 +467,12 @@ export const AppLayout: React.FC = () => {
           </header>
 
           {/* View Container */}
-          <main className="flex-1 min-h-0 relative z-10 px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5 overflow-y-auto lg:overflow-hidden flex flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-3.5">
+          <main
+            className={cn(
+              "flex-1 min-h-0 relative z-10 overflow-y-auto lg:overflow-hidden flex flex-col bg-background pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-3.5",
+              isChatsRoute ? "p-0 md:px-5 md:py-3.5" : "px-2.5 py-2.5 sm:px-4 sm:py-3 md:px-5 md:py-3.5"
+            )}
+          >
             <Suspense fallback={<ViewLoadingFallback />}>
               <Outlet />
             </Suspense>

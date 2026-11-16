@@ -56,6 +56,7 @@ import { ChatProfileModal } from "./components/ChatProfileModal";
 import { HashtagDirectoryModal } from "./components/HashtagDirectoryModal";
 import { ChannelMessageItem, Channel } from "@/features/migration/domain/types";
 import { cn } from "@/shared/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -1384,9 +1385,14 @@ export const ChatsView: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full flex flex-col space-y-3 min-h-0 overflow-hidden">
+    <div
+      className={cn(
+        "w-full h-full flex flex-col min-h-0 overflow-hidden",
+        activeChatId ? "space-y-0 md:space-y-3" : "space-y-2.5 sm:space-y-3"
+      )}
+    >
       {/* Toolbar / Actions */}
-      <ViewHeader>
+      <ViewHeader className={cn("w-full", activeChatId && "hidden md:flex")}>
         <div className="flex items-center justify-between w-full gap-2">
           {accounts.length > 1 ? (
             <div className="flex items-center bg-secondary/60 border border-border rounded-lg p-0.5 gap-1 shrink-0">
@@ -1441,7 +1447,12 @@ export const ChatsView: React.FC = () => {
       </ViewHeader>
 
       {/* Main Chat Interface: Bound height with flex/grid */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-card border border-border rounded-md overflow-hidden shadow-sm">
+      <div
+        className={cn(
+          "flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 bg-card overflow-hidden shadow-sm",
+          "border-0 md:border md:border-border rounded-none md:rounded-md"
+        )}
+      >
         {/* Left Column: Chat List (4 cols on lg, 3 cols on xl) */}
         <aside
           className={cn(
@@ -1644,12 +1655,12 @@ export const ChatsView: React.FC = () => {
           {activeChat ? (
             <>
               {/* Conversation Header (shrink-0) */}
-              <div className="p-2.5 px-3 border-b border-border flex items-center justify-between bg-card shrink-0">
-                <div className="flex items-center gap-2 min-w-0">
+              <div className="p-2.5 px-3 border-b border-border flex items-center justify-between bg-card shrink-0 gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <button
                     type="button"
                     onClick={() => selectChat(0)}
-                    className="md:hidden p-1.5 -ml-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
+                    className="md:hidden p-1.5 -ml-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors shrink-0"
                     title="Volver a la lista de chats"
                     aria-label="Volver a la lista de chats"
                   >
@@ -1667,41 +1678,40 @@ export const ChatsView: React.FC = () => {
                       accountId={selectedAccountId || activeChat.account_id}
                       className="w-7 h-7 rounded-md transition-transform group-hover/header:scale-105 shrink-0"
                     />
-                    <div className="min-w-0">
-                      <h2 className="text-xs font-bold text-white leading-none truncate max-w-[200px] sm:max-w-xs group-hover/header:text-primary transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-xs sm:text-sm font-bold text-white leading-tight truncate max-w-[130px] sm:max-w-[220px] md:max-w-xs group-hover/header:text-primary transition-colors">
                         {activeChat.title || "Conversación"}
                       </h2>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                         {/* Presence / Member Count / Subscriber Count */}
                         {activeChat.type === "user" ? (
                           activeChat.is_online ? (
-                            <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                            <span className="text-[9px] text-emerald-400 font-mono flex items-center gap-1 shrink-0">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
                               En línea
                             </span>
                           ) : (
-                            <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                            <span className="text-[9px] text-muted-foreground font-mono truncate">
                               {activeChat.status_text || "Desconectado"}
                             </span>
                           )
                         ) : activeChat.type === "channel" ? (
-                          <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                          <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1 truncate">
                             <Radio className="w-2.5 h-2.5 text-primary shrink-0" />
-                            <span>{activeChat.status_text || "Canal"}</span>
+                            <span className="truncate">{activeChat.status_text || "Canal"}</span>
                           </span>
                         ) : (
-                          <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1">
+                          <span className="text-[9px] text-muted-foreground font-mono flex items-center gap-1 truncate">
                             <Users className="w-2.5 h-2.5 text-primary shrink-0" />
-                            <span>{activeChat.status_text || "Grupo"}</span>
+                            <span className="truncate">{activeChat.status_text || "Grupo"}</span>
                           </span>
                         )}
 
-                        {/* Own Group / Channel Badge */}
+                        {/* Own Group / Channel Badge (Tablets & Desktop) */}
                         {activeChat.is_creator && (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-mono px-1.5 py-0.5 rounded border-amber-500/35 text-amber-400 bg-amber-500/10 flex items-center gap-1 font-semibold"
+                            className="hidden sm:inline-flex text-[9px] font-mono px-1.5 py-0.2 rounded border-amber-500/35 text-amber-400 bg-amber-500/10 items-center gap-1 font-semibold shrink-0"
                           >
                             <Crown className="w-2.5 h-2.5" />
                             <span>{activeChat.type === "channel" ? "Canal Propio" : "Grupo Propio"}</span>
@@ -1710,24 +1720,25 @@ export const ChatsView: React.FC = () => {
                         {!activeChat.is_creator && activeChat.is_admin && (
                           <Badge
                             variant="outline"
-                            className="text-[9px] font-mono px-1.5 py-0.5 rounded border-primary/35 text-primary bg-primary/10 flex items-center gap-1 font-semibold"
+                            className="hidden sm:inline-flex text-[9px] font-mono px-1.5 py-0.2 rounded border-primary/35 text-primary bg-primary/10 items-center gap-1 font-semibold shrink-0"
                           >
                             Admin
                           </Badge>
                         )}
 
-                        {/* Permissions Badge */}
+                        {/* Permissions Badge (Tablets & Desktop) */}
                         {activeChat.can_post === false ? (
-                          <span className="text-[9px] text-amber-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30">
+                          <span className="hidden sm:inline-flex text-[9px] text-amber-400 font-mono items-center gap-1 px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 shrink-0">
                             <Lock className="w-2.5 h-2.5" />
                             Solo Lectura
                           </span>
                         ) : (
-                          <span className="text-[9px] text-cyan-400 font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20">
+                          <span className="hidden sm:inline-flex text-[9px] text-cyan-400 font-mono items-center gap-1 px-1.5 py-0.2 rounded bg-cyan-500/10 border border-cyan-500/20 shrink-0">
                             <Check className="w-2.5 h-2.5" />
                             Envío Habilitado
                           </span>
                         )}
+
                         {viewState.userMemberships.length > 0 && (
                           <button
                             type="button"
@@ -1738,75 +1749,77 @@ export const ChatsView: React.FC = () => {
                                 showUserVipPopover: !s.showUserVipPopover,
                               }));
                             }}
-                            className="text-[9px] text-primary font-mono flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors font-semibold cursor-pointer"
+                            className="hidden sm:inline-flex text-[9px] text-primary font-mono items-center gap-1 px-1.5 py-0.2 rounded bg-primary/15 border border-primary/30 hover:bg-primary/25 transition-colors font-semibold cursor-pointer shrink-0"
                             title="Click para ver los canales/grupos VIP asociados a este usuario"
                           >
                             <Key className="w-2.5 h-2.5 text-primary" />
-                            <span>
-                              {viewState.userMemberships.length} Canal{viewState.userMemberships.length > 1 ? "es" : ""} VIP
-                            </span>
+                            <span>{viewState.userMemberships.length} VIP</span>
                           </button>
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {/* Action button to add user to managed channel / generate VIP pass */}
+
+                {/* Right: Quick actions on desktop, Unified Popover on mobile */}
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Action button to add user to managed channel / generate VIP pass (Desktop) */}
                   {activeChat.type === "user" && (
                     <Button
                       onClick={openVipModal}
                       variant="outline"
                       size="sm"
-                      className="h-7 text-[11px] text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/10 flex items-center gap-1.5 px-2.5 rounded-md shrink-0 shadow-sm font-medium"
+                      className="hidden md:inline-flex h-7 text-[11px] text-cyan-400 border-cyan-500/40 hover:bg-cyan-500/10 items-center gap-1.5 px-2.5 rounded-md shrink-0 shadow-sm font-medium"
                       title="Agregar usuario a un canal/grupo administrado o enviar Pase VIP"
                     >
                       <Key className="w-3.5 h-3.5 text-cyan-400" />
-                      <span className="hidden sm:inline">Pase VIP / Canal</span>
+                      <span className="hidden lg:inline">Pase VIP / Canal</span>
                     </Button>
                   )}
+
                   {activeChat.unread_count > 0 && (
                     <Button
                       onClick={() => markAsRead(activeChat.id)}
                       variant="ghost"
                       size="sm"
-                      className="h-7 text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1 px-2 sm:px-2.5 border border-cyan-500/30 rounded-md shrink-0"
+                      className="h-7 text-[11px] text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1 px-1.5 sm:px-2 border border-cyan-500/30 rounded-md shrink-0"
                       title="Marcar todos los mensajes como leídos en Telegram"
                     >
                       <CheckCheck className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline">Marcar leído </span>
-                      <span>({activeChat.unread_count})</span>
+                      <span className="font-bold font-mono">({activeChat.unread_count})</span>
                     </Button>
                   )}
-                  {/* Button: Ingestar TikTok/Reels */}
+
+                  {/* Button: Ingestar TikTok/Reels (Desktop/Tablet) */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() =>
                       setViewState((prev) => ({ ...prev, isIngestionModalOpen: true }))
                     }
-                    className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-pink-500/30 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
+                    className="hidden lg:inline-flex h-7 text-[11px] items-center gap-1 px-2 rounded-md shrink-0 border-pink-500/30 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
                     title="Descargar e ingestar clip de TikTok, Reels o Shorts directo a este chat"
                   >
                     <DownloadCloud className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">TikTok/Reels</span>
+                    <span className="hidden xl:inline">TikTok/Reels</span>
                   </Button>
 
-                  {/* Button: Auto-Pilot Feeds Watcher */}
+                  {/* Button: Auto-Pilot Feeds Watcher (Desktop) */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() =>
                       setViewState((prev) => ({ ...prev, isFeedWatcherModalOpen: true }))
                     }
-                    className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-violet-500/30 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 font-mono cursor-pointer transition-all"
+                    className="hidden xl:inline-flex h-7 text-[11px] items-center gap-1 px-2 rounded-md shrink-0 border-violet-500/30 text-violet-400 hover:text-violet-300 hover:bg-violet-500/10 font-mono cursor-pointer transition-all"
                     title="Configurar monitor automático de perfiles de TikTok, Reels y Shorts"
                   >
                     <Radio className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Auto-Pilot Feeds</span>
+                    <span>Auto-Pilot</span>
                   </Button>
 
-                  {/* Button: Hashtag Directory Generator */}
+                  {/* Button: Hashtag Directory Generator (Desktop) */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -1817,14 +1830,14 @@ export const ChatsView: React.FC = () => {
                         hashtagModalTargetMsgId: null,
                       }))
                     }
-                    className="h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 border-pink-500/40 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
+                    className="hidden lg:inline-flex h-7 text-[11px] items-center gap-1 px-2 rounded-md shrink-0 border-pink-500/40 text-pink-400 hover:text-pink-300 hover:bg-pink-500/10 font-mono cursor-pointer transition-all"
                     title="Escanear historial y generar mensaje índice con todos los #hashtags"
                   >
                     <Hash className="w-3.5 h-3.5 text-pink-400" />
-                    <span className="hidden sm:inline">Índice #</span>
+                    <span>Índice #</span>
                   </Button>
 
-                  {/* Mode: Multi-Select for Forwarding / Self-Organization */}
+                  {/* Mode: Multi-Select for Forwarding / Self-Organization (Desktop) */}
                   <Button
                     variant={viewState.isSelectionMode ? "default" : "outline"}
                     size="sm"
@@ -1836,7 +1849,7 @@ export const ChatsView: React.FC = () => {
                       }))
                     }
                     className={cn(
-                      "h-7 text-[11px] flex items-center gap-1 px-2 sm:px-2.5 rounded-md shrink-0 transition-all font-mono cursor-pointer",
+                      "hidden sm:inline-flex h-7 text-[11px] items-center gap-1 px-2 rounded-md shrink-0 transition-all font-mono cursor-pointer",
                       viewState.isSelectionMode
                         ? "bg-primary text-primary-foreground font-semibold"
                         : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60"
@@ -1844,20 +1857,103 @@ export const ChatsView: React.FC = () => {
                     title="Seleccionar mensajes para reenviar o agrupar"
                   >
                     <CheckSquare className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">
-                      {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar"}
+                    <span>
+                      {viewState.isSelectionMode ? "Cancelar" : "Seleccionar"}
                     </span>
                   </Button>
 
-                  <button
-                    type="button"
-                    onClick={() => setViewState((prev) => ({ ...prev, profileModalOpen: true }))}
-                    className="p-1 rounded-md hover:bg-white/5 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-                    title="Ver perfil del canal/chat"
-                    aria-label="Más opciones"
-                  >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Responsive Popover for Mobile & Secondary Options */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors cursor-pointer"
+                        title="Más opciones del chat"
+                        aria-label="Más opciones del chat"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      className="w-56 p-1.5 bg-[#0e121a]/95 backdrop-blur-md border border-border shadow-2xl rounded-xl space-y-0.5 z-50"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setViewState((prev) => ({ ...prev, profileModalOpen: true }))}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-lg text-foreground hover:bg-secondary/60 transition-colors text-left font-medium cursor-pointer"
+                      >
+                        <UserIcon className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <span>Perfil del Chat & Info</span>
+                      </button>
+
+                      {activeChat.type === "user" && (
+                        <button
+                          type="button"
+                          onClick={openVipModal}
+                          className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-lg text-cyan-400 hover:bg-cyan-500/10 transition-colors text-left font-medium cursor-pointer"
+                        >
+                          <Key className="w-3.5 h-3.5 shrink-0" />
+                          <span>Pase VIP / Invitar a Canal</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setViewState((prev) => ({ ...prev, isIngestionModalOpen: true }))
+                        }
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-lg text-pink-400 hover:bg-pink-500/10 transition-colors text-left font-medium cursor-pointer"
+                      >
+                        <DownloadCloud className="w-3.5 h-3.5 shrink-0" />
+                        <span>Ingestar TikTok / Reels</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setViewState((prev) => ({ ...prev, isFeedWatcherModalOpen: true }))
+                        }
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-lg text-violet-400 hover:bg-violet-500/10 transition-colors text-left font-medium cursor-pointer"
+                      >
+                        <Radio className="w-3.5 h-3.5 shrink-0" />
+                        <span>Monitor Auto-Pilot Feeds</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setViewState((prev) => ({
+                            ...prev,
+                            hashtagModalOpen: true,
+                            hashtagModalTargetMsgId: null,
+                          }))
+                        }
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors text-left font-medium cursor-pointer"
+                      >
+                        <Hash className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                        <span>Directorio de #Hashtags</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setViewState((prev) => ({
+                            ...prev,
+                            isSelectionMode: !prev.isSelectionMode,
+                            selectedMessageIds: prev.isSelectionMode ? [] : prev.selectedMessageIds,
+                          }))
+                        }
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors text-left font-medium cursor-pointer sm:hidden"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {viewState.isSelectionMode ? "Cancelar Selección" : "Seleccionar Mensajes"}
+                        </span>
+                      </button>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
@@ -2560,17 +2656,17 @@ export const ChatsView: React.FC = () => {
                     type="submit"
                     size="sm"
                     disabled={isUploading || (!inputText.trim() && !selectedFile)}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-md px-3.5 h-8 flex items-center gap-1.5 shrink-0 shadow-sm"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-md px-2.5 sm:px-3.5 h-8 flex items-center gap-1.5 shrink-0 shadow-sm"
                   >
                     {isUploading ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Subiendo...</span>
+                        <span className="hidden sm:inline">Subiendo...</span>
                       </>
                     ) : (
                       <>
                         <Send className="w-3.5 h-3.5" />
-                        <span>{selectedFile ? "Publicar" : "Enviar"}</span>
+                        <span className="hidden sm:inline">{selectedFile ? "Publicar" : "Enviar"}</span>
                       </>
                     )}
                   </Button>

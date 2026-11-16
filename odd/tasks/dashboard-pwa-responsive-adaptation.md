@@ -41,3 +41,4 @@ Transform the existing React/Vite web dashboard into an installable, high-perfor
 - L4: Implemented `MobileBottomNav` with primary quick-access buttons (Chats, Clonar, Canales, Trabajos, Más) and safe-area inset bottom padding.
 - L5: Integrated `usePwaInstall` hook providing native browser installation prompt in the header.
 - L6: Updated `nginx.conf` caching headers for `sw.js` and `manifest.webmanifest`. Verified 20/20 test suites pass (73 tests) and live deployed into frontend container on port 7900.
+- L7: Fixed mobile conversation header collision in `ChatsView.tsx`: grouped secondary actions (TikTok ingestion, Feeds, Hashtag index, VIP pass, selection) into a unified `Popover`, trimmed badges onto a single line without wrapping collisions, hid top list toolbar when conversation is active on mobile, and enabled edge-to-edge chat viewport in `AppLayout.tsx`. Verified 73/73 tests pass and redeployed.
