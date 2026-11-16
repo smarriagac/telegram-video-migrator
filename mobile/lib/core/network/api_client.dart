@@ -9,7 +9,11 @@ class ApiClient {
     http.Client? client,
     String? baseUrl,
   })  : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? 'http://10.0.2.2:7901';
+        _baseUrl = baseUrl ??
+            const String.fromEnvironment(
+              'BACKEND_URL',
+              defaultValue: 'http://192.168.1.35:7901',
+            );
 
   String get baseUrl => _baseUrl;
 
