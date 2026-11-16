@@ -211,7 +211,76 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
               No hay elementos registrados en la cola de este trabajo.
             </div>
           ) : (
-            <Table className="w-full text-xs">
+            <>
+              {/* Mobile View: High-Density Card List (< 640px) */}
+              <div className="sm:hidden divide-y divide-border">
+                {items.map((item) => (
+                  <div key={`mob-q-${item.source_message_id}`} className="p-3 space-y-2 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-semibold text-xs text-foreground">
+                        #{item.source_message_id}
+                        {item.target_message_id && (
+                          <span className="text-emerald-500 font-normal ml-1">→ #{item.target_message_id}</span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-[9px] uppercase font-mono px-1.5 py-0">
+                          {item.media_type}
+                        </Badge>
+                        {getItemBadge(item)}
+                      </div>
+                    </div>
+
+                    {item.is_deduplicated ? (
+                      <span className="text-amber-500 flex items-center gap-1 font-mono text-[10px]" title={item.error_message || item.caption}>
+                        <Zap className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{item.error_message || item.caption || "Deduplicado (Fast-Forward)"}</span>
+                      </span>
+                    ) : item.error_message ? (
+                      <span className="text-rose-500 flex items-center gap-1 text-[10px]" title={item.error_message}>
+                        <ShieldAlert className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{item.error_message}</span>
+                      </span>
+                    ) : item.caption ? (
+                      <span className="text-muted-foreground text-[11px] truncate block" title={item.caption}>
+                        {item.caption}
+                      </span>
+                    ) : null}
+
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t border-border/50">
+                      <span>Reintentos: {item.retry_count}</span>
+                      {item.status === "FAILED" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={retryingItem === item.source_message_id}
+                          onClick={async () => {
+                            setRetryingItem(item.source_message_id);
+                            try {
+                              await jobsApi.retrySingleItem(job.job_id, item.source_message_id);
+                              item.status = "PENDING";
+                            } catch (e) {
+                              console.error(e);
+                            } finally {
+                              setRetryingItem(null);
+                            }
+                          }}
+                          className="h-6 text-[10px] px-2 text-amber-400 border-amber-500/30 hover:bg-amber-500/10 gap-1"
+                        >
+                          <RotateCcw className={cn("w-2.5 h-2.5", retryingItem === item.source_message_id && "animate-spin")} />
+                          <span>Reintentar</span>
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground text-[10px]">-</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop & Tablet View: Full Scrollable Table (>= 640px) */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <Table className="w-full text-xs">
               <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono border-b border-border z-10">
                 <TableRow className="border-b border-border hover:bg-transparent">
                   <TableHead className="py-2 px-3">Msg ID Origen</TableHead>
@@ -290,8 +359,10 @@ export const JobQueueModal: React.FC<JobQueueModalProps> = ({
                 ))}
               </TableBody>
             </Table>
-          )}
-        </div>
+          </div>
+        </>
+      )}
+    </div>
 
         <div className="pt-3 flex justify-end shrink-0">
           <Button variant="outline" size="sm" onClick={onClose} className="h-8 text-xs">

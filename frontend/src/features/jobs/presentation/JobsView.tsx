@@ -663,17 +663,194 @@ export const JobsView: React.FC = () => {
                   <p>No se encontraron trabajos para el criterio seleccionado.</p>
                 </div>
               ) : (
-                <Table className="w-full min-w-[760px] text-left text-xs border-collapse">
-                  <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono text-xs border-b border-border z-10">
-                    <TableRow className="border-b border-border hover:bg-transparent">
-                      <TableHead className="py-2.5 px-3">ID / Fecha</TableHead>
-                      <TableHead className="py-2.5 px-3">Ruta de Canales</TableHead>
-                      <TableHead className="py-2.5 px-3">Progreso & Cuota</TableHead>
-                      <TableHead className="py-2.5 px-3">Pacing</TableHead>
-                      <TableHead className="py-2.5 px-3">Estado</TableHead>
-                      <TableHead className="py-2.5 px-3 text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <>
+                  {/* Mobile View: High-Density Card List (< 640px) */}
+                  <div className="sm:hidden divide-y divide-border">
+                    {filteredJobs.map((job) => {
+                      const pct =
+                        job.total_videos > 0
+                          ? Math.round((job.processed_videos / job.total_videos) * 100)
+                          : 0;
+
+                      return (
+                        <div
+                          key={`mob-job-${job.job_id}`}
+                          className="p-3.5 space-y-2.5 hover:bg-muted/30 transition-colors"
+                        >
+                          {/* Header: ID, Date & Status */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="font-mono font-semibold text-xs text-foreground truncate max-w-[200px]" title={job.job_id}>
+                                {job.job_id}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3 shrink-0" />
+                                <span>{formatDate(job.created_at)}</span>
+                              </div>
+                              {job.scheduled_at && (
+                                <div className="text-[10px] text-cyan-400 font-mono flex items-center gap-1 mt-0.5" title="Horario programado de inicio">
+                                  <span>⏰ {formatDate(job.scheduled_at)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {getStatusBadge(job.status)}
+                              {Boolean(job.failover_count && job.failover_count > 0) && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-amber-400 border-amber-500/30 bg-amber-500/10 text-[9px] font-mono px-1.5 py-0 flex items-center gap-1"
+                                  title={`${job.failover_count} rotaciones de cuenta por FloodWait`}
+                                >
+                                  <Shuffle className="w-2.5 h-2.5" />
+                                  <span>{job.failover_count} failover{(job.failover_count ?? 0) > 1 ? "s" : ""}</span>
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Channel Route & Type */}
+                          <div className="bg-secondary/40 rounded-md p-2 space-y-1 border border-border/50 text-xs">
+                            <div className="flex items-center gap-1.5 font-medium truncate">
+                              <span className="text-primary truncate" title={job.source_title || String(job.source_id)}>
+                                {job.source_title || `Canal ${job.source_id}`}
+                              </span>
+                              <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                              <span className="text-emerald-500 dark:text-emerald-400 truncate" title={job.target_title || String(job.target_id)}>
+                                {job.target_title || `Canal ${job.target_id}`}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+                              <span>{job.is_full_migration ? "Clonación completa" : "Selección granular"}</span>
+                              {job.drip_delay_seconds > 0 ? (
+                                <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 text-[9px] px-1 py-0">
+                                  {job.drip_delay_seconds >= 60
+                                    ? `${Math.round(job.drip_delay_seconds / 60)}m delay`
+                                    : `${job.drip_delay_seconds}s delay`}
+                                </Badge>
+                              ) : (
+                                <span className="font-mono text-[9px] text-muted-foreground">Directo (2s)</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Progress */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[11px] text-muted-foreground">
+                              <span>{job.processed_videos} / {job.total_videos} videos</span>
+                              <span className="text-primary font-bold">{pct}%</span>
+                            </div>
+                            <Progress value={pct} className="h-1.5 bg-secondary" />
+                          </div>
+
+                          {/* Action Toolbar */}
+                          <div className="flex items-center justify-between gap-1 pt-1 border-t border-border/60">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => selectJob(job)}
+                              className="h-7 px-2.5 text-xs flex-1 sm:flex-none justify-center"
+                              title="Ver cola y detalles de mensajes"
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Ver Cola
+                            </Button>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {job.status === "SCHEDULED" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRunNow(job.job_id)}
+                                  className="h-7 px-2 text-xs border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 font-sans"
+                                  title="Iniciar ejecución inmediata sin esperar"
+                                >
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Iniciar Ya
+                                </Button>
+                              ) : job.status === "RUNNING" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePause(job.job_id)}
+                                  className="h-7 px-2 text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                                  title="Pausar trabajo"
+                                >
+                                  <Pause className="w-3 h-3 mr-1" />
+                                  Pausar
+                                </Button>
+                              ) : job.status === "PAUSED" || job.status === "PAUSED_FLOOD_WAIT" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleResume(job.job_id)}
+                                  className="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                                  title="Reanudar trabajo"
+                                >
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Reanudar
+                                </Button>
+                              ) : null}
+
+                              {job.status === "FAILED" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRetry(job.job_id)}
+                                  className="h-7 px-2 text-xs border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
+                                  title="Reintentar elementos fallidos"
+                                >
+                                  <RotateCcw className="w-3 h-3 mr-1" />
+                                  Reintentar
+                                </Button>
+                              )}
+
+                              {job.status === "RUNNING" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancel(job.job_id)}
+                                  className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-400 hover:border-rose-500/30"
+                                  title="Cancelar trabajo"
+                                >
+                                  <XCircle className="w-3 h-3" />
+                                </Button>
+                              )}
+
+                              {(job.status === "COMPLETED" ||
+                                job.status === "FAILED" ||
+                                job.status === "CANCELLED" ||
+                                job.status === "SCHEDULED" ||
+                                job.status === "PAUSED") && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(job.job_id)}
+                                  className="h-7 px-2 text-muted-foreground hover:text-rose-400"
+                                  title="Eliminar historial"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop & Tablet View: Full Scrollable Table (>= 640px) */}
+                  <div className="hidden sm:block overflow-x-auto w-full">
+                    <Table className="w-full min-w-[760px] text-left text-xs border-collapse">
+                      <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono text-xs border-b border-border z-10">
+                        <TableRow className="border-b border-border hover:bg-transparent">
+                          <TableHead className="py-2.5 px-3">ID / Fecha</TableHead>
+                          <TableHead className="py-2.5 px-3">Ruta de Canales</TableHead>
+                          <TableHead className="py-2.5 px-3">Progreso & Cuota</TableHead>
+                          <TableHead className="py-2.5 px-3">Pacing</TableHead>
+                          <TableHead className="py-2.5 px-3">Estado</TableHead>
+                          <TableHead className="py-2.5 px-3 text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
                   <TableBody className="divide-y divide-border">
                     {filteredJobs.map((job) => {
                       const pct =
@@ -852,8 +1029,10 @@ export const JobsView: React.FC = () => {
                     })}
                   </TableBody>
                 </Table>
-              )}
-            </div>
+              </div>
+            </>
+          )}
+        </div>
 
             {/* Pagination Controls */}
             <div className="p-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground bg-secondary/40 shrink-0">
@@ -1013,17 +1192,151 @@ export const JobsView: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <Table className="w-full min-w-[760px] text-left text-xs border-collapse">
-                  <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono text-xs border-b border-border z-10">
-                    <TableRow className="border-b border-border hover:bg-transparent">
-                      <TableHead className="py-2.5 px-3">ID / Fecha</TableHead>
-                      <TableHead className="py-2.5 px-3">Ruta de Canales</TableHead>
-                      <TableHead className="py-2.5 px-3">Video & Filtro</TableHead>
-                      <TableHead className="py-2.5 px-3">Progreso FFmpeg</TableHead>
-                      <TableHead className="py-2.5 px-3">Estado</TableHead>
-                      <TableHead className="py-2.5 px-3 text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                <>
+                  {/* Mobile View: High-Density Card List (< 640px) */}
+                  <div className="sm:hidden divide-y divide-border">
+                    {filteredFfmpegJobs.map((fjob) => (
+                      <div
+                        key={`mob-ff-${fjob.id}`}
+                        className="p-3.5 space-y-2.5 hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <span className="font-mono font-semibold text-xs text-foreground truncate block max-w-[180px]">
+                              {fjob.id.substring(0, 10)}...
+                            </span>
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              {formatDate(fjob.created_at)}
+                            </span>
+                          </div>
+                          <div className="shrink-0">
+                            {getFfmpegStatusBadge(fjob.status)}
+                          </div>
+                        </div>
+
+                        <div className="bg-secondary/40 rounded-md p-2 space-y-1 border border-border/50 text-xs">
+                          <div className="flex items-center gap-1.5 font-medium truncate">
+                            <span className="text-purple-400 truncate font-medium">
+                              {fjob.source_channel_title || `Canal ${fjob.source_channel_id}`}
+                            </span>
+                            <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                            <span className="text-emerald-400 truncate font-medium">
+                              {fjob.target_channel_title || `Canal ${fjob.target_channel_id}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>Msg original: #{fjob.source_message_id}</span>
+                            <span className="font-mono">({fjob.filter_params?.preset || "custom"})</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] font-mono",
+                              fjob.filter_type === "delogo"
+                                ? "border-purple-500/30 text-purple-300 bg-purple-500/10"
+                                : "border-amber-500/30 text-amber-300 bg-amber-500/10"
+                            )}
+                          >
+                            {fjob.filter_type === "delogo" ? "Filtro Delogo" : "Desenfoque Blur"}
+                          </Badge>
+                          {fjob.filter_params?.resolution_preset && fjob.filter_params.resolution_preset !== "ORIGINAL" && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] font-mono ${
+                                String(fjob.filter_params.resolution_preset).includes("H265") || fjob.filter_params.resolution_preset === "AUTO_MOBILE"
+                                  ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10"
+                                  : "border-sky-500/30 text-sky-400 bg-sky-500/10"
+                              }`}
+                            >
+                              {fjob.filter_params.resolution_preset === "AUTO_MOBILE" ? "Auto H.265" : fjob.filter_params.resolution_preset}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {fjob.new_caption && (
+                          <p className="text-[11px] text-muted-foreground truncate bg-background/50 p-1.5 rounded border border-border/40">
+                            {fjob.new_caption}
+                          </p>
+                        )}
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span className="font-mono">{fjob.progress}%</span>
+                            <span className="text-[10px] uppercase font-mono text-purple-300">
+                              {fjob.status === "DOWNLOADING"
+                                ? "Descargando"
+                                : fjob.status === "PROCESSING"
+                                ? "Codificando"
+                                : fjob.status === "UPLOADING"
+                                ? "Subiendo"
+                                : fjob.status}
+                            </span>
+                          </div>
+                          <Progress value={fjob.progress} className="h-1.5 bg-secondary" />
+                          {fjob.error_message && (
+                            <span className="text-[10px] text-rose-400 block truncate mt-1">
+                              {fjob.error_message}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-end gap-1 pt-1 border-t border-border/60">
+                          {["PENDING", "DOWNLOADING", "PROCESSING"].includes(fjob.status) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelFfmpeg(fjob.id)}
+                              className="h-7 px-2 text-xs text-muted-foreground hover:text-rose-400 hover:border-rose-500/30"
+                            >
+                              <XCircle className="w-3.5 h-3.5 mr-1" />
+                              Cancelar
+                            </Button>
+                          )}
+                          {["FAILED", "CANCELLED"].includes(fjob.status) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRetryFfmpeg(fjob.id)}
+                              className="h-7 px-2 text-xs border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+                              Reintentar
+                            </Button>
+                          )}
+                          {["COMPLETED", "FAILED", "CANCELLED"].includes(fjob.status) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteFfmpeg(fjob.id)}
+                              className="h-7 px-2 text-muted-foreground hover:text-rose-400"
+                              title="Eliminar registro"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop & Tablet View: Full Scrollable Table (>= 640px) */}
+                  <div className="hidden sm:block overflow-x-auto w-full">
+                    <Table className="w-full min-w-[760px] text-left text-xs border-collapse">
+                      <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono text-xs border-b border-border z-10">
+                        <TableRow className="border-b border-border hover:bg-transparent">
+                          <TableHead className="py-2.5 px-3">ID / Fecha</TableHead>
+                          <TableHead className="py-2.5 px-3">Ruta de Canales</TableHead>
+                          <TableHead className="py-2.5 px-3">Video & Filtro</TableHead>
+                          <TableHead className="py-2.5 px-3">Progreso FFmpeg</TableHead>
+                          <TableHead className="py-2.5 px-3">Estado</TableHead>
+                          <TableHead className="py-2.5 px-3 text-right">Acciones</TableHead>
+                        </TableRow>
+                      </TableHeader>
                   <TableBody className="divide-y divide-border">
                     {filteredFfmpegJobs.map((fjob) => (
                       <TableRow key={fjob.id} className="hover:bg-muted/40 transition-colors">
@@ -1167,8 +1480,10 @@ export const JobsView: React.FC = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
-            </div>
+              </div>
+            </>
+          )}
+        </div>
           </Card>
         </>
       ) : activeTab === "dlq" ? (

@@ -165,12 +165,14 @@ export const SystemDoctorCard: React.FC = () => {
             )}
             <span>{uiState.actionFeedback.message}</span>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setUiState((prev) => ({ ...prev, actionFeedback: null }))}
-            className="text-[11px] underline opacity-80 hover:opacity-100"
+            className="h-6 px-2 text-[11px] underline opacity-80 hover:opacity-100 hover:bg-transparent"
           >
             Cerrar
-          </button>
+          </Button>
         </div>
       )}
 

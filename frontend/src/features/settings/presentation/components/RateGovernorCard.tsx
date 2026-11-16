@@ -392,7 +392,63 @@ export const RateGovernorCard: React.FC = () => {
             </p>
           </div>
         ) : (
-          <Table className="w-full text-xs">
+          <>
+            {/* Mobile View: High-Density Card List (< 640px) */}
+            <div className="sm:hidden divide-y divide-border">
+              {filteredChannels.map((ch) => (
+                <div key={`mob-gov-${ch.target_id}-${ch.account_id}`} className="p-3.5 space-y-2 hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-medium text-xs text-foreground truncate max-w-[200px]" title={ch.target_id}>
+                      Canal: {ch.target_id}
+                    </span>
+                    {getStatusBadge(ch.status, ch.remaining_freeze_seconds)}
+                  </div>
+
+                  <div className="bg-secondary/40 rounded-md p-2 text-xs space-y-1 font-mono border border-border/50">
+                    <div className="flex justify-between text-muted-foreground text-[11px]">
+                      <span>Cuenta MTProto:</span>
+                      <span className="text-foreground">#{ch.account_id || "default"}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground text-[11px]">
+                      <span>Tokens / Capacidad:</span>
+                      <span className="text-foreground">{(ch.tokens ?? 0).toFixed(1)} / {ch.capacity}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground text-[11px]">
+                      <span>Multiplicador AIMD:</span>
+                      <span className="text-primary font-bold">{(ch.backoff_multiplier ?? 1).toFixed(2)}x</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground text-[11px]">
+                      <span>Latencia / FloodWaits:</span>
+                      <span>
+                        {ch.ema_latency_ms > 0 ? `${ch.ema_latency_ms} ms` : "-"} /{" "}
+                        <span className={cn(ch.total_flood_waits > 0 ? "text-rose-400 font-bold" : "text-foreground")}>
+                          {ch.total_flood_waits} FW
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={governorState.actionTarget === ch.target_id}
+                      onClick={() => handleResetChannel(ch.target_id, ch.account_id)}
+                      className="h-6 text-[11px] px-2 font-mono gap-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <RotateCcw
+                        className={cn("w-3 h-3", governorState.actionTarget === ch.target_id && "animate-spin")}
+                      />
+                      <span>Restablecer AIMD</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop & Tablet View: Full Scrollable Table (>= 640px) */}
+            <div className="hidden sm:block overflow-x-auto w-full">
+              <Table className="w-full text-xs">
             <TableHeader className="bg-secondary/40 font-mono text-muted-foreground border-b border-border">
               <TableRow className="border-b border-border hover:bg-transparent">
                 <TableHead className="py-2 px-3">Canal Destino</TableHead>
@@ -464,7 +520,9 @@ export const RateGovernorCard: React.FC = () => {
               ))}
             </TableBody>
           </Table>
-        )}
+        </div>
+      </>
+    )}
       </div>
     </div>
   );

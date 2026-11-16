@@ -32,6 +32,11 @@ Systematically audit and optimize every operational module of the Telegram Video
   - Zero TypeScript compile errors (`npm run build`).
   - 100% pass on Vitest test suite (`npm test`).
   - Live deployment in Docker container tested.
+- S7: High-Density Mobile Cards for Data Tables (`JobsView`, `AuditView`, `JobQueueModal`, `RateGovernorCard`):
+  - In mobile viewports (< 640px), replace wide tables (`min-w-[700px]+`) with vertical card lists displaying IDs, timestamps, routes, progress bars, status badges, and action toolbars stacked without horizontal clipping.
+  - Retain full desktop table in `hidden sm:block` for tablet and desktop screens.
+- S8: Doctor Diagnostics & Big Media Upload Auth Token Resolution:
+  - Ensure API clients in `doctorApi.ts` and `bigMediaUploadApi.ts` read `telegram_hub_token` from `localStorage` so Bearer authorization headers are reliably transmitted, avoiding HTTP 401 Unauthorized errors.
 
 ## Tasks
 - [x] T1 (S1): Audit & optimize `MigrationView.tsx` (channel selection, message cards, video player, cloner footer) [inline]
@@ -41,6 +46,9 @@ Systematically audit and optimize every operational module of the Telegram Video
 - [x] T5 (S4): Audit & optimize `SettingsView.tsx`, `AnalyticsView.tsx`, `BillingPlansView.tsx`, `AuditView.tsx` [inline]
 - [x] T6 (S5): Audit modal dialogs across all modules for safe-area insets and mobile touch sizing [inline]
 - [x] T7 (S6): Verify with `npm test` and `npm run build`, and deploy hotfix to frontend container [inline]
+- [x] T8 (S7): Implement mobile high-density card list for MTProto and FFmpeg queues in `JobsView.tsx` [inline]
+- [x] T9 (S7): Implement mobile card lists for `AuditView.tsx`, `JobQueueModal.tsx`, and `RateGovernorCard.tsx` [inline]
+- [x] T10 (S8): Fix 401 Unauthorized in `doctorApi.ts` and `bigMediaUploadApi.ts` by checking `telegram_hub_token` with TDD unit test [inline]
 
 ## Log
 - L1: Initialized comprehensive responsive audit task for all dashboard modules.
@@ -52,3 +60,4 @@ Systematically audit and optimize every operational module of the Telegram Video
 - L7: Enforced `max-w-[calc(100vw-2rem)]` and `max-h-[88dvh]` across all 20+ DialogContent instances in the application.
 - L8: Passed full Vitest test suite (20 test files / 73 tests) and production Vite TypeScript build (0 errors). Deployed build into `telegram_migrator_frontend` container.
 - L9: Fixed close-button collision in `BroadcastMessageModal.tsx` (`pr-11 sm:pr-12` margin protection), removed `max-w-[170px]` artificial truncation on chat message previews in `ChatsView.tsx`, eliminated horizontal scrollbars (`overflow-x-hidden`) inside nested modal forms, and added compact responsive buttons for mobile toolbars.
+- L10: Solved user issues: (1) In `JobsView.tsx`, `AuditView.tsx`, `JobQueueModal.tsx`, and `RateGovernorCard.tsx`, replaced desktop-only wide tables (`min-w-[760px]`) with responsive dual-mode layout: mobile cards (`sm:hidden`) with stacked ID, status, progress, and action buttons, and desktop tables (`hidden sm:block`). (2) Fixed Doctor diagnostic 401 error: `doctorApi.ts` and `bigMediaUploadApi.ts` were looking for `auth_token` in `localStorage`, whereas the app authenticates with `telegram_hub_token`. Added fallback token resolution and regression unit test (`doctorApi.test.ts`). All 21 test suites / 75 tests passing. Build deployed to nginx container.

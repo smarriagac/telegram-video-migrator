@@ -388,7 +388,67 @@ export const AuditView: React.FC = () => {
               <p>No se encontraron registros de auditoría para el criterio seleccionado.</p>
             </div>
           ) : (
-            <Table className="w-full min-w-[700px] text-left text-xs border-collapse">
+            <>
+              {/* Mobile View: High-Density Card List (< 640px) */}
+              <div className="sm:hidden divide-y divide-border font-mono text-xs">
+                {filteredLogs.map((log) => (
+                  <div
+                    key={`mob-log-${log.id}`}
+                    onClick={() => setSelectedLog(log)}
+                    className="p-3.5 space-y-2 hover:bg-muted/30 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+                        <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span>{formatDate(log.created_at)}</span>
+                      </div>
+                      <div>{getActionBadge(log.action)}</div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs gap-2 font-sans">
+                      <span className="font-medium text-foreground truncate">
+                        {log.user_email || <span className="text-muted-foreground italic font-mono text-[10px]">Sistema / Bot</span>}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono flex items-center gap-1 shrink-0">
+                        <Globe className="w-2.5 h-2.5" />
+                        {log.ip_address || "127.0.0.1"}
+                      </span>
+                    </div>
+
+                    {log.resource && (
+                      <div className="text-[11px] font-mono text-primary truncate bg-secondary/40 px-2 py-1 rounded border border-border/50">
+                        {log.resource}
+                      </div>
+                    )}
+
+                    {log.details && (
+                      <div className="text-[10px] font-mono text-muted-foreground truncate bg-secondary/20 px-2 py-0.5 rounded border border-border/30">
+                        {JSON.stringify(log.details)}
+                      </div>
+                    )}
+
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedLog(log);
+                        }}
+                        className="h-6 text-[10px] px-2 text-primary border-primary/20 hover:bg-primary/10 gap-1 font-sans"
+                      >
+                        <Eye className="w-3 h-3" />
+                        <span>Ver Detalle</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop & Tablet View: Full Scrollable Table (>= 640px) */}
+              <div className="hidden sm:block overflow-x-auto w-full">
+                <Table className="w-full min-w-[700px] text-left text-xs border-collapse">
               <TableHeader className="bg-secondary/40 text-muted-foreground sticky top-0 font-mono text-xs border-b border-border z-10">
                 <TableRow className="border-b border-border hover:bg-transparent">
                   <TableHead className="py-2.5 px-3">Fecha y Hora</TableHead>
@@ -455,8 +515,10 @@ export const AuditView: React.FC = () => {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </div>
+          </div>
+        </>
+      )}
+    </div>
 
         {/* Pagination Controls */}
         <div className="p-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground bg-secondary/40 shrink-0">

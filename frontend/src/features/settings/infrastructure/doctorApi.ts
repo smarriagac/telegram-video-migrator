@@ -68,7 +68,10 @@ export interface RemediationResponse {
 const API_BASE = "/api/health/doctor";
 
 function getAuthHeaders(): HeadersInit {
-  const token = localStorage.getItem("auth_token");
+  const token =
+    localStorage.getItem("telegram_hub_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -60,7 +60,10 @@ export interface UploadProgressInfo {
 const API_BASE = "/api/media/upload";
 
 function getAuthHeaders(isOctetStream: boolean = false): HeadersInit {
-  const token = localStorage.getItem("auth_token");
+  const token =
+    localStorage.getItem("telegram_hub_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("token");
   return {
     ...(isOctetStream ? { "Content-Type": "application/octet-stream" } : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -87,15 +87,15 @@ describe("RateGovernorCard Component", () => {
     render(<RateGovernorCard />);
 
     await waitFor(() => {
-      expect(screen.getByText("-1001234567890")).toBeInTheDocument();
-      expect(screen.getByText("-1009876543210")).toBeInTheDocument();
+      expect(screen.getAllByText("-1001234567890")[0]).toBeInTheDocument();
+      expect(screen.getAllByText("-1009876543210")[0]).toBeInTheDocument();
     });
 
-    expect(screen.getByText("CONGELADO (14.2s)")).toBeInTheDocument();
-    expect(screen.getByText("SALUDABLE")).toBeInTheDocument();
-    expect(screen.getByText("1.50x")).toBeInTheDocument();
-    expect(screen.getByText("180.5 ms")).toBeInTheDocument();
-    expect(screen.getByText("3.5 / 5")).toBeInTheDocument();
+    expect(screen.getAllByText("CONGELADO (14.2s)")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("SALUDABLE")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("1.50x")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("180.5 ms")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("3.5 / 5")[0]).toBeInTheDocument();
   });
 
   it("handles resetting a single channel", async () => {

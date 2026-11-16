@@ -82,11 +82,11 @@ describe("JobQueueModal Component", () => {
 
     expect(screen.getByText("Canal Fuente")).toBeInTheDocument();
     expect(screen.getByText("Canal Destino")).toBeInTheDocument();
-    expect(screen.getByText("Standard migrated video")).toBeInTheDocument();
-    expect(screen.getByText("Fast-Forward: Ya existe en destino")).toBeInTheDocument();
+    expect(screen.getAllByText("Standard migrated video")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Fast-Forward: Ya existe en destino")[0]).toBeInTheDocument();
 
     // Verify Fast-Forward badge
-    expect(screen.getByText("Fast-Forward")).toBeInTheDocument();
+    expect(screen.getAllByText("Fast-Forward")[0]).toBeInTheDocument();
 
     // Verify Dedup counter in stats bar
     expect(screen.getByText("Dedup")).toBeInTheDocument();
