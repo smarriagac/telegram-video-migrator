@@ -3032,25 +3032,25 @@ export const ChatsView: React.FC = () => {
           >
             {/* Top Floating Glass Header Bar */}
             <div
-              className="relative z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/90 via-black/60 to-transparent backdrop-blur-sm border-b border-white/10 shrink-0"
+              className="relative z-50 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-b from-black/95 via-black/80 to-transparent backdrop-blur-sm border-b border-white/10 shrink-0 gap-2"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-white font-mono tracking-wide">
-                  Mensaje #{viewState.previewModalMsg.id}
+              <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+                <span className="text-xs sm:text-sm font-bold text-white font-mono tracking-wide truncate">
+                  <span className="hidden sm:inline">Mensaje </span>#{viewState.previewModalMsg.id}
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-primary/20 text-primary border border-primary/30 font-semibold">
+                <span className="px-1.5 sm:px-2 py-0.5 rounded text-[9px] sm:text-[10px] font-mono uppercase bg-primary/20 text-primary border border-primary/30 font-semibold whitespace-nowrap shrink-0">
                   {viewState.previewModalMsg.media_type || "Media"}
                 </span>
                 {previewIndex >= 0 && (
-                  <span className="text-xs font-mono text-zinc-300 bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
-                    {previewIndex + 1} de {previewableMessages.length}
+                  <span className="text-[10px] sm:text-xs font-mono text-zinc-300 bg-white/10 px-2 sm:px-2.5 py-0.5 rounded-full border border-white/15 whitespace-nowrap shrink-0">
+                    {previewIndex + 1} / {previewableMessages.length}
                   </span>
                 )}
               </div>
 
               {/* Top Right Quick Actions */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {/* Select / Deselect Button (only if own/admin) */}
                 {Boolean(activeChat.is_creator || activeChat.is_admin) && (
                   <Button
@@ -3074,7 +3074,7 @@ export const ChatsView: React.FC = () => {
                         };
                       });
                     }}
-                    className="h-8 text-xs px-3.5 font-mono gap-1.5 shadow-lg backdrop-blur-sm cursor-pointer"
+                    className="h-7 sm:h-8 text-[11px] sm:text-xs px-2.5 sm:px-3.5 font-mono gap-1.5 shadow-lg backdrop-blur-sm cursor-pointer"
                   >
                     {viewState.selectedMessageIds.includes(viewState.previewModalMsg.id) ? (
                       <>
@@ -3090,50 +3090,56 @@ export const ChatsView: React.FC = () => {
                   </Button>
                 )}
 
-                <div className="w-[1px] h-5 bg-white/20 mx-1 hidden sm:block" />
+                <div className="w-[1px] h-5 bg-white/20 mx-0.5 sm:mx-1 hidden sm:block" />
 
                 {/* Close Button */}
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setViewState((prev) => ({ ...prev, previewModalMsg: null }))}
-                  className="p-1.5 rounded-full bg-white/10 hover:bg-white/25 text-zinc-300 hover:text-white transition-all border border-white/10 cursor-pointer"
+                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-white/10 hover:bg-white/25 text-zinc-300 hover:text-white transition-all border border-white/10 cursor-pointer p-0"
                   title="Cerrar visor (Esc)"
                 >
-                  <X className="w-5 h-5" />
-                </button>
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                </Button>
               </div>
             </div>
 
             {/* Central Full-Screen Media Stage with Floating Navigation Chevrons */}
             <div
-              className="relative flex-1 min-h-0 w-full flex items-center justify-center p-2 sm:p-6 overflow-hidden"
+              className="relative flex-1 min-h-0 w-full flex items-center justify-center p-1 sm:p-6 overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Left Floating Chevron */}
               {hasPrevPreview && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={handlePrevPreview}
-                  className="absolute left-3 sm:left-6 z-40 p-3 sm:p-4 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 hover:border-primary/60 transition-all hover:scale-110 shadow-2xl backdrop-blur-md cursor-pointer"
+                  className="absolute left-1.5 sm:left-6 z-40 h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-black/50 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 hover:border-primary/60 transition-all hover:scale-105 shadow-2xl backdrop-blur-md cursor-pointer p-0"
                   title="Elemento anterior (Flecha Izquierda ←)"
                 >
-                  <ChevronLeft className="w-6 h-6 sm:w-7 sm:h-7" />
-                </button>
+                  <ChevronLeft className="w-4 h-4 sm:w-7 sm:h-7" />
+                </Button>
               )}
 
               {/* Right Floating Chevron */}
               {hasNextPreview && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={handleNextPreview}
-                  className="absolute right-3 sm:right-6 z-40 p-3 sm:p-4 rounded-full bg-black/60 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 hover:border-primary/60 transition-all hover:scale-110 shadow-2xl backdrop-blur-md cursor-pointer"
+                  className="absolute right-1.5 sm:right-6 z-40 h-8 w-8 sm:h-12 sm:w-12 rounded-full bg-black/50 hover:bg-black/90 text-white/80 hover:text-white border border-white/20 hover:border-primary/60 transition-all hover:scale-105 shadow-2xl backdrop-blur-md cursor-pointer p-0"
                   title="Siguiente elemento (Flecha Derecha →)"
                 >
-                  <ChevronRight className="w-6 h-6 sm:w-7 sm:h-7" />
-                </button>
+                  <ChevronRight className="w-4 h-4 sm:w-7 sm:h-7" />
+                </Button>
               )}
 
-              {/* Center Media: takes maximum viewport height & width */}
+              {/* Center Media: fits safely within viewport constraints without pushing header or footer */}
               <div className="relative max-w-full max-h-full flex items-center justify-center">
                 {viewState.previewModalMsg.media_type === "video" ? (
                   <video
@@ -3147,7 +3153,7 @@ export const ChatsView: React.FC = () => {
                     controls
                     autoPlay
                     playsInline
-                    className="max-h-[78vh] sm:max-h-[82vh] w-auto max-w-[94vw] object-contain rounded-lg shadow-2xl"
+                    className="max-h-[calc(100dvh-10.5rem)] sm:max-h-[80vh] w-auto max-w-[calc(100vw-1rem)] sm:max-w-[94vw] object-contain rounded-lg shadow-2xl"
                   />
                 ) : (
                   <img
@@ -3156,7 +3162,7 @@ export const ChatsView: React.FC = () => {
                       selectedAccountId ? `?account_id=${selectedAccountId}` : ""
                     }`}
                     alt="Vista previa de imagen"
-                    className="max-h-[78vh] sm:max-h-[82vh] w-auto max-w-[94vw] object-contain rounded-lg shadow-2xl"
+                    className="max-h-[calc(100dvh-10.5rem)] sm:max-h-[80vh] w-auto max-w-[calc(100vw-1rem)] sm:max-w-[94vw] object-contain rounded-lg shadow-2xl"
                   />
                 )}
               </div>
@@ -3164,34 +3170,34 @@ export const ChatsView: React.FC = () => {
 
             {/* Bottom Floating Glass Footer Bar (Caption, Metadata & Shortcuts) */}
             <div
-              className="relative z-50 px-4 py-3 bg-gradient-to-t from-black/95 via-black/75 to-transparent backdrop-blur-md border-t border-white/10 shrink-0"
+              className="relative z-50 px-3 sm:px-4 py-2 sm:py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/95 via-black/85 to-transparent backdrop-blur-md border-t border-white/10 shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                {/* Caption / Description */}
-                <div className="min-w-0 flex-1">
-                  {viewState.previewModalMsg.text ? (
-                    <p className="text-xs text-zinc-200 line-clamp-2 hover:line-clamp-none transition-all cursor-pointer font-sans leading-relaxed bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg max-h-24 overflow-y-auto">
-                      {viewState.previewModalMsg.text}
-                    </p>
+              <div className="max-w-4xl mx-auto flex flex-col gap-1.5 sm:gap-2">
+                {/* Metadata Row: Date & Shortcuts */}
+                <div className="flex items-center justify-between text-[11px] font-mono text-zinc-400">
+                  {viewState.previewModalMsg.date ? (
+                    <span className="text-zinc-400 font-mono text-[10px] sm:text-[11px]">
+                      {viewState.previewModalMsg.date}
+                    </span>
                   ) : (
-                    <span className="text-[11px] text-zinc-500 italic font-mono">
+                    <span className="text-[10px] text-zinc-500 italic font-mono">
                       Multimedia sin texto
                     </span>
                   )}
-                </div>
-
-                {/* Metadata & Shortcuts */}
-                <div className="flex items-center gap-3 shrink-0 text-xs font-mono text-zinc-400">
-                  {viewState.previewModalMsg.date && (
-                    <span className="text-[11px] text-zinc-400">
-                      {viewState.previewModalMsg.date}
-                    </span>
-                  )}
-                  <span className="hidden sm:inline-block text-[11px] text-zinc-500 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                  <span className="hidden sm:inline-block text-[10px] text-zinc-500 bg-white/5 px-2 py-0.5 rounded border border-white/10">
                     ← → Navegar | Esc Salir
                   </span>
                 </div>
+
+                {/* Caption / Description */}
+                {viewState.previewModalMsg.text && (
+                  <div className="min-w-0">
+                    <p className="text-xs text-zinc-200 line-clamp-2 hover:line-clamp-none transition-all cursor-pointer font-sans leading-relaxed bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-lg max-h-20 sm:max-h-24 overflow-y-auto break-words whitespace-pre-wrap">
+                      {viewState.previewModalMsg.text}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>,
